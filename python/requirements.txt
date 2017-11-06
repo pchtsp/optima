@@ -1,0 +1,15 @@
+click==6.7
+Flask==0.12.2
+itsdangerous==0.24
+Jinja2==2.9.6
+MarkupSafe==1.0
+numpy==1.13.3
+pandas==0.21.0
+PuLP==1.6.8
+pyparsing==2.2.0
+python-dateutil==2.6.1
+pytz==2017.3
+six==1.11.0
+Unidecode==0.4.21
+Werkzeug==0.12.2
+xlrd==1.1.0
