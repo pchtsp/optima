@@ -3,6 +3,8 @@
 \documentclass{roadef}
 \usepackage{amsmath}
 
+% \usepackage{fontspec}
+
 \begin{document}
 
 
@@ -53,26 +55,33 @@ TODO.
     \subsection{Tasks}
     \label{def:task}
 
-    There is a set of $\vert V \vert$ tasks to do in a given planning horizon divided into $t \in T$ periods of the same length. Each task $v \in V$ has a given starting ($startTIME_v \in T$) an ending ($endTIME_v \in T$) time. The duration is measured in a certain number of periods. Each task requires (seizes) a certain quantity of resources ($Q_v$). 
+    Each $v \in \mathcal{V}$ task needs to be accomplished in a planning horizon divided into $t \in \mathcal{T}$ periods of the same length. Each task has a given starting ($startTIME_v \in T$) an ending ($endTIME_v \in T$) time. The starting and ending times are given and cannot be changed.
 
-    Not all $a \in A$ resources can be used to accomplish any task: each task has specific specifications that a resource need to satisfy in order to be a candidate. In other words, there is a binary parameter $P01VA_{va}$ that indicates task-resource compatibility. A resource can be a candidate for more than one task.
+    Given that the starting and ending times belong to $\mathcal{T}$, the duration of a task is measured in a certain number of periods. Each task requires (seizes) a certain quantity of resources ($REQ_{vt}$). For resources, see \ref{def:resource}.
 
-    The taskment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time $minTIME_v$, a resource can be liberated and exchanged for another one. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_v$.
+    Not all $a \in \mathcal{A}$ resources can be used to accomplish any task: each task has specific requirements that a resource needs to satisfy in order to be a candidate. In other words, for each task $t$, there is a set $CAND_{v} \subset \mathcal{A}$ that lists the resources that can be assigned to that task. A resource can be a candidate for more than one task.
+
+    % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($minTIME_v$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_{vt}$.
 
     \subsection{Resources}
+    \label{def:resource}
 
-    Resources are what makes possible the completion of tasks. These specific resources suffer from wear and tear and so require a recurrent preventive maintenance in order to be in a correct state. These maintenances need to take place before a given amount of time (we will call it elapsed time $elapsedTIME$) has passed since the previous maintenance or before the resource has been used for a given amount of time (we will call it usage time $usageTIME$) since the previous maintenance, whichever happens first. A resource without the proper maintenance cannot be used to satisfy tasks and is considered worthless.
+    Resources are what makes possible the completion of tasks. These specific resources suffer from wear and tear and so require a recurrent preventive maintenance (see \ref{def:maint}) in order to be in a correct state. These maintenances need to take place before a given amount of time (we will call it $MAX\_ELPASED$) has passed since the previous maintenance or before the resource has been used for a given amount of time (we will call it $MAX\_USAGE$) since the previous maintenance, whichever happens first. While a resource $a$ has not received the proper maintenance, it cannot be used to satisfy tasks and is considered useless.
 
-    Additionally, after an absolute amount of time and/or usage ($AET$ or $AUT$), the resource becomes obsolete. There is no way to reverse this process.
+    We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance.
+
+    We will call "remaining usage time" (or $rut$) to the amount of time that the resource needs to be used in order for it to need a maintenance.
+
+    % Additionally, after an absolute amount of time and/or usage ($AET$ or $AUT$), the resource becomes obsolete. There is no way to reverse this process.
 
     Each resources starts the planning period with a specific status given by:
 
     \begin{itemize}
-        \item remaining UsageTime.
-        \item remaining ElapsedTime.
-        \item remaining UsageTimeAbs.
-        \item remaining ElapseTimeAbs.
-        \item LastMaintenanceType (see \ref{def:maint}).
+        \item remaining usage time.
+        \item remaining elapsed time.
+        % \item remaining absolute elapsed time.
+        % \item remaining absolute usage time.
+        % \item LastMaintenanceType (see \ref{def:maint}).
     \end{itemize}
 
     Finally, resources are organized into families or groups. Each resource inside in a family or group shares the same types of maintenances and, usually, the same kind of tasks, among other information.
@@ -80,27 +89,31 @@ TODO.
     \paragraph{Resource's states}
     \label{def:res-state}
 
-    The following are the possible states for a resource in any given time:
+    The following are the possible $s \in \mathcal{S}$ states for a resource in any given time:
 
     \begin{itemize}
-        \item tasked to a task (see \ref{def:task}).
+        \item Assigned to a task (see \ref{def:task}).
         \item Under maintenance (see \ref{def:maint}).
         \item Under storage (see \ref{def:sto}).
-        \item Waiting maintenance.
-        \item Obsolete.
+        \item Waiting maintenances.
+        % \item Obsolete.
         \item Available (none of the above).
     \end{itemize}
 
     \subsection{Maintenances}
     \label{def:maint}
 
-    These maintenances take an amount of time equal to $mTIME_m$ periods and cannot be interrupted. The state of the resource after exiting the maintenance period is of "as good as new" in terms of the two indicators that decide the maintenance (ElapsedTime and UsageTime).
+    Maintenances are the process by which resources that have reached a limit in their usage (but not their absolute limit) can return to a state where they can continue to be used in tasks.
+
+    Each maintenance belongs to a specific type of maintenance $m \in \mathcal{M}$. These types of maintenance differentiate between each other by having different characteristics.
+
+    These maintenances take an amount of time equal to $M\_DURATION_m$ periods and cannot be interrupted. The state of the resource after exiting the maintenance period is of "as good as new" in terms of the two indicators that decide the maintenance (remaining elapsed time and remaining usage time).
     
-    In other words, after receiving maintenance $m \in M$, a resource restores its remaining ElapsedTime and remaining UsageTime back to their max values $elapsedTIME$ and $usageTIME$ respectively.
+    In other words, after receiving maintenance of type $m$, a resource restores its remaining elapsed time and remaining usage time back to their max values $MAX\_ELAPSED$ and $MAX\_USAGE$ respectively.
 
-    The number of resources under maintenance in any given period is limited to a maximum capacity ($mCap_t$) depending on each period.
+    The number of resources under maintenance in any given period is limited to a maximum capacity ($CAP_t$) depending on each period.
 
-    Not all maintenances are the same for any given resource. Each resources follows a sequence of maintenances. In other words, the second maintenance of a given resource is different in nature from the first maintenance for that same resource. Examples of differences on consecutive maintenances for a given resource are the duration ($mTIME_m$) it takes or whether it restores storage capacity (see \ref{def:sto}).
+    % Not all maintenances are the same for any given resource. Each resources follows a sequence of maintenances. In other words, the second maintenance of a given resource is different in nature from the first maintenance for that same resource. Examples of differences on consecutive maintenances for a given resource are the duration ($mTIME_m$) it takes or whether it restores storage capacity (see \ref{def:sto}).
 
     \subsection{Storage}
     \label{def:sto}
@@ -147,52 +160,21 @@ TODO.
     % E=MC^2\label{emc}
     % \end{equation}
 
-    % \begin{theoreme}
-    %   Un exemple de théorème. Les environnements suivants sont également disponibles : remarque, propriété, corollaire, définition, notation, proposition, exemple, preuve.
-    % \end{theoreme}
-
-    % \subsection{Tableau}
-
-    % Le titre du tableau devra être positionné sous le tableau (par exemple Tableau \ref{tableau}).
-
-    % \begin{table}[!ht]
-    %     \begin{center}
-    %         \begin{tabular}{lrr}
-    %             \hline
-    %             & \multicolumn{1}{c}{Colonne 1} & \multicolumn{1}{c}{Colonne 2}\\
-    %             \hline
-    %             Ligne 1 & L1C1 & L1C2\\
-    %             Ligne 2 & L2C1 & L2C2\\
-    %             \hline
-    %         \end{tabular}
-    %         \caption{Exemple de tableau}
-    %     \label{tableau}
-    %     \end{center}
-    % \end{table}
-
-    % \subsection{Liste}
-
-    % Voici une liste :
-
-    % \begin{itemize}
-    % \item remarque
-    % \item propriété
-    % \end{itemize}
-
 \section{The model}
 
     Below are the parameters used in the model.
 
-    \begin{tabular}{p{40mm}lp{80mm}}
-    $CAP_t$               & : & number of resources that can be in maintenance in period $t$. \\
-    $CAND_v$              & : & resources that satisfy task's $v$ needs. \\
-    $REQ\_H_{vt}$             & : & time consumed of any resource when assigned to task $v$ in period $t$. \\
-    $REQ\_R_{vt}$            & : & number or resources to assign to task $v$ in period $t$. \\            
-    $MAX\_USAGE$         & : & maximum amount of used time that a resource can have between two maintenances. \\    
-    $MAX\_ELAPSED$       & : & maximum amount of elapsed time that a resource can have between two maintenances. \\    
-    $M\_DURATION$        & : & maintenance duration, in periods. \\        
-    $REM\_USED\_INIT_a$     & : & remaining used time for resource $a$ at the beginning of horizon. \\        
-    $REM\_ELAPSED\_INIT_a$  & : & remaining elapsed time for resource $a$ at the beginning of horizon. \\
+    \begin{tabular}{p{30mm}lp{90mm}}
+    $CAP_t$                 & : & number of resources that can be in maintenance in period $t$. \\
+    $CAND_v$                & : & resources that satisfy task's $v$ needs. \\
+    $REQ\_H_{vt}$           & : & time consumed of any resource when assigned to task $v$ in period $t$. \\
+    $REQ\_R_{vt}$           & : & number or resources to assign to task $v$ in period $t$. \\            
+    $MAX\_USAGE$            & : & maximum amount of used time that a resource can have between two maintenances. \\    
+    $MAX\_ELAPSED$          & : & maximum amount of elapsed time that a resource can have between two maintenances. \\    
+    $M\_DURATION$           & : & maintenance duration, in periods. \\        
+    $RUT\_INI_a$            & : & remaining used time for resource $a$ at the beginning of horizon. \\        
+    $RET\_INI_a$            & : & remaining elapsed time for resource $a$ at the beginning of horizon. \\
+    $STATE\_INI_{at}$       & : & some $s \in \mathcal{S}$ in case the resource $a$ has a fixed state. If not; this is not filled. \\
     \end{tabular}
     \bigskip
 
@@ -201,14 +183,14 @@ TODO.
     \section{Decision variables}
 
     \begin{tabular}{p{30mm}lp{90mm}}
-        $ret_{at}$       & : & remaining elapsed time for resource $a$ after period $t$ \\  
-        $rut_{at}$       & : & remaining usage time for resource $a$ after period $t$ \\  
+        $ret_{at}$      & : & remaining elapsed time for resource $a$ after period $t$ (including t=0) \\  
+        $rut_{at}$      & : & remaining usage time for resource $a$ after period $t$ (including t=0) \\  
         $task_{avt}$    & : & 1 if resource $a \in CAND_v$ is assigned task $v$ in period $t$ \\  
         $state_{ast}$   & : & 1 if resource $a$ is assigned state $s$ in period $t$ \\  
         $used_{at}$     & : & time consumed by resource $a$ in period $t$ \\
-        $start_{at}$     & : & 1 if resource $a$ starts maintenance in period $t$ \\
+        $start_{at}$    & : & 1 if resource $a$ starts maintenance in period $t$ \\
         $available$     & : & minimum number of available resources in any period \\
-        $maintenance$     & : & maxium number of resources in maintenance in any period \\
+        $maintenance$   & : & maxium number of resources in maintenance in any period \\
     \end{tabular}
     \bigskip
 
@@ -216,39 +198,66 @@ TODO.
         %%%%%%%%%%%%%%%%%%%
         % MAIN VARS
         %%%%%%%%%%%%%%%%%%%
-        % definition of consumed resource hours:
-        & used_{at} = \sum_{v \in \mathcal{V}} task_{avt} \times REQ\_H_{vt}
-                \hspace{10mm} a \in \mathcal{A}, t \in \mathcal{T} \label{eq:usage}\\
         % maximum capacity:
         & \sum_{a \in \mathcal{A}} state_{ast} \leq CAP_{t}
                 \hspace{10mm} t \in \mathcal{T}, s = 'M' \label{eq:capacity}\\
         % minimum resources
         & \sum_{a \in \mathcal{A}} task_{avt} \geq REQ\_R_{vt}
-                \hspace{10mm} t \in \mathcal{T}, v \in \mathcal{V} \label{eq:resources}\\
+                \hspace{10mm} t \in \mathcal{T}, v \in \mathcal{V} \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:resources}\\
+                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
+    \end{align}
+
+    These constraints are the the main constraints of the model.
+
+    \ref{eq:taskres} and \ref{eq:capacity} limit the number of resources assigned to task and the number of resource maintenances that can be done in any given month.
+    \ref{eq:maxtasks} limits the number of assigned tasks for a resource to one.
+        
+    \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % BALANCES
         %%%%%%%%%%%%%%%%%%%
+        % definition of consumed resource hours:
+        & used_{at} \geq \sum_{v \in \mathcal{V}} task_{avt} \times REQ\_H_{vt}
+                \hspace{10mm} a \in \mathcal{A}, t \in \mathcal{T} \label{eq:usage}\\
         % remaining used time
         & rut_{at} \leq (rut_{at-1} - used_{at}) + (MAX\_USAGE \times start_{at})
                 \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance1}\\
         % remaining elapsed time. TODO: improve this constraint like the maintenance state duration
         & ret_{at} \leq (ret_{at-1} - 1) + (MAX\_ELAPSED \times start_{at})
                 \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance2}\\
+    \end{align}
+    
+    These constraints calculate the balances of hours for each resource.
+
+    \ref{eq:usage} defines the consumption of hours for each resource at each period. This is then used in \ref{eq:balance1} to get the remaining usage time at each period for each resource. Similarly, the \ref{eq:balance2} calculates the remaining elapsed time at each period and resource.        
+
+    \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % STATES
         %%%%%%%%%%%%%%%%%%%
         % if start maintenance, at least X periods
-        & state_{ast_2} \geq start_{at_1} \\
-                & \hspace{10mm} (t_1, t_2) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION, a \in \mathcal{A}, s = 'M' \label{eq:state1}\\
-        % if assigned to task; in workng state
+        & state_{ast_2} \geq start_{at_1} \notag\\
+                & \hspace{10mm} (t_1, t_2) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = 'M' \label{eq:start1}\\
+        % if maintenance doesn't start, we cannot have maintenance:
+        & \sum_{t_1 \in \mathcal{T}} start_{at_1} \geq state_{ast_2} \notag\\
+                & \hspace{10mm} (t_1) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = 'M' \label{eq:start2}\\
+        % if assigned to task: in working state
         & state_{ast} \geq task_{avt}
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'V' \label{eq:state2}\\
+                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'V' \label{eq:state1}\\
         % only one state. If we take out the 'do nothing' state, this could be \leq
         & \sum_{s \in \mathcal{S}} state_{ast} = 1
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state3}\\
+                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}\\
+    \end{align}
+
+    These constraints involve the states assignments to resources.
+
+    \ref{eq:start1} and \ref{eq:start2} tie the start of each maintenance with the maintenance state so resources need to have started a maintenance to receive it and have to have maintenance for a minimum period after having starting it.
+
+    \ref{eq:state1} makes working states with being assigned to a task. \ref{eq:state2} makes resources have only one state at each period.
+
+    \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % OBJECTIVE
         %%%%%%%%%%%%%%%%%%%
@@ -258,16 +267,36 @@ TODO.
         % max maintenance
         & maintenance \geq \sum_{a} state_{ast}
                 \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'N' \label{eq:maintenance}\\
+    \end{align}
+
+    These constraints define the possible objectives.
+
+    \ref{eq:available} is defined as the minimum number of available resources in any period.
+
+    \ref{eq:maintenance} is defined as the maximum number of resources under maintenance in any period.
+
+    \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % HORIZON
         %%%%%%%%%%%%%%%%%%%
+        % TODO: initialize maintenance states too!
         % rut initialize
-        & rut_{at} = REM\_USED\_INIT_a
-                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:initialize1}\\
+        & rut_{at} = RUT\_INI_a
+                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining1}\\
         % ret initialize
-        & ret_{at} = REM\_ELAPSED\_INIT_a
-                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:initialize2}\\
+        & ret_{at} = RET\_INI_a
+                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining2}\\
+        % fixed states during planning period
+        & state_{ast} = STATE\_INI_{at}
+                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}\, | if\, STATE\_INI_{at} \neq \{\} \label{eq:fixedstates}\\
     \end{align}
+
+    These constraints feed the relevant historic data for resources.
+
+    \ref{eq:remaining1} and \ref{eq:remaining2} fill the last period's remaining used and elapsed time respectively.
+
+    \ref{eq:fixedstates} fixes the states to their planned state. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
+
 
 \section{Conclusions et perspectives}
     
