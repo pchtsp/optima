@@ -1,9 +1,9 @@
-% Exemple d'utilisation de la classe roadef2018 pour le congrès ROADEF 2018 (http://roadef2018.labsticc.fr)
-
 \documentclass{roadef}
 \usepackage{amsmath}
 
 % \usepackage{fontspec}
+% This command is to use simple quotes inside math expressions:
+\newcommand{\mq}[1] {`#1\textrm'}
 
 \begin{document}
 
@@ -14,22 +14,18 @@
 % Le titre court
 \def\shorttitle{Titre court}
 
-% Les AUTeurs et leur numéro d'affiliation
-\author{Franco Peschiera\inst{1}, Alain Haït\inst{1}, Olga Battaïa\inst{1} }
+\author{Franco Peschiera, Alain HaÃ¯t, Olga BattaÃ¯a }
 
 
-% Les affiliations (par ordre croissant des numéros d'affiliation) séparées par \and
 \institute{
 ISAE... \\
 \email{\{franco.peschiera\}@isae-supaero.fr}
 }
 
 
-% Création de la page de titre
 \maketitle
 \thispagestyle{empty}
 
-% Les mots-clés
 \keywords{optimization, planning, military, maintenance}
 
 
@@ -190,7 +186,7 @@ TODO.
         $used_{at}$     & : & time consumed by resource $a$ in period $t$ \\
         $start_{at}$    & : & 1 if resource $a$ starts maintenance in period $t$ \\
         $available$     & : & minimum number of available resources in any period \\
-        $maintenance$   & : & maxium number of resources in maintenance in any period \\
+        $maintenance$   & : & maximum number of resources in maintenance in any period \\
     \end{tabular}
     \bigskip
 
@@ -200,13 +196,13 @@ TODO.
         %%%%%%%%%%%%%%%%%%%
         % maximum capacity:
         & \sum_{a \in \mathcal{A}} state_{ast} \leq CAP_{t}
-                \hspace{10mm} t \in \mathcal{T}, s = 'M' \label{eq:capacity}\\
+                & t \in \mathcal{T}, s = 'M' \label{eq:capacity}\\
         % minimum resources
         & \sum_{a \in \mathcal{A}} task_{avt} \geq REQ\_R_{vt}
-                \hspace{10mm} t \in \mathcal{T}, v \in \mathcal{V} \label{eq:taskres}\\
+                & t \in \mathcal{T}, v \in \mathcal{V} \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
+                & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
     \end{align}
 
     These constraints are the the main constraints of the model.
@@ -220,13 +216,13 @@ TODO.
         %%%%%%%%%%%%%%%%%%%
         % definition of consumed resource hours:
         & used_{at} \geq \sum_{v \in \mathcal{V}} task_{avt} \times REQ\_H_{vt}
-                \hspace{10mm} a \in \mathcal{A}, t \in \mathcal{T} \label{eq:usage}\\
+                & a \in \mathcal{A}, t \in \mathcal{T} \label{eq:usage}\\
         % remaining used time
         & rut_{at} \leq (rut_{at-1} - used_{at}) + (MAX\_USAGE \times start_{at})
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance1}\\
+                & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance1}\\
         % remaining elapsed time. TODO: improve this constraint like the maintenance state duration
         & ret_{at} \leq (ret_{at-1} - 1) + (MAX\_ELAPSED \times start_{at})
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance2}\\
+                & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:balance2}\\
     \end{align}
     
     These constraints calculate the balances of hours for each resource.
@@ -239,16 +235,16 @@ TODO.
         %%%%%%%%%%%%%%%%%%%
         % if start maintenance, at least X periods
         & state_{ast_2} \geq start_{at_1} \notag\\
-                & \hspace{10mm} (t_1, t_2) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = 'M' \label{eq:start1}\\
+                & \hspace{10mm} (t_1, t_2) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = \mq{M} \label{eq:start1}\\
         % if maintenance doesn't start, we cannot have maintenance:
         & \sum_{t_1 \in \mathcal{T}} start_{at_1} \geq state_{ast_2} \notag\\
-                & \hspace{10mm} (t_1) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = 'M' \label{eq:start2}\\
+                & \hspace{10mm} (t_1) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + M\_DURATION - 1, a \in \mathcal{A}, s = \mq{M} \label{eq:start2}\\
         % if assigned to task: in working state
-        & state_{ast} \geq task_{avt}
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'V' \label{eq:state1}\\
+        & state_{ast} \geq task_{avt} \notag\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{V} \label{eq:state1}\\
         % only one state. If we take out the 'do nothing' state, this could be \leq
-        & \sum_{s \in \mathcal{S}} state_{ast} = 1
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}\\
+        & \sum_{s \in \mathcal{S}} state_{ast} = 1 \notag\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}\\
     \end{align}
 
     These constraints involve the states assignments to resources.
@@ -263,10 +259,10 @@ TODO.
         %%%%%%%%%%%%%%%%%%%
         % min available
         & available \leq \sum_{a} state_{ast}
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'N' \label{eq:available}\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{N} \label{eq:available}\\
         % max maintenance
         & maintenance \geq \sum_{a} state_{ast}
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = 'N' \label{eq:maintenance}\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{N} \label{eq:maintenance}\\
     \end{align}
 
     These constraints define the possible objectives.
@@ -282,13 +278,13 @@ TODO.
         % TODO: initialize maintenance states too!
         % rut initialize
         & rut_{at} = RUT\_INI_a
-                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining1}\\
+                & \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining1}\\
         % ret initialize
         & ret_{at} = RET\_INI_a
-                \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining2}\\
+                & \hspace{10mm} t = 0, a \in \mathcal{A} \label{eq:remaining2}\\
         % fixed states during planning period
-        & state_{ast} = STATE\_INI_{at}
-                \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}\, | if\, STATE\_INI_{at} \neq \{\} \label{eq:fixedstates}\\
+        & state_{ast} = (STATE\_INI_{at} = s)
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}\, | if\, STATE\_INI_{at} \neq \mq{} \label{eq:fixedstates}\\
     \end{align}
 
     These constraints feed the relevant historic data for resources.
@@ -306,10 +302,6 @@ TODO.
 % La bibliographie
 
 \bibliographystyle{plain}
-
-% Version "on-line" de la bibliographie, mais il est
-% également possible d'utiliser un fichier ".bib" et d'utiliser BibTeX
-
 
 % \begin{thebibliography}{2}
 % \bibitem{toth02}
