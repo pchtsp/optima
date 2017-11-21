@@ -1,4 +1,4 @@
-\documentclass{roadef}
+    \documentclass{roadef}
 \usepackage{amsmath}
 
 % \usepackage{fontspec}
@@ -47,7 +47,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 \section{The problem}
 
-    In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks".
+    The problem consists in the planning of the maintenance operations of military aircraft while complying with scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks".
 
     % \subsection{Tasks}
     % \label{def:task}
@@ -84,7 +84,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % \paragraph{Resource's states}
     % \label{def:res-state}
 
-    The following are the possible $s \in \mathcal{S}$ states for a resource to be in any given time: Assigned to a task ('V'), Receiving maintenance ('M'), Available ('N').
+    The following are the possible $s \in \mathcal{S}$ states for a resource to be in any given time: Assigned to a task ('V'), Receiving maintenance ('M'), Available ('A'), Needing maintenance ('N').
 
     % \begin{itemize}
     %     \item Assigned to a task (see \ref{def:task}).
@@ -102,7 +102,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % Each maintenance belongs to a specific type of maintenance $m \in \mathcal{M}$. These types of maintenance differentiate between each other by having different characteristics.
 
-    These maintenances take an amount of time equal to $md_m$ periods and cannot be interrupted. The number of resources under maintenance in any given period is limited to a maximum capacity which depends on each period and is represented by $c_t$.
+    These maintenances take an amount of time equal to $md$ periods and cannot be interrupted. The number of resources under maintenance in any given period is limited to a maximum capacity which depends on each period and is represented by $c_t$.
     % The state of the resource after exiting the maintenance period is of "as good as new" in terms of the two indicators that decide the maintenance.
     
     % In other words, after receiving a maintenance, a resource restores its remaining elapsed time and remaining usage time back to their max values $me$ and $mu$ respectively.
@@ -133,39 +133,39 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 \section{The model}
 
-    \subsection{Decisions}
+    % \subsection{Decisions}
 
-    The decisions involve, basically, the management of the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
+    % \subsection{Parameters}
 
-    \subsection{Parameters}
-
-    \begin{tabular}{p{10mm}lp{110mm}}
-    $c_t$            & : & number of resources that can be in maintenance in period $t$. \\
-    $cd_v$           & : & resources that satisfy task's $v$ needs. \\
-    $rh_{vt}$        & : & time consumed of any resource when assigned to task $v$ in period $t$. \\
-    $rr_{vt}$        & : & number or resources to assign to task $v$ in period $t$. \\            
-    $mu$             & : & maximum used time for each resource between maintenances. \\    
-    $me$             & : & maximum elapsed time for each resource between maintenances. \\    
-    $md$             & : & maintenance duration, in periods. \\        
+    % \begin{tabular}{p{10mm}lp{110mm}}
+    % $c_t$            & : & number of resources that can be in maintenance in period $t$. \\
+    % $cd_v$           & : & resources that satisfy task's $v$ needs. \\
+    % $rh_{vt}$        & : & time consumed of any resource when assigned to task $v$ in period $t$. \\
+    % $rr_{vt}$        & : & number or resources to assign to task $v$ in period $t$. \\            
+    % $mu$             & : & maximum used time for each resource between maintenances. \\    
+    % $me$             & : & maximum elapsed time for each resource between maintenances. \\    
+    % $md$             & : & maintenance duration, in periods. \\        
     % $rut\_i_a$       & : & remaining used time for resource $a$ at the beginning of horizon. \\        
     % $ret\_i_a$       & : & remaining elapsed time for resource $a$ at the beginning of horizon. \\
     % $state\_i_{at}$  & : & some $s \in \mathcal{S}$ in case the resource $a$ has a fixed state. \\
-    \end{tabular}
-    \bigskip
+    % \end{tabular}
+    % \bigskip
 
     \subsection{Variables}
 
+    The decisions involve, in essence, the management of the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
+
     \begin{tabular}{p{15mm}lp{105mm}}
-        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assigned task $v$ in period $t$, 0 otherwise. \\  
+        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assignigned task $v$ in period $t$, 0 otherwise. \\  
         $state_{ast}$       & : & 1 if resource $a$ is assigned state $s$ in period $t$, 0 otherwise. \\  
         $start_{at}$        & : & 1 if resource $a$ starts maintenance in period $t$, 0 otherwise. \\
         $ret_{at}$          & : & remaining elapsed time (integer) for resource $a$ after period $t$. \\  
-        $rut_{at}$          & : & remaining usage time (integer) for resource $a$ after period $t$. \\  
+        $rut_{at}$          & : & remaining usage time (integer) for remainingsource $a$ after period $t$. \\  
         $used_{at}$         & : & time (integer) used by resource $a$ in period $t$. \\
         $min\_avail$        & : & min number (integer) of available resources in any period. \\
         $max\_maint$        & : & max number (integer) of resources in maintenance in any period. \\
     \end{tabular}
-    \bigskip
+    % \bigskip
 
     \subsection{Constraints}
 
@@ -182,19 +182,27 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         %%%%%%%%%%%%%%%%%%%
         % maximum capacity:
         & \sum_{a \in \mathcal{A}} state_{ast} \leq c_{t}
-                & t \in \mathcal{T}, s = 'M' \label{eq:capacity}\\
+                & t \in \mathcal{T}, s = \mq{M} \label{eq:capacity}\\
         % minimum resources
         & \sum_{a \in \mathcal{A}} task_{avt} \geq rr_{vt}
                 & t \in \mathcal{T}, v \in \mathcal{V} \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
-                & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}
+                & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
+        % if assigned to task: in working state
+        & state_{ast} \geq task_{avt} 
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, v \in \mathcal{V}, s = \mq{V} \label{eq:state1}\\
+        % only one state. If we take out the 'do nothing' state, this could be \leq
+        & \sum_{s \in \mathcal{S}} state_{ast} = 1 
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}
     \end{align}
 
     % These constraints are the the main constraints of the model.
 
-    The limit in the number of resources assigned to task and the number of resource maintenances that can be done in any given month are modeles via \ref{eq:taskres} and \ref{eq:capacity} respectively.
+    The limit in the number of resources assigned to task and the number of resources under maintenance that can be done in any given month are modeled via \ref{eq:taskres} and \ref{eq:capacity} respectively.
     Constraint \ref{eq:maxtasks} limits the number of assigned tasks for a resource to one.
+
+    Constraint \ref{eq:state1} ties the states with the assignment to a task. Resources have only one state at each period and this is guaranteed by \ref{eq:state2}.
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -224,20 +232,12 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
                 & \hspace{10mm} (t_1, t_2) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + md - 1, a \in \mathcal{A}, s = \mq{M} \label{eq:start1}\\
         % if maintenance doesn't start, we cannot have maintenance:
         & \sum_{t_1 \in \mathcal{T}} start_{at_1} \geq state_{ast_2} 
-                & \hspace{10mm} (t_1) \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + md - 1, a \in \mathcal{A}, s = \mq{M} \label{eq:start2}\\
-        % if assigned to task: in working state
-        & state_{ast} \geq task_{avt} 
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{V} \label{eq:state1}\\
-        % only one state. If we take out the 'do nothing' state, this could be \leq
-        & \sum_{s \in \mathcal{S}} state_{ast} = 1 
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}
+                & \hspace{10mm} t_2 \in \mathcal{T}, t_1 \leq t_2 \leq t_1 + md - 1, a \in \mathcal{A}, s = \mq{M} \label{eq:start2}
     \end{align}
 
     % These constraints involve the states assignments to resources.
 
     The start of each maintenance with the maintenance state is done by \ref{eq:start1} and \ref{eq:start2}. This way resources need to have started a maintenance to receive it and have to have maintenance for a minimum period after having starting it.
-
-    Constraint \ref{eq:state1} ties the states with the assignment to a task. Resources have only one state at each period and this is guaranteed by \ref{eq:state2}.
 
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -245,10 +245,10 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         %%%%%%%%%%%%%%%%%%%
         % min available
         & min\_avail \leq \sum_{a} state_{ast}
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{N} \label{eq:available}\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{A} \label{eq:available}\\
         % max maintenance
         & max\_maint \geq \sum_{a} state_{ast}
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{N} \label{eq:maintenance}
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, s = \mq{M} \label{eq:maintenance}
     \end{align}
 
     % These constraints define the possible objectives.
@@ -280,9 +280,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
 
-% \section{Conclusions et perspectives}
+\section{Conclusions et perspectives}
     
-%     TODO.
+    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. This is useful for later improving the model by including minimum durations for mission assignment and other more complex constraints.
 
 
 % La bibliographie
