@@ -71,12 +71,15 @@ mission_aircraft = \
     pd.merge(capacites_join, num_capacites, on=["IdMission", "value"])\
         [["IdMission", "IdAvion"]]
 
+# TODO: I'm missing for some reason half the missions that do not
+# have at least one aircraft as candidate...
+
 ######################################################
 
 # SETS:
 
 resources = avions.IdAvion.values  # a
-tasks = capacites_mission.IdMission.unique()  # v
+tasks = mission_aircraft.IdMission.unique()  # v
 periods = get_months(start, end)  # t
 periods_0 = [prev] + periods  # periods with the previous one added at the start.
 states = ['M', 'V', 'N', 'A']  # s
@@ -127,9 +130,19 @@ at0 = [(a, t) for a in resources for t in periods_0]
 att = [(a, t1, t2) for (a, t1) in at for t2 in periods if
        periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
 
-a_vt = {(v, t): [a for a in resources if (a, v, t) in avt] for (v, t) in vt}
-v_at = {(a, t): [v for v in tasks if (a, v, t) in avt] for (a, t) in at}
-t1_at2 = {(a, t2): [t1 for t1 in periods if (a, t1, t2) in att] for (a, t2) in at}
+# a_vt = {(v, t): [a for a in resources if (a, v, t) in avt] for (v, t) in vt}
+a_vt = {_t: [] for _t in vt}
+for (a, v, t) in avt:
+    a_vt[(v, t)].append(a)
+
+# v_at = {(a, t): [v for v in tasks if (a, v, t) in avt] for (a, t) in at}
+v_at = {_t: [] for _t in at}
+for (a, v, t) in avt:
+    v_at[(a, t)].append(v)
+
+t1_at2 = {_t: [] for _t in at}
+for (a, t1, t2) in att:
+    t1_at2[(a, t2)].append(t1)
 
 # VARIABLES:
 
@@ -162,6 +175,7 @@ for t in periods:
     model += pl.lpSum(state[_ast] for _ast in ast if _ast[1] == 'M') <= capacity[t]
 
 # num resources:
+# TODO: only limit in months when tasks are active. Requirements go not by period.
 for (v, t) in vt:
     model += pl.lpSum(task[(a, v, t)] for a in a_vt[(v, t)]) >= requirement[(v, t)]
 
