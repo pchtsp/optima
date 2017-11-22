@@ -1,6 +1,6 @@
 import pulp as pl
 from package.data_input import generate_data_from_source
-from package.aux import get_months, get_prev_month
+from package.aux import get_months, get_prev_month, clean_dict
 import re
 import pandas as pd
 
@@ -56,7 +56,7 @@ maint = table['DefinitionMaintenances']
 
 avions = table['Avions_Capacite']
 
-capacites_col =['Capacites'] + [col for col in avions if col.startswith("Unnamed")]
+capacites_col = ['Capacites'] + [col for col in avions if col.startswith("Unnamed")]
 capacites_avion = avions.melt(id_vars=["IdAvion"], value_vars=capacites_col)[['IdAvion', "value"]]
 
 capacites_avion = capacites_avion[~capacites_avion.value.isna()].set_index('value')
@@ -81,8 +81,18 @@ mission_aircraft = \
 resources = avions.IdAvion.values  # a
 tasks = mission_aircraft.IdMission.unique()  # v
 periods = get_months(start, end)  # t
-periods_0 = [prev] + periods  # periods with the previous one added at the start.
 states = ['M', 'V', 'N', 'A']  # s
+
+# TODO: this is for testing exclusively:
+
+resources = resources[:30]
+periods = periods[:5]
+# tasks = tasks[:2]
+# TODO: this is for testing exclusively
+
+states_noV = [s for s in states if s != 'V']
+periods_0 = [prev] + periods  # periods with the previous one added at the start.
+
 
 # PARAMETERS:
 
@@ -90,7 +100,7 @@ states = ['M', 'V', 'N', 'A']  # s
 max_elapsed_time = \
     maint.GainPotentielCalendaire_mois.values.min()  # me. in periods
 max_used_time = \
-    maint.GainPotentielHoraire_heures.values.min() # mu. in hours of usage
+    maint.GainPotentielHoraire_heures.values.min()  # mu. in hours of usage
 duration = \
     maint.DureeMaintenance_mois.values.max()  # md. in periods
 capacity = \
@@ -116,7 +126,7 @@ previous = {period: periods_0[periods_pos[period]] for period in periods}
 ub = {
     'ret': max_elapsed_time,
     'rut': max_used_time,
-    'used': max(requirement.values())
+    'used': max(consumption.values())
 }
 
 # DOMAINS:
@@ -130,19 +140,22 @@ at0 = [(a, t) for a in resources for t in periods_0]
 att = [(a, t1, t2) for (a, t1) in at for t2 in periods if
        periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
 
-# a_vt = {(v, t): [a for a in resources if (a, v, t) in avt] for (v, t) in vt}
-a_vt = {_t: [] for _t in vt}
-for (a, v, t) in avt:
-    a_vt[(v, t)].append(a)
+# a_t = {t: a for t in periods for a in resources if (a, t) in at}
+a_t = \
+    pd.DataFrame(at, columns=list("at")).groupby(['t'])['a'].\
+    apply(lambda x: x.tolist()).to_dict()
 
-# v_at = {(a, t): [v for v in tasks if (a, v, t) in avt] for (a, t) in at}
-v_at = {_t: [] for _t in at}
-for (a, v, t) in avt:
-    v_at[(a, t)].append(v)
+a_vt = \
+    pd.DataFrame(avt, columns=list("avt")).groupby(['v', 't'])['a'].\
+    apply(lambda x: x.tolist()).to_dict()
 
-t1_at2 = {_t: [] for _t in at}
-for (a, t1, t2) in att:
-    t1_at2[(a, t2)].append(t1)
+v_at = \
+    pd.DataFrame(avt, columns=list("avt")).groupby(['a', 't'])['v'].\
+    apply(lambda x: x.tolist()).to_dict()
+
+t1_at2 = \
+    pd.DataFrame(att, columns=list("a12")).groupby(['a', '2'])['1']. \
+    apply(lambda x: x.tolist()).to_dict()
 
 # VARIABLES:
 
@@ -152,8 +165,8 @@ start = pl.LpVariable.dicts("start", at, 0, 1, pl.LpInteger)
 state = pl.LpVariable.dicts("state", ast, 0, 1, pl.LpInteger)
 
 # numeric:
-ret = pl.LpVariable.dicts("ret", at0, 0, ub['ret'], pl.LpContinuous)
-rut = pl.LpVariable.dicts("rut", at0, 0, ub['rut'], pl.LpContinuous)
+ret = pl.LpVariable.dicts("ret", at, 0, ub['ret'], pl.LpContinuous)
+rut = pl.LpVariable.dicts("rut", at, 0, ub['rut'], pl.LpContinuous)
 used = pl.LpVariable.dicts("used", at, 0, ub['used'], pl.LpContinuous)
 
 # objective function:
@@ -162,7 +175,7 @@ max_maint = pl.LpVariable("min_avail", lowBound=0)
 
 # MODEL
 
-model = pl.LpProblem("MFMP_v0001", pl.LpMinimize)
+model = pl.LpProblem("MFMP_v0001", pl.LpMaximize)
 
 # OBJECTIVE:
 
@@ -172,33 +185,34 @@ model += min_avail
 
 # capacity:
 for t in periods:
-    model += pl.lpSum(state[_ast] for _ast in ast if _ast[1] == 'M') <= capacity[t]
+    model += pl.lpSum(state[(a, 'M', t)] for a in a_t[t]) <= capacity[t]
 
 # num resources:
-# TODO: only limit in months when tasks are active. Requirements go not by period.
-for (v, t) in vt:
-    model += pl.lpSum(task[(a, v, t)] for a in a_vt[(v, t)]) >= requirement[(v, t)]
+for (v, t) in a_vt:
+    model += pl.lpSum(task[(a, v, t)] for a in a_vt[(v, t)]) >= requirement[v]
 
 # max one task per period:
-for (a, t) in at:
+for (a, t) in v_at:
     model += pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)]) <= 1
 
 # used time, two options:
 # maybe set equal?
 # not sure which one is better, both?
-for (a, t) in at:
-    model += used[(a, t)] >= pl.lpSum(task[(a, v, t)] * consumption[(v, t)] for v in v_at[(a, t)])
+for (a, t) in v_at:
+    model += used[(a, t)] >= pl.lpSum(task[(a, v, t)] * consumption[v] for v in v_at[(a, t)])
 for (a, v, t) in avt:
-    model += used[(a, t)] >= task[(a, v, t)] * consumption[(v, t)]
+    model += used[(a, t)] >= task[(a, v, t)] * consumption[v]
 
 # remaining used time calculations:
-for (a, t) in at:
-    model += rut[(a, t)] <= rut[(a, previous[t])] - used[(a, t)] + max_used_time * start[(a, t)]
-
 # remaining elapsed time calculations:
 # *maybe* reformulate this
-for (a, t) in at:
-    model += ret[(a, t)] <= ret[(a, previous[t])] - 1 + max_elapsed_time * start[(a, t)]
+for (a, t) in v_at:
+    if t != periods[0]:
+        model += rut[(a, t)] <= rut[(a, previous[t])] - used[(a, t)] + max_used_time * start[(a, t)]
+        model += ret[(a, t)] <= ret[(a, previous[t])] - 1 + max_elapsed_time * start[(a, t)]
+    else:
+        model += rut[(a, t)] == max_used_time - used[(a, t)] + max_used_time * start[(a, t)]
+        model += ret[(a, t)] <= max_elapsed_time - 1 + max_elapsed_time * start[(a, t)]
 
 # maintenance duration:
 for (a, t1, t2) in att:
@@ -212,19 +226,41 @@ for (a, t2) in at:
 # not sure which one is better, both?
 for (a, v, t) in avt:
     model += state[(a, 'V', t)] >= task[(a, v, t)]
-for (a, t) in at:
-    model += state[(a, 'V', t)] >= pl.lpSum(task[(a, v, t)] for v in tasks if (a, v, t) in avt)
+    for s in states_noV:
+        model += task[(a, v, t)] + state[(a, s, t)] <= 1
+for (a, t) in v_at:
+    model += state[(a, 'V', t)] >= pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)])
 
 # only one state per period:
 for (a, t) in at:
-    model += pl.lpSum(state[(a, s, t)] == 1 for s in states)
+    model += pl.lpSum(state[(a, s, t)] for s in states) == 1
 
-for (a, t) in at:
+for (t) in periods:
     # objective: availability
-    model += min_avail <= pl.lpSum(state[(a, 'A', t)])
-    # objective: maintenance
-    model += max_maint >= pl.lpSum(state[(a, 'M', t)])
+    model += min_avail <= pl.lpSum(state[(a, 'A', t)] for a in a_t[t])
+    # objective: maintenance (commented because not in use)
+    # model += max_maint >= pl.lpSum(state[(a, 'M', t)])
+
+# model += min_avail <= len(resources)
 
 # SOLVING
 model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
 # model.solve(pl.GUROBI_CMD(options=[max_seconds, 0.1], keepFiles=1))
+
+_start = {_t: 1 for _t in start if start[_t].value()}
+
+_state = {(a, t): 0 for (a, t) in at}
+for (a, s, t) in state:
+    if state[(a, s, t)].value() and \
+            s in ['V', 'M']:
+        _state[(a, t)] = s
+
+_state = clean_dict(_state)
+
+_task = {(a, t): 0 for (a, t) in at}
+for (a, v, t) in task:
+    if task[(a, v, t)].value():
+        _task[(a, t)] = v
+
+_task = clean_dict(_task)
+

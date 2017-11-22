@@ -19,4 +19,8 @@ def get_months(start_month, end_month):
 
 
 def get_prev_month(month):
-    return arrow.get(month+ "-01").shift(months=-1).format("YYYY-MM")
+    return arrow.get(month + "-01").shift(months=-1).format("YYYY-MM")
+
+
+def clean_dict(dictionary, default_value=0):
+    return {key: value for key, value in dictionary.items() if value != default_value}
