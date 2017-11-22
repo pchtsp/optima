@@ -1,6 +1,6 @@
 import pulp as pl
 from package.data_input import generate_data_from_source
-from package.aux import get_months, get_prev_month, clean_dict
+from package.aux import get_months, get_prev_month, clean_dict, tup_to_dict, vars_to_tups
 import re
 import pandas as pd
 
@@ -74,6 +74,9 @@ mission_aircraft = \
 # TODO: I'm missing for some reason half the missions that do not
 # have at least one aircraft as candidate...
 
+avions_state = table['Avions_Potentiels']
+
+
 ######################################################
 
 # SETS:
@@ -85,9 +88,10 @@ states = ['M', 'V', 'N', 'A']  # s
 
 # TODO: this is for testing exclusively:
 
-resources = resources[:30]
-periods = periods[:5]
-# tasks = tasks[:2]
+# resources = resources[:30]
+periods = periods[:30]
+tasks = tasks[:-1]
+# print(tasks[-1])
 # TODO: this is for testing exclusively
 
 states_noV = [s for s in states if s != 'V']
@@ -117,10 +121,23 @@ requirement = tasks_data.nombreRequisA1.to_dict()  # rr. aircraft per period.
 # time:
 periods_pos = {periods[pos]: pos for pos in range(len(periods))}
 previous = {period: periods_0[periods_pos[period]] for period in periods}
+last_period = periods[-1]
+first_period = periods[0]
 
-# fixed values:
+# initial state:
+ret_read = avions_state.set_index("IdAvion")['PotentielCalendaire'].to_dict()
+rut_read = avions_state.set_index("IdAvion")['PotentielHoraire_HdV'].to_dict()
 
-# TODO: fill fixed
+ret_init = {a: max_elapsed_time for a in resources}
+rut_init = {a: max_used_time for a in resources}
+
+ret_init.update(ret_read)
+rut_init.update(rut_read)
+
+ret_obj = sum(ret_init[a] for a in resources)
+rut_obj = sum(rut_init[a] for a in resources)
+
+# TODO: i'm still missing the fixed states (maintenances)
 
 # maximal bounds on continuous variables:
 ub = {
@@ -141,21 +158,10 @@ att = [(a, t1, t2) for (a, t1) in at for t2 in periods if
        periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
 
 # a_t = {t: a for t in periods for a in resources if (a, t) in at}
-a_t = \
-    pd.DataFrame(at, columns=list("at")).groupby(['t'])['a'].\
-    apply(lambda x: x.tolist()).to_dict()
-
-a_vt = \
-    pd.DataFrame(avt, columns=list("avt")).groupby(['v', 't'])['a'].\
-    apply(lambda x: x.tolist()).to_dict()
-
-v_at = \
-    pd.DataFrame(avt, columns=list("avt")).groupby(['a', 't'])['v'].\
-    apply(lambda x: x.tolist()).to_dict()
-
-t1_at2 = \
-    pd.DataFrame(att, columns=list("a12")).groupby(['a', '2'])['1']. \
-    apply(lambda x: x.tolist()).to_dict()
+a_t = tup_to_dict(at, result_col=0, is_list=True)
+a_vt = tup_to_dict(avt, result_col=0, is_list=True)
+v_at = tup_to_dict(avt, result_col=1, is_list=True)
+t1_at2 = tup_to_dict(att, result_col=1, is_list=True)
 
 # VARIABLES:
 
@@ -211,8 +217,8 @@ for (a, t) in v_at:
         model += rut[(a, t)] <= rut[(a, previous[t])] - used[(a, t)] + max_used_time * start[(a, t)]
         model += ret[(a, t)] <= ret[(a, previous[t])] - 1 + max_elapsed_time * start[(a, t)]
     else:
-        model += rut[(a, t)] == max_used_time - used[(a, t)] + max_used_time * start[(a, t)]
-        model += ret[(a, t)] <= max_elapsed_time - 1 + max_elapsed_time * start[(a, t)]
+        model += rut[(a, t)] <= rut_init[a] - used[(a, t)] + max_used_time * start[(a, t)]
+        model += ret[(a, t)] <= ret_init[a] - 1 + max_elapsed_time * start[(a, t)]
 
 # maintenance duration:
 for (a, t1, t2) in att:
@@ -241,26 +247,29 @@ for (t) in periods:
     # objective: maintenance (commented because not in use)
     # model += max_maint >= pl.lpSum(state[(a, 'M', t)])
 
+# While we decide how to fix the ending of the planning period,
+# we will try get at least the same amount of total rut and ret than
+# at the beginning.
+model += pl.lpSum(ret[(a, last_period)] for a in resources) >= ret_obj
+model += pl.lpSum(rut[(a, last_period)] for a in resources) >= rut_obj
+
 # model += min_avail <= len(resources)
 
 # SOLVING
-model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
-# model.solve(pl.GUROBI_CMD(options=[max_seconds, 0.1], keepFiles=1))
+# model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
+model.solve(pl.GUROBI_CMD())
 
 _start = {_t: 1 for _t in start if start[_t].value()}
 
-_state = {(a, t): 0 for (a, t) in at}
-for (a, s, t) in state:
-    if state[(a, s, t)].value() and \
-            s in ['V', 'M']:
-        _state[(a, t)] = s
+_state = tup_to_dict(vars_to_tups(state), result_col=1, is_list=False)
+_task = tup_to_dict(vars_to_tups(task), result_col=1, is_list=False)
 
-_state = clean_dict(_state)
+_used = {t: used[t].value() for t in used}
 
-_task = {(a, t): 0 for (a, t) in at}
-for (a, v, t) in task:
-    if task[(a, v, t)].value():
-        _task[(a, t)] = v
+_rut = {t: rut[t].value() for t in rut}
 
-_task = clean_dict(_task)
-
+# rut_init['A71']
+# _rut[('A71', '2017-01')]
+# _used[('A71', '2017-02')]
+# _rut[('A71', '2017-02')]
+# _state[('A71', '2017-09')]

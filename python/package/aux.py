@@ -1,5 +1,6 @@
 # /usr/bin/python
 import arrow
+import pandas as pd
 
 def get_months(start_month, end_month):
     """
@@ -24,3 +25,16 @@ def get_prev_month(month):
 
 def clean_dict(dictionary, default_value=0):
     return {key: value for key, value in dictionary.items() if value != default_value}
+
+
+def tup_to_dict(at, result_col=0, is_list=True):
+    cols = [col for col in range(len(at[0])) if col != result_col]
+    table = pd.DataFrame(at).groupby(cols)[result_col]
+    if is_list:
+        return table.apply(lambda x: x.tolist()).to_dict()
+    else:
+        return table.apply(lambda x: x.tolist()[0]).to_dict()
+
+
+def vars_to_tups(var):
+    return [tup for tup in var if var[tup].value()]
