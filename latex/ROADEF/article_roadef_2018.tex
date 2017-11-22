@@ -1,4 +1,4 @@
-    \documentclass{roadef}
+\documentclass{roadef}
 \usepackage{amsmath}
 
 % \usepackage{fontspec}
@@ -17,7 +17,7 @@
 \author{Franco Peschiera\inst{1}, Alain Haït\inst{1}, Olga Battaïa\inst{1}, Nicolas Dupin\inst{1}}
 
 
-% Les affiliations (par ordre croissant des numéros d'affiliation) séparées par \and
+% Les affiliations (par ordre croissant des num?os d'affiliation) s?ar?s par \and
 \institute{
 Institut Supérieur de l'Aéronautique et de l'Espace \\
 \email{\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
@@ -31,8 +31,6 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 
 \section{Introduction}
-
-%  TODO!: re-arrange all this better.
 
     The Military Flight and Maintenance Planning is a problem consisting on the assignment of missions and maintenances tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically but they are assumed to include a round-trip to the base. It also includes different objectives and constraints.
 
@@ -52,7 +50,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % \subsection{Tasks}
     % \label{def:task}
 
-    Each $v \in \mathcal{V}$ task needs to be done in a planning horizon divided into $t \in \mathcal{T}$ periods of the same length. Each task has a given starting an ending time that cannot be changed. They also require a certain quantity of assigned resources $a \in \mathcal{A}$ each period $t$, defined by $rr_{vt}$ and, if assigned, it uses them for a quantity of time in each period, defined by $rh_{vt}$.
+    Each $v \in \mathcal{V}$ task needs to be done in a planning horizon divided into $t \in \mathcal{T}$ periods of the same length. Each task has a given starting an ending time that cannot be changed. They also require a certain quantity of assigned resources $a \in \mathcal{A}$ each period $t$, defined by $rr_{v}$ and, if assigned, it uses them for a quantity of time in each period, defined by $rh_{v}$.
 
     There is a set $cd_{v} \subset \mathcal{A}$ that lists the resources that can be assigned to each task.
 
@@ -184,14 +182,17 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         & \sum_{a \in \mathcal{A}} state_{ast} \leq c_{t}
                 & t \in \mathcal{T}, s = \mq{M} \label{eq:capacity}\\
         % minimum resources
-        & \sum_{a \in \mathcal{A}} task_{avt} \geq rr_{vt}
-                & t \in \mathcal{T}, v \in \mathcal{V} \label{eq:taskres}\\
+        & \sum_{a \in \mathcal{A}} task_{avt} \geq rr_{t}
+                & t \in \mathcal{T}, v \in \mathcal{V},  \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
                 & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
         % if assigned to task: in working state
         & state_{ast} \geq task_{avt} 
                 & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, v \in \mathcal{V}, s = \mq{V} \label{eq:state1}\\
+        % if no working state, no assigned to any task
+        & state_{ast} + task_{avt} \leq 1
+                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, v \in \mathcal{V}, s \neq \mq{V} \label{eq:state3}\\
         % only one state. If we take out the 'do nothing' state, this could be \leq
         & \sum_{s \in \mathcal{S}} state_{ast} = 1 
                 & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}
@@ -202,14 +203,14 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     The limit in the number of resources assigned to task and the number of resources under maintenance that can be done in any given month are modeled via \ref{eq:taskres} and \ref{eq:capacity} respectively.
     Constraint \ref{eq:maxtasks} limits the number of assigned tasks for a resource to one.
 
-    Constraint \ref{eq:state1} ties the states with the assignment to a task. Resources have only one state at each period and this is guaranteed by \ref{eq:state2}.
+    Constraint \ref{eq:state1} and \ref{eq:state3} tie states with the assignment to a task. Resources have only one state at each period and this is guaranteed by \ref{eq:state2}.
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % BALANCES
         %%%%%%%%%%%%%%%%%%%
         % definition of consumed resource hours:
-        & used_{at} \geq \sum_{v \in \mathcal{V}} task_{avt} \times rh_{vt}
+        & used_{at} \geq \sum_{v \in \mathcal{V}} task_{avt} \times rh_{v}
                 & a \in \mathcal{A}, t \in \mathcal{T} \label{eq:usage}\\
         % remaining used time
         & rut_{at} \leq (rut_{at-1} - used_{at}) + (mu \times start_{at})
@@ -288,6 +289,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 % La bibliographie
 
 \bibliographystyle{plain}
+\selectlanguage{french}
 \bibliography{MFMP}
 % \begin{thebibliography}{2}
 % \bibitem{toth02}
