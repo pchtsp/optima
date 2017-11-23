@@ -1,6 +1,9 @@
 # /usr/bin/python
 import arrow
 import pandas as pd
+import os
+import datetime
+import pickle
 
 def get_months(start_month, end_month):
     """
@@ -38,3 +41,25 @@ def tup_to_dict(at, result_col=0, is_list=True):
 
 def vars_to_tups(var):
     return [tup for tup in var if var[tup].value()]
+
+
+def load_solution(path):
+    if not os.path.exists(path):
+        return False
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
+def export_solution(path, obj, name=None):
+    if not os.path.exists(path):
+        return False
+    if name is None:
+        name = get_timestamp()
+    path = os.path.join(path, name + ".pickle")
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f)
+    return True
+
+
+def get_timestamp():
+    return datetime.datetime.now().strftime("%Y%m%d%H%M")

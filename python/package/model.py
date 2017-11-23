@@ -3,6 +3,8 @@ from package.data_input import generate_data_from_source
 from package.aux import get_months, get_prev_month, clean_dict, tup_to_dict, vars_to_tups
 import re
 import pandas as pd
+import package.aux as aux
+import os
 
 ######THIS SHOULD PROBABLY BE MOVED TO data_input.py
 
@@ -92,7 +94,6 @@ states = ['M', 'V', 'N', 'A']  # s
 periods = periods[:30]
 tasks = tasks[:-1]
 # print(tasks[-1])
-# TODO: this is for testing exclusively
 
 states_noV = [s for s in states if s != 'V']
 periods_0 = [prev] + periods  # periods with the previous one added at the start.
@@ -138,6 +139,7 @@ ret_obj = sum(ret_init[a] for a in resources)
 rut_obj = sum(rut_init[a] for a in resources)
 
 # TODO: i'm still missing the fixed states (maintenances)
+# TODO: add minimum mission assignment
 
 # maximal bounds on continuous variables:
 ub = {
@@ -257,19 +259,27 @@ model += pl.lpSum(rut[(a, last_period)] for a in resources) >= rut_obj
 
 # SOLVING
 # model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
-model.solve(pl.GUROBI_CMD())
+directory_path = '/home/pchtsp/Documents/projects/OPTIMA/python/experiments/{}/'.format(aux.get_timestamp())
+os.mkdir(directory_path)
+result_path = directory_path + 'gurobi.sol'.format()
+log_path = directory_path + 'gurobi.log'
+gurobi_options = [('TimeLimit', 6000), ("MIPGap", 0.05), ('ResultFile', result_path), ('LogFile', log_path)]
+model.solve(pl.GUROBI_CMD(options=gurobi_options))
 
 _start = {_t: 1 for _t in start if start[_t].value()}
 
 _state = tup_to_dict(vars_to_tups(state), result_col=1, is_list=False)
 _task = tup_to_dict(vars_to_tups(task), result_col=1, is_list=False)
-
 _used = {t: used[t].value() for t in used}
-
 _rut = {t: rut[t].value() for t in rut}
+_ret = {t: ret[t].value() for t in ret}
 
-# rut_init['A71']
-# _rut[('A71', '2017-01')]
-# _used[('A71', '2017-02')]
-# _rut[('A71', '2017-02')]
-# _state[('A71', '2017-09')]
+solution = {
+    'state': _state,
+    'task': _task,
+    'used': _used,
+    'rut': _rut,
+    'ret': _ret
+}
+
+aux.export_solution(directory_path, solution, name="data_out")

@@ -49,9 +49,9 @@ if (FALSE){
         table %>% 
         set_names(table_names$colname) %>% 
         select(UNIT= X__3, starts_with("20")) %>% 
+        filter(str_sub(UNIT, 1, 1)=="D") %>% 
         slice(2:78) %>% 
         gather(key= "month", value="state", starts_with("20")) %>% 
-        filter(str_sub(UNIT, 1, 1)=="D") %>% 
         collapse_states("state") %>% 
         mutate(id= c(1:nrow(.))) %>% 
         mutate(bucket= state %>% as.integer %>% cut2(g= 5),
