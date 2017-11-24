@@ -8,6 +8,7 @@ library(lubridate)
 library(timevis)
 library(Hmisc)
 library(RColorBrewer)
+library(htmlwidgets)
 
 collapse_states <- function(table, column_name){
     
@@ -65,7 +66,8 @@ if (FALSE){
         select(id, start= month, end= post_month, content = bucket, group= UNIT, style) %>% 
         slice(1:1000)
     
-    groups <- data.table(id= states %>% distinct(group) %>% unlist, content= states %>% distinct(group) %>% unlist)
+    groups_c <- states %>% distinct(group) %>% unlist
+    groups <- data.table(id= groups_c, content= groups_c)
     
     config <- list(
         stack = FALSE,
@@ -76,5 +78,7 @@ if (FALSE){
         margin = 0
     )
     
-    timevis(states, groups= groups, options= config)
+    result <- timevis(states, groups= groups, options= config)
 }
+
+saveWidget(result, file = "/home/pchtsp/Downloads/test.html")

@@ -17,7 +17,6 @@
 \author{Franco Peschiera\inst{1}, Alain Haït\inst{1}, Olga Battaïa\inst{1}, Nicolas Dupin\inst{1}}
 
 
-% Les affiliations (par ordre croissant des num?os d'affiliation) s?ar?s par \and
 \institute{
 Institut Supérieur de l'Aéronautique et de l'Espace \\
 \email{\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
@@ -149,7 +148,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % \end{tabular}
     % \bigskip
 
-    \subsection{Variables}
+    % \subsection{Variables}
 
     The decisions involve, in essence, the management of the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
 
@@ -158,21 +157,21 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         $state_{ast}$       & : & 1 if resource $a$ is assigned state $s$ in period $t$, 0 otherwise. \\  
         $start_{at}$        & : & 1 if resource $a$ starts maintenance in period $t$, 0 otherwise. \\
         $ret_{at}$          & : & remaining elapsed time (integer) for resource $a$ after period $t$. \\  
-        $rut_{at}$          & : & remaining usage time (integer) for remainingsource $a$ after period $t$. \\  
+        $rut_{at}$          & : & remaining usage time (integer) for resource $a$ after period $t$. \\  
         $used_{at}$         & : & time (integer) used by resource $a$ in period $t$. \\
         $min\_avail$        & : & min number (integer) of available resources in any period. \\
         $max\_maint$        & : & max number (integer) of resources in maintenance in any period. \\
     \end{tabular}
-    % \bigskip
+    \bigskip
 
-    \subsection{Constraints}
+    % \subsection{Constraints}
 
-    The objective is to both minimize the maximum number of maintenances and maximize the minimal number of available aircraft:
+    The objective is to both minimize the maximum number of maintenances $\text{Min}\, (max\_maint)$ and maximize the minimal number of available aircraft \text{Max}\, (min\_avail).
 
-    \begin{align}
-        & \text{Min}\, (max\_maint) \\
-        & \text{Max}\, (min\_avail)
-    \end{align}
+    % \begin{align}
+    %     & \text{Min}\, (max\_maint) \\
+    %     & \text{Max}\, (min\_avail)
+    % \end{align}
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -281,9 +280,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
 
-\section{Conclusions et perspectives}
+\section{Conclusions}
     
-    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. This is useful for later improving the model by including minimum durations for mission assignment and other more complex constraints.
+    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment and other more complex constraints.
 
 
 % La bibliographie
