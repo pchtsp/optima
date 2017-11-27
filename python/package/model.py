@@ -152,12 +152,17 @@ ub = {
 
 vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
 avt = [(a, v, t) for a in resources for (v, t) in vt if a in candidates[v]]
-at = [(a, t) for a in resources for t in periods]  # if periods_pos[t] % 2 == 0?
+at = [(a, t) for a in resources for t in periods]
 ast = [(a, s, t) for (a, t) in at for s in states]
+
+# this is tricky: we  limit the possibilities of starting a maintenance:
+at_start = [(a, t) for a, t in at if periods_pos[t] % 2 == 0]
+at_start_not = [tup for tup in at if tup not in at_start]
 
 at0 = [(a, t) for a in resources for t in periods_0]
 att = [(a, t1, t2) for (a, t1) in at for t2 in periods if
-       periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
+       periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1 and \
+       (a, t1) in at_start]
 
 # a_t = {t: a for t in periods for a in resources if (a, t) in at}
 a_t = tup_to_dict(at, result_col=0, is_list=True)
@@ -169,7 +174,7 @@ t1_at2 = tup_to_dict(att, result_col=1, is_list=True)
 
 # binary:
 task = pl.LpVariable.dicts("task", avt, 0, 1, pl.LpInteger)
-start = pl.LpVariable.dicts("start", at, 0, 1, pl.LpInteger)
+start = pl.LpVariable.dicts("start", at_start, 0, 1, pl.LpInteger)
 state = pl.LpVariable.dicts("state", ast, 0, 1, pl.LpInteger)
 
 # numeric:
@@ -214,13 +219,23 @@ for (a, v, t) in avt:
 # remaining used time calculations:
 # remaining elapsed time calculations:
 # *maybe* reformulate this
-for (a, t) in v_at:
-    if t != periods[0]:
+# We only increase the remainders if in that month we could start a maintenance
+for (a, t) in at_start:
+    if t != first_period:
         model += rut[(a, t)] <= rut[(a, previous[t])] - used[(a, t)] + max_used_time * start[(a, t)]
         model += ret[(a, t)] <= ret[(a, previous[t])] - 1 + max_elapsed_time * start[(a, t)]
     else:
         model += rut[(a, t)] <= rut_init[a] - used[(a, t)] + max_used_time * start[(a, t)]
         model += ret[(a, t)] <= ret_init[a] - 1 + max_elapsed_time * start[(a, t)]
+
+# if that month we know we're not starting a maintenance... it's just decreasing:
+for (a, t) in at_start_not:
+    if t != first_period:
+        model += rut[(a, t)] <= rut[(a, previous[t])] - used[(a, t)]
+        model += ret[(a, t)] <= ret[(a, previous[t])] - 1
+    else:
+        model += rut[(a, t)] <= rut_init[a] - used[(a, t)]
+        model += ret[(a, t)] <= ret_init[a] - 1
 
 # maintenance duration:
 for (a, t1, t2) in att:
@@ -259,11 +274,11 @@ model += pl.lpSum(rut[(a, last_period)] for a in resources) >= rut_obj
 
 # SOLVING
 # model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
-directory_path = '/home/pchtsp/Documents/projects/OPTIMA/python/experiments/{}/'.format(aux.get_timestamp())
+directory_path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.format(aux.get_timestamp())
 os.mkdir(directory_path)
 result_path = directory_path + 'gurobi.sol'.format()
 log_path = directory_path + 'gurobi.log'
-gurobi_options = [('TimeLimit', 6000), ("MIPGap", 0.05), ('ResultFile', result_path), ('LogFile', log_path)]
+gurobi_options = [('TimeLimit', 6000), ('ResultFile', result_path), ('LogFile', log_path)]
 model.solve(pl.GUROBI_CMD(options=gurobi_options))
 
 _start = {_t: 1 for _t in start if start[_t].value()}

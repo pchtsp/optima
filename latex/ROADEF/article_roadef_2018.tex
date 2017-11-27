@@ -14,11 +14,11 @@
 % Le titre court
 \def\shorttitle{Titre court}
 
-\author{Franco Peschiera\inst{1}, Alain Haït\inst{1}, Olga Battaïa\inst{1}, Nicolas Dupin\inst{1}}
+\author{Franco Peschiera\inst{1}, Alain HaÃ¯t\inst{1}, Olga BattaÃ¯a\inst{1}, Nicolas Dupin\inst{1}}
 
 
 \institute{
-Institut Supérieur de l'Aéronautique et de l'Espace \\
+Institut SupÃ©rieur de l'AÃ©ronautique et de l'Espace \\
 \email{\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
 }
 
@@ -30,10 +30,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 
 \section{Introduction}
-
-    The Military Flight and Maintenance Planning is a problem consisting on the assignment of missions and maintenances tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically but they are assumed to include a round-trip to the base. It also includes different objectives and constraints.
-
-    Although the former has been studied in literature in \cite{Cho2011}, \cite{Chastellux2017}, \cite{Kozanidis2008}, it has not received as much attention as the latter.
+    The Military Flight and Maintenance Planning is a problem consisting on the assignment of missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically but they are assumed to include a round-trip to the base. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008}, it has not received as much attention as the latter.
 
     % First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
@@ -42,22 +39,16 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % Finally, there are some particular constraints that are specific for this specific problem that have not been found in other works. For example: the possibility to temporally stock the aircraft, the treatment of missions as a complex tasks with requirements and not as an aggregate periodic demand among others.
 
 
-\section{The problem}
+%\section{The problem}
 
-    The problem consists in the planning of the maintenance operations for military aircraft while complying with already scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks".
-
-    % \subsection{Tasks}
-    % \label{def:task}
-
-    A series of $v \in \mathcal{V}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Each task require a certain number $rr_{v}$ of resources $a \in \mathcal{A}$ and, while assigned, it wears them for a quantity of time defined by $rh_{v}$ in each period. There is a set $cd_{v} \subset \mathcal{A}$ that lists the resources that can be assigned to each task.
+    The problem consists in the planning of the maintenance operations for military aircraft and the assignment of these aircraft to already scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $v \in \mathcal{V}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Each task requires a certain number $rr_{v}$ of resources $a \in \mathcal{A}$ which it employs for a time duration defined by $rh_{v}$ in each period. Set $cd_{v} \subset \mathcal{A}$ lists the resources that can be assigned to each task.
 
     % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($minTIME_v$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_{vt}$.
 
     % \subsection{Resources}
     % \label{def:resource}
 
-    Resources suffer from wear and tear and so require a recurrent preventive maintenance in order to be in a correct state. These maintenances need to take place before the first of two things occurs: a given amount of elapsed time $me$ has passed since the previous maintenance or a given amount of usage time $mu$ has passed since the previous maintenance. The following are the possible $s \in \mathcal{S}$ states for a resource to be in any given time: Assigned to a task ('V'), Receiving maintenance ('M'), Available ('A'), Needing maintenance ('N'). These maintenances take an amount of time equal to $md$ periods and cannot be interrupted. The number of resources under maintenance in any given period is limited by $c_t$.
-
+    Resources require recurrent preventive maintenance operations. The frequency of maintenance operations is defined by 2 factors: the amount of time $me$ elapsed since the last maintenance operation and the amount of time $mu$ for which the resource has been used since the last maintenance operation. The following states $s \in \mathcal{S}$ are possible for a resource: assigned to a task ('V'), receiving maintenance ('M'), available ('A'), needing maintenance ('N'). A maintenance operation takes an amount of time equal to $md$ periods and cannot be interrupted. The number of resources under maintenance in any period is restricted by its capacity $c_t$. In the following we present a new mathematical model for this problem. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. 
     % We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance at any given period.
 
     % We will call "remaining usage time" (or $rut$) to the amount of time that the resource needs to be used in order for it to need a maintenance at any given period.
@@ -123,7 +114,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     %     \item Minimize the maximum number of resources under maintenance in any given period.
     % \end{enumerate}
 
-\section{The model}
+\section{Mathematical model}
 
     % \subsection{Decisions}
 
@@ -145,11 +136,11 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % \subsection{Variables}
 
-    The decisions involve, in essence, the management of the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
+    The decision variables manage the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
 
     \begin{tabular}{p{15mm}lp{105mm}}
-        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assigned task $v$ in period $t$, 0 otherwise. \\  
-        $state_{ast}$       & : & 1 if resource $a$ is assigned state $s$ in period $t$, 0 otherwise. \\  
+        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assigned to task $v$ in period $t$, 0 otherwise. \\  
+        $state_{ast}$       & : & 1 if resource $a$ is in state $s$ in period $t$, 0 otherwise. \\  
         $start_{at}$        & : & 1 if resource $a$ starts maintenance in period $t$, 0 otherwise. \\
         $ret_{at}$          & : & remaining elapsed time (integer) for resource $a$ after period $t$. \\  
         $rut_{at}$          & : & remaining usage time (integer) for resource $a$ after period $t$. \\  
@@ -161,12 +152,14 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % \subsection{Constraints}
 
-    The objective is to both minimize the maximum number of maintenances $\text{Min}\, (max\_maint)$ and maximize the minimal number of available aircraft \text{Max}\, (min\_avail) subject to the constraints listed below.
+    The objective is to both minimize the maximum number of maintenances and maximize the minimal number of available aircraft:
 
-    % \begin{align}
-    %     & \text{Min}\, (max\_maint) \\
-    %     & \text{Max}\, (min\_avail)
-    % \end{align}
+    \begin{align}
+        & \text{Min}\, (max\_maint) \\
+        & \text{Max}\, (min\_avail)
+    \end{align}
+
+    Subject to:
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -176,7 +169,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         & \sum_{a \in \mathcal{A}} state_{ast} \leq c_{t}
                 & t \in \mathcal{T}, s = \mq{M} \label{eq:capacity}\\
         % minimum resources
-        & \sum_{a \in cd_v} task_{avt} \geq rr_{t}
+        & \sum_{a \in cd_v} task_{avt} \geq rr_{v}
                 & t \in \mathcal{T}, v \in \mathcal{V},  \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
@@ -272,9 +265,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
-\section{Conclusions}
+%\section{Conclusions}
     
-    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment.
+ %   The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment.
 
 
 % La bibliographie
