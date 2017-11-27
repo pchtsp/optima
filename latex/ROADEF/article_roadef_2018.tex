@@ -33,7 +33,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     The Military Flight and Maintenance Planning is a problem consisting on the assignment of missions and maintenances tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically but they are assumed to include a round-trip to the base. It also includes different objectives and constraints.
 
-    Although the former has been studied in literature in \cite{Cho2011}, \cite{Kozanidis2008}, \cite{Verhoeff2015} and \cite{Chastellux2017}, it has not received as much attention as the latter.
+    Although the former has been studied in literature in \cite{Cho2011}, \cite{Chastellux2017}, \cite{Kozanidis2008}, it has not received as much attention as the latter.
 
     % First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
@@ -44,21 +44,19 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 \section{The problem}
 
-    The problem consists in the planning of the maintenance operations of military aircraft while complying with scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks".
+    The problem consists in the planning of the maintenance operations for military aircraft while complying with already scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks".
 
     % \subsection{Tasks}
     % \label{def:task}
 
-    Each $v \in \mathcal{V}$ task needs to be done in a planning horizon divided into $t \in \mathcal{T}$ periods of the same length. Each task has a given starting an ending time that cannot be changed. They also require a certain quantity of assigned resources $a \in \mathcal{A}$ each period $t$, defined by $rr_{v}$ and, if assigned, it uses them for a quantity of time in each period, defined by $rh_{v}$.
-
-    There is a set $cd_{v} \subset \mathcal{A}$ that lists the resources that can be assigned to each task.
+    A series of $v \in \mathcal{V}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Each task require a certain number $rr_{v}$ of resources $a \in \mathcal{A}$ and, while assigned, it wears them for a quantity of time defined by $rh_{v}$ in each period. There is a set $cd_{v} \subset \mathcal{A}$ that lists the resources that can be assigned to each task.
 
     % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($minTIME_v$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_{vt}$.
 
     % \subsection{Resources}
     % \label{def:resource}
 
-    Resources suffer from wear and tear and so require a recurrent preventive maintenance in order to be in a correct state. These maintenances need to take place before the first of two things occurs: a given amount of elapsed time $me$ has passed since the previous maintenance or a given amount of usage time $mu$ has passed since the previous maintenance. 
+    Resources suffer from wear and tear and so require a recurrent preventive maintenance in order to be in a correct state. These maintenances need to take place before the first of two things occurs: a given amount of elapsed time $me$ has passed since the previous maintenance or a given amount of usage time $mu$ has passed since the previous maintenance. The following are the possible $s \in \mathcal{S}$ states for a resource to be in any given time: Assigned to a task ('V'), Receiving maintenance ('M'), Available ('A'), Needing maintenance ('N'). These maintenances take an amount of time equal to $md$ periods and cannot be interrupted. The number of resources under maintenance in any given period is limited by $c_t$.
 
     % We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance at any given period.
 
@@ -81,8 +79,6 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % \paragraph{Resource's states}
     % \label{def:res-state}
 
-    The following are the possible $s \in \mathcal{S}$ states for a resource to be in any given time: Assigned to a task ('V'), Receiving maintenance ('M'), Available ('A'), Needing maintenance ('N').
-
     % \begin{itemize}
     %     \item Assigned to a task (see \ref{def:task}).
     %     \item Under maintenance (see \ref{def:maint}).
@@ -99,7 +95,6 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % Each maintenance belongs to a specific type of maintenance $m \in \mathcal{M}$. These types of maintenance differentiate between each other by having different characteristics.
 
-    These maintenances take an amount of time equal to $md$ periods and cannot be interrupted. The number of resources under maintenance in any given period is limited to a maximum capacity which depends on each period and is represented by $c_t$.
     % The state of the resource after exiting the maintenance period is of "as good as new" in terms of the two indicators that decide the maintenance.
     
     % In other words, after receiving a maintenance, a resource restores its remaining elapsed time and remaining usage time back to their max values $me$ and $mu$ respectively.
@@ -153,7 +148,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     The decisions involve, in essence, the management of the previously defined resources. We can summarize the main decisions the following way: if resource $a$ is in state $s$ in each period $t$ and if resource $a$ is assigned to task $v$ in period $t$.
 
     \begin{tabular}{p{15mm}lp{105mm}}
-        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assignigned task $v$ in period $t$, 0 otherwise. \\  
+        $task_{avt}$        & : & 1 if resource $a \in cd_v$ is assigned task $v$ in period $t$, 0 otherwise. \\  
         $state_{ast}$       & : & 1 if resource $a$ is assigned state $s$ in period $t$, 0 otherwise. \\  
         $start_{at}$        & : & 1 if resource $a$ starts maintenance in period $t$, 0 otherwise. \\
         $ret_{at}$          & : & remaining elapsed time (integer) for resource $a$ after period $t$. \\  
@@ -166,7 +161,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % \subsection{Constraints}
 
-    The objective is to both minimize the maximum number of maintenances $\text{Min}\, (max\_maint)$ and maximize the minimal number of available aircraft \text{Max}\, (min\_avail).
+    The objective is to both minimize the maximum number of maintenances $\text{Min}\, (max\_maint)$ and maximize the minimal number of available aircraft \text{Max}\, (min\_avail) subject to the constraints listed below.
 
     % \begin{align}
     %     & \text{Min}\, (max\_maint) \\
@@ -175,34 +170,31 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
-        % MAIN VARS
+        % MAIN CONSTRAINTS
         %%%%%%%%%%%%%%%%%%%
         % maximum capacity:
         & \sum_{a \in \mathcal{A}} state_{ast} \leq c_{t}
                 & t \in \mathcal{T}, s = \mq{M} \label{eq:capacity}\\
         % minimum resources
-        & \sum_{a \in \mathcal{A}} task_{avt} \geq rr_{t}
+        & \sum_{a \in cd_v} task_{avt} \geq rr_{t}
                 & t \in \mathcal{T}, v \in \mathcal{V},  \label{eq:taskres}\\
         % max one task per period
         & \sum_{v \in \mathcal{V}} task_{avt} \leq 1
                 & t \in \mathcal{T}, a \in \mathcal{A} \label{eq:maxtasks}\\
         % if assigned to task: in working state
         & state_{ast} \geq task_{avt} 
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, v \in \mathcal{V}, s = \mq{V} \label{eq:state1}\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in cd_v, v \in \mathcal{V}, s = \mq{V} \label{eq:state1}\\
         % if no working state, no assigned to any task
         & state_{ast} + task_{avt} \leq 1
-                & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A}, v \in \mathcal{V}, s \neq \mq{V} \label{eq:state3}\\
+                & \hspace{10mm} t \in \mathcal{T}, a \in cd_v, v \in \mathcal{V}, s \neq \mq{V} \label{eq:state3}\\
         % only one state. If we take out the 'do nothing' state, this could be \leq
         & \sum_{s \in \mathcal{S}} state_{ast} = 1 
                 & \hspace{10mm} t \in \mathcal{T}, a \in \mathcal{A} \label{eq:state2}
     \end{align}
 
     % These constraints are the the main constraints of the model.
-
-    The limit in the number of resources assigned to task and the number of resources under maintenance that can be done in any given month are modeled via \ref{eq:taskres} and \ref{eq:capacity} respectively.
-    Constraint \ref{eq:maxtasks} limits the number of assigned tasks for a resource to one.
-
-    Constraint \ref{eq:state1} and \ref{eq:state3} tie states with the assignment to a task. Resources have only one state at each period and this is guaranteed by \ref{eq:state2}.
+    % The number of resources assigned to a single task and under maintenance 
+    Tasks' resource requirements are defined by \ref{eq:taskres}, maintenance capacity is controlled by \ref{eq:capacity}. Constraints \ref{eq:state1} and \ref{eq:state3} tie states with the assignment to a task. Maximum tasks and states assigned to each resource is guaranteed by \ref{eq:maxtasks} and \ref{eq:state2}.
         
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -221,7 +213,8 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     
     % These constraints calculate the balances of hours for each resource.
 
-    The definition of the consumption of hours for each resource at each period is forced by \ref{eq:usage}. This is then used in \ref{eq:balance1} to get the remaining usage time at each period for each resource. Similarly, the \ref{eq:balance2} calculates the remaining elapsed time at each period and resource.        
+    The definition of the consumption of hours for each resource at each period is forced by \ref{eq:usage}. The monthly remaining usage and elapsed time are calculated by \ref{eq:balance1} and \ref{eq:balance2} respectively.
+     % This is then applied in \ref{eq:balance1} to get the remaining usage time at each period for each resource. Similarly, the \ref{eq:balance2} calculates the remaining elapsed time at each period and resource.        
 
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -237,7 +230,8 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % These constraints involve the states assignments to resources.
 
-    The start of each maintenance with the maintenance state is done by \ref{eq:start1} and \ref{eq:start2}. This way resources need to have started a maintenance to receive it and have to have maintenance for a minimum period after having starting it.
+    The coupling between the start of each maintenance and the maintenance state is done by \ref{eq:start1} and \ref{eq:start2}.
+    % This way resources need to have started a maintenance to receive it and have to have maintenance for a minimum period after having starting it.
 
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
@@ -252,10 +246,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     \end{align}
 
     % These constraints define the possible objectives.
+    The definitions of the two previously defined objectives is done by \ref{eq:available} and \ref{eq:maintenance}.
 
-    The minimum number of available resources in any period is controlled by \ref{eq:available}.
-
-    The definition of the maximum number of resources under maintenance in any period is done by \ref{eq:maintenance}.
+    % The minimum number of available resources in any period is controlled by \ref{eq:available}. The definition of the maximum number of resources under maintenance in any period is done by \ref{eq:maintenance}.
 
     % \begin{align}
     %     %%%%%%%%%%%%%%%%%%%
@@ -279,10 +272,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
-
 \section{Conclusions}
     
-    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment and other more complex constraints.
+    The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment.
 
 
 % La bibliographie

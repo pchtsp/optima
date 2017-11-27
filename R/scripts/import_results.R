@@ -81,4 +81,4 @@ if (FALSE){
     result <- timevis(states, groups= groups, options= config)
 }
 
-saveWidget(result, file = "/home/pchtsp/Downloads/test.html")
+saveWidget(result, file = "/home/pchtsp/Downloads/test.html", selfcontained = FALSE)
