@@ -12,7 +12,8 @@
 
 \RequirePackage[latin1]{inputenc}
 \RequirePackage[T1]{fontenc}
-\RequirePackage[francais]{babel}
+% \RequirePackage[francais]{babel}
+\RequirePackage[english]{babel}
 \RequirePackage{lmodern}
 \RequirePackage{graphicx}
 \RequirePackage{epsfig}
@@ -51,8 +52,8 @@
 %\raggedbottom
 
 
-\renewcommand{\abstract}[1]{\textbf{Résumé} : \itshape  }
-\newcommand{\keywords}[1]{\textbf{Mots-clés} : \itshape #1 \normalfont}
+% \renewcommand{\abstract}[1]{\textbf{Résumé} : \itshape  }
+\newcommand{\keywords}[1]{\textbf{Keywords} : \itshape #1 \normalfont}
 
 
 
