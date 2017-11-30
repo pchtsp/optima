@@ -12,7 +12,7 @@
 \title{Maintenance planning on French military aircraft operations}
 
 % Le titre court
-\def\shorttitle{Titre court}
+% \def\shorttitle{Titre court}
 
 \author{Franco Peschiera\inst{1}, Alain Haït\inst{1}, Olga Battaïa\inst{1}, Nicolas Dupin\inst{1}}
 
@@ -48,7 +48,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
     % \subsection{iesources}
     % \label{def:resource}
 
-    Resources require recurrent preventive maintenance operations. The frequency of maintenance operations is defined by 2 factors: the amount of time $me$ elapsed since the last maintenance operation and the amount of time $mu$ for which the resource has been used since the last maintenance operation. A maintenance operation takes an amount of time equal to $md$ periods and cannot be interrupted. Resources start with a number of remaining elapsed and usage time of $retInit_i$ and $rutInit_i$ respectively. In the following section we present a new mathematical model for this problem. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. 
+    Resources require recurrent preventive maintenance operations. The frequency of maintenance operations is defined by 2 factors: the amount of time $me$ elapsed since the last maintenance operation and the amount of time $mu$ for which the resource has been used since the last maintenance operation. A maintenance operation takes an amount of time equal to $md$ periods and cannot be interrupted. Resources start with a number of remaining elapsed and usage time of $retInit_i$ and $rutInit_i$ respectively. In the following section we present a new mathematical model for this problem.
     % We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance at any given period.
 
     % We will call "remaining usage time" (or $rut$) to the amount of time that the resource needs to be used in order for it to need a maintenance at any given period.
@@ -136,13 +136,13 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % \subsection{Variables}
 
-    The decision variables manage the previously defined resources. We can summarize the main decisions the following way: if resource $i$ starts maintenance in period $t$ and if resource $i$ is assigned to task $j$ in period $t$. We will call $\mathcal{T}_0$ to periods that include the period before the first, $0$, and $d_t$ the number of resources assigned to some task in period $t$. Based on decisions made before the planning period, we call $m_{it}$ to a binary parameter that indicates if a resource is (still) in maintenance in period $t$.
+    The decision variables manage the previously defined resources. We can summarize the main decisions the following way: if resource $i$ starts maintenance in period $t$ and if resource $i$ is assigned to task $j$ in period $t$. We will call $\mathcal{T}_0$ to periods that include the period before the first, $0$, and $d_t$ the number of resources assigned to some task in period $t$. Based on decisions made before the planning horizon, we use $m_{it}$ as a binary parameter whose value is equal to 1 if a resource is (still) in maintenance in period $t$ and 0 otherwise. This parameter only should take some value in the first $md-1$ periods of the planning horizon.
 
     \begin{tabular}{p{15mm}lp{105mm}}
         $A_{ijt}$           & = & 1 if resource $i \in cd_j$ is assigned to task $j$ in period $t$, 0 otherwise. \\  
         % $state_{ist}$       & = & 1 if resource $i$ is in state $s$ in period $t$, 0 otherwise. \\  
         $M_{it}$            & = & 1 if resource $i$ starts maintenance in period $t$, 0 otherwise. \\
-        $rut_{it}$          & = & remaining usage time (continous) for resource $i$ after period $t \in \mathcal{T}_0$. \\  
+        $rut_{it}$          & = & remaining usage time (continuous) for resource $i$ after period $t \in \mathcal{T}_0$. \\  
         % $ret_{it}$          & = & remaining elapsed time (integer) for resource $i$ after period $t \in \mathcal{T}0$. \\  
         % $used_{it}$         & = & time (integer) used by resource $i$ in period $t$. \\
         $Umax$        & = & max number (integer) of unavailable resources in any period. \\
@@ -288,9 +288,9 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
-%\section{Conclusions}
+\section{Conclusions and future work}
     
- %   The present modelization is a new way to formulate the Military Flight Planning Model. Unlike previous work, it assigns aircraft to missions instead of just using an aggregate hourly demand per period. This is useful in order to improve the model by including minimum durations for mission assignment.
+    The present work proposes a new model for dealing with the Military Flight and Maintenance Problem. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. This will permit the future addition of conditions such as a minimum assignment time of aircraft to missions, the differentiation of types of aircraft and the possibility to put aircraft into storage.
 
 
 % La bibliographie
