@@ -5,87 +5,23 @@ import re
 import pandas as pd
 import package.aux as aux
 import os
-
-######THIS SHOULD PROBABLY BE MOVED TO data_input.py
-
-# we import the data set.
-table = generate_data_from_source()
-
-# df3 = df3.assign(velo=df3.dist / df3.duration*3600/1000)  # for km/h
-
-params = table['Parametres']
-
-planning_cols = [col for col in params if re.findall(string=col, pattern=r'\d+$') and
-                 int(re.findall(string=col, pattern=r'\d+$')[0]) in range(2, 5)]
-
-horizon = params[planning_cols]
-horizon = horizon[~horizon.iloc[:, 1].isna()].rename(columns=lambda x: "c"+x[-1])
-horizon = horizon.assign(date=horizon.c4.apply(str) + "-" +
-                              horizon.c3.apply(lambda x: str(x).zfill(2)))
-horizon = horizon[~horizon.iloc[:, 0].isna()].set_index("c2")["date"].to_dict()
-
-
-params_gen = params[~params.Unnamed9.isna()].rename(
-    columns={'Unnamed9': 'name', 'Unnamed10': 'value'})[['name', 'value']]
-
-params_gen = params_gen.set_index('name').to_dict()['value']
-
-
-tasks_data = table['Missions']
-tasks_data = \
-    tasks_data.assign(start=tasks_data.AnneeDeDebut.apply(str) + '-' +
-                            tasks_data.MoisDeDebut.apply(lambda x: str(x).zfill(2)),
-                      end=tasks_data.AnneeDeFin.apply(str) + '-' +
-                          tasks_data.MoisDeFin.apply(lambda x: str(x).zfill(2)))
-
-tasks_data.set_index('IdMission', inplace= True)
-
-capacites_col = [col for col in tasks_data if col.startswith("Capacite")]
-capacites_mission = tasks_data.reset_index().\
-    melt(id_vars=["IdMission"], value_vars=capacites_col)\
-    [['IdMission', "value"]]
-capacites_mission = capacites_mission[~capacites_mission.value.isna()].set_index('value')
-
-# start = arrow.get(tasks_data.start.values.min() + "-01")
-# end = arrow.get(tasks_data.end.values.max() + "-01")
-# alternative: we fix an end date from the data set:
-start = horizon["Début"]
-end = horizon["Fin"]
-
-prev = get_prev_month(start)
-
-maint = table['DefinitionMaintenances']
-
-avions = table['Avions_Capacite']
-
-capacites_col = ['Capacites'] + [col for col in avions if col.startswith("Unnamed")]
-capacites_avion = avions.melt(id_vars=["IdAvion"], value_vars=capacites_col)[['IdAvion', "value"]]
-
-capacites_avion = capacites_avion[~capacites_avion.value.isna()].set_index('value')
-
-num_capacites = capacites_mission.reset_index().groupby("IdMission").\
-    agg(len).reset_index()
-capacites_join = capacites_mission.join(capacites_avion)
-capacites_join = capacites_join.reset_index().\
-    groupby(['IdMission', 'IdAvion']).agg(len).reset_index()
-
-mission_aircraft = \
-    pd.merge(capacites_join, num_capacites, on=["IdMission", "value"])\
-        [["IdMission", "IdAvion"]]
-
-# TODO: I'm missing for some reason half the missions that do not
-# have at least one aircraft as candidate...
-
-avions_state = table['Avions_Potentiels']
-
+import package.data_input as di
 
 ######################################################
 
-# SETS:
+# arguments:
+model_data = di.get_model_data()
+start = 1
+end = 1
 
-resources = avions.IdAvion.values  # a
-tasks = mission_aircraft.IdMission.unique()  # v
-periods = get_months(start, end)  # t
+# SETS:
+resources_data = model_data['resources']
+param_data = model_data['parameters']
+task_data = model_data['tasks']
+
+resources = list(resources_data['initial_elapsed'].keys())  # a
+tasks = list(task_data['start'].keys())  # v
+periods = aux.get_months(start, end)  # t
 states = ['M', 'V', 'N', 'A']  # s
 
 # TODO: this is for testing exclusively:
@@ -96,28 +32,23 @@ tasks = tasks[:-1]
 # print(tasks[-1])
 
 states_noV = [s for s in states if s != 'V']
-periods_0 = [prev] + periods  # periods with the previous one added at the start.
+periods_0 = [aux.get_prev_month(start)] + periods  # periods with the previous one added at the start.
 
 
 # PARAMETERS:
 
 # maintenances:
-max_elapsed_time = \
-    maint.GainPotentielCalendaire_mois.values.min()  # me. in periods
-max_used_time = \
-    maint.GainPotentielHoraire_heures.values.min()  # mu. in hours of usage
-duration = \
-    maint.DureeMaintenance_mois.values.max()  # md. in periods
-capacity = \
-    {t: params_gen['Maintenance max par mois'] for t in periods}  # c. in resources per period
+max_elapsed_time = param_data['max_elapsed_time']  # me. in periods
+max_used_time = param_data['used']  # mu. in hours of usage
+duration = param_data['maint_duration']  # md. in periods
+capacity = {t: param_data['maint_capacity'] for t in periods}  # c. in resources per period
 
 # tasks - resources
-start_time = tasks_data.start.to_dict()  # not defined.
-end_time = tasks_data.end.to_dict()  # not defined.
-candidates = mission_aircraft.groupby("IdMission")['IdAvion'].\
-    apply(lambda x: x.tolist()).to_dict()  # cd. indexed set of resources.
-consumption = tasks_data['MaxPu/avion/mois'].to_dict()  # rh. hours per period.
-requirement = tasks_data.nombreRequisA1.to_dict()  # rr. aircraft per period.
+start_time = ['start']  # not defined.
+end_time = task_data['start']  # not defined.
+candidates = task_data['candidates']  # cd. indexed set of resources.
+consumption = task_data['consumption']  # rh. hours per period.
+requirement = task_data['num_resource']  # rr. aircraft per period.
 
 # time:
 periods_pos = {periods[pos]: pos for pos in range(len(periods))}
@@ -126,8 +57,8 @@ last_period = periods[-1]
 first_period = periods[0]
 
 # initial state:
-ret_read = avions_state.set_index("IdAvion")['PotentielCalendaire'].to_dict()
-rut_read = avions_state.set_index("IdAvion")['PotentielHoraire_HdV'].to_dict()
+ret_read = resources_data['initial_elapsed']
+rut_read = resources_data['initial_used']
 
 ret_init = {a: max_elapsed_time for a in resources}
 rut_init = {a: max_used_time for a in resources}
