@@ -81,12 +81,6 @@ def get_model_data():
         [['IdMission', "value"]]
     capacites_mission = capacites_mission[~capacites_mission.value.isna()].set_index('value')
 
-    # start = arrow.get(tasks_data.start.values.min() + "-01")
-    # end = arrow.get(tasks_data.end.values.max() + "-01")
-    # alternative: we fix an end date from the data set:
-    start = horizon["Début"]
-    end = horizon["Fin"]
-
     maint = table['DefinitionMaintenances']
 
     avions = table['Avions_Capacite']
@@ -117,6 +111,8 @@ def get_model_data():
         ,'max_elapsed_time': maint.GainPotentielCalendaire_mois.values.min()
         ,'maint_duration': maint.DureeMaintenance_mois.values.max()
         ,'maint_capacity': params_gen['Maintenance max par mois']
+        ,'start': horizon["Début"]
+        ,'end': horizon["Fin"]
     }
 
     model_data['tasks'] = {
@@ -133,5 +129,5 @@ def get_model_data():
 
     }
 
-    return
+    return model_data
 
