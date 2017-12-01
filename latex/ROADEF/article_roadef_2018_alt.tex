@@ -166,8 +166,8 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         % MAIN CONSTRAINTS
         %%%%%%%%%%%%%%%%%%%
         % maximum capacity:
-        & \sum_{t = \max{(1, t' - md+1)}}^{t'} \,\, \sum_{i \in \mathcal{I}} M_{it} + \sum_{i \in \mathcal{I}} m_{it'} \leq Mmax
-                & t' \in \mathcal{T} \label{eq:capacity}\\
+        & \sum_{t' = \max{(1, t - md+1)}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + \sum_{i \in \mathcal{I}} m_{it} \leq Mmax
+                & t \in \mathcal{T} \label{eq:capacity}\\
         % minimum resources
         & \sum_{i \in cd_j} A_{ijt} \geq r_{j}
                 & t \in \mathcal{T}, j \in \mathcal{J} \label{eq:taskres}\\
@@ -184,12 +184,12 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         % & \sum_{s \in \mathcal{S}} state_{ist} = 1 
         %         & \hspace{10mm} t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state2}
         % or maintenance or task:
-        & \sum_{t = \max{(1, t' - md+1)}}^{t'} M_{it} + \sum_{j \in \mathcal{J}} A_{ijt'} + m_{it'} \leq 1
-                & t' \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+        & \sum_{t' = \max{(1, t - md+1)}}^{t} M_{it'} + \sum_{j \in \mathcal{J}} A_{ijt} + m_{it} \leq 1
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
 
-    % $$H*M_{it'} - Heures de vol entre t_1 et t' \leq H*(M_{it_1}+1) i \in I, t' \geq t-1 \in T$$
-    % $$t_1M_{it_1} \geq t'M_{it'} - D_{max} \foreach i \in I, t'>t-1, t_1\geq D_{max}-D_i$$
+    % $$H*M_{it} - Heures de vol entre t_1 et t \leq H*(M_{it_1}+1) i \in I, t \geq t-1 \in T$$
+    % $$t_1M_{it_1} \geq tM_{it} - D_{max} \foreach i \in I, t>t-1, t_1\geq D_{max}-D_i$$
 
     % These constraints are the the main constraints of the model.
     % The number of resources assigned to a single task and under maintenance 
@@ -221,8 +221,8 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}\\
         & rut_{it} \geq mu \times M_{it}
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:balance2}\\
-        & \sum_{t = \max{(1, t' - md+1)}}^{t'} \,\, \sum_{i \in \mathcal{I}} M_{it} + d_{t'} + \sum_{i \in \mathcal{I}} m_{it'} \leq Umax
-                & \hspace{10mm} t' \in \mathcal{T}  \label{eq:available}
+        & \sum_{t' = \max{(1, t - md+1)}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_{t} + \sum_{i \in \mathcal{I}} m_{it} \leq Umax
+                & \hspace{10mm} t \in \mathcal{T}  \label{eq:available}
         % TODO: add the constraints for the beginning of the period.
     \end{align}
     
@@ -236,11 +236,11 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         % STATES
         %%%%%%%%%%%%%%%%%%%
         % if start maintenance, at least X periods
-        % & state_{ist'} \geq M_{it_1} 
-        %         & \hspace{10mm} (t_1, t') \in \mathcal{T}, t_1 \leq t' \leq t_1 + md - 1, i \in \mathcal{I}, s = \mq{M} \label{eq:start1}\\
+        % & state_{ist} \geq M_{it_1} 
+        %         & \hspace{10mm} (t_1, t) \in \mathcal{T}, t_1 \leq t \leq t_1 + md - 1, i \in \mathcal{I}, s = \mq{M} \label{eq:start1}\\
         % % if maintenance doesn't start, we cannot have maintenance:
-        % & \sum_{t_1 \in \mathcal{T}} M_{it_1} \geq state_{ist'} 
-        %         & \hspace{10mm} t' \in \mathcal{T}, t_1 \leq t' \leq t_1 + md - 1, i \in \mathcal{I}, s = \mq{M} \label{eq:start2}\\
+        % & \sum_{t_1 \in \mathcal{T}} M_{it_1} \geq state_{ist} 
+        %         & \hspace{10mm} t \in \mathcal{T}, t_1 \leq t \leq t_1 + md - 1, i \in \mathcal{I}, s = \mq{M} \label{eq:start2}\\
         % availqbility definition:
         % & Umax \leq \sum_{i} state_{ist}
         %         & \hspace{10mm} t \in \mathcal{T}, i \in \mathcal{I}, s = \mq{A} \label{eq:available}

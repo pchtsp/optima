@@ -1,8 +1,5 @@
 import pulp as pl
-from package.data_input import generate_data_from_source
 from package.aux import get_months, get_prev_month, clean_dict, tup_to_dict, vars_to_tups
-import re
-import pandas as pd
 import package.aux as aux
 import os
 import package.data_input as di
