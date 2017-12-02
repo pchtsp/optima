@@ -24,17 +24,16 @@ def solve_with_states(model_data):
     resources = list(resources_data['initial_elapsed'].keys())  # a
     tasks = list(task_data['candidates'].keys())  # v
     periods = aux.get_months(first_period, last_period)  # t
-    states = ['M', 'V']  # s
+    states = ['M']  # s
 
     # TODO: this is for testing exclusively:
 
     # resources = resources[:30]
-    periods = periods[:20]
-    tasks = tasks[:-1]
+    periods = periods[:30]
+    tasks = [t for t in tasks if t != 'O8']  # there is something weird with this mission 08
     last_period = periods[-1]
     # print(tasks[-1])
 
-    states_noV = [s for s in states if s != 'V']
     period_0 = aux.get_prev_month(first_period)
     periods_0 = [period_0] + periods  # periods with the previous one added at the start.
 
@@ -88,7 +87,8 @@ def solve_with_states(model_data):
     ast = [(a, s, t) for (a, t) in at for s in states]
 
     # this is tricky: we  limit the possibilities of starting a maintenance:
-    at_start = [(a, t) for a, t in at if periods_pos[t] % 2 == 0]
+    # at_start = [(a, t) for a, t in at if periods_pos[t] % 2 == 0]
+    at_start = [(a, t) for a, t in at]
     at_start_not = [tup for tup in at if tup not in at_start]
 
     at0 = [(a, period_0) for a in resources] + at
@@ -145,9 +145,10 @@ def solve_with_states(model_data):
     for (v, t) in a_vt:
         model += pl.lpSum(task[(a, v, t)] for a in a_vt[(v, t)]) >= requirement[v]
 
-    # max one task per period:
+    # max one task per period or no-task state:
     for (a, t) in v_at:
-        model += pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)]) <= 1
+        model += pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)]) + \
+                 pl.lpSum(state[(a, s, t)] for s in states) <= 1
 
     # used time, two options:
     # maybe set equal?
@@ -171,9 +172,9 @@ def solve_with_states(model_data):
         model += ret[(a, t)] <= ret[(a, previous[t])] - 1
 
     # the start period is given by parameters:
-    for a in resources:
-        model += rut[(a, period_0)] == rut_init[a]
-        model += ret[(a, period_0)] == ret_init[a]
+    # for a in resources:
+        model += rut[(a, period_0)] == min(ub['rut'], rut_init[a])
+        model += ret[(a, period_0)] == min(ub['ret'], ret_init[a])
 
     # maintenance duration:
     for (a, t1, t2) in att:
@@ -184,17 +185,15 @@ def solve_with_states(model_data):
     for (a, t2) in at:
         model += pl.lpSum(start[(a, t1)] for t1 in t1_at2[(a, t2)]) >= state[(a, 'M', t2)]
 
-    # not sure which one is better, both?
-    for (a, v, t) in avt:
-        model += state[(a, 'V', t)] >= task[(a, v, t)]
-        for s in states_noV:
-            model += task[(a, v, t)] + state[(a, s, t)] <= 1
-    for (a, t) in v_at:
-        model += state[(a, 'V', t)] >= pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)])
+    # # not sure which one is better, both?
+    # for (a, v, t) in avt:
+    #     model += state[(a, 'V', t)] >= task[(a, v, t)]
+    # for (a, t) in v_at:
+    #     model += state[(a, 'V', t)] >= pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)])
 
     # max one unavailable state per period:
-    for (a, t) in at:
-        model += pl.lpSum(state[(a, s, t)] for s in states) <= 1
+    # for (a, t) in at:
+    #     model += pl.lpSum(state[(a, s, t)] for s in states) <= 1
 
     # While we decide how to fix the ending of the planning period,
     # we will try get at least the same amount of total rut and ret than
@@ -203,13 +202,17 @@ def solve_with_states(model_data):
     model += pl.lpSum(rut[(a, last_period)] for a in resources) >= rut_obj
 
     # SOLVING
-    # model.solve(pl.PULP_CBC_CMD(maxSeconds=99, msg=True, fracGap=0, cuts=True, presolve=True))
+    cbc_options = ""
+    result = model.solve(pl.PULP_CBC_CMD(maxSeconds=5000, msg=True, fracGap=0, cuts=True, presolve=True))
     directory_path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.format(aux.get_timestamp())
     os.mkdir(directory_path)
     result_path = directory_path + 'gurobi.sol'.format()
     log_path = directory_path + 'gurobi.log'
     gurobi_options = [('TimeLimit', 6000), ('ResultFile', result_path), ('LogFile', log_path)]
-    model.solve(pl.GUROBI_CMD(options=gurobi_options))
+    # result = model.solve(pl.GUROBI_CMD(options=gurobi_options))
+
+    if result != 1:
+        return
 
     _start = {_t: 1 for _t in start if start[_t].value()}
 
@@ -229,3 +232,8 @@ def solve_with_states(model_data):
 
     aux.export_solution(directory_path, solution, name="data_out")
     return solution
+
+
+if __name__ == "__main__":
+    model_data = di.get_model_data()
+    solve_with_states(model_data)
