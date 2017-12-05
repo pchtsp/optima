@@ -1,9 +1,10 @@
-# /usr/bin/python
+# /usr/bin/python3
 import arrow
 import pandas as pd
 import os
 import datetime
 import pickle
+
 
 def get_months(start_month, end_month):
     """
@@ -22,8 +23,37 @@ def get_months(start_month, end_month):
     return periods
 
 
+def get_fixed_maintenances(previous_states, first_period, duration):
+    previous_states_n = {}
+    last_maint = {}
+    planned_maint = []
+    for (res, period) in previous_states:
+        if res not in previous_states_n:
+            previous_states_n[res] = []
+        previous_states_n[res].append(period)
+    # after initialization, we search for the scheduled maintenances that:
+    # 1. do not continue the maintenance of the previous month
+    # 2. happen in the last X months before the start of the planning period.
+    for res in previous_states_n:
+        _list = list(previous_states_n[res])
+        _list_n = [period for period in _list if get_prev_month(period) not in _list
+                   if shift_month(first_period, -duration) < period < first_period]
+        if len(_list_n):
+            last_maint[res] = max(_list_n)
+            _temp = first_period
+            finish_maint = shift_month(last_maint[res], duration-1)
+            while _temp <= finish_maint:
+                planned_maint.append((res, _temp))
+                _temp = shift_month(_temp, 1)
+    return planned_maint
+
+
+def shift_month(month, shift=1):
+    return arrow.get(month + "-01").shift(months=shift).format("YYYY-MM")
+
+
 def get_prev_month(month):
-    return arrow.get(month + "-01").shift(months=-1).format("YYYY-MM")
+    return shift_month(month, shift=-1)
 
 
 def clean_dict(dictionary, default_value=0):
@@ -59,6 +89,10 @@ def export_solution(path, obj, name=None):
     with open(path, 'wb') as f:
         pickle.dump(obj, f)
     return True
+
+
+def get_property_from_dic(dic, property):
+    return {key: value[property] for key, value in dic.items()}
 
 
 def get_timestamp():

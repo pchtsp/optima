@@ -1,15 +1,16 @@
 import pulp as pl
-from package.aux import get_months, get_prev_month, clean_dict, tup_to_dict, vars_to_tups
 import package.aux as aux
 import os
 import package.data_input as di
+import package.config as conf
 
 ######################################################
 
 
-def solve_with_states(model_data):
+def solve_with_states(model_data, previous_states, solver="CBC"):
     """
     :param model_data: data to consruct and solve model. taken from get_model_data()
+    :previous_states: past information that conditions the problem
     :return: solution of solved model
     """
     resources_data = model_data['resources']
@@ -21,24 +22,20 @@ def solve_with_states(model_data):
     last_period = param_data['end']
 
     # SETS:
-    resources = list(resources_data['initial_elapsed'].keys())  # a
-    tasks = list(task_data['candidates'].keys())  # v
+    resources = list(resources_data.keys())  # a
+    tasks = list(task_data.keys())  # v
     periods = aux.get_months(first_period, last_period)  # t
     states = ['M']  # s
 
-    # TODO: this is for testing exclusively:
-
-    # resources = resources[:30]
-    periods = periods[:30]
+    # TODO: this block is for testing exclusively:
+    periods = periods[:50]
     tasks = [t for t in tasks if t != 'O8']  # there is something weird with this mission 08
-    last_period = periods[-1]
-    # print(tasks[-1])
 
+    last_period = periods[-1]
     period_0 = aux.get_prev_month(first_period)
     periods_0 = [period_0] + periods  # periods with the previous one added at the start.
 
     # PARAMETERS:
-
     # maintenances:
     max_elapsed_time = param_data['max_elapsed_time']  # me. in periods
     max_used_time = param_data['max_used_time']  # mu. in hours of usage
@@ -46,19 +43,19 @@ def solve_with_states(model_data):
     capacity = {t: param_data['maint_capacity'] for t in periods}  # c. in resources per period
 
     # tasks - resources
-    start_time = task_data['start']  # not defined.
-    end_time = task_data['end']  # not defined.
-    candidates = task_data['candidates']  # cd. indexed set of resources.
-    consumption = task_data['consumption']  # rh. hours per period.
-    requirement = task_data['num_resource']  # rr. aircraft per period.
+    start_time = aux.get_property_from_dic(task_data, 'start')  # not defined.
+    end_time = aux.get_property_from_dic(task_data, 'end')  # not defined.
+    candidates = aux.get_property_from_dic(task_data, 'candidates')  # cd. indexed set of resources.
+    consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
+    requirement = aux.get_property_from_dic(task_data, 'num_resource')  # rr. aircraft per period.
 
     # time:
     periods_pos = {periods[pos]: pos for pos in range(len(periods))}
     previous = {period: periods_0[periods_pos[period]] for period in periods}
 
     # initial state:
-    ret_read = resources_data['initial_elapsed']
-    rut_read = resources_data['initial_used']
+    ret_read = aux.get_property_from_dic(resources_data, 'initial_elapsed')
+    rut_read = aux.get_property_from_dic(resources_data, 'initial_used')
 
     ret_init = {a: max_elapsed_time for a in resources}
     rut_init = {a: max_used_time for a in resources}
@@ -68,9 +65,10 @@ def solve_with_states(model_data):
 
     ret_obj = sum(ret_init[a] for a in resources)
     rut_obj = sum(rut_init[a] for a in resources)
+    # TODO: add minimum mission duration assignment
 
-    # TODO: i'm still missing the fixed states (maintenances)
-    # TODO: add minimum mission assignment
+    # Here we calculate the initial periods were aircraft need maintenance
+    planned_maint = aux.get_fixed_maintenances(previous_states, first_period, duration)
 
     # maximal bounds on continuous variables:
     ub = {
@@ -80,7 +78,6 @@ def solve_with_states(model_data):
     }
 
     # DOMAINS:
-
     vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
     avt = [(a, v, t) for a in resources for (v, t) in vt if a in candidates[v]]
     at = [(a, t) for a in resources for t in periods]
@@ -97,20 +94,17 @@ def solve_with_states(model_data):
            (a, t1) in at_start]
 
     # a_t = {t: a for t in periods for a in resources if (a, t) in at}
-    a_t = tup_to_dict(at, result_col=0, is_list=True)
-    #as_t =
-    a_vt = tup_to_dict(avt, result_col=0, is_list=True)
-    v_at = tup_to_dict(avt, result_col=1, is_list=True)
-    t1_at2 = tup_to_dict(att, result_col=1, is_list=True)
+    a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
+    a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
+    v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
+    t1_at2 = aux.tup_to_dict(att, result_col=1, is_list=True)
 
     # number of resources in missions per month:
     num_resource_working = {t: 0 for t in periods}
     for (v, t) in vt:
         num_resource_working[t] += requirement[v]
 
-
     # VARIABLES:
-
     # binary:
     task = pl.LpVariable.dicts("task", avt, 0, 1, pl.LpInteger)
     start = pl.LpVariable.dicts("start", at_start, 0, 1, pl.LpInteger)
@@ -126,15 +120,12 @@ def solve_with_states(model_data):
     max_maint = pl.LpVariable("max_maint")
 
     # MODEL
-
     model = pl.LpProblem("MFMP_v0001", pl.LpMinimize)
 
     # OBJECTIVE:
-
     model += max_unavail + max_maint
 
     # CONSTRAINTS:
-
     for t in periods:
         # objective: maintenance (commented because not in use)
         model += pl.lpSum(state[(a, 'M', t)] for a in a_t[t]) <= max_maint
@@ -172,9 +163,13 @@ def solve_with_states(model_data):
         model += ret[(a, t)] <= ret[(a, previous[t])] - 1
 
     # the start period is given by parameters:
-    # for a in resources:
+    for a in resources:
         model += rut[(a, period_0)] == min(ub['rut'], rut_init[a])
         model += ret[(a, period_0)] == min(ub['ret'], ret_init[a])
+
+    # fixed periods with maintenance need to be fixed in state:
+    for (a, t) in planned_maint:
+        model += state[(a, 'M', t)] == 1
 
     # maintenance duration:
     for (a, t1, t2) in att:
@@ -185,16 +180,6 @@ def solve_with_states(model_data):
     for (a, t2) in at:
         model += pl.lpSum(start[(a, t1)] for t1 in t1_at2[(a, t2)]) >= state[(a, 'M', t2)]
 
-    # # not sure which one is better, both?
-    # for (a, v, t) in avt:
-    #     model += state[(a, 'V', t)] >= task[(a, v, t)]
-    # for (a, t) in v_at:
-    #     model += state[(a, 'V', t)] >= pl.lpSum(task[(a, v, t)] for v in v_at[(a, t)])
-
-    # max one unavailable state per period:
-    # for (a, t) in at:
-    #     model += pl.lpSum(state[(a, s, t)] for s in states) <= 1
-
     # While we decide how to fix the ending of the planning period,
     # we will try get at least the same amount of total rut and ret than
     # at the beginning.
@@ -202,22 +187,27 @@ def solve_with_states(model_data):
     model += pl.lpSum(rut[(a, last_period)] for a in resources) >= rut_obj
 
     # SOLVING
-    cbc_options = ""
-    result = model.solve(pl.PULP_CBC_CMD(maxSeconds=5000, msg=True, fracGap=0, cuts=True, presolve=True))
-    directory_path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.format(aux.get_timestamp())
-    os.mkdir(directory_path)
-    result_path = directory_path + 'gurobi.sol'.format()
-    log_path = directory_path + 'gurobi.log'
-    gurobi_options = [('TimeLimit', 6000), ('ResultFile', result_path), ('LogFile', log_path)]
-    # result = model.solve(pl.GUROBI_CMD(options=gurobi_options))
+    timeLimit = 3000
+    gap = 0
+    directory_path = \
+        '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.\
+        format(aux.get_timestamp())
+
+    if solver == "GUROBI":
+        result = model.solve(pl.GUROBI_CMD(options=conf.config_gurobi(gap, timeLimit, directory_path)))
+    elif solver == "CPLEX":
+        result = model.solve(pl.CPLEX_CMD(options=conf.config_cplex(gap, timeLimit, directory_path)))
+    else:
+        result = model.solve(pl.PULP_CBC_CMD(options=conf.config_cbc(gap, timeLimit, directory_path)))
 
     if result != 1:
+        print("Model resulted in non-feasible status")
         return
 
     _start = {_t: 1 for _t in start if start[_t].value()}
 
-    _state = tup_to_dict(vars_to_tups(state), result_col=1, is_list=False)
-    _task = tup_to_dict(vars_to_tups(task), result_col=1, is_list=False)
+    _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
+    _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
     _used = {t: used[t].value() for t in used}
     _rut = {t: rut[t].value() for t in rut}
     _ret = {t: ret[t].value() for t in ret}
@@ -236,4 +226,14 @@ def solve_with_states(model_data):
 
 if __name__ == "__main__":
     model_data = di.get_model_data()
-    solve_with_states(model_data)
+    codes = aux.get_property_from_dic(model_data['resources'], 'code')
+    codes_inv = {value: key for key, value in codes.items()}
+    historic_data = di.generate_solution_from_source()
+    historic_data_n = {
+        (codes_inv[code], month): value for (code, month), value in historic_data.items()\
+        if code in codes_inv
+    }
+    previous_states = {key: 'M' for key, value in historic_data_n.items()
+                       if int(str(value).startswith('V'))
+                       }
+    solve_with_states(model_data, previous_states, solver="CPLEX")

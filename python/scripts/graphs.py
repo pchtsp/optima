@@ -46,7 +46,7 @@ table_nn.sort_values(indeces, inplace=True)
 table_nn['prev'] = table_nn.groupby('UNIT').content.shift(1)
 table_nn['nrow'] = table_nn.groupby('UNIT').cumcount() + 1
 
-table_nn = table_nn[np.logical_or(table_nn.prev!=table_nn.content, table_nn['nrow']==1)]
+table_nn = table_nn[np.logical_or(table_nn.prev != table_nn.content, table_nn['nrow']==1)]
 table_nn['end'] = table_nn.groupby('UNIT').month.shift(-1)
 
 table_nn.end = np.where(pd.isna(table_nn.end), last_period, table_nn.end)

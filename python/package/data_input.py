@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import unidecode
 import package.aux as aux
+import numpy as np
 
 def make_name(name):
     # we take out spaces and later weird accents
@@ -115,19 +116,49 @@ def get_model_data():
         ,'end': horizon["Fin"]
     }
 
+    av_tasks = np.intersect1d(mission_aircraft.IdMission.unique(), tasks_data.index)
+    # [task]
     model_data['tasks'] = {
-        'start': tasks_data.start.to_dict()
-        , 'end': tasks_data.end.to_dict()
-        , 'consumption': tasks_data['MaxPu/avion/mois'].to_dict()
-        , 'num_resource': tasks_data.nombreRequisA1.to_dict()
-        , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].apply(lambda x: x.tolist()).to_dict()
+        task: {
+            'start': tasks_data.start.to_dict()[task]
+            , 'end': tasks_data.end.to_dict()[task]
+            , 'consumption': tasks_data['MaxPu/avion/mois'].to_dict()[task]
+            , 'num_resource': tasks_data.nombreRequisA1.to_dict()[task]
+            , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].
+                apply(lambda x: x.tolist()).to_dict()[task]
+        } for task in av_tasks
     }
 
-    model_data['resources'] = {
-        'initial_used': avions_state.set_index("IdAvion")['PotentielHoraire_HdV'].to_dict()
-        ,'initial_elapsed': avions_state.set_index("IdAvion")['PotentielCalendaire'].to_dict()
+    av_resource = np.intersect1d(avions_state.IdAvion, avions.IdAvion)
 
+    model_data['resources'] = {
+        resource: {
+            'initial_used': avions_state.set_index("IdAvion")['PotentielHoraire_HdV'].to_dict()[resource]
+            , 'initial_elapsed': avions_state.set_index("IdAvion")['PotentielCalendaire'].to_dict()[resource]
+            , 'code': avions.set_index("IdAvion")['MatriculeAvion'].to_dict()[resource]
+        } for resource in av_resource
     }
 
     return model_data
 
+
+def generate_solution_from_source(source=r'../data/raw/Planifs M2000.xlsm'):
+    excel_file = pd.ExcelFile(source)
+
+    sheets = excel_file.sheet_names
+    table = pd.read_excel(source, sheet_name='Visu totale', header=None)
+    year = table.loc[0, 4:]
+    year = np.where(np.char.startswith(np.array(year, dtype="U4"), '20'),
+             year,
+             np.nan)
+    year = pd.Series(year).fillna(method='ffill').apply(str)
+    months_names = ("Ja  Fe  Ma  Av  Mi  Jn  Jt  Au  Se  Oc  No  De").split(r'  ')
+    month_pos = {months_names[pos]: str(pos+1).zfill(2) for pos in range(len(months_names))}
+    # lines = table.loc[1, 4:].isin(month_pos).reset_index(drop=True)
+    months = table.loc[1, 4:].apply(lambda x: month_pos.get(x, "00")).reset_index(drop=True)
+    colnames = ['code'] + list(year + '-' + months)
+    table_n = table.loc[2:, 3:].copy()
+    table_n.columns = colnames
+    state = pd.melt(table_n, id_vars="code", var_name="month", value_name="state").dropna()
+    state = state[~state.month.str.endswith("00")]
+    return state.set_index(["code", "month"])['state'].to_dict()
