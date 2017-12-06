@@ -28,6 +28,7 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
     states = ['M']  # s
 
     # TODO: this block is for testing exclusively:
+    # TODO: instead of this, I need to change the end date of the input data.
     periods = periods[:50]
     tasks = [t for t in tasks if t != 'O8']  # there is something weird with this mission 08
 
@@ -207,7 +208,7 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
         print("Model resulted in non-feasible status")
         return
 
-    _start = {_t: 1 for _t in start if start[_t].value()}
+    # _start = {_t: 1 for _t in start if start[_t].value()}
 
     _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)

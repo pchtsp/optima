@@ -15,12 +15,7 @@ def get_months(start_month, end_month):
     # we convert to arrows:
     start = arrow.get(start_month + "-01")
     end = arrow.get(end_month + "-01")
-    periods = []
-    current = start
-    while current <= end:
-        periods.append(current.format("YYYY-MM"))
-        current = current.shift(months=1)
-    return periods
+    return [date.format("YYYY-MM") for date in arrow.Arrow.range('month', start, end)]
 
 
 def get_fixed_maintenances(previous_states, first_period, duration):
@@ -56,17 +51,50 @@ def get_prev_month(month):
     return shift_month(month, shift=-1)
 
 
+def get_next_month(month):
+    return shift_month(month, shift=1)
+
+
 def clean_dict(dictionary, default_value=0):
     return {key: value for key, value in dictionary.items() if value != default_value}
 
 
-def tup_to_dict(at, result_col=0, is_list=True):
-    cols = [col for col in range(len(at[0])) if col != result_col]
-    table = pd.DataFrame(at).groupby(cols)[result_col]
+def tup_to_dict(tup, result_col=0, is_list=True):
+    cols = [col for col in range(len(tup[0])) if col != result_col]
+    table = pd.DataFrame(tup).groupby(cols)[result_col]
     if is_list:
         return table.apply(lambda x: x.tolist()).to_dict()
     else:
         return table.apply(lambda x: x.tolist()[0]).to_dict()
+
+
+def dict_to_tup(dict_to_transform):
+    tup_list = []
+    for key, value in dict_to_transform.items():
+        tup_list.append(tuple(list(key) + [value]))
+    return tup_list
+
+
+def tup_tp_start_finish(tup):
+    """
+    Takes a calendar tuple list of the form: (id, month) and
+    returns a tuple list of the form (id, start_month, end_month)
+    :param tup:
+    :param first_period
+    :return:
+    """
+    res_start_finish = []
+    for (resource, period) in tup:
+        prev_period = get_prev_month(period)
+        if (resource, prev_period) not in tup:
+            stop = False
+            next_period = period
+            while not stop:
+                next_period = get_next_month(next_period)
+                stop = (resource, next_period) not in tup
+            res_start_finish.append((resource, period, get_prev_month(next_period)))
+
+    return res_start_finish
 
 
 def vars_to_tups(var):
