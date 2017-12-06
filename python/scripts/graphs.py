@@ -12,7 +12,7 @@ import palettable.colorbrewer as cbrewer
 
 directory_path = '/home/pchtsp/Documents/projects/OPTIMA/python/experiments/201711231500/'
 
-solution = aux.load_solution(directory_path+"data_out.pickle")
+solution = aux.load_data(directory_path + "data_out.pickle")
 
 # to make a graph, we need to have something like the following:
 

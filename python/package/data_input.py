@@ -5,6 +5,7 @@ import unidecode
 import package.aux as aux
 import numpy as np
 
+
 def make_name(name):
     # we take out spaces and later weird accents
     # we replace parenthesis with an underscore

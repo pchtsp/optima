@@ -73,14 +73,14 @@ def vars_to_tups(var):
     return [tup for tup in var if var[tup].value()]
 
 
-def load_solution(path):
+def load_data(path):
     if not os.path.exists(path):
         return False
     with open(path, 'rb') as f:
         return pickle.load(f)
 
 
-def export_solution(path, obj, name=None):
+def export_data(path, obj, name=None):
     if not os.path.exists(path):
         return False
     if name is None:

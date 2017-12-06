@@ -1,8 +1,8 @@
 import pulp as pl
 import package.aux as aux
-import os
 import package.data_input as di
 import package.config as conf
+import numpy as np
 
 ######################################################
 
@@ -79,14 +79,17 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
 
     # DOMAINS:
     vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
-    avt = [(a, v, t) for a in resources for (v, t) in vt if a in candidates[v]]
+    avt = [(a, v, t) for a in resources for (v, t) in vt
+           if a in candidates[v]
+           if (a, t) not in planned_maint]
     at = [(a, t) for a in resources for t in periods]
     ast = [(a, s, t) for (a, t) in at for s in states]
 
     # this is tricky: we  limit the possibilities of starting a maintenance:
     # at_start = [(a, t) for a, t in at if periods_pos[t] % 2 == 0]
-    at_start = [(a, t) for a, t in at]
-    at_start_not = [tup for tup in at if tup not in at_start]
+    at_start = np.setdiff1d(at, planned_maint)
+    # at_start_not = [tup for tup in at if tup not in at_start]
+    at_start_not = np.setdiff1d(at, at_start)
 
     at0 = [(a, period_0) for a in resources] + at
     att = [(a, t1, t2) for (a, t1) in at for t2 in periods if
@@ -220,7 +223,8 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
         'ret': _ret
     }
 
-    aux.export_solution(directory_path, solution, name="data_out")
+    aux.export_data(directory_path, model_data, name="data_in")
+    aux.export_data(directory_path, solution, name="data_out")
     return solution
 
 
