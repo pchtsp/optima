@@ -30,7 +30,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 
 \section{Introduction}
-    The Military Flight and Maintenance Planning is a problem consisting on the assignment of missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically but they are assumed to include a round-trip to the base. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter.
+    The Military Flight and Maintenance Planning is a problem that aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modelled geographically since a round-trip to the base is assumed for each flight. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
 
     % First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
@@ -41,14 +41,16 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 %\section{The problem}
 
-    The problem consists in the planning of the maintenance operations for military aircraft and the assignment of these aircraft to already scheduled missions. In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $cd_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task.
+    The problem consists in assigning military aircraft to a given set of missions while scheduling the maintenance operations over a time horizon.
+		In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \in \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \in \mathcal{J}$. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period in $t \in T_j$. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \in \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.% (it is obtained by summing all $r_j$ for tasks $j \in J_t$). 
 
     % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($minTIME_j$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_{vt}$.
 
     % \subsection{iesources}
     % \label{def:resource}
 
-    Resources require recurrent preventive maintenance operations. The frequency of maintenance operations is defined by 2 factors: the amount of time $me$ elapsed since the last maintenance operation and the amount of time $mu$ for which the resource has been used since the last maintenance operation. A maintenance operation takes an amount of time equal to $md$ periods and cannot be interrupted. Resources start with a number of remaining elapsed and usage time of $retInit_i$ and $rutInit_i$ respectively. In the following section we present a new mathematical model for this problem.
+    Resources require recurrent preventive maintenance operations since the realization of tasks diminish the remaining usage time of resources. A resource cannot be used for a task $j$ if its remaining usage time is less that usage $h_j$ required by task $j$. A maintenance operation assigns to the resource exactly $H$ units of remaining usage time. The remaining usage time not used before the maintenance operation is lost. %Independently of its usage, each resource has to be maintained each $t^u$ periods of time since the end of the last maintenance operation. 
+		A maintenance operation takes exactly $m$ periods and cannot be interrupted: during this time the resource cannot be assigned to any task. Some resources can be in maintenance at the beginning of the planning horizon, $n_t$ is used for the number of aircraft in such planned maintenance per period $t$ and defined only for the first $m-1$ time periods. In the next section, we present a new mathematical model for this problem.
     % We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance at any given period.
 
     % We will call "remaining usage time" (or $rut$) to the amount of time that the resource needs to be used in order for it to need a maintenance at any given period.
@@ -116,85 +118,49 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 \section{Mathematical model}
 
-    % \subsection{Decisions}
-
-    % \subsection{Parameters}
-
-    % \begin{tabular}{p{10mm}lp{110mm}}
-    % $c_t$            & : & number of resources that can be in maintenance in period $t$. \\
-    % $cd_j$           & : & resources that satisfy task's $j$ needs. \\
-    % $h_{vt}$        & : & time consumed of any resource when assigned to task $j$ in period $t$. \\
-    % $r_{vt}$        & : & number or resources to assign to task $j$ in period $t$. \\            
-    % $mu$             & : & maximum used time for each resource between maintenances. \\    
-    % $me$             & : & maximum elapsed time for each resource between maintenances. \\    
-    % $md$             & : & maintenance duration, in periods. \\        
-    % $rut\_i_a$       & : & remaining used time for resource $i$ at the beginning of horizon. \\        
-    % $ret\_i_a$       & : & remaining elapsed time for resource $i$ at the beginning of horizon. \\
-    % $state\_i_{it}$  & : & some $s \in \mathcal{S}$ in case the resource $i$ has a fixed state. \\
-    % \end{tabular}
-    % \bigskip
-
-    % \subsection{Variables}
-
-    The decision variables manage the previously defined resources. We can summarize the main decisions the following way: if resource $i$ starts maintenance in period $t$ and if resource $i$ is assigned to task $j$ in period $t$. We will call $\mathcal{T}_0$ to periods that include the period before the first, $0$, and $d_t$ the number of resources assigned to some task in period $t$. Based on decisions made before the planning horizon, we use $m_{it}$ as a binary parameter whose value is equal to 1 if a resource is (still) in maintenance in period $t$ and 0 otherwise. This parameter only should take some value in the first $md-1$ periods of the planning horizon.
-
-    \begin{tabular}{p{15mm}lp{105mm}}
-        $A_{ijt}$           & = & 1 if resource $i \in cd_j$ is assigned to task $j$ in period $t$, 0 otherwise. \\  
+    The decision variables manage the previously defined resources.  %We can summarize the main decisions the following way: if resource $i$ starts maintenance in period $t$ and if resource $i$ is assigned to task $j$ in period $t$. We will call $\mathcal{T}_0$ to periods that include the period before the first, $0$, and $d_t$ the number of resources assigned to some task in period $t$. This parameter only should take some value in the first $md-1$ periods of the planning horizon.
+		
+    \begin{tabular}{p{5mm}lp{165mm}}
+        $A_{jti}$           & =&1 if task $j \in J$ in period $t\in T_j$ is realized with resource $i \in a_j$, 0 otherwise. \\  
         % $state_{ist}$       & = & 1 if resource $i$ is in state $s$ in period $t$, 0 otherwise. \\  
-        $M_{it}$            & = & 1 if resource $i$ starts maintenance in period $t$, 0 otherwise. \\
-        $rut_{it}$          & = & remaining usage time (continuous) for resource $i$ after period $t \in \mathcal{T}_0$. \\  
+        $M_{it}$            & =&1 if resource $i \in I$ starts maintenance in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $rut_{it}$          & =&remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
         % $ret_{it}$          & = & remaining elapsed time (integer) for resource $i$ after period $t \in \mathcal{T}0$. \\  
         % $used_{it}$         & = & time (integer) used by resource $i$ in period $t$. \\
-        $Umax$        & = & max number (integer) of unavailable resources in any period. \\
-        $Mmax$        & = & max number (integer) of resources in maintenance in any period. \\
+        $U_{max}$        & =&maximal number (integer) of unavailable resources in any period. \\
+        $M_{max}$        & =&maximal number (integer) of resources in maintenance in any period. \\
     \end{tabular}
-    \bigskip
-
+Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning period for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning period is used to initialize $rut_{i0}$. 
     % \subsection{Constraints}
 
-    The objective is to both minimize the maximum number of maintenances and the maximum number of unavailable aircraft:
-
+    The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
+ % The objective is to minimize the maximum number of unavailable aircraft at any time of the planning horizon:
     \begin{align}
-        & \text{Min}\, (Mmax) \\
-        & \text{Min}\, (Umax)
+        & \text{Min}\; w_1M_{max} + U_{max}
     \end{align}
-
-    Subject to:
-        
+    where  weight $w_1$ is chosen by the decision maker. The following constraints are used.       
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % MAIN CONSTRAINTS
         %%%%%%%%%%%%%%%%%%%
-        % maximum capacity:
-        & \sum_{t' = \max{(1, t - md+1)}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + \sum_{i \in \mathcal{I}} m_{it} \leq Mmax
-                & t \in \mathcal{T} \label{eq:capacity}\\
         % minimum resources
-        & \sum_{i \in cd_j} A_{ijt} \geq r_{j}
-                & t \in \mathcal{T}, j \in \mathcal{J} \label{eq:taskres}\\
-        % max one task per period
-        % & \sum_{j \in \mathcal{J}} A_{ijt} \leq 1
-        %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:maxtasks}\\
-        % if assigned to task: in working state
-        % & state_{ist} \geq A_{ijt} 
-        %         & \hspace{10mm} t \in \mathcal{T}, r \in cd_j, j \in \mathcal{J}, s = \mq{V} \label{eq:state1}\\
-        % if no working state, no assigned to any task
-        % & state_{ist} + A_{ijt} \leq 1
-        %         & \hspace{10mm} t \in \mathcal{T}, r \in cd_j, j \in \mathcal{J}, s \neq \mq{V} \label{eq:state3}\\
-        % only one state. If we take out the 'do nothing' state, this could be \leq
-        % & \sum_{s \in \mathcal{S}} state_{ist} = 1 
-        %         & \hspace{10mm} t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state2}
+        & \sum_{i \in a_j} A_{jti} = r_{j}
+                & j \in \mathcal{J}, t \in T_j,  \label{eq:taskres}\\
+        % maximum capacity:
+        & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
+                & t \in \mathcal{T} \label{eq:capacity}\\
+        % maximum avaliability:
+        & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_{t} + n_{t} \leq U_{max}
+                & \hspace{10mm} t \in \mathcal{T}  \label{eq:avalaibility}\\
         % or maintenance or task:
-        & \sum_{t' = \max{(1, t - md+1)}}^{t} M_{it'} + \sum_{j \in \mathcal{J}} A_{ijt} + m_{it} \leq 1
+			  & \sum_{t' = \max{\{1, t - m+1\}}}^{t} M_{it'} + \sum_{j \in J_t \cap O_i} A_{jti} \leq 1
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
-
     % $$H*M_{it} - Heures de vol entre t_1 et t \leq H*(M_{it_1}+1) i \in I, t \geq t-1 \in T$$
     % $$t_1M_{it_1} \geq tM_{it} - D_{max} \foreach i \in I, t>t-1, t_1\geq D_{max}-D_i$$
-
     % These constraints are the the main constraints of the model.
     % The number of resources assigned to a single task and under maintenance 
-    Tasks' resource requirements are defined by \ref{eq:taskres}, maintenance capacity is controlled by \ref{eq:capacity}. Maximum tasks and maintenance assigned to each resource is guaranteed by \ref{eq:state}.
-        
+    Maintenance capacity is controlled by \ref{eq:capacity}. The number of unavailable resources is defined by \ref{eq:avalaibility}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % BALANCES
@@ -206,29 +172,24 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
         % & used_{it} \geq A_{ijt} \times h_{j}
         %         & i \in \mathcal{I}, t \in \mathcal{T}, j \in \mathcal{J} \label{eq:usage2}\\
         % remaining used time
-        & rut_{it} \leq (rut_{it-1} - \sum_{j \in \mathcal{J}} A_{ijt} \times h_{j}) + (mu \times M_{it})
-                & t \in {1..\mathcal{T}}, i \in \mathcal{I} \label{eq:balance1}\\
+         & rut_{it} \leq rut_{it-1} - \sum_{j \in J_t \cap O_i} A_{jti} \times h_{j} + H \times M_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:balance1}\\
         % remaining elapsed time. TODO: improve this constraint like the maintenance state duration
         % & ret_{it} \leq (ret_{it-1} - 1) + (me \times M_{it})
         %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:balance2}\\
-        & rut_{i0} = rutInit_r
-                & i \in \mathcal{I} \label{eq:initial}\\
+        %& rut_{i0} = rut^{Init}_i
+          %      & i \in \mathcal{I} \label{eq:initial}\\
         % & ret_{it} = retInit_r
         %         & t = 0, i \in \mathcal{I} \label{eq:initial2}\\
         % & ret_{it} \leq me
         %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
-        & rut_{it} \leq mu
-                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}\\
-        & rut_{it} \geq mu \times M_{it}
-                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:balance2}\\
-        & \sum_{t' = \max{(1, t - md+1)}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_{t} + \sum_{i \in \mathcal{I}} m_{it} \leq Umax
-                & \hspace{10mm} t \in \mathcal{T}  \label{eq:available}
-        % TODO: add the constraints for the beginning of the period.
+        & rut_{it} \geq H \times M_{it}
+                & i \in \mathcal{I}, t \in \mathcal{T},\label{eq:balance2}\\	
+				& rut_{it} \in [0,H]
+                & i \in \mathcal{I}, t \in \mathcal{T}, \label{eq:mu}
     \end{align}
-    
-    % These constraints calculate the balances of hours for each resource.
-
-    The monthly remaining usage time is calculated by \ref{eq:balance1}. The initial states is governed by \ref{eq:initial} and the limit by \ref{eq:mu} and \ref{eq:balance2}. The availability of resources is calculated in \ref{eq:available}.
+        % These constraints calculate the balances of hours for each resource.
+    The remaining usage time is defined by \ref{eq:balance1} and its limits by \ref{eq:balance2}-\ref{eq:mu}. 
      % This is then applied in \ref{eq:balance1} to get the remaining usage time at each period for each resource. Similarly, the \ref{eq:balance2} calculates the remaining elapsed time at each period and resource.        
 
     % \begin{align}
@@ -288,9 +249,8 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
-\section{Conclusions and future work}
-    
-    The present work proposes a new model for dealing with the Military Flight and Maintenance Problem. Unlike previous work, it assigns aircraft to missions, instead of just using an aggregate demand. This will permit the future addition of conditions such as a minimum assignment time of aircraft to missions, the differentiation of types of aircraft and the possibility to put aircraft into storage.
+\section{Conclusions and future work} 
+    The present work proposes a new model for the Military Flight and Maintenance Problem. Unlike previous studies, it assigns aircraft to missions instead of just using an aggregate demand. This formulation sets an interesting base for further model extensions in order to integrate more complex real constraints. 
 
 
 % La bibliographie
@@ -298,18 +258,5 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 \bibliographystyle{plain}
 % \selectlanguage{english}
 \bibliography{MFMP}
-% \begin{thebibliography}{2}
-% \bibitem{toth02}
-% Paolo Toth and Daniele Vigo.
-% \newblock \emph{The Vehicle Routing Problem}.
-% \newblock Monographs on Discrete Mathematics and Applications. Society for Industrial and Applied Mathematics, 2002.
-% \bibitem{kirkpatrick83}
-% Scott Kirkpatrick, C~Daniel Gelatt, and Mario~P Vecchi.
-% \newblock Optimization by simmulated annealing.
-% \newblock \emph{science}, 220\penalty0 (4598):\penalty0 671--680, 1983.
-
-
-% \end{thebibliography}
-
 
 \end{document}
