@@ -18,7 +18,7 @@
 
 
 \institute{
-Institut Supérieur de l'Aéronautique et de l'Espace \\
+ISAE-SUPAERO, Université de Toulouse, France \\
 \email{\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
 }
 
@@ -30,7 +30,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 
 
 \section{Introduction}
-    The Military Flight and Maintenance Planning is a problem that aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modelled geographically since a round-trip to the base is assumed for each flight. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
+    The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modelled geographically since a round-trip to the base is assumed for each flight. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
 
     % First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
@@ -164,7 +164,7 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
         % or maintenance or task:
         % minimum resources
         & \sum_{i \in a_j} A_{jti} = r_{j}
-                & j \in \mathcal{J}, t \in T_j,  \label{eq:taskres}\\
+                & j \in \mathcal{J}, t \in T_j  \label{eq:taskres}\\
 			  & \sum_{t' = \max{\{1, t - m+1\}}}^{t} M_{it'} + \sum_{j \in J_t \cap O_i} A_{jti} \leq 1
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
@@ -173,7 +173,7 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
     % These constraints are the the main constraints of the model.
     % The number of resources assigned to a single task and under maintenance 
     % Maintenance capacity is controlled by \ref{eq:capacity}. The number of unavailable resources is defined by \ref{eq:avalaibility}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
-    Maintenance capacity is controlled by \ref{eq:capacity1} - \ref{eq:capacity2}. The number of unavailable resources is defined by \ref{eq:avalaibility1}-\ref{eq:avalaibility2}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
+    Maintenance capacity is controlled by (\ref{eq:capacity1})-(\ref{eq:capacity2}). The number of unavailable resources is defined by (\ref{eq:avalaibility1})-(\ref{eq:avalaibility2}). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task or maintenance operation at the same period.  
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % BALANCES
@@ -197,9 +197,9 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
         % & ret_{it} \leq me
         %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
         & rut_{it} \geq H \times M_{it}
-                & i \in \mathcal{I}, t \in \mathcal{T},\label{eq:balance2}\\	
+                & i \in \mathcal{I}, t \in \mathcal{T}\label{eq:balance2}\\	
 				& rut_{it} \in [0,H]
-                & i \in \mathcal{I}, t \in \mathcal{T}, \label{eq:mu}
+                & i \in \mathcal{I}, t \in \mathcal{T} \label{eq:mu}
     \end{align}
         % These constraints calculate the balances of hours for each resource.
     The remaining usage time is defined by (\ref{eq:balance1}) and its limits by (\ref{eq:balance2})-(\ref{eq:mu}). 
