@@ -42,7 +42,7 @@ Institut Supérieur de l'Aéronautique et de l'Espace \\
 %\section{The problem}
 
     The problem consists in assigning military aircraft to a given set of missions while scheduling the maintenance operations over a time horizon.
-		In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \in \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \in \mathcal{J}$. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period in $t \in T_j$. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \in \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.% (it is obtained by summing all $r_j$ for tasks $j \in J_t$). 
+    In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.% (it is obtained by summing all $r_j$ for tasks $j \in J_t$). 
 
     % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($minTIME_j$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $REQ_{vt}$.
 
@@ -136,23 +136,35 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
     The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
  % The objective is to minimize the maximum number of unavailable aircraft at any time of the planning horizon:
     \begin{align}
-        & \text{Min}\; w_1M_{max} + U_{max}
+        & \text{Min}\; w \times M_{max} + U_{max}
     \end{align}
-    where  weight $w_1$ is chosen by the decision maker. The following constraints are used.       
+    where relative weight $w$ is chosen by the decision maker. The following constraints are used.       
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % MAIN CONSTRAINTS
         %%%%%%%%%%%%%%%%%%%
+        % maximum capacity1:
+        & \sum_{t' = 1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
+                & t =1, 2, ..., m-1 \label{eq:capacity1}\\
+               % maximum capacity2:                
+               & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} \leq M_{max}
+        & t =m, ..., |\mathcal{T}|  \label{eq:capacity2}\\
+               %avail
+               & \sum_{t' = 1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + n_{t} + d_t\leq U_{max} 
+                & t =1, 2, ..., m-1 \label{eq:avalaibility1}\\
+               % maximum capacity2:                
+               & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_t\leq U_{max} 
+        & t =m, ..., |\mathcal{T}|  \label{eq:avalaibility2}\\
+        % % maximum capacity:
+        % & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
+        %         & t \in \mathcal{T} \label{eq:capacity}\\
+        % % maximum avaliability:
+        % & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_{t} + n_{t} \leq U_{max}
+        %         & \hspace{10mm} t \in \mathcal{T}  \label{eq:avalaibility}\\
+        % or maintenance or task:
         % minimum resources
         & \sum_{i \in a_j} A_{jti} = r_{j}
                 & j \in \mathcal{J}, t \in T_j,  \label{eq:taskres}\\
-        % maximum capacity:
-        & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
-                & t \in \mathcal{T} \label{eq:capacity}\\
-        % maximum avaliability:
-        & \sum_{t' = \max{\{1, t - m+1\}}}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_{t} + n_{t} \leq U_{max}
-                & \hspace{10mm} t \in \mathcal{T}  \label{eq:avalaibility}\\
-        % or maintenance or task:
 			  & \sum_{t' = \max{\{1, t - m+1\}}}^{t} M_{it'} + \sum_{j \in J_t \cap O_i} A_{jti} \leq 1
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
@@ -160,7 +172,8 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
     % $$t_1M_{it_1} \geq tM_{it} - D_{max} \foreach i \in I, t>t-1, t_1\geq D_{max}-D_i$$
     % These constraints are the the main constraints of the model.
     % The number of resources assigned to a single task and under maintenance 
-    Maintenance capacity is controlled by \ref{eq:capacity}. The number of unavailable resources is defined by \ref{eq:avalaibility}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
+    % Maintenance capacity is controlled by \ref{eq:capacity}. The number of unavailable resources is defined by \ref{eq:avalaibility}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
+    Maintenance capacity is controlled by \ref{eq:capacity1} - \ref{eq:capacity2}. The number of unavailable resources is defined by \ref{eq:avalaibility1}-\ref{eq:avalaibility2}. Tasks' resource requirements are defined by \ref{eq:taskres}. Constraints \ref{eq:state} guarantee that a resource can be used only for one task or maintenance operation at the same period.  
     \begin{align}
         %%%%%%%%%%%%%%%%%%%
         % BALANCES
@@ -189,7 +202,7 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
                 & i \in \mathcal{I}, t \in \mathcal{T}, \label{eq:mu}
     \end{align}
         % These constraints calculate the balances of hours for each resource.
-    The remaining usage time is defined by \ref{eq:balance1} and its limits by \ref{eq:balance2}-\ref{eq:mu}. 
+    The remaining usage time is defined by (\ref{eq:balance1}) and its limits by (\ref{eq:balance2})-(\ref{eq:mu}). 
      % This is then applied in \ref{eq:balance1} to get the remaining usage time at each period for each resource. Similarly, the \ref{eq:balance2} calculates the remaining elapsed time at each period and resource.        
 
     % \begin{align}
@@ -250,7 +263,7 @@ Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources al
     % In order to fix the states to their planned state we need \ref{eq:fixedstates}. This is specially useful for the beginning of the planning period, where we could have maintenance states already decided for some resources.
 
 \section{Conclusions and future work} 
-    The present work proposes a new model for the Military Flight and Maintenance Problem. Unlike previous studies, it assigns aircraft to missions instead of just using an aggregate demand. This formulation sets an interesting base for further model extensions in order to integrate more complex real constraints. 
+    The present work proposes a new model for the Military Flight and Maintenance Problem. This formulation sets an interesting base for further model extensions in order to integrate more complex real constraints. 
 
 
 % La bibliographie
