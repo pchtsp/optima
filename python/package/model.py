@@ -7,10 +7,9 @@ import numpy as np
 ######################################################
 
 
-def solve_with_states(model_data, previous_states, solver="CBC"):
+def solve_with_states(model_data, solver="CBC"):
     """
     :param model_data: data to consruct and solve model. taken from get_model_data()
-    :previous_states: past information that conditions the problem
     :return: solution of solved model
     """
     resources_data = model_data['resources']
@@ -27,12 +26,6 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
     periods = aux.get_months(first_period, last_period)  # t
     states = ['M']  # s
 
-    # TODO: this block is for testing exclusively:
-    # TODO: instead of this, I need to change the end date of the input data.
-    periods = periods[:50]
-    tasks = [t for t in tasks if t != 'O8']  # there is something weird with this mission 08
-
-    last_period = periods[-1]
     period_0 = aux.get_prev_month(first_period)
     periods_0 = [period_0] + periods  # periods with the previous one added at the start.
 
@@ -69,6 +62,7 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
     # TODO: add minimum mission duration assignment
 
     # Here we calculate the initial periods were aircraft need maintenance
+    previous_states = aux.get_property_from_dic(resources_data, 'states')
     planned_maint = aux.get_fixed_maintenances(previous_states, first_period, duration)
 
     # maximal bounds on continuous variables:
@@ -208,8 +202,6 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
         print("Model resulted in non-feasible status")
         return
 
-    # _start = {_t: 1 for _t in start if start[_t].value()}
-
     _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
     _used = {t: used[t].value() for t in used}
@@ -224,21 +216,25 @@ def solve_with_states(model_data, previous_states, solver="CBC"):
         'ret': _ret
     }
 
-    aux.export_data(directory_path, model_data, name="data_in")
-    aux.export_data(directory_path, solution, name="data_out")
+    di.export_data(directory_path, model_data, name="data_in", file_type='pickle')
+    di.export_data(directory_path, model_data, name="data_in", file_type='json')
+    di.export_data(directory_path, solution, name="data_out")
     return solution
 
 
 if __name__ == "__main__":
     model_data = di.get_model_data()
-    codes = aux.get_property_from_dic(model_data['resources'], 'code')
-    codes_inv = {value: key for key, value in codes.items()}
     historic_data = di.generate_solution_from_source()
-    historic_data_n = {
-        (codes_inv[code], month): value for (code, month), value in historic_data.items()\
-        if code in codes_inv
-    }
-    previous_states = {key: 'M' for key, value in historic_data_n.items()
-                       if int(str(value).startswith('V'))
-                       }
-    solve_with_states(model_data, previous_states, solver="CPLEX")
+    model_data_n = di.combine_data_states(model_data, historic_data)
+
+    # this is for testing purposes:
+    num_max_periods = 30
+    model_data_n['parameters']['end'] = \
+        aux.shift_month(model_data_n['parameters']['start'], num_max_periods)
+    forbidden_tasks = ['O8']
+    model_data_n['tasks'] = \
+        {k: v for k, v in model_data_n['tasks'].items() if k not in forbidden_tasks}
+    # this was for testing purposes
+
+    # solving part:
+    # solve_with_states(model_data_n, solver="CPLEX")

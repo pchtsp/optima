@@ -1,6 +1,7 @@
 # /usr/bin/python3
 import package.aux as aux
 import numpy as np
+import package.data_input as di
 # import pandas as pd
 
 """
@@ -115,8 +116,8 @@ class CheckModel(object):
 
 if __name__ == "__main__":
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712051356/"
-    model_data = aux.load_data(path + "data_in.pickle")
-    solution = aux.load_data(path + "data_out.pickle")
+    model_data = di.load_data(path + "data_in.pickle")
+    solution = di.load_data(path + "data_out.pickle")
     aux.get_months('2017-08', '2018-03')
     check = CheckModel(model_data, solution)
     check.check_maintenance_duration()

@@ -4,7 +4,9 @@ import re
 import unidecode
 import package.aux as aux
 import numpy as np
-
+import copy
+import json
+import pickle
 
 def make_name(name):
     # we take out spaces and later weird accents
@@ -33,11 +35,11 @@ def generate_data_from_source(source=r'../data/raw/parametres_DGA_final.xlsm'):
     return excel_info
 
 
-def export_data(excel_info, destination="../data/csv"):
+def export_data_csv(excel_info, destination="../data/csv"):
 
     for sheet in excel_info:
         excel_info[sheet].to_csv(destination + r'/{}.csv'.format(sheet), index=False)
-
+    return
 
 def generate_data_from_csv(directory=r'../data/csv/'):
 
@@ -49,8 +51,6 @@ def generate_data_from_csv(directory=r'../data/csv/'):
 def get_model_data():
     # we import the data set.
     table = generate_data_from_source()
-
-    # df3 = df3.assign(velo=df3.dist / df3.duration*3600/1000)  # for km/h
 
     params = table['Parametres']
 
@@ -109,10 +109,10 @@ def get_model_data():
 
     model_data = {}
     model_data['parameters'] = {
-        'max_used_time': maint.GainPotentielHoraire_heures.values.min()
-        ,'max_elapsed_time': maint.GainPotentielCalendaire_mois.values.min()
-        ,'maint_duration': maint.DureeMaintenance_mois.values.max()
-        ,'maint_capacity': params_gen['Maintenance max par mois']
+        'max_used_time': maint.GainPotentielHoraire_heures.values.min().__float__()
+        ,'max_elapsed_time': maint.GainPotentielCalendaire_mois.values.min().__int__()
+        ,'maint_duration': maint.DureeMaintenance_mois.values.max().__int__()
+        ,'maint_capacity': params_gen['Maintenance max par mois'].__int__()
         ,'start': horizon["Début"]
         ,'end': horizon["Fin"]
     }
@@ -163,3 +163,48 @@ def generate_solution_from_source(source=r'../data/raw/Planifs M2000.xlsm'):
     state = pd.melt(table_n, id_vars="code", var_name="month", value_name="state").dropna()
     state = state[~state.month.str.endswith("00")]
     return state.set_index(["code", "month"])['state'].to_dict()
+
+
+def combine_data_states(model_data, historic_data):
+    codes = aux.get_property_from_dic(model_data['resources'], 'code')
+    codes_inv = {value: key for key, value in codes.items()}
+    historic_data_n = {
+        (codes_inv[code], month): value for (code, month), value in historic_data.items()\
+        if code in codes_inv
+    }
+    previous_states = {key: 'M' for key, value in historic_data_n.items()
+                       if int(str(value).startswith('V'))
+
+                   }
+    model_data_n = copy.deepcopy(model_data)
+    for key, value in aux.dicttup_to_dictdict(previous_states).items():
+        model_data_n['resources'][key]['states'] = value
+    return model_data_n
+
+
+def load_data(path, file_type='pickle'):
+    if not os.path.exists(path):
+        return False
+    if file_type == 'pickle':
+        with open(path, 'rb') as f:
+            return pickle.load(f)
+    if file_type == 'json':
+        with open(path, 'r') as f:
+            return json.load(f)
+
+
+def export_data(path, obj, name=None, file_type="pickle"):
+    if not os.path.exists(path):
+        return False
+    if name is None:
+        name = aux.get_timestamp()
+    path = os.path.join(path, name + "." + file_type)
+    if file_type == "pickle":
+        with open(path, 'wb') as f:
+            pickle.dump(obj, f)
+    if file_type == 'json':
+        with open(path, 'w') as f:
+            json.dump(obj, f)
+    return True
+
+
