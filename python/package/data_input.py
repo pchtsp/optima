@@ -182,7 +182,15 @@ def combine_data_states(model_data, historic_data):
     return model_data_n
 
 
-def load_data(path, file_type='pickle'):
+def load_data(path, file_type=None):
+    if file_type is None:
+        splitext = os.path.splitext(path)
+        if len(splitext) == 0:
+            raise ImportError("file type not given")
+        else:
+            file_type = [1][1:]
+    if file_type not in ['json', 'pickle']:
+        raise ImportError("file type not known")
     if not os.path.exists(path):
         return False
     if file_type == 'pickle':

@@ -18,29 +18,6 @@ def get_months(start_month, end_month):
     return [date.format("YYYY-MM") for date in arrow.Arrow.range('month', start, end)]
 
 
-def get_fixed_maintenances(previous_states, first_period, duration):
-    last_maint = {}
-    planned_maint = []
-
-    previous_states_n = {key: [key2 for key2 in value if value[key2]=='M']
-                         for key, value in previous_states.items()}
-
-    # after initialization, we search for the scheduled maintenances that:
-    # 1. do not continue the maintenance of the previous month
-    # 2. happen in the last X months before the start of the planning period.
-    for res in previous_states_n:
-        _list = list(previous_states_n[res])
-        _list_n = [period for period in _list if get_prev_month(period) not in _list
-                   if shift_month(first_period, -duration) < period < first_period]
-        if not len(_list_n):
-            continue
-        last_maint[res] = max(_list_n)
-        finish_maint = shift_month(last_maint[res], duration-1)
-        for period in get_months(first_period, finish_maint):
-            planned_maint.append((res, period))
-    return planned_maint
-
-
 def shift_month(month, shift=1):
     return arrow.get(month + "-01").shift(months=shift).format("YYYY-MM")
 
