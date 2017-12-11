@@ -7,39 +7,31 @@ import package.tests as test
 
 ######################################################
 # TODO: add minimum mission duration assignment
+# TODO: change solution format to json.
+# TODO: export file with details such as configuration and comments
 
-def solve_with_states(model_data, solver="CBC"):
+def model_no_states():
+    return
+
+
+def solve_with_states(model_data, options=None):
     """
     :param model_data: data to consruct and solve model. taken from get_model_data()
+    :param options: dictionary with parameters such as solver, time, gap, etc.
     :return: solution of solved model
     """
-    resources_data = model_data['resources']
-    param_data = model_data['parameters']
-    task_data = model_data['tasks']
-
-    # DOMAINS:
-    l = get_domains_sets(model_data)
-
-    # BOUNDS:
-    ub = get_bounds(model_data)
-
-    # HORIZON:
-    # first_period = param_data['start']
-    last_period = param_data['end']
-
-    # SETS:
+    # resources_data = model_data['resources']
     # resources = l['resources']
     # periods = l['periods']
-
-    # tasks - resources
-    consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
-    requirement = aux.get_property_from_dic(task_data, 'num_resource')  # rr. aircraft per period.
-
-    # maintenances.
     # duration = param_data['maint_duration']
     # previous_states = aux.get_property_from_dic(resources_data, 'states')
-
-    # initial state:
+    param_data = model_data['parameters']
+    task_data = model_data['tasks']
+    l = get_domains_sets(model_data)
+    ub = get_bounds(model_data)
+    last_period = param_data['end']
+    consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
+    requirement = aux.get_property_from_dic(task_data, 'num_resource')  # rr. aircraft per period.
     ret_init = get_initial_state(model_data, "elapsed")
     rut_init = get_initial_state(model_data, "used")
     ret_obj = sum(ret_init[a] for a in l['resources'])
@@ -133,18 +125,26 @@ def solve_with_states(model_data, solver="CBC"):
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) >= rut_obj
 
     # SOLVING
-    timeLimit = 300
-    gap = 0
-    directory_path = \
-        '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.\
-        format(aux.get_timestamp())
+    default_options = {
+        'timeLimit': 300
+        , 'gap': 0
+        , 'solver': "GUROBI"
+        , 'directory_path': \
+            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'. \
+                format(aux.get_timestamp())
+    }
+    if options is None:
+        options = {}
 
-    if solver == "GUROBI":
-        result = model.solve(pl.GUROBI_CMD(options=conf.config_gurobi(gap, timeLimit, directory_path)))
-    elif solver == "CPLEX":
-        result = model.solve(pl.CPLEX_CMD(options=conf.config_cplex(gap, timeLimit, directory_path)))
+    options = default_options.update(options)
+    config = conf.Config(options)
+
+    if options['solver'] == "GUROBI":
+        result = model.solve(pl.GUROBI_CMD(options=config.config_gurobi()))
+    elif options['solver'] == "CPLEX":
+        result = model.solve(pl.CPLEX_CMD(options=config.config_cplex()))
     else:
-        result = model.solve(pl.PULP_CBC_CMD(options=conf.config_cbc(gap, timeLimit, directory_path)))
+        result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()))
 
     if result != 1:
         print("Model resulted in non-feasible status")
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     # this was for testing purposes
 
     # solving part:
-    solution = solve_with_states(model_data, solver="GUROBI")
+    solution = solve_with_states(model_data)
 
     testing = test.CheckModel(model_data, solution)
 

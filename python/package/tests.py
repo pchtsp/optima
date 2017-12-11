@@ -83,6 +83,7 @@ class CheckModel(object):
         return bad_assignment
 
     def check_resource_consumption(self):
+        # TODO: make balance correct.
         task_data = self.model_data['tasks']
         task_solution = self.solution['task']
 
