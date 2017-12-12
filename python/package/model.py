@@ -4,36 +4,39 @@ import package.data_input as di
 import package.config as conf
 import numpy as np
 import package.tests as test
+import package.instance as inst
+import package.solution as sol
 
 ######################################################
 # TODO: add minimum mission duration assignment
-# TODO: change solution format to json.
-# TODO: export file with details such as configuration and comments
+# TODO: check mission O8
+# TODO: test different weights on OF
+
 
 def model_no_states():
     return
 
 
-def solve_with_states(model_data, options=None):
+def solve_with_states(instance, options=None):
     """
-    :param model_data: data to consruct and solve model. taken from get_model_data()
+    :param instance: object with data to solve model. taken from instance.py
     :param options: dictionary with parameters such as solver, time, gap, etc.
-    :return: solution of solved model
+    :return: solution object of solved model. taken from solution.py
     """
     # resources_data = model_data['resources']
     # resources = l['resources']
     # periods = l['periods']
     # duration = param_data['maint_duration']
     # previous_states = aux.get_property_from_dic(resources_data, 'states')
-    param_data = model_data['parameters']
-    task_data = model_data['tasks']
-    l = get_domains_sets(model_data)
-    ub = get_bounds(model_data)
+    param_data = instance.get_param()
+    task_data = instance.get_tasks()
+    l = instance.get_domains_sets()
+    ub = instance.get_bounds()
     last_period = param_data['end']
     consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
     requirement = aux.get_property_from_dic(task_data, 'num_resource')  # rr. aircraft per period.
-    ret_init = get_initial_state(model_data, "elapsed")
-    rut_init = get_initial_state(model_data, "used")
+    ret_init = instance.get_initial_state("elapsed")
+    rut_init = instance.get_initial_state("used")
     ret_obj = sum(ret_init[a] for a in l['resources'])
     rut_obj = sum(rut_init[a] for a in l['resources'])
 
@@ -125,18 +128,20 @@ def solve_with_states(model_data, options=None):
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) >= rut_obj
 
     # SOLVING
+    if options is None:
+        options = {}
+
     default_options = {
         'timeLimit': 300
         , 'gap': 0
         , 'solver': "GUROBI"
-        , 'directory_path': \
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'. \
+        , 'path':
+            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
     }
-    if options is None:
-        options = {}
 
-    options = default_options.update(options)
+    # the following merges the two configurations (replace into):
+    options = {**default_options, **options}
     config = conf.Config(options)
 
     if options['solver'] == "GUROBI":
@@ -148,7 +153,7 @@ def solve_with_states(model_data, options=None):
 
     if result != 1:
         print("Model resulted in non-feasible status")
-        return
+        return None
 
     _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
@@ -156,7 +161,7 @@ def solve_with_states(model_data, options=None):
     _rut = {t: rut[t].value() for t in rut}
     _ret = {t: ret[t].value() for t in ret}
 
-    solution = {
+    solution_data = {
         'state': _state,
         'task': _task,
         'used': _used,
@@ -164,165 +169,15 @@ def solve_with_states(model_data, options=None):
         'ret': _ret
     }
 
-    di.export_data(directory_path, model_data, name="data_in", file_type='pickle')
-    di.export_data(directory_path, model_data, name="data_in", file_type='json')
-    di.export_data(directory_path, solution, name="data_out")
+    solution_data = {k: aux.dicttup_to_dictdict(v) for k, v in solution_data.items()}
+    solution = sol.Solution(solution_data)
+
+    di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
+    di.export_data(options['path'], instance.data, name="data_in", file_type='json')
+    di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
+    di.export_data(options['path'], solution.data, name="data_out", file_type='json')
+    di.export_data(options['path'], options, name="options", file_type='json')
     return solution
-
-
-def get_bounds(model_data):
-    param_data = model_data['parameters']
-    task_data = model_data['tasks']
-
-    # maximal bounds on continuous variables:
-    max_elapsed_time = param_data['max_elapsed_time']  # me. in periods
-    max_used_time = param_data['max_used_time']  # mu. in hours of usage
-    consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
-
-    return {
-        'ret': max_elapsed_time,
-        'rut': max_used_time,
-        'used': max(consumption.values())
-    }
-
-
-def get_domains_sets(model_data):
-    states = ['M']
-    # dtype_at = [('V', '<U6'), ('D', 'U7')]
-
-    param_data = model_data['parameters']
-
-    # periods
-    first_period, last_period = model_data['parameters']['start'], model_data['parameters']['end']
-    periods = aux.get_months(first_period, last_period)
-    period_0 = aux.get_prev_month(model_data['parameters']['start'])
-    periods_0 = [period_0] + periods
-    periods_pos = {periods[pos]: pos for pos in range(len(periods))}
-    previous = {period: periods_0[periods_pos[period]] for period in periods}
-
-    # tasks
-    task_data = model_data['tasks']
-    tasks = list(model_data['tasks'].keys())
-    start_time = aux.get_property_from_dic(task_data, 'start')
-    end_time = aux.get_property_from_dic(task_data, 'end')
-    candidates = aux.get_property_from_dic(task_data, 'candidates')
-
-    # resources
-    resources_data = model_data['resources']
-    resources = list(resources_data.keys())
-    duration = param_data['maint_duration']
-    previous_states = aux.get_property_from_dic(resources_data, 'states')
-
-    """
-    Indentation means "includes the following:".
-    The elements represent a given combination resource-period.
-    at0: all, including the previous period.
-        at: all.                                                    => 'used'
-            at_mission: a mission is assigned (fixed)               => 'assign'
-            at_free: nothing is fixed                               => 'assign' and 'state'
-                at_free_start: can start a maintenance              => 'start'
-            at_maint: maintenance is assigned (fixed)               => 'state' 
-                at_start: start of maintenance is assigned (fixed). => 'start'
-    """
-
-    # TODO: solve numpy arrays issues with lists. Use np.setdiff1d
-
-    at = [(a, t) for a in resources for t in periods]
-    at0 = [(a, period_0) for a in resources] + at
-    at_mission = []  # to be implemented
-    at_start = []  # to be implemented
-    at_maint = get_fixed_maintenances(model_data)
-    at_free = [(a, t) for (a, t) in at if (a, t) not in at_maint + at_mission]
-    at_free_start = [(a, t) for (a, t) in at_free]
-
-    vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
-    avt = [(a, v, t) for a in resources for (v, t) in vt
-           if a in candidates[v]
-           if (a, t) in at_free + at_mission]
-    ast = [(a, s, t) for (a, t) in at_free + at_maint for s in states]
-    att = [(a, t1, t2) for (a, t1) in at_start + at_free_start for t2 in periods if
-           periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
-
-    a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
-    a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
-    v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
-    t1_at2 = aux.tup_to_dict(att, result_col=1, is_list=True)
-
-    return {
-     'periods'          :  periods
-    ,'period_0'         :  period_0
-    ,'periods_0'        :  periods_0
-    ,'periods_pos'      :  periods_pos
-    ,'previous'         :  previous
-    ,'tasks'            :  tasks
-    ,'candidates'       :  candidates
-    ,'resources'        :  resources
-    ,'planned_maint'    :  at_maint
-    ,'states'           :  states
-    ,'vt'               :  vt
-    ,'avt'              :  avt
-    ,'at'               :  at
-    ,'at_maint'         :  at_maint
-    ,'ast'              :  ast
-    ,'at_start'         :  at_start + at_free_start
-    ,'at0'              :  at0
-    ,'att'              :  att
-    ,'a_t'              :  a_t
-    ,'a_vt'             :  a_vt
-    ,'v_at'             :  v_at
-    ,'t1_at2'           :  t1_at2
-    }
-
-
-def get_initial_state(model_data, time_type):
-    if time_type not in ["elapsed", "used"]:
-        raise KeyError("Wrong type in time_type parameter: elapsed or used only")
-
-    key_initial = "initial_" + time_type
-    key_max = "max_" + time_type + "_time"
-    param_resources = model_data['resources']
-    rt_max = model_data['parameters'][key_max]
-
-    rt_read = aux.get_property_from_dic(param_resources, key_initial)
-
-    # we also check if the resources is currently in maintenance.
-    # If it is: we assign the rt_max (according to convention).
-    res_in_maint = set([res for res, period in get_fixed_maintenances(model_data)])
-    rt_fixed = {a: rt_max for a in param_resources if a in res_in_maint}
-
-    rt_init = {a: rt_max for a in param_resources}
-    rt_init.update(rt_read)
-    rt_init.update(rt_fixed)
-
-    rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
-
-    return rt_init
-
-
-def get_fixed_maintenances(model_data):
-    previous_states = aux.get_property_from_dic(model_data['resources'], "states")
-    first_period = model_data['parameters']['start']
-    duration = model_data['parameters']['maint_duration']
-
-    last_maint = {}
-    planned_maint = []
-    previous_states_n = {key: [key2 for key2 in value if value[key2] == 'M']
-                         for key, value in previous_states.items()}
-
-    # after initialization, we search for the scheduled maintenances that:
-    # 1. do not continue the maintenance of the previous month
-    # 2. happen in the last X months before the start of the planning period.
-    for res in previous_states_n:
-        _list = list(previous_states_n[res])
-        _list_n = [period for period in _list if aux.get_prev_month(period) not in _list
-                   if aux.shift_month(first_period, -duration) < period < first_period]
-        if not len(_list_n):
-            continue
-        last_maint[res] = max(_list_n)
-        finish_maint = aux.shift_month(last_maint[res], duration - 1)
-        for period in aux.get_months(first_period, finish_maint):
-            planned_maint.append((res, period))
-    return planned_maint
 
 
 if __name__ == "__main__":
@@ -339,15 +194,29 @@ if __name__ == "__main__":
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
     # this was for testing purposes
 
+    instance = inst.Instance(model_data)
+
+    options = {
+        'timeLimit': 300
+        , 'gap': 0
+        , 'solver': "GUROBI"
+        , 'path':
+            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
+                format(aux.get_timestamp())
+    }
+
     # solving part:
-    solution = solve_with_states(model_data)
+    solution = solve_with_states(instance, options)
 
-    testing = test.CheckModel(model_data, solution)
+    testing = test.CheckModel(instance, solution)
 
-    result = testing.check_task_num_resources()  # this fails.
+    result = testing.check_task_num_resources()
     #  testing...
 
     # import pprint
     # pp = pprint.PrettyPrinter()
     # pp.pprint({k: len(v) for k, v in l.items()})
     # {k:v for k,v in rut_init.items() if v<0}
+
+
+

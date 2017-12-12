@@ -8,6 +8,7 @@ import copy
 import json
 import pickle
 
+
 def make_name(name):
     # we take out spaces and later weird accents
     # we replace parenthesis with an underscore
@@ -23,11 +24,8 @@ def make_names(names):
 
 def generate_data_from_source(source=r'../data/raw/parametres_DGA_final.xlsm'):
     excel_file = pd.ExcelFile(source)
-
     sheets = excel_file.sheet_names
-
     excel_info = {make_name(sheet): excel_file.parse(sheet) for sheet in sheets}
-    # sheets = list(excel_info.keys())
 
     for sheet in excel_info:
         excel_info[sheet].columns = make_names(excel_info[sheet].columns)
@@ -36,13 +34,12 @@ def generate_data_from_source(source=r'../data/raw/parametres_DGA_final.xlsm'):
 
 
 def export_data_csv(excel_info, destination="../data/csv"):
-
     for sheet in excel_info:
         excel_info[sheet].to_csv(destination + r'/{}.csv'.format(sheet), index=False)
     return
 
-def generate_data_from_csv(directory=r'../data/csv/'):
 
+def generate_data_from_csv(directory=r'../data/csv/'):
     csvfiles = os.listdir(directory)
     csvfiles_dict = {path: os.path.splitext(path)[0] for path in csvfiles}
     return {csvfiles_dict[csv]: pd.read_csv(directory + csv) for csv in csvfiles}
@@ -102,8 +99,7 @@ def get_model_data():
         pd.merge(capacites_join, num_capacites, on=["IdMission", "value"]) \
             [["IdMission", "IdAvion"]]
 
-    # TODO: I'm missing for some reason half the missions that do not
-    # have at least one aircraft as candidate...
+    # TODO: I'm missing for some reason half the missions that do not have at least one aircraft as candidate...
 
     avions_state = table['Avions_Potentiels']
 
@@ -174,8 +170,7 @@ def combine_data_states(model_data, historic_data):
     }
     previous_states = {key: 'M' for key, value in historic_data_n.items()
                        if int(str(value).startswith('V'))
-
-                   }
+                       }
     model_data_n = copy.deepcopy(model_data)
     for key, value in aux.dicttup_to_dictdict(previous_states).items():
         model_data_n['resources'][key]['states'] = value
@@ -188,9 +183,9 @@ def load_data(path, file_type=None):
         if len(splitext) == 0:
             raise ImportError("file type not given")
         else:
-            file_type = [1][1:]
+            file_type = splitext[1][1:]
     if file_type not in ['json', 'pickle']:
-        raise ImportError("file type not known")
+        raise ImportError("file type not known: {}".format(file_type))
     if not os.path.exists(path):
         return False
     if file_type == 'pickle':
@@ -216,3 +211,5 @@ def export_data(path, obj, name=None, file_type="pickle"):
     return True
 
 
+if __name__ == "__main__":
+    pass

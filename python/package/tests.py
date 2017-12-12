@@ -2,6 +2,8 @@
 import package.aux as aux
 import numpy as np
 import package.data_input as di
+import package.solution as sol
+import package.instance as inst
 # import pandas as pd
 
 """
@@ -13,23 +15,23 @@ import package.data_input as di
 
 ## resources
 
-* balance is well done
+[ ] balance is well done
+[ ] consumption
 [*] at most one task in each period => 
     this I cannot check because of the structure of the data.
     But it could be detected if tasks' needs are not taken into account.
 [*] maintenance scheduled correctly: duration.
 [*] no task+maintenance at the same time.
-
 """
 
 
 class CheckModel(object):
 
-    def __init__(self, model_data, solution):
-        self.model_data = model_data
+    def __init__(self, instance, solution):
+        self.instance = instance
         self.solution = solution
 
-    def check_all(self):
+    def check_solution(self):
         func_list = {
             'duration': self.check_maintenance_duration
             ,'consumption': self.check_resource_consumption
@@ -40,27 +42,12 @@ class CheckModel(object):
         return {k: v() for k, v in func_list.items()}
 
     def check_task_num_resources(self):
-        parameters_data = self.model_data['parameters']
-        task_data = self.model_data['tasks']
-        task_solution = self.solution['task']
-        periods = aux.get_months(parameters_data['start'], parameters_data['end'])
 
-        task_reqs = aux.get_property_from_dic(task_data, 'num_resource')
-        task_start = aux.get_property_from_dic(task_data, 'start')
-        task_end = aux.get_property_from_dic(task_data, 'end')
-
-        task_periods = {task:
-            np.intersect1d(
-                aux.get_months(task_start[task], task_end[task]),
-                periods
-            ) for task in task_reqs
-        }
-        task_periods_list = [(task, period) for task in task_reqs for period in task_periods[task]]
-        task_resources = aux.tup_to_dict(aux.dict_to_tup(task_solution), 0, is_list=True)
-        task_resources = {(a, t): v for (t, a), v in task_resources.items()}
+        task_periods_list = self.instance.get_task_period_list()
+        task_reqs = aux.get_property_from_dic(self.instance.get_tasks(), 'num_resource')
 
         task_assigned = {key: 0 for key in task_periods_list}
-        task_assigned.update({key: len(value) for key, value in task_resources.items()})
+        task_assigned.update(self.solution.get_task_num_resources())
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[(task, period)]
             for (task, period) in task_periods_list
@@ -70,8 +57,8 @@ class CheckModel(object):
         return task_under_assigned
 
     def check_resource_in_candidates(self):
-        task_data = self.model_data['tasks']
-        task_solution = self.solution['task']
+        task_data = self.instance.get_tasks()
+        task_solution = self.solution.get_tasks()
 
         task_candidates = aux.get_property_from_dic(task_data, 'candidates')
 
@@ -82,16 +69,31 @@ class CheckModel(object):
         }
         return bad_assignment
 
+    def get_conumption(self):
+        maint_hours = self.instance.get_param('max_used_time')
+        hours = self.instance.get_tasks("consumption")
+        demand = {k: hours[v] for k, v in self.solution.get_tasks().items()}
+        supply = {k: maint_hours for k in self.solution.get_maintenance_starts()}
+        netgain = {(resource, period): 0
+                   for resource in self.instance.get_resources()
+                   for period in self.instance.get_periods()}
+        for k, v in demand.items():
+            netgain[k] -= v
+        for k, v in supply.items():
+            netgain[k] += v
+        return netgain
+
     def check_resource_consumption(self):
-        # TODO: make balance correct.
-        task_data = self.model_data['tasks']
-        task_solution = self.solution['task']
+        # TODO: make balance correct. Still incomplete.
+        netgain = self.get_conumption()
+
+
 
         return {}
 
     def check_resource_state(self):
-        task_solution = self.solution['task']
-        state_solution = self.solution['state']
+        task_solution = self.solution.get_tasks()
+        state_solution = self.solution.get_state()
 
         task_solution_k = np.fromiter(task_solution.keys(),
                                       dtype=[('A', '<U6'), ('T', 'U7')])
@@ -103,12 +105,13 @@ class CheckModel(object):
         return [tuple(item) for item in duplicated_states]
 
     def check_maintenance_duration(self):
-        parameters = self.model_data['parameters']
-        state_solution = self.solution['state']
+        # TODO: improve this using methods.
+        parameters = self.instance.get_param()
+        state_solution = self.solution.get_state()
         in_maintenance = [key for key, value in state_solution.items() if value == 'M']
         first_period = parameters['start']
         last_period = parameters['end']
-        start_finish = aux.tup_tp_start_finish(in_maintenance)
+        start_finish = aux.tup_to_start_finish(in_maintenance)
 
         maintenance_duration_incorrect = {}
         for (resource, start, finish) in start_finish:
@@ -122,11 +125,15 @@ class CheckModel(object):
 
 
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712111530/"
-    model_data = di.load_data(path + "data_in.pickle", "pickle")
-    solution = di.load_data(path + "data_out.pickle", "pickle")
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
+    model_data = di.load_data(path + "data_in.json")
+    solution = di.load_data(path + "data_out.json")
+    # result = aux.dicttup_to_dictdict(solution['task'])
+
     # aux.get_months('2017-08', '2018-03')
-    check = CheckModel(model_data, solution)
-    results = check.check_all()
+
+    check = CheckModel(inst.Instance(model_data), sol.Solution(solution))
+    check.get_conumption()
+    # results = check.check_solution()
     # check.check_resource_state()
     # pp.pprint(results)
