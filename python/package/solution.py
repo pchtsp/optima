@@ -15,8 +15,7 @@ class Solution(object):
         return aux.dictdict_to_dictup(self.data['state'])
 
     def get_maintenance_periods(self):
-        in_maintenance = [k for k, v in self.get_state().items() if v == 'M']
-        return aux.tup_to_start_finish(in_maintenance)
+        return [(k[0], k[1], k[3]) for k in self.get_schedule() if k[2] == 'M']
 
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
@@ -29,3 +28,13 @@ class Solution(object):
 
     def get_task_num_resources(self):
         return {key: len(value) for key, value in self.get_task_resources().items()}
+
+    def get_schedule(self):
+        """
+        returns periods of time where a resources has a specific state
+        In a way, collapses single period assignments into a start-finish
+        :return: a (resource, start, finish, task) tuple
+        """
+        statesMissions = aux.dict_to_tup(self.get_state()) + aux.dict_to_tup(self.get_tasks())
+        result = aux.tup_to_start_finish(statesMissions)
+        return result

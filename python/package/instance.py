@@ -195,3 +195,10 @@ class Instance(object):
 
     def get_periods(self):
         return aux.get_months(self.get_param("start"), self.get_param("end"))
+
+    def get_total_period_needs(self):
+        requirement = self.get_tasks('num_resource')
+        num_resource_working = {t: 0 for t in self.get_periods()}
+        for (v, t) in self.get_task_period_list():
+            num_resource_working[t] += requirement[v]
+        return num_resource_working

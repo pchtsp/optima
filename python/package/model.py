@@ -28,22 +28,16 @@ def solve_with_states(instance, options=None):
     # periods = l['periods']
     # duration = param_data['maint_duration']
     # previous_states = aux.get_property_from_dic(resources_data, 'states')
-    param_data = instance.get_param()
-    task_data = instance.get_tasks()
     l = instance.get_domains_sets()
     ub = instance.get_bounds()
-    last_period = param_data['end']
-    consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
-    requirement = aux.get_property_from_dic(task_data, 'num_resource')  # rr. aircraft per period.
+    last_period = instance.get_param('end')
+    consumption = instance.get_tasks('consumption')
+    requirement = instance.get_tasks('num_resource')
     ret_init = instance.get_initial_state("elapsed")
     rut_init = instance.get_initial_state("used")
     ret_obj = sum(ret_init[a] for a in l['resources'])
     rut_obj = sum(rut_init[a] for a in l['resources'])
-
-    # number of resources in missions per month:
-    num_resource_working = {t: 0 for t in l['periods']}
-    for (v, t) in l['vt']:
-        num_resource_working[t] += requirement[v]
+    num_resource_working = instance.get_total_period_needs()
 
     # VARIABLES:
     # binary:

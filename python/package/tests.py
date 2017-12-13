@@ -1,10 +1,11 @@
 # /usr/bin/python3
 import package.aux as aux
 import numpy as np
+import pandas as pd
 import package.data_input as di
 import package.solution as sol
 import package.instance as inst
-# import pandas as pd
+
 
 """
 
@@ -16,7 +17,7 @@ import package.instance as inst
 ## resources
 
 [ ] balance is well done
-[ ] consumption
+[*] consumption
 [*] at most one task in each period => 
     this I cannot check because of the structure of the data.
     But it could be detected if tasks' needs are not taken into account.
@@ -33,11 +34,11 @@ class CheckModel(object):
 
     def check_solution(self):
         func_list = {
-            'duration': self.check_maintenance_duration
-            ,'consumption': self.check_resource_consumption
-            ,'candidates': self.check_resource_in_candidates
-            ,'state': self.check_resource_state
-            ,'resources': self.check_task_num_resources
+            'duration':     self.check_maintenance_duration
+            ,'candidates':  self.check_resource_in_candidates
+            ,'state':       self.check_resource_state
+            ,'resources':   self.check_task_num_resources
+            ,'usage':       self.check_resource_consumption
         }
         return {k: v() for k, v in func_list.items()}
 
@@ -69,7 +70,7 @@ class CheckModel(object):
         }
         return bad_assignment
 
-    def get_conumption(self):
+    def get_consumption(self):
         maint_hours = self.instance.get_param('max_used_time')
         hours = self.instance.get_tasks("consumption")
         demand = {k: hours[v] for k, v in self.solution.get_tasks().items()}
@@ -83,13 +84,25 @@ class CheckModel(object):
             netgain[k] += v
         return netgain
 
+    def get_remaining_usage_time(self):
+        prev_month = aux.get_prev_month(self.instance.get_param('start'))
+        table_initial = \
+            pd.DataFrame(
+                aux.dict_to_tup(
+                    self.instance.get_resources('initial_used')
+                ),
+                columns=['resource', 'netgain']).assign(period=prev_month)
+        netgain = self.get_consumption()
+        table = pd.DataFrame(aux.dict_to_tup(netgain), columns=['resource', 'period', 'netgain'])
+        table = pd.concat([table_initial, table])
+        table.sort_values(['resource', 'period'], inplace=True)
+        table['netgain_c'] = \
+            table.groupby('resource').netgain.cumsum()
+        return table.set_index(['resource', 'period'])['netgain_c'].to_dict()
+
     def check_resource_consumption(self):
-        # TODO: make balance correct. Still incomplete.
-        netgain = self.get_conumption()
-
-
-
-        return {}
+        rut = self.get_remaining_usage_time()
+        return {k: v for k, v in rut.items() if v < 0}
 
     def check_resource_state(self):
         task_solution = self.solution.get_tasks()
@@ -105,22 +118,19 @@ class CheckModel(object):
         return [tuple(item) for item in duplicated_states]
 
     def check_maintenance_duration(self):
-        # TODO: improve this using methods.
-        parameters = self.instance.get_param()
-        state_solution = self.solution.get_state()
-        in_maintenance = [key for key, value in state_solution.items() if value == 'M']
-        first_period = parameters['start']
-        last_period = parameters['end']
-        start_finish = aux.tup_to_start_finish(in_maintenance)
+        maintenances = self.solution.get_maintenance_periods()
+        first_period = self.instance.get_param('start')
+        last_period = self.instance.get_param('end')
+        duration = self.instance.get_param('maint_duration')
 
         maintenance_duration_incorrect = {}
-        for (resource, start, finish) in start_finish:
-            if start == first_period or finish == last_period:
-                continue
+        for (resource, start, finish) in maintenances:
             size_period = len(aux.get_months(start, finish))
-            if size_period < parameters['maint_duration']:
+            if size_period > duration:
                 maintenance_duration_incorrect[(resource, start)] = size_period
-
+            if size_period < duration and start != first_period and \
+                            finish != last_period:
+                maintenance_duration_incorrect[(resource, start)] = size_period
         return maintenance_duration_incorrect
 
 
@@ -133,7 +143,8 @@ if __name__ == "__main__":
     # aux.get_months('2017-08', '2018-03')
 
     check = CheckModel(inst.Instance(model_data), sol.Solution(solution))
-    check.get_conumption()
-    # results = check.check_solution()
+    # sol.Solution(solution).get_schedule()
+    # check.check_resource_consumption()
+    results = check.check_solution()
     # check.check_resource_state()
     # pp.pprint(results)

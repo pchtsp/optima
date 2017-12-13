@@ -94,29 +94,41 @@ def dict_to_tup(dict_in):
     """
     tup_list = []
     for key, value in dict_in.items():
-        tup_list.append(tuple(list(key) + [value]))
+        if type(key) is tuple:
+            tup_list.append(tuple(list(key) + [value]))
+        else:
+            tup_list.append(tuple([key, value]))
     return tup_list
 
 
-def tup_to_start_finish(tup):
+def tup_replace(tup, pos, value):
+    _l = list(tup)
+    _l[pos] = value
+    return tuple(_l)
+
+
+def next_tup(tup, period_pos, shift=1):
+    return tup_replace(tup, period_pos, shift_month(tup[period_pos], shift))
+
+
+def tup_to_start_finish(tup_list, pp=1):
     """
     Takes a calendar tuple list of the form: (id, month) and
     returns a tuple list of the form (id, start_month, end_month)
-    :param tup:
-    :param first_period
+    :param tup_list:
+    :param pp: the position in the tuple where the period is
     :return:
     """
     res_start_finish = []
-    for (resource, period) in tup:
-        prev_period = get_prev_month(period)
-        if (resource, prev_period) in tup:
+    for tup in tup_list:
+        if next_tup(tup, pp, -1) in tup_list:
             continue
         stop = False
-        next_period = period
+        next_tuple = tup
         while not stop:
-            next_period = get_next_month(next_period)
-            stop = (resource, next_period) not in tup
-        res_start_finish.append((resource, period, get_prev_month(next_period)))
+            next_tuple = next_tup(next_tuple, pp)
+            stop = next_tuple not in tup_list
+        res_start_finish.append(tuple(list(tup) + [shift_month(next_tuple[pp], -1)]))
 
     return res_start_finish
 
