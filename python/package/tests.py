@@ -16,7 +16,7 @@ import package.instance as inst
 
 ## resources
 
-[ ] balance is well done
+[*] balance is well done
 [*] consumption
 [*] at most one task in each period => 
     this I cannot check because of the structure of the data.
@@ -26,11 +26,17 @@ import package.instance as inst
 """
 
 
-class CheckModel(object):
+class Experiment(object):
 
     def __init__(self, instance, solution):
         self.instance = instance
         self.solution = solution
+
+    @classmethod
+    def from_dir(cls, path, format='json'):
+        instance = di.load_data(path + "data_in." + format)
+        solution = di.load_data(path + "data_out." + format)
+        return cls(inst.Instance(instance), sol.Solution(solution))
 
     def check_solution(self):
         func_list = {
@@ -43,7 +49,6 @@ class CheckModel(object):
         return {k: v() for k, v in func_list.items()}
 
     def check_task_num_resources(self):
-
         task_periods_list = self.instance.get_task_period_list()
         task_reqs = aux.get_property_from_dic(self.instance.get_tasks(), 'num_resource')
 
@@ -136,15 +141,29 @@ class CheckModel(object):
 
 if __name__ == "__main__":
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712142345/"
     model_data = di.load_data(path + "data_in.json")
     solution = di.load_data(path + "data_out.json")
-    # result = aux.dicttup_to_dictdict(solution['task'])
+    # exp = Experiment(inst.Instance(model_data), sol.Solution(solution))
+    exp = Experiment.from_dir(path)
+    results = exp.check_solution()
 
-    # aux.get_months('2017-08', '2018-03')
+    [k for (k, v) in results.items() if len(v) > 0]
 
-    check = CheckModel(inst.Instance(model_data), sol.Solution(solution))
+    [k for (k, v) in results["duration"].items() if v < 6]
+    results["usage"]
+
+
+    consum = exp.get_consumption()
+    aux.dicttup_to_dictdict(exp.get_remaining_usage_time())['A46']
+    aux.dicttup_to_dictdict(consum)["A46"]
+
+    results["resources"]
+
+    aux.dicttup_to_dictdict(exp.solution.get_task_num_resources())['O10']['2017-09']
+    exp.instance.get_tasks("num_resource")
+
     # sol.Solution(solution).get_schedule()
     # check.check_resource_consumption()
-    results = check.check_solution()
     # check.check_resource_state()
     # pp.pprint(results)

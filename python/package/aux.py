@@ -2,6 +2,7 @@
 
 import arrow
 import pandas as pd
+import numpy as np
 import os
 import datetime
 
@@ -34,13 +35,27 @@ def clean_dict(dictionary, default_value=0):
     return {key: value for key, value in dictionary.items() if value != default_value}
 
 
-def tup_to_dict(tup, result_col=0, is_list=True):
-    cols = [col for col in range(len(tup[0])) if col != result_col]
-    table = pd.DataFrame(tup).groupby(cols)[result_col]
-    if is_list:
-        return table.apply(lambda x: x.tolist()).to_dict()
-    else:
-        return table.apply(lambda x: x.tolist()[0]).to_dict()
+def tup_to_dict(tuplist, result_col=0, is_list=True):
+    if type(result_col) is not list:
+        result_col = [result_col]
+    if len(tuplist) == 0:
+        return {}
+    indeces = [col for col in range(len(tuplist[0])) if col not in result_col]
+    result = {}
+    for tup in tuplist:
+        index = tuple(np.take(tup, indeces))
+        if len(index) == 1:
+            index = index[0]
+        content = tuple(np.take(tup, result_col))
+        if len(content) == 1:
+            content = content[0]
+        if not is_list:
+            result[index] = content
+            continue
+        if index not in result:
+            result[index] = []
+        result[index].append(content)
+    return result
 
 
 def tup_to_dicts(dict_out, tup, value):
@@ -137,6 +152,10 @@ def vars_to_tups(var):
     return [tup for tup in var if var[tup].value()]
 
 
+def fill_dict_with_default(dict_in, keys, default=0):
+    return {**{k: default for k in keys}, **dict_in}
+
+
 def get_property_from_dic(dic, property):
     return {key: value[property] for key, value in dic.items() if property in value}
 
@@ -144,12 +163,23 @@ def get_property_from_dic(dic, property):
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y%m%d%H%M")
 
+# TODO: this function
+def clean_exp(path, clean=True):
+    """
+    loads and cleans all experiments that are incomplete
+    :param path: path to experiments
+    :param clean: if set to false it returns the experiments to clean instead of delete them
+    :return: deleted experiments
+    """
+    return 0
 
 if __name__ == "__main__":
     content = tup_to_dicts({1: {2: {4: 5}}}, (1, 2, 3), 1)
     result = {}
     result = dicts_to_tup(result, [], {1: {2: {4: 5}}})
     result = dicts_to_tup({}, [], content)
-
+    tup = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+    tup_to_dict(tup, is_list=False)
+    # tup_to_dict
     pass
     # pd.DataFrame(aux.dict_to_tup(tupdict)).groupby(level=0).apply(lambda df: df.xs(df.name).to_dict()).to_dict()

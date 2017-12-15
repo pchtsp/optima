@@ -65,6 +65,13 @@ def get_model_data():
 
     params_gen = params_gen.set_index('name').to_dict()['value']
 
+    # TASKS AND RESOURCES
+    # if a task has 5 required capacities
+    # and it has only 4 capacities in common with a resource
+    # then the resource is not fitted to do the task
+    # we assume all resources have the capacity=99
+    # we use the resource type as a capacity to match them to tasks
+
     tasks_data = table['Missions']
     tasks_data = \
         tasks_data.assign(start=tasks_data.AnneeDeDebut.apply(str) + '-' +
@@ -74,21 +81,20 @@ def get_model_data():
 
     tasks_data.set_index('IdMission', inplace=True)
 
-    capacites_col = [col for col in tasks_data if col.startswith("Capacite")]
+    capacites_col = ['Type'] + [col for col in tasks_data if col.startswith("Capacite")]
     capacites_mission = tasks_data.reset_index(). \
         melt(id_vars=["IdMission"], value_vars=capacites_col) \
         [['IdMission', "value"]]
     capacites_mission = capacites_mission[~capacites_mission.value.isna()].set_index('value')
 
-    maint = table['DefinitionMaintenances']
-
     avions = table['Avions_Capacite']
 
-    capacites_col = ['Capacites'] + [col for col in avions if col.startswith("Unnamed")]
+    capacites_col = ['TypeAvion', 'Capacites'] + [col for col in avions if col.startswith("Unnamed")]
     capacites_avion = avions.melt(id_vars=["IdAvion"], value_vars=capacites_col)[['IdAvion', "value"]]
 
-    capacites_avion = capacites_avion[~capacites_avion.value.isna()].set_index('value')
-
+    capacites_avion_extra = capacites_avion.IdAvion.drop_duplicates().to_frame().assign(value=99)
+    capacites_avion = pd.concat([capacites_avion[~capacites_avion.value.isna()],
+                                 capacites_avion_extra]).set_index('value')
     num_capacites = capacites_mission.reset_index().groupby("IdMission"). \
         agg(len).reset_index()
     capacites_join = capacites_mission.join(capacites_avion)
@@ -99,7 +105,7 @@ def get_model_data():
         pd.merge(capacites_join, num_capacites, on=["IdMission", "value"]) \
             [["IdMission", "IdAvion"]]
 
-    # TODO: I'm missing for some reason half the missions that do not have at least one aircraft as candidate...
+    maint = table['DefinitionMaintenances']
 
     avions_state = table['Avions_Potentiels']
 
@@ -212,4 +218,5 @@ def export_data(path, obj, name=None, file_type="pickle"):
 
 
 if __name__ == "__main__":
+    get_model_data()
     pass

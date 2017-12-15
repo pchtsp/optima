@@ -2,6 +2,7 @@
 
 import numpy as np
 import package.aux as aux
+import package.data_input as di
 
 
 class Instance(object):
@@ -14,13 +15,23 @@ class Instance(object):
             return self.data['parameters'][param]
         return self.data['parameters']
 
+    def get_categories(self):
+        result = {}
+        for category, value in self.data.items():
+            # if type(value) is dict:
+            elem = list(value.keys())[0]
+            if type(value[elem]) is dict:
+                result[category] = list(value[elem].keys())
+            else:
+                result[category] = list(value.keys())
+        return result
+
     def get_category(self, category, param):
         if param is None:
             return self.data[category]
         if param in list(self.data[category].values())[0]:
             return aux.get_property_from_dic(self.data[category], param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
-
 
     def get_tasks(self, param=None):
         return self.get_category('tasks', param)
@@ -101,7 +112,9 @@ class Instance(object):
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
         v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
+        at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
         t1_at2 = aux.tup_to_dict(att, result_col=1, is_list=True)
+        t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
 
         return {
          'periods'          :  periods
@@ -126,6 +139,8 @@ class Instance(object):
         ,'a_vt'             :  a_vt
         ,'v_at'             :  v_at
         ,'t1_at2'           :  t1_at2
+        ,'at1_t2'           :  at1_t2
+        ,'t2_at1'           :  t2_at1
         }
 
     def get_initial_state(self, time_type):
@@ -202,3 +217,22 @@ class Instance(object):
         for (v, t) in self.get_task_period_list():
             num_resource_working[t] += requirement[v]
         return num_resource_working
+
+    def get_total_fixed_maintenances(self):
+        in_maint_dict = aux.tup_to_dict(self.get_fixed_maintenances(), 0, is_list=True)
+        return {k: len(v) for k, v in in_maint_dict.items()}
+
+    def check_enough_candidates(self):
+        task_num_resources = self.get_tasks('num_resource')
+        task_num_candidates = {task: len(candidates) for task, candidates in self.get_tasks('candidates').items()}
+        task_slack = {task: task_num_candidates[task] - task_num_resources[task] for task in task_num_resources}
+        return {k: v for k, v in task_slack.items() if v < 0}
+
+
+if __name__ == "__main__":
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
+    model_data = di.load_data(path + "data_in.json")
+    # model_data = di.get_model_data()
+    instance = Instance(model_data)
+    instance.get_categories()
+    result = instance.get_total_fixed_maintenances()
