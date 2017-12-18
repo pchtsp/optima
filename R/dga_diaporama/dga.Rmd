@@ -1,0 +1,57 @@
+---
+title: "Plannification de maintenances des aéronefs militaires"
+author: "Franco Peschiera"
+date: '`r format(Sys.time(), "%Y-%m-%d")`'
+bibliography: MFMP.bib
+output: 
+  slidy_presentation: 
+    incremental: yes
+    css: "./../../css/baobab.css"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Qui sui je
+
+* Péruvien (et français).
+* Ingénieur Industriel par l'Universidad Politecnica de Madrid.
+* Passionné par les mathématiques appliqués et l'informatique.
+* Fondé et travaillé dans une entreprise de technologie à Madrid pendant les 7 derniers années.
+
+# Où et avec qui je travaille
+
+* A Toulouse dans l'ISAE-SUPAERO.
+* Plus spécifiquement dans le Département d'Ingénierie des Systèmes Complexes (DISC).
+* Mes directeurs de thèse sont: Alain Haït, Olga Battaïa, Nicolas Dupin.
+
+# Mon sujet de thèse: MFMP
+
+> Military Flight and Maintenance Planning.
+
+* Fait partie de la recherche opérationnelle: mathématiques dédiés à résoudre des gros et complexes problèmes de l'industrie.
+* Un problème d'affectation des missions et planification des maintenances aux aéronefs militaires.
+* Similaire au problème FMP: Flight and Maintenance Planning .
+* Résolu par techniques de modélisation comme PLNE, méta-heuristiques ou heuristiques.
+
+# Example
+
+```{r echo=FALSE}
+htmltools::includeHTML("calendrier_20171116.html")
+```
+
+# Etat de l'art
+
+* En @Cho2011, des affectations quotidiens des heures aux avions militaires.
+* En @Verhoeff2015 et @Kozanidis2008, des affectations mensuels des maintenances et opérations sont faits avec contraintes des disponibilité, niveau de service et soutenabilité.
+* En @Chastellux2017, un premier modèle d'affectation de missions aux aéronefs en lieu des heures est présenté.
+
+# A quoi ça sert
+
+* En faisant meilleures planifications, on fait une meilleur utilisation de ressources.
+* Lisser les maintenances pendant tout le horizon future.
+* garantir la disponibilité des aéronefs pour possibles nouvelles missions.
+
+# Bibliographie
+
