@@ -60,7 +60,10 @@ def model_no_states(instance, options=None):
     # max one task per period or no-task state:
     for (a, t) in l['v_at']:
         model += pl.lpSum(task[(a, v, t)] for v in l['v_at'][(a, t)]) + \
-                 pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][(a, t)] if (a, _t) in l['at_start']) <= 1
+                 pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][(a, t)] if (a, _t) in l['at_start']) + \
+                 ((a, t) in l['at_maint']) <= 1
+
+    # TODO: check if I use this parameter in somewhere
     # remaining used time calculations:
     # remaining elapsed time calculations:
     for (a, t) in l['at']:
@@ -125,7 +128,7 @@ def model_no_states(instance, options=None):
 
     # _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
-    _start = aux.vars_to_tups(start)
+    _start = {k: 1 for k in aux.vars_to_tups(start)}
     _rut = {t: rut[t].value() for t in rut}
     _ret = {t: ret[t].value() for t in ret}
 
@@ -316,7 +319,7 @@ if __name__ == "__main__":
     model_data = di.combine_data_states(model_data, historic_data)
 
     # this is for testing purposes:
-    num_max_periods = 20
+    num_max_periods = 10
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
     forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
@@ -328,9 +331,9 @@ if __name__ == "__main__":
     instance = inst.Instance(model_data)
 
     options = {
-        'timeLimit': 300
-        , 'gap': 0
-        , 'solver': "CPLEX"
+        'timeLimit': 500
+        , 'gap': 1
+        , 'solver': "GUROBI"
         , 'path':
             '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
@@ -341,12 +344,11 @@ if __name__ == "__main__":
     # solution = solve_with_states(instance, options)
     solution = model_no_states(instance, options)
 
-    di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
+    # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
     di.export_data(options['path'], instance.data, name="data_in", file_type='json')
-    di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
+    # di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
     di.export_data(options['path'], solution.data, name="data_out", file_type='json')
     di.export_data(options['path'], options, name="options", file_type='json')
-
 
     # testing = test.CheckModel(instance, solution)
     # result = testing.check_task_num_resources()

@@ -3,16 +3,16 @@ import pandas as pd
 import numpy as np
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
-# import pandas.rpy.common as com
 from rpy2.robjects import pandas2ri
+# import pandas.rpy.common as com
 import palettable.colorbrewer as cbrewer
+import package.tests as tests
 
 # import rpy2.robjects.lib.timevis as timevis
 # we start with some pickle
 
-directory_path = '/home/pchtsp/Documents/projects/OPTIMA/python/experiments/201711231500/'
-
-solution = aux.load_data(directory_path + "data_out.pickle")
+# directory_path = '/home/pchtsp/Documents/projects/OPTIMA/python/experiments/201711231500/'
+directory_path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712181704'
 
 # to make a graph, we need to have something like the following:
 
@@ -88,7 +88,7 @@ graph = timevis.timevis(rdf, groups= rdfgroups, options = options, width="100%")
 
 print(graph)
 
-htmlwidgets.saveWidget(graph, file= "/home/pchtsp/Downloads/calendar_20171124.html", selfcontained = False)
+htmlwidgets.saveWidget(graph, file= "/home/pchtsp/Downloads/calendar_20171124.html", selfcontained=False)
 
 # pandas2ri.ri2py()
 

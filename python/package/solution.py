@@ -1,6 +1,10 @@
 # /usr/bin/python3
 
 import package.aux as aux
+import pandas as pd
+import rpy2.robjects as ro
+from rpy2.robjects.packages import importr
+from rpy2.robjects import pandas2ri
 
 
 class Solution(object):
@@ -38,3 +42,48 @@ class Solution(object):
         statesMissions = aux.dict_to_tup(self.get_state()) + aux.dict_to_tup(self.get_tasks())
         result = aux.tup_to_start_finish(statesMissions)
         return result
+
+    def print_solution(self, path):
+        cols = ['group', 'start', 'content', 'end']
+        table = pd.DataFrame(self.get_schedule(),
+                             columns=cols
+                             )
+        table.end = table.end.apply(lambda x: aux.get_next_month(x))
+        table['status'] = table.content.str.replace(r"\d+", "")
+        colors = {'A': "white", 'M': '#FFFFB2', 'O': "#BD0026"}
+        table['style'] = \
+            table.status.replace(colors). \
+                map("background-color:{0};border-color:{0}".format)
+        table = table.sort_values("group").reset_index().rename(columns={'index': "id"})
+        cols2 = cols + ['style', 'id']
+        table[cols2] = table[cols2].astype(str)
+        # table = table.astype(
+        #     {'content': 'U5', 'id': 'int64', 'group': 'U5', 'start': 'U7', 'end': 'U7', 'status': 'U5', 'style': 'U40'})
+        groups = pd.DataFrame({'id': table.group.unique(), 'content': table.group.unique()})
+
+        timevis = importr('timevis')
+        htmlwidgets = importr('htmlwidgets')
+        rdf = pandas2ri.py2ri(table)
+        rdfgroups = pandas2ri.py2ri(groups)
+
+        options = ro.ListVector({
+            "stack": False,
+            "editable": True,
+            "align": "center",
+            "orientation": "top",
+            # "snap": None,
+            "margin": 0
+        })
+
+        graph = timevis.timevis(rdf, groups=rdfgroups, options=options, width="100%")
+        htmlwidgets.saveWidget(graph, file=path, selfcontained=False)
+        return
+        # print(graph)
+
+
+if __name__ == "__main__":
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712142345/"
+    import package.data_input as di
+    sol = Solution(di.load_data(path + "data_out.json"))
+    sol.print_solution("/home/pchtsp/Downloads/calendar_temp3.html")

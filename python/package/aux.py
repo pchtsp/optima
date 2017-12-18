@@ -163,17 +163,9 @@ def get_property_from_dic(dic, property):
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y%m%d%H%M")
 
-# TODO: this function
-def clean_exp(path, clean=True):
-    """
-    loads and cleans all experiments that are incomplete
-    :param path: path to experiments
-    :param clean: if set to false it returns the experiments to clean instead of delete them
-    :return: deleted experiments
-    """
-    return 0
 
 if __name__ == "__main__":
+
     content = tup_to_dicts({1: {2: {4: 5}}}, (1, 2, 3), 1)
     result = {}
     result = dicts_to_tup(result, [], {1: {2: {4: 5}}})

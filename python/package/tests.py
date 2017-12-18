@@ -5,7 +5,8 @@ import pandas as pd
 import package.data_input as di
 import package.solution as sol
 import package.instance as inst
-
+import os
+import shutil
 
 """
 
@@ -33,9 +34,12 @@ class Experiment(object):
         self.solution = solution
 
     @classmethod
-    def from_dir(cls, path, format='json'):
-        instance = di.load_data(path + "data_in." + format)
-        solution = di.load_data(path + "data_out." + format)
+    def from_dir(cls, path, format='json', prefix="data_"):
+        files = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
+        if not np.all([os.path.exists(f) for f in files]):
+            return None
+        instance = di.load_data(files[0])
+        solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
 
     def check_solution(self):
@@ -139,6 +143,30 @@ class Experiment(object):
         return maintenance_duration_incorrect
 
 
+def clean_experiments(path, clean=True):
+    """
+    loads and cleans all experiments that are incomplete
+    :param path: path to experiments
+    :param clean: if set to false it only does not delete them
+    :return: deleted experiments
+    """
+    exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    to_delete = []
+    for e in exps_paths:
+        exp = Experiment.from_dir(e, format="json")
+        if exp is None:
+            exp = Experiment.from_dir(e, format="pickle")
+        to_delete.append(exp is None)
+    exps_to_delete = np.array(exps_paths)[to_delete]
+    if clean:
+        for ed in exps_to_delete:
+            shutil.rmtree(ed)
+    return exps_to_delete
+    # np.array(exps_paths).__len__()
+    #
+    # return 0
+
+
 if __name__ == "__main__":
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712142345/"
@@ -148,20 +176,24 @@ if __name__ == "__main__":
     exp = Experiment.from_dir(path)
     results = exp.check_solution()
 
-    [k for (k, v) in results.items() if len(v) > 0]
+    # [k for (k, v) in results.items() if len(v) > 0]
+    #
+    # [k for (k, v) in results["duration"].items() if v < 6]
+    # results["usage"]
+    #
+    #
+    # consum = exp.get_consumption()
+    # aux.dicttup_to_dictdict(exp.get_remaining_usage_time())['A46']
+    # aux.dicttup_to_dictdict(consum)["A46"]
+    #
+    # results["resources"]
+    #
+    # aux.dicttup_to_dictdict(exp.solution.get_task_num_resources())['O10']['2017-09']
+    # exp.instance.get_tasks("num_resource")
 
-    [k for (k, v) in results["duration"].items() if v < 6]
-    results["usage"]
-
-
-    consum = exp.get_consumption()
-    aux.dicttup_to_dictdict(exp.get_remaining_usage_time())['A46']
-    aux.dicttup_to_dictdict(consum)["A46"]
-
-    results["resources"]
-
-    aux.dicttup_to_dictdict(exp.solution.get_task_num_resources())['O10']['2017-09']
-    exp.instance.get_tasks("num_resource")
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments"
+    exps = clean_experiments(path, clean=True)
+    len(exps)
 
     # sol.Solution(solution).get_schedule()
     # check.check_resource_consumption()
