@@ -3,6 +3,7 @@ title: "Plannification de maintenances des aéronefs militaires"
 author: "Franco Peschiera"
 date: '`r format(Sys.time(), "%Y-%m-%d")`'
 bibliography: MFMP.bib
+nocite: "@*"
 output: 
   slidy_presentation: 
     incremental: yes
@@ -15,43 +16,67 @@ knitr::opts_chunk$set(echo = FALSE)
 
 # Qui suis-je
 
-* Péruvien (et français).
+* Péruvien et français.
 * Ingénieur Industriel par l'Universidad Politecnica de Madrid.
 * Passionné par les mathématiques appliqués et l'informatique.
-* Fondé et travaillé dans une entreprise de technologie à Madrid pendant les 7 derniers années.
+* Fondé et travaillé dans une entreprise de conseil en optimisation et recherche opérationnelle à Madrid pendant les 7 derniers années.
 
 # Où et avec qui je travaille
 
-* A Toulouse dans l'ISAE-SUPAERO.
+* A Toulouse à l'ISAE-SUPAERO.
 * Plus spécifiquement dans le Département d'Ingénierie des Systèmes Complexes (DISC).
-* Mes directeurs de thèse sont: Alain Haït, Olga Battaïa, Nicolas Dupin.
+* Mes directeurs de thèse sont: Alain Haït et Olga Battaïa.
+* Le sujet est issu d'une collaboration avec Nicolas Dupin de la DGA.
 
 # Mon sujet de thèse: MFMP
 
 > Military Flight and Maintenance Planning.
 
-* Fait partie de la recherche opérationnelle: mathématiques dédiés à résoudre des gros et complexes problèmes de l'industrie.
+* Fait partie de la recherche opérationnelle: mathématiques dédiés à résoudre des problèmes complexes de l'industrie.
 * Un problème d'affectation des missions et planification des maintenances aux aéronefs militaires.
-* Similaire au problème FMP: Flight and Maintenance Planning .
-* Résolu par techniques de modélisation comme PLNE, méta-heuristiques ou heuristiques.
+* Résolu par techniques comme PLNE, méta-heuristiques ou heuristiques.
 
-# Example
+# Exemple
 
 ```{r echo=FALSE}
-htmltools::includeHTML("./../../img/calendrier_20171116.html")
+htmltools::includeHTML("./../../img/calendar.html")
 ```
 
-# Etat de l'art
+# Exemple (2)
 
-* En @Cho2011, des affectations quotidiens des heures aux avions militaires.
-* En @Verhoeff2015 et @Kozanidis2008, des affectations mensuels des maintenances et opérations sont faits avec contraintes des disponibilité, niveau de service et soutenabilité.
-* En @Chastellux2017, un premier modèle d'affectation de missions aux aéronefs en lieu des heures est présenté.
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+</style>
+
+<div class="col2">
+```{r echo=FALSE}
+htmltools::includeHTML("./../../img/maintenances.html")
+htmltools::includeHTML("./../../img/unavailable.html")
+```
+</div>
+
 
 # A quoi ça sert
 
-* En faisant meilleures planifications, on fait une meilleur utilisation des ressources.
-* Lisser les maintenances pendant tout le horizon future fait possible 
-* garantir la disponibilité des aéronefs pour possibles nouvelles missions.
+* Faire meilleures planifications pour une meilleure utilisation des ressources.
+* Lisser les maintenances sur l'horizon de planification pour maximiser l'efficacité de l'équipe de maintenance.
+* Garantir la disponibilité des aéronefs pour de possibles nouvelles missions.
+
+# Pour quoi un doctorat?
+
+* Ces types de problèmes sont difficiles à résoudre.
+* Pour trouver des bons solutions aux problèmes il faut souvent chercher la structure du problème, sa complexité et ses similitudes / differences avec des autres problèmes.
+
+<!-- # Etat de l'art -->
+
+<!-- * En @Cho2011, des affectations quotidiens des heures aux avions militaires. -->
+<!-- * En @Verhoeff2015 et @Kozanidis2008, des affectations mensuels des maintenances et opérations sont faits avec contraintes des disponibilité, niveau de service et soutenabilité. -->
+<!-- * En @Chastellux2017, un premier modèle d'affectation de missions aux aéronefs en lieu des heures est présenté. -->
+
 
 # Bibliographie
 
