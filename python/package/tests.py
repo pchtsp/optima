@@ -53,15 +53,17 @@ class Experiment(object):
         return {k: v() for k, v in func_list.items()}
 
     def check_task_num_resources(self):
-        task_periods_list = self.instance.get_task_period_list()
-        task_reqs = aux.get_property_from_dic(self.instance.get_tasks(), 'num_resource')
+        task_reqs = self.instance.get_tasks('num_resource')
 
-        task_assigned = {key: 0 for key in task_periods_list}
-        task_assigned.update(self.solution.get_task_num_resources())
+        task_assigned = \
+            aux.fill_dict_with_default(
+                self.solution.get_task_num_resources(),
+                self.instance.get_task_period_list()
+            )
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[(task, period)]
-            for (task, period) in task_periods_list
-            if task_reqs[task] - task_assigned[(task, period)] > 0
+            for (task, period) in task_assigned
+            if task_reqs[task] - task_assigned[(task, period)] != 0
         }
 
         return task_under_assigned
@@ -142,6 +144,12 @@ class Experiment(object):
                 maintenance_duration_incorrect[(resource, start)] = size_period
         return maintenance_duration_incorrect
 
+    def get_objective_function(self):
+        weight = self.instance.get_param("maint_weight")
+        unavailable = max(self.solution.get_unavailable().values())
+        in_maint = max(self.solution.get_in_maintenance().values())
+        return in_maint * weight + unavailable
+
 
 def clean_experiments(path, clean=True):
     """
@@ -168,15 +176,40 @@ def clean_experiments(path, clean=True):
 
 
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712142345/"
-    model_data = di.load_data(path + "data_in.json")
-    solution = di.load_data(path + "data_out.json")
-    # exp = Experiment(inst.Instance(model_data), sol.Solution(solution))
-    exp = Experiment.from_dir(path)
-    results = exp.check_solution()
 
-    # [k for (k, v) in results.items() if len(v) > 0]
+    path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
+    path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712182321/"
+
+    sol_states = Experiment.from_dir(path_states)
+    sol_nostates = Experiment.from_dir(path_nostates)
+
+    t = aux.tup_to_dict(aux.dict_to_tup(sol_nostates.solution.get_tasks()),
+                    result_col= [0], is_list=True, indeces=[2, 1]).items()
+    # {k: len(v) for k, v in t}
+    sol_nostates.instance.get_tasks('num_resource')
+
+    # sol_nostates.check_solution()
+    # sol_states.check_solution()
+
+    # exp = Experiment(inst.Instance(model_data), sol.Solution(solution))
+    # exp = Experiment.from_dir(path)
+    # results = exp.check_solution()
+
+    # [k for (k, v) in sol_nostates.check_solution().items() if len(v) > 0]
+    # [k for (k, v) in sol_states.check_solution().items() if len(v) > 0]
+
+    print(sol_states.get_objective_function())
+    print(sol_nostates.get_objective_function())
+    sol_nostates.check_task_num_resources()
+
+    # sol_states.solution.get_state()[('A2', '2017-03')]
+    l = sol_states.instance.get_domains_sets()
+    # l['v_at']
+    checks = sol_states.check_solution()
+
+    sol_nostates.check_solution()
+    # sol_states.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
+    sol_nostates.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
     #
     # [k for (k, v) in results["duration"].items() if v < 6]
     # results["usage"]

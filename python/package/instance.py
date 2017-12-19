@@ -11,9 +11,13 @@ class Instance(object):
         self.data = model_data
 
     def get_param(self, param=None):
+        default_params = {'maint_weight': 1}
+        params = {**default_params, **self.data['parameters']}
         if param is not None:
-            return self.data['parameters'][param]
-        return self.data['parameters']
+            if param not in params:
+                raise ValueError("param named {} does not exist in parameters".format(param))
+            return params[param]
+        return params
 
     def get_categories(self):
         result = {}
@@ -98,23 +102,24 @@ class Instance(object):
         at_mission = []  # to be implemented
         at_start = []  # to be implemented
         at_maint = self.get_fixed_maintenances()
-        at_free = [(a, t) for (a, t) in at if (a, t) not in at_maint + at_mission]
+        at_free = [(a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission)]
         at_free_start = [(a, t) for (a, t) in at_free]
+        # at_free_start = [(a, t) for (a, t) in at_free if periods_pos[t] % 3 == 0]
 
         vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
         avt = [(a, v, t) for a in resources for (v, t) in vt
                if a in candidates[v]
-               if (a, t) in at_free + at_mission]
-        ast = [(a, s, t) for (a, t) in at_free + at_maint for s in states]
-        att = [(a, t1, t2) for (a, t1) in at_start + at_free_start for t2 in periods if
+               if (a, t) in list(at_free + at_mission)]
+        ast = [(a, s, t) for (a, t) in list(at_free + at_maint) for s in states]
+        att = [(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
         v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
         at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
-        t1_at2 = aux.tup_to_dict(att, result_col=1, is_list=True)
-        t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
+        t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
+        t2_at1 = aux.fill_dict_with_default( aux.tup_to_dict(att, result_col=2, is_list=True), at, [])
 
         return {
          'periods'          :  periods
@@ -132,7 +137,7 @@ class Instance(object):
         ,'at'               :  at
         ,'at_maint'         :  at_maint
         ,'ast'              :  ast
-        ,'at_start'         :  at_start + at_free_start
+        ,'at_start'         :  list(at_start + at_free_start)
         ,'at0'              :  at0
         ,'att'              :  att
         ,'a_t'              :  a_t

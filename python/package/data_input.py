@@ -111,6 +111,7 @@ def get_model_data():
 
     model_data = {}
     model_data['parameters'] = {
+        'maint_weight': 1,
         'max_used_time': maint.GainPotentielHoraire_heures.values.min().__float__()
         ,'max_elapsed_time': maint.GainPotentielCalendaire_mois.values.min().__int__()
         ,'maint_duration': maint.DureeMaintenance_mois.values.max().__int__()

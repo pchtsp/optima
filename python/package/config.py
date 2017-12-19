@@ -12,11 +12,11 @@ class Config(object):
     def config_cbc(self):
         return \
             ["presolve on",
-                       "gomory on",
-                       "knapsack on",
-                       "probing on",
-                       "ratio {}".format(self.gap),
-                       "sec {}".format(self.timeLimit)]
+             "gomory on",
+             "knapsack on",
+             "probing on",
+             "ratio {}".format(self.gap),
+             "sec {}".format(self.timeLimit)]
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
@@ -36,5 +36,5 @@ class Config(object):
         # result_path = path + 'results.sol'.format()
         log_path = self.path + 'results.log'
         return ['set logfile {}'.format(log_path),
-                         'set timelimit {}'.format(self.timeLimit),
-                         'mip tolerances mipgap {}'.format(self.gap)]
+                'set timelimit {}'.format(self.timeLimit),
+                'set mip tolerances mipgap {}'.format(self.gap)]

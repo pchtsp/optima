@@ -6,6 +6,8 @@ import numpy as np
 import package.tests as test
 import package.instance as inst
 import package.solution as sol
+from os import dup, dup2, close
+import tempfile
 
 ######################################################
 # TODO: add minimum mission duration assignment
@@ -74,7 +76,6 @@ def model_no_states(instance, options=None):
                                     ub['rut'] * start[(a, t)]
             model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1 + \
                                     ub['ret'] * start[(a, t)]
-
             model += rut[(a, t)] >= ub['rut'] * start[(a, t)]
             model += ret[(a, t)] >= ub['ret'] * start[(a, t)]
         elif (a, t) in l['v_at']:
@@ -120,8 +121,15 @@ def model_no_states(instance, options=None):
     elif options['solver'] == "CPLEX":
         result = model.solve(pl.CPLEX_CMD(options=config.config_cplex()))
     else:
-        result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()))
-
+        with tempfile.TemporaryFile() as tmp_output:
+            orig_std_out = dup(1)
+            dup2(tmp_output.fileno(), 1)
+            result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()))
+            dup2(orig_std_out, 1)
+            close(orig_std_out)
+            tmp_output.seek(0)
+            logFile = [line.decode('ascii') for line in tmp_output.read().splitlines()]
+        print(logFile)
     if result != 1:
         print("Model resulted in non-feasible status")
         return None
@@ -175,6 +183,7 @@ def solve_with_states(instance, options=None):
     ret_obj = sum(ret_init[a] for a in l['resources'])
     rut_obj = sum(rut_init[a] for a in l['resources'])
     num_resource_working = instance.get_total_period_needs()
+    maint_weight = instance.get_param("maint_weight")
 
     # VARIABLES:
     # binary:
@@ -185,7 +194,7 @@ def solve_with_states(instance, options=None):
     # numeric:
     ret = pl.LpVariable.dicts("ret", l['at0'], 0, ub['ret'], pl.LpContinuous)
     rut = pl.LpVariable.dicts("rut", l['at0'], 0, ub['rut'], pl.LpContinuous)
-    used = pl.LpVariable.dicts("used", l['at'], 0, ub['used'], pl.LpContinuous)
+    # used = pl.LpVariable.dicts("used", l['at'], 0, ub['used'], pl.LpContinuous)
 
     # objective function:
     max_unavail = pl.LpVariable("max_unavail")
@@ -195,7 +204,7 @@ def solve_with_states(instance, options=None):
     model = pl.LpProblem("MFMP_v0001", pl.LpMinimize)
 
     # OBJECTIVE:
-    model += max_unavail + max_maint
+    model += max_unavail + max_maint * maint_weight
 
     # CONSTRAINTS:
     for t in l['periods']:
@@ -206,7 +215,7 @@ def solve_with_states(instance, options=None):
 
     # num resources:
     for (v, t) in l['a_vt']:
-        model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) >= requirement[v]
+        model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
 
     # max one task per period or no-task state:
     for (a, t) in l['v_at']:
@@ -216,21 +225,31 @@ def solve_with_states(instance, options=None):
     # used time, two options:
     # maybe set equal?
     # not sure which one is better, both?
-    for (a, t) in l['v_at']:
-        model += used[(a, t)] >= pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'][(a, t)])
-    for (a, v, t) in l['avt']:
-        model += used[(a, t)] >= task[(a, v, t)] * consumption[v]
+    # for (a, t) in l['v_at']:
+    #     model += used[(a, t)] >= pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'][(a, t)])
+    # for (a, v, t) in l['avt']:
+    #     model += used[(a, t)] >= task[(a, v, t)] * consumption[v]
 
     # remaining used time calculations:
     # remaining elapsed time calculations:
     for (a, t) in l['at']:
         if (a, t) in l['at_start']:
             # We only increase the remainders if in that month we could start a maintenance
-            model += rut[(a, t)] <= rut[(a, l["previous"][t])] - used[(a, t)] + ub['rut'] * start[(a, t)]
-            model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1 + ub['ret'] * start[(a, t)]
-        else:
+            model += rut[(a, t)] <= rut[(a, l["previous"][t])] - \
+                                    pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'][(a, t)]) + \
+                                    ub['rut'] * start[(a, t)]
+            model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1 + \
+                                    ub['ret'] * start[(a, t)]
+            model += rut[(a, t)] >= ub['rut'] * start[(a, t)]
+            model += ret[(a, t)] >= ub['ret'] * start[(a, t)]
+        elif (a, t) in l['v_at']:
             # if that month we know we're not starting a maintenance... it's just decreasing:
-            model += rut[(a, t)] <= rut[(a, l["previous"][t])] - used[(a, t)]
+            model += rut[(a, t)] <= rut[(a, l["previous"][t])] - \
+                                    pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'][(a, t)])
+            model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1
+        else:
+            # if that month we know we're not making a mission...
+            model += rut[(a, t)] <= rut[(a, l["previous"][t])]
             model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1
 
     # the start period is given by parameters:
@@ -280,7 +299,7 @@ def solve_with_states(instance, options=None):
     elif options['solver'] == "CPLEX":
         result = model.solve(pl.CPLEX_CMD(options=config.config_cplex()))
     else:
-        result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()))
+        result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()), msg=True)
 
     if result != 1:
         print("Model resulted in non-feasible status")
@@ -288,7 +307,7 @@ def solve_with_states(instance, options=None):
 
     _state = aux.tup_to_dict(aux.vars_to_tups(state), result_col=1, is_list=False)
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
-    _used = {t: used[t].value() for t in used}
+    # _used = {t: used[t].value() for t in used}
     _rut = {t: rut[t].value() for t in rut}
     _ret = {t: ret[t].value() for t in ret}
     _start = {k: 1 for k in aux.vars_to_tups(start)}
@@ -300,7 +319,7 @@ def solve_with_states(instance, options=None):
             'start': _start,
             'rut': _rut,
             'ret': _ret,
-            'used': _used
+            # 'used': _used
         }
     }
 
@@ -320,6 +339,8 @@ if __name__ == "__main__":
 
     # this is for testing purposes:
     num_max_periods = 10
+    model_data['parameters']['start'] = \
+        aux.shift_month(model_data['parameters']['start'], num_max_periods)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
     forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
@@ -331,24 +352,25 @@ if __name__ == "__main__":
     instance = inst.Instance(model_data)
 
     options = {
-        'timeLimit': 500
-        , 'gap': 1
+        'timeLimit': 3600
+        , 'gap': 0
         , 'solver': "GUROBI"
         , 'path':
             '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
         ,"model": "no_states"
+        ,"comments": ""
     }
 
     # solving part:
     # solution = solve_with_states(instance, options)
     solution = model_no_states(instance, options)
-
-    # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
-    di.export_data(options['path'], instance.data, name="data_in", file_type='json')
-    # di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
-    di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-    di.export_data(options['path'], options, name="options", file_type='json')
+    if solution is not None:
+        # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
+        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
+        # di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
+        di.export_data(options['path'], solution.data, name="data_out", file_type='json')
+        di.export_data(options['path'], options, name="options", file_type='jsond')
 
     # testing = test.CheckModel(instance, solution)
     # result = testing.check_task_num_resources()
