@@ -180,6 +180,11 @@ def graph_dict_time(dict_to_graph, path, **kwags):
     bokehplot.show(p)
     return p
 
+
+def dict_to_lendict(dict_input):
+    return {k: len(v) for k, v in dict_input.items()}
+
+
 if __name__ == "__main__":
 
     content = tup_to_dicts({1: {2: {4: 5}}}, (1, 2, 3), 1)

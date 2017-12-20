@@ -6,13 +6,37 @@ import numpy as np
 import package.tests as test
 import package.instance as inst
 import package.solution as sol
-from os import dup, dup2, close
-import tempfile
+
 
 ######################################################
 # TODO: add minimum mission duration assignment
 # TODO: test different weights on OF
-# TODO: check problems with model without states
+# TODO: contraintes les posibilités des candidates: maximum X candidates par task ou par resource
+# TODO: ajouter un heuristique pour les 50 avions de la mission O10 en rotation.
+
+def cluster_candidates(instance, options=None):
+    l = instance.get_domains_sets()
+    av = list(set(aux.tup_filter(l['avt'], [0, 1])))
+    a_v = aux.tup_to_dict(av, result_col=0, is_list=True)
+    candidate = pl.LpVariable.dicts("cand", av, 0, 1, pl.LpInteger)
+
+    model = pl.LpProblem("Candidates", pl.LpMinimize)
+    for v, num in instance.get_tasks('num_resource').items():
+        model += pl.lpSum(candidate[(a, v)] for a in a_v[v]) >= max(num + 4, num * 1.1)
+
+    # # objective function:
+    # max_unavail = pl.LpVariable("max_unavail")
+    model += pl.lpSum(candidate[tup] for tup in av)
+
+    # MODEL
+
+    # # OBJECTIVE:
+    # model += max_unavail + max_maint * maint_weight
+
+    config = conf.Config(options)
+    result = config.solve_model(model)
+
+    return {}
 
 
 def model_no_states(instance, options=None):
@@ -27,6 +51,7 @@ def model_no_states(instance, options=None):
     rut_obj = sum(rut_init[a] for a in l['resources'])
     num_resource_working = instance.get_total_period_needs()
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
+    maint_weight = instance.get_param("maint_weight")
 
     # VARIABLES:
     # binary:
@@ -45,7 +70,7 @@ def model_no_states(instance, options=None):
     model = pl.LpProblem("MFMP_v0001", pl.LpMinimize)
 
     # OBJECTIVE:
-    model += max_unavail + max_maint
+    model += max_unavail + max_maint * maint_weight
 
     # CONSTRAINTS:
     for t in l['periods']:
@@ -100,36 +125,9 @@ def model_no_states(instance, options=None):
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) >= rut_obj
 
     # SOLVING
-    if options is None:
-        options = {}
-
-    default_options = {
-        'timeLimit': 300
-        , 'gap': 0
-        , 'solver': "GUROBI"
-        , 'path':
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                format(aux.get_timestamp())
-    }
-
-    # the following merges the two configurations (replace into):
-    options = {**default_options, **options}
     config = conf.Config(options)
+    result = config.solve_model(model)
 
-    if options['solver'] == "GUROBI":
-        result = model.solve(pl.GUROBI_CMD(options=config.config_gurobi()))
-    elif options['solver'] == "CPLEX":
-        result = model.solve(pl.CPLEX_CMD(options=config.config_cplex()))
-    else:
-        with tempfile.TemporaryFile() as tmp_output:
-            orig_std_out = dup(1)
-            dup2(tmp_output.fileno(), 1)
-            result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()))
-            dup2(orig_std_out, 1)
-            close(orig_std_out)
-            tmp_output.seek(0)
-            logFile = [line.decode('ascii') for line in tmp_output.read().splitlines()]
-        print(logFile)
     if result != 1:
         print("Model resulted in non-feasible status")
         return None
@@ -278,28 +276,8 @@ def solve_with_states(instance, options=None):
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) >= rut_obj
 
     # SOLVING
-    if options is None:
-        options = {}
-
-    default_options = {
-        'timeLimit': 300
-        , 'gap': 0
-        , 'solver': "GUROBI"
-        , 'path':
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                format(aux.get_timestamp())
-    }
-
-    # the following merges the two configurations (replace into):
-    options = {**default_options, **options}
     config = conf.Config(options)
-
-    if options['solver'] == "GUROBI":
-        result = model.solve(pl.GUROBI_CMD(options=config.config_gurobi()))
-    elif options['solver'] == "CPLEX":
-        result = model.solve(pl.CPLEX_CMD(options=config.config_cplex()))
-    else:
-        result = model.solve(pl.PULP_CBC_CMD(options=config.config_cbc()), msg=True)
+    result = config.solve_model(model)
 
     if result != 1:
         print("Model resulted in non-feasible status")
@@ -338,28 +316,30 @@ if __name__ == "__main__":
     model_data = di.combine_data_states(model_data, historic_data)
 
     # this is for testing purposes:
-    num_max_periods = 10
+    num_start_period = 0
+    num_max_periods = 30
     model_data['parameters']['start'] = \
-        aux.shift_month(model_data['parameters']['start'], num_max_periods)
+        aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
+    forbidden_tasks = ['O10', 'O8']  # this task has less candidates than what it asks.
     # forbidden_tasks = []
     model_data['tasks'] = \
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
     # this was for testing purposes
 
     instance = inst.Instance(model_data)
+    # instance.check_enough_candidates()
 
     options = {
         'timeLimit': 3600
         , 'gap': 0
-        , 'solver': "GUROBI"
+        , 'solver': "CBC"
         , 'path':
             '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
-        ,"model": "no_states"
-        ,"comments": ""
+        , "model": "no_states"
+        , "comments": "periods 0 to 30 without tasks: O10, O8"
     }
 
     # solving part:

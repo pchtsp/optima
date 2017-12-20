@@ -6,6 +6,16 @@ import package.data_input as di
 
 
 class Instance(object):
+    """
+    This represents the input data set used to solve.
+    It doesn't include the solution.
+    The methods help get useful information from the dataset.
+    The data is stored in .data at it consists on a dictionary of dictionaries.
+    The structure will vary in the future but right now is:
+        * parameters: adimentional data
+        * tasks: data related to tasks
+        * resources: data related to resources
+    """
 
     def __init__(self, model_data):
         self.data = model_data
@@ -116,10 +126,10 @@ class Instance(object):
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
-        v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
+        v_at = aux.fill_dict_with_default(aux.tup_to_dict(avt, result_col=1, is_list=True), at, [])
         at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
         t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
-        t2_at1 = aux.fill_dict_with_default( aux.tup_to_dict(att, result_col=2, is_list=True), at, [])
+        t2_at1 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=2, is_list=True), at, [])
 
         return {
          'periods'          :  periods
@@ -231,13 +241,17 @@ class Instance(object):
         task_num_resources = self.get_tasks('num_resource')
         task_num_candidates = {task: len(candidates) for task, candidates in self.get_tasks('candidates').items()}
         task_slack = {task: task_num_candidates[task] - task_num_resources[task] for task in task_num_resources}
-        return {k: v for k, v in task_slack.items() if v < 0}
+
+        return {k: (v, v / task_num_resources[k]) for k, v in task_slack.items()}
 
 
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/"
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
     model_data = di.load_data(path + "data_in.json")
     # model_data = di.get_model_data()
     instance = Instance(model_data)
     instance.get_categories()
     result = instance.get_total_fixed_maintenances()
+
+    candidates = instance.get_tasks('candidates')
+    {k: len(v) for k, v in candidates.items()}

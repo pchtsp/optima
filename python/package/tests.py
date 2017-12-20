@@ -8,26 +8,14 @@ import package.instance as inst
 import os
 import shutil
 
-"""
-
-## tasks
-
-[*] are covered: number of resources
-[*] covered by correct resources and no other
-
-## resources
-
-[*] balance is well done
-[*] consumption
-[*] at most one task in each period => 
-    this I cannot check because of the structure of the data.
-    But it could be detected if tasks' needs are not taken into account.
-[*] maintenance scheduled correctly: duration.
-[*] no task+maintenance at the same time.
-"""
-
 
 class Experiment(object):
+    """
+    These objects represent the unification of both input data and solution.
+    Each is represented by their proper objects.
+    Methods are especially checks on faisability.
+    In the future I may make this object be a sublass of Solution.
+    """
 
     def __init__(self, instance, solution):
         self.instance = instance
