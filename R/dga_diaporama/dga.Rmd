@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = FALSE)
 # Qui suis-je
 
 * Péruvien et français.
-* Ingénieur Industriel par l'Universidad Politecnica de Madrid.
+* Ingénieur Industriel de l'Universidad Politecnica de Madrid.
 * Passionné par les mathématiques appliqués et l'informatique.
 * Fondé et travaillé dans une entreprise de conseil en optimisation et recherche opérationnelle à Madrid pendant les 7 derniers années.
 
@@ -32,8 +32,8 @@ knitr::opts_chunk$set(echo = FALSE)
 
 > Military Flight and Maintenance Planning.
 
-* Fait partie de la recherche opérationnelle: mathématiques dédiés à résoudre des problèmes complexes de l'industrie.
-* Un problème d'affectation des missions et planification des maintenances aux aéronefs militaires.
+* Fait partie de la recherche opérationnelle: mathématiques dédiées à résoudre des problèmes complexes de l'industrie.
+* Un problème d'affectation des missions et planification des maintenances des aéronefs militaires.
 * Résolu par techniques comme PLNE, méta-heuristiques ou heuristiques.
 
 # Exemple
@@ -62,14 +62,15 @@ htmltools::includeHTML("./../../img/unavailable.html")
 
 # A quoi ça sert
 
-* Faire meilleures planifications pour une meilleure utilisation des ressources.
+* Faire de meilleures planifications pour une meilleure utilisation des ressources.
 * Lisser les maintenances sur l'horizon de planification pour maximiser l'efficacité de l'équipe de maintenance.
 * Garantir la disponibilité des aéronefs pour de possibles nouvelles missions.
 
 # Pour quoi un doctorat?
 
 * Ces types de problèmes sont difficiles à résoudre.
-* Pour trouver des bons solutions aux problèmes il faut souvent chercher la structure du problème, sa complexité et ses similitudes / differences avec des autres problèmes.
+* Domaine scientifique: l'optimisation combinatoire.
+* Pour trouver des bonnes solutions aux problèmes il faut souvent chercher la structure du problème, sa complexité et ses similitudes / differences avec d'autres problèmes.
 
 <!-- # Etat de l'art -->
 
