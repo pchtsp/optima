@@ -1,13 +1,15 @@
 ---
 title: "Plannification de maintenances des aéronefs militaires"
 author: "Franco Peschiera"
-date: '`r format(Sys.time(), "%Y-%m-%d")`'
-bibliography: MFMP.bib
-nocite: "@*"
-output: 
-  slidy_presentation: 
+# date: "`r format(Sys.time(), "%Y-%m-%d")`"
+output:
+  beamer_presentation:
     incremental: yes
-    css: "./../../css/baobab.css"
+  slidy_presentation:
+    css: ./../../css/baobab.css
+    incremental: yes
+nocite: '@*'
+bibliography: MFMP.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -38,26 +40,31 @@ knitr::opts_chunk$set(echo = FALSE)
 
 # Exemple
 
+![Maintenances](./../../img/calendar.png)
 ```{r echo=FALSE}
-htmltools::includeHTML("./../../img/calendar.html")
+#htmltools::includeHTML("./../../img/calendar.html")
 ```
 
 # Exemple (2)
 
-<style>
-  .col2 {
-    columns: 2 200px;         /* number of columns and width in pixels*/
-    -webkit-columns: 2 200px; /* chrome, safari */
-    -moz-columns: 2 200px;    /* firefox */
-  }
-</style>
+<!-- <style> -->
+<!--   .col2 { -->
+<!--     columns: 2 200px;         /* number of columns and width in pixels*/ -->
+<!--     -webkit-columns: 2 200px; /* chrome, safari */ -->
+<!--     -moz-columns: 2 200px;    /* firefox */ -->
+<!--   } -->
+<!-- </style> -->
 
-<div class="col2">
+<!-- <div class="col2"> -->
+![Maintenances](./../../img/maintenances.png)
+
+# Exemple (3)
+![Affectations](./../../img/unavailable.png)
 ```{r echo=FALSE}
-htmltools::includeHTML("./../../img/maintenances.html")
-htmltools::includeHTML("./../../img/unavailable.html")
+# htmltools::includeHTML("./../../img/maintenances.html")
+# htmltools::includeHTML("./../../img/unavailable.html")
 ```
-</div>
+<!-- </div> -->
 
 
 # A quoi ça sert
