@@ -2,6 +2,7 @@
 
 import package.aux as aux
 import pandas as pd
+import numpy as np
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
@@ -15,6 +16,12 @@ class Solution(object):
     It does not include the initial data.
     The methods are made to make it easy to get information.
     They also draw graphs.
+    data format:
+    {
+    'state': {(r, p): state}, state = 'M',
+    'task': {(r, p): task}, task = 'O10', 'O5'
+    }
+
     """
 
     def __init__(self, solution):
@@ -31,7 +38,10 @@ class Solution(object):
         return aux.dictdict_to_dictup(self.data['state'])
 
     def get_maintenance_periods(self):
-        return [(k[0], k[1], k[3]) for k in self.get_schedule() if k[2] == 'M']
+        result = aux.tup_to_start_finish(
+            aux.dict_to_tup(self.get_state())
+        )
+        return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
@@ -56,11 +66,11 @@ class Solution(object):
         return result
 
     def get_unavailable(self):
-        num_tasks = self.get_in_mission()
+        num_tasks = self.get_in_task()
         in_maint = self.get_in_maintenance()
         return {k: in_maint[k] + num_tasks[k] for k in in_maint}  # in_maint has all periods already
 
-    def get_in_mission(self):
+    def get_in_task(self):
         tasks = [(t, r) for (r, t) in self.get_tasks()]
         in_mission = {k: len(v) for k, v in aux.tup_to_dict(tasks, 1, is_list=True).items()}
         return aux.fill_dict_with_default(in_mission, self.get_periods())

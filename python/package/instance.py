@@ -207,30 +207,30 @@ class Instance(object):
                 planned_maint.append((res, period))
         return planned_maint
 
-    def get_task_period_list(self):
-        parameters_data = self.get_param()
-        task_data = self.get_tasks()
-        periods = aux.get_months(parameters_data['start'], parameters_data['end'])
-
-        task_start = aux.get_property_from_dic(task_data, 'start')
-        task_end = aux.get_property_from_dic(task_data, 'end')
+    def get_task_period_list(self, in_dict=False):
 
         task_periods = {task:
             np.intersect1d(
-                aux.get_months(task_start[task], task_end[task]),
-                periods
-            ) for task in task_data
+                aux.get_months(self.get_tasks('start')[task], self.get_tasks('end')[task]),
+                self.get_periods()
+            ) for task in self.get_tasks()
         }
-        return [(task, period) for task in task_data for period in task_periods[task]]
+        if in_dict:
+            return task_periods
+        return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
 
     def get_periods(self):
         return aux.get_months(self.get_param("start"), self.get_param("end"))
 
-    def get_total_period_needs(self):
+    def get_task_period_needs(self):
         requirement = self.get_tasks('num_resource')
+        needs = {(v, t): requirement[v] for (v, t) in self.get_task_period_list()}
+        return needs
+
+    def get_total_period_needs(self):
         num_resource_working = {t: 0 for t in self.get_periods()}
-        for (v, t) in self.get_task_period_list():
-            num_resource_working[t] += requirement[v]
+        for (v, t), req in self.get_task_period_needs().items():
+            num_resource_working[t] += req
         return num_resource_working
 
     def get_total_fixed_maintenances(self):

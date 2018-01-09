@@ -7,6 +7,13 @@ import package.solution as sol
 import package.instance as inst
 import os
 import shutil
+import pprint as pp
+
+
+# TODO: make Experiment subclass of Solution.
+# TODO: make Solution subclass of Instance?
+# TODO: create period objects with proper date methods based on arrow
+# TODO: create listtuple and dictionary objects with proper methods
 
 
 class Experiment(object):
@@ -29,6 +36,23 @@ class Experiment(object):
         instance = di.load_data(files[0])
         solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
+
+    @staticmethod
+    def expand_resource_period(data, resource, period):
+        if resource not in data:
+            data[resource] = {}
+        if period not in data[resource]:
+            data[resource][period] = {}
+        return True
+
+    @staticmethod
+    def label_rt(time):
+        if time == "rut":
+            return 'used'
+        elif time == 'ret':
+            return 'elapsed'
+        else:
+            raise ValueError("time needs to be rut or ret")
 
     def check_solution(self):
         func_list = {
@@ -70,37 +94,82 @@ class Experiment(object):
         return bad_assignment
 
     def get_consumption(self):
-        maint_hours = self.instance.get_param('max_used_time')
         hours = self.instance.get_tasks("consumption")
-        demand = {k: hours[v] for k, v in self.solution.get_tasks().items()}
-        supply = {k: maint_hours for k in self.solution.get_maintenance_starts()}
-        netgain = {(resource, period): 0
-                   for resource in self.instance.get_resources()
-                   for period in self.instance.get_periods()}
-        for k, v in demand.items():
-            netgain[k] -= v
-        for k, v in supply.items():
-            netgain[k] += v
-        return netgain
+        return {k: hours[v] for k, v in self.solution.get_tasks().items()}
 
-    def get_remaining_usage_time(self):
+    def set_remainingtime(self, resource, period, time, value):
+        self.expand_resource_period(self.solution.data['aux'][time], resource, period)
+        self.solution.data['aux'][time][resource][period] = value
+        return True
+
+    def update_time_usage(self, resource, periods, previous_value=None, time='rut'):
+        if previous_value is None:
+            previous_value = self.solution.data['aux'][time][resource]\
+                [aux.get_prev_month(periods[0])]
+        for period in periods:
+            value = previous_value - self.get_consumption_individual(resource, period, time)
+            self.set_remainingtime(resource, period, time, value)
+            previous_value = value
+        return True
+
+    def get_consumption_individual(self, resource, period, time='rut'):
+        if time == 'ret':
+            return 1
+        task = self.solution.data['task'].get(resource, {}).get(period, '')
+        if task == '':
+            return 0
+        return self.instance.data['tasks'].get(task, {}).get('consumption', 0)
+
+    def get_non_maintenance_periods(self):
+        first, last = self.instance.get_param('start'), self.instance.get_param('end')
+        maintenances = aux.tup_to_dict(self.solution.get_maintenance_periods(), result_col=[1, 2])
+        nonmaintenances = []
+        resources_nomaint = [r for r in self.instance.get_resources() if r not in maintenances]
+        for resource in resources_nomaint:
+            nonmaintenances.append((resource, first, last))
+        for resource in maintenances:
+            maints = sorted(maintenances[resource], key=lambda x: x[0])
+            first_maint_start = maints[0][0]
+            last_maint_end = maints[-1][1]
+            if first_maint_start != first:
+                nonmaintenances.append((resource, first, aux.get_prev_month(first_maint_start)))
+            for maint1, maint2 in zip(maints, maints[1:]):
+                nonmaintenances.append(
+                    (resource, aux.get_next_month(maint1[1]), aux.get_prev_month(maint2[0]))
+                                       )
+            if last_maint_end != last:
+                nonmaintenances.append((resource, aux.get_next_month(last_maint_end), last))
+        return nonmaintenances
+
+    def set_remaining_usage_time(self, time="rut"):
+        if 'aux' not in self.solution.data:
+            self.solution.data['aux'] = {'ret': {}, 'rut': {}}
+        else:
+            self.solution.data['aux'][time] = {}
+
+        label = 'initial_' + self.label_rt(time)
         prev_month = aux.get_prev_month(self.instance.get_param('start'))
-        table_initial = \
-            pd.DataFrame(
-                aux.dict_to_tup(
-                    self.instance.get_resources('initial_used')
-                ),
-                columns=['resource', 'netgain']).assign(period=prev_month)
-        netgain = self.get_consumption()
-        table = pd.DataFrame(aux.dict_to_tup(netgain), columns=['resource', 'period', 'netgain'])
-        table = pd.concat([table_initial, table])
-        table.sort_values(['resource', 'period'], inplace=True)
-        table['netgain_c'] = \
-            table.groupby('resource').netgain.cumsum()
-        return table.set_index(['resource', 'period'])['netgain_c'].to_dict()
+        initial = self.instance.get_resources(label)
+
+        label = 'max_' + self.label_rt(time) + '_time'
+        max_rut = self.instance.get_param(label)
+        for resource in initial:
+            self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rut))
+
+        maintenances = self.solution.get_maintenance_periods()
+        for resource, start, end in maintenances:
+            for period in aux.get_months(start, end):
+                self.set_remainingtime(resource, period, time, max_rut)
+
+        non_maintenances = self.get_non_maintenance_periods()
+        for resource, start, end in non_maintenances:
+            # print(resource, start, end)
+            self.update_time_usage(resource, aux.get_months(start, end), time=time)
+
+        return self.solution.data['aux'][time]
 
     def check_resource_consumption(self):
-        rut = self.get_remaining_usage_time()
+        rut = self.set_remaining_usage_time()
         return {k: v for k, v in rut.items() if v < 0}
 
     def check_resource_state(self):
@@ -117,7 +186,7 @@ class Experiment(object):
         return [tuple(item) for item in duplicated_states]
 
     def check_maintenance_duration(self):
-        maintenances = self.solution.get_maintenance_periods()
+        maintenances = self.solution.get_maintenance_periods_resource()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
         duration = self.instance.get_param('maint_duration')
@@ -158,9 +227,32 @@ def clean_experiments(path, clean=True):
         for ed in exps_to_delete:
             shutil.rmtree(ed)
     return exps_to_delete
-    # np.array(exps_paths).__len__()
-    #
-    # return 0
+
+
+def list_experiments(path):
+    exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    experiments = {}
+    for e in exps_paths:
+        exp = Experiment.from_dir(e, format="json")
+        if exp is None:
+            exp = Experiment.from_dir(e, format="pickle")
+        if exp is None:
+            continue
+        options_path = os.path.join(e, "options.json")
+        options = di.load_data(options_path)
+        if not options:
+            continue
+        log_path = os.path.join(e, "results.log")
+        log_info = {}
+        if os.path.exists(log_path):
+            if options['solver'] == 'CPLEX':
+                log_info = di.get_log_info_cplex(log_path)
+            elif options['solver'] == 'GUROBI':
+                log_info = di.get_log_info_gurobi(log_path)
+        parameters = exp.instance.get_param()
+        directory = os.path.basename(e)
+        experiments[directory] = {**parameters, **options, **log_info}
+    return experiments
 
 
 if __name__ == "__main__":
@@ -175,6 +267,16 @@ if __name__ == "__main__":
                     result_col= [0], is_list=True, indeces=[2, 1]).items()
     # {k: len(v) for k, v in t}
     sol_nostates.instance.get_tasks('num_resource')
+
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801041524"
+    sol_states = Experiment.from_dir(path)
+    rut_old = sol_states.solution.data["aux"]['rut']
+    sol_states.set_remaining_usage_time()
+    rut_new = sol_states.solution.data['aux']['rut']
+    pd.DataFrame.from_dict(rut_new, orient='index').reset_index().melt(id_vars='index').\
+        sort_values(['index', 'variable']).to_csv('/home/pchtsp/Downloads/TEMP_new.csv', index=False)
+    pd.DataFrame.from_dict(rut_old, orient='index').reset_index().melt(id_vars='index').\
+        sort_values(['index','variable']).apply('round').to_csv('/home/pchtsp/Downloads/TEMP_old.csv', index=False)
 
     # sol_nostates.check_solution()
     # sol_states.check_solution()
@@ -213,10 +315,22 @@ if __name__ == "__main__":
     # exp.instance.get_tasks("num_resource")
 
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments"
-    exps = clean_experiments(path, clean=True)
-    len(exps)
+    # exps = clean_experiments(path, clean=True)
+    # len(exps)
 
     # sol.Solution(solution).get_schedule()
     # check.check_resource_consumption()
     # check.check_resource_state()
-    # pp.pprint(results)
+    exps = list_experiments(path)
+    pp.pprint(exps)
+    table = pd.DataFrame.from_dict(exps, orient="index")
+    table.drop(['path', 'max_elapsed_time', 'maint_duration',
+                'maint_capacity', 'maint_weight', 'max_used_time',
+                'solver', 'comments', 'bound_out'],
+               axis=1, inplace=True)
+    table = table[np.logical_and(table.model == 'states', table.gap == 0)].reset_index(drop=True)
+    table.drop(['gap', 'model'],axis=1, inplace=True)
+
+    table['periods'] = table.apply(lambda x: len(aux.get_months(x.start, x.end)), axis=1)
+    table.drop(['end', 'start'], axis=1, inplace=True)
+    print(table.to_latex())

@@ -218,6 +218,50 @@ def export_data(path, obj, name=None, file_type="pickle"):
     return True
 
 
+def get_log_info_gurobi(path):
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712121208/results.log"
+    with open(path, 'r') as f:
+        content = f.read()
+    numberSearch = r'([\de\.\+]+)'
+    regex = r'Best objective {0}, best bound {0}, gap {0}%'.format(numberSearch)
+    # "Best objective 6.500000000000e+01, best bound 5.800000000000e+01, gap 10.7692%"
+    solution = re.search(regex, content)
+
+    regex = r'Optimize a model with {0} rows, {0} columns and {0} nonzeros'.format(numberSearch)
+    size = re.search(regex, content)
+
+    return {
+        'bound_out': float(solution.group(2)),
+        'objective_out': float(solution.group(1)),
+        'gap_out': float(solution.group(3)),
+        'cons': int(size.group(1)),
+        'vars': int(size.group(2)),
+        'nonzeros': int(size.group(3))
+    }
+
+
+def get_log_info_cplex(path):
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190053/results.log"
+    with open(path, 'r') as f:
+        content = f.read()
+    numberSearch = r'([\de\.\+]+)'
+    # "Objective =  1.4800000000e+02\nCurrent MIP best bound =  1.2799071852e+02 (gap = 20.0093, 13.52%)"
+    regex = r'Objective =  {0}\nCurrent MIP best bound =  {0} \(gap = {0}, {0}%\)'.format(numberSearch)
+    solution = re.search(regex, content, flags=re.MULTILINE)
+
+    regex = r'Reduced MIP has {0} rows, {0} columns, and {0} nonzeros'.format(numberSearch)
+    size = re.search(regex, content)
+
+    return {
+        'bound_out': float(solution.group(2)),
+        'objective_out': float(solution.group(1)),
+        'gap_out': float(solution.group(4)),
+        'cons': int(size.group(1)),
+        'vars': int(size.group(2)),
+        'nonzeros': int(size.group(3)),
+    }
+
+
 if __name__ == "__main__":
     get_model_data()
     pass

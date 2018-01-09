@@ -90,7 +90,6 @@ def model_no_states(instance, options=None):
                  pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][(a, t)] if (a, _t) in l['at_start']) + \
                  ((a, t) in l['at_maint']) <= 1
 
-    # TODO: check if I use this parameter in somewhere
     # remaining used time calculations:
     # remaining elapsed time calculations:
     for (a, t) in l['at']:
@@ -128,7 +127,7 @@ def model_no_states(instance, options=None):
     config = conf.Config(options)
     result = config.solve_model(model)
 
-    if result != 1:
+    if result != 1: 
         print("Model resulted in non-feasible status")
         return None
 
@@ -323,7 +322,7 @@ if __name__ == "__main__":
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
     forbidden_tasks = ['O10', 'O8']  # this task has less candidates than what it asks.
-    # forbidden_tasks = []
+    # forbidden_tasks = ['O8']
     model_data['tasks'] = \
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
     # this was for testing purposes
@@ -332,25 +331,26 @@ if __name__ == "__main__":
     # instance.check_enough_candidates()
 
     options = {
-        'timeLimit': 3600
+        'timeLimit': 7200
         , 'gap': 0
-        , 'solver': "CBC"
+        , 'solver': "CPLEX"
         , 'path':
             '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
-        , "model": "no_states"
+        , "model": "states"
         , "comments": "periods 0 to 30 without tasks: O10, O8"
+        # , "comments": "periods 0 to 10 without tasks: O8"
     }
 
     # solving part:
-    # solution = solve_with_states(instance, options)
-    solution = model_no_states(instance, options)
+    solution = solve_with_states(instance, options)
+    # solution = model_no_states(instance, options)
     if solution is not None:
         # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
         di.export_data(options['path'], instance.data, name="data_in", file_type='json')
         # di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
         di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-        di.export_data(options['path'], options, name="options", file_type='jsond')
+        di.export_data(options['path'], options, name="options", file_type='json')
 
     # testing = test.CheckModel(instance, solution)
     # result = testing.check_task_num_resources()
@@ -360,6 +360,5 @@ if __name__ == "__main__":
     # pp = pprint.PrettyPrinter()
     # pp.pprint({k: len(v) for k, v in l.items()})
     # {k:v for k,v in rut_init.items() if v<0}
-
 
 

@@ -140,6 +140,8 @@ def tup_to_start_finish(tup_list, pp=1):
     :param pp: the position in the tuple where the period is
     :return:
     """
+    # TODO: new to make this more efficient. Only one loop with a while.
+    # And make it possible to do it with a simple list of dates
     res_start_finish = []
     for tup in tup_list:
         if next_tup(tup, pp, -1) in tup_list:
