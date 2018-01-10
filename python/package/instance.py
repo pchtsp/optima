@@ -21,7 +21,7 @@ class Instance(object):
         self.data = model_data
 
     def get_param(self, param=None):
-        default_params = {'maint_weight': 1}
+        default_params = {'maint_weight': 1, 'unavail_weight': 1}
         params = {**default_params, **self.data['parameters']}
         if param is not None:
             if param not in params:
@@ -126,10 +126,10 @@ class Instance(object):
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
-        v_at = aux.fill_dict_with_default(aux.tup_to_dict(avt, result_col=1, is_list=True), at, [])
+        v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
         at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
         t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
-        t2_at1 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=2, is_list=True), at, [])
+        t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
 
         return {
          'periods'          :  periods

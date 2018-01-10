@@ -52,6 +52,7 @@ def model_no_states(instance, options=None):
     num_resource_working = instance.get_total_period_needs()
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
     maint_weight = instance.get_param("maint_weight")
+    unavail_weight = instance.get_param("unavail_weight")
 
     # VARIABLES:
     # binary:
@@ -70,7 +71,7 @@ def model_no_states(instance, options=None):
     model = pl.LpProblem("MFMP_v0001", pl.LpMinimize)
 
     # OBJECTIVE:
-    model += max_unavail + max_maint * maint_weight
+    model += max_unavail * unavail_weight + max_maint * maint_weight
 
     # CONSTRAINTS:
     for t in l['periods']:
@@ -85,6 +86,7 @@ def model_no_states(instance, options=None):
     for (v, t) in l['a_vt']:
         model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
     # max one task per period or no-task state:
+    # TODO: it is possible that there are no possible tasks but maintenances (domains)
     for (a, t) in l['v_at']:
         model += pl.lpSum(task[(a, v, t)] for v in l['v_at'][(a, t)]) + \
                  pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][(a, t)] if (a, _t) in l['at_start']) + \
@@ -93,7 +95,7 @@ def model_no_states(instance, options=None):
     # remaining used time calculations:
     # remaining elapsed time calculations:
     for (a, t) in l['at']:
-        if (a, t) in l['at_start']:
+        if (a, t) in list(l['at_start']+l['v_at']):
             # We only increase the remainders if in that month we could start a maintenance
             model += rut[(a, t)] <= rut[(a, l["previous"][t])] - \
                                     pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'][(a, t)]) + \
@@ -316,13 +318,13 @@ if __name__ == "__main__":
 
     # this is for testing purposes:
     num_start_period = 0
-    num_max_periods = 30
+    num_max_periods = 10
     model_data['parameters']['start'] = \
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    forbidden_tasks = ['O10', 'O8']  # this task has less candidates than what it asks.
-    # forbidden_tasks = ['O8']
+    forbidden_tasks = ['O10', 'O8']
+    forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
     model_data['tasks'] = \
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
     # this was for testing purposes
@@ -331,20 +333,20 @@ if __name__ == "__main__":
     # instance.check_enough_candidates()
 
     options = {
-        'timeLimit': 7200
+        'timeLimit': 30
         , 'gap': 0
         , 'solver': "CPLEX"
         , 'path':
             '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
                 format(aux.get_timestamp())
-        , "model": "states"
-        , "comments": "periods 0 to 30 without tasks: O10, O8"
+        , "model": "no_states"
+        # , "comments": "periods 0 to 30 without tasks: O10, O8"
         # , "comments": "periods 0 to 10 without tasks: O8"
     }
 
     # solving part:
-    solution = solve_with_states(instance, options)
-    # solution = model_no_states(instance, options)
+    # solution = solve_with_states(instance, options)
+    solution = model_no_states(instance, options)
     if solution is not None:
         # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
         di.export_data(options['path'], instance.data, name="data_in", file_type='json')

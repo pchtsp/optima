@@ -170,7 +170,8 @@ class Experiment(object):
 
     def check_resource_consumption(self):
         rut = self.set_remaining_usage_time()
-        return {k: v for k, v in rut.items() if v < 0}
+        rut_tup = aux.dictdict_to_dictup(rut)
+        return {k: v for k, v in rut_tup.items() if v < 0}
 
     def check_resource_state(self):
         task_solution = self.solution.get_tasks()
@@ -186,7 +187,7 @@ class Experiment(object):
         return [tuple(item) for item in duplicated_states]
 
     def check_maintenance_duration(self):
-        maintenances = self.solution.get_maintenance_periods_resource()
+        maintenances = self.solution.get_maintenance_periods()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
         duration = self.instance.get_param('maint_duration')
@@ -256,9 +257,9 @@ def list_experiments(path):
 
 
 if __name__ == "__main__":
-
-    path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
-    path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712182321/"
+    path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
+    path_states = path_abs + "201712190002/"
+    path_nostates = path_abs + "201712182321/"
 
     sol_states = Experiment.from_dir(path_states)
     sol_nostates = Experiment.from_dir(path_nostates)
@@ -268,8 +269,12 @@ if __name__ == "__main__":
     # {k: len(v) for k, v in t}
     sol_nostates.instance.get_tasks('num_resource')
 
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801041524"
+    path = path_abs + "201801091412/"
     sol_states = Experiment.from_dir(path)
+    check = sol_states.check_solution()
+    check['resources']
+
+
     rut_old = sol_states.solution.data["aux"]['rut']
     sol_states.set_remaining_usage_time()
     rut_new = sol_states.solution.data['aux']['rut']

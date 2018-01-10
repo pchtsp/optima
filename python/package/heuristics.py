@@ -10,9 +10,15 @@ class Greedy(test.Experiment):
 
     def __init__(self, instance, solution, options=None):
         super().__init__(instance, solution)
+
+        self.solution.data['aux'] = {'ret': {}, 'rut': {}}
         for resource in self.instance.get_resources():
-            self.update_time_usage(resource, time='ret')
-            self.update_time_usage(resource, time='rut')
+            for time in ['rut', 'ret']:
+                label = 'max_{}_time'.format(self.label_rt(time))
+                self.update_time_usage(resource,
+                                       self.instance.get_periods(),
+                                       previous_value=self.instance.get_param(label),
+                                       time=time)
 
         self.options = options
 
