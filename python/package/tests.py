@@ -320,7 +320,7 @@ if __name__ == "__main__":
     # exp.instance.get_tasks("num_resource")
 
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments"
-    # exps = clean_experiments(path, clean=True)
+    exps = clean_experiments(path)
     # len(exps)
 
     # sol.Solution(solution).get_schedule()

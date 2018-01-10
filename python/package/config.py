@@ -65,7 +65,7 @@ class Config(object):
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi()))
         if self.solver == "CPLEX":
-            return model.solve(pl.CPLEX_CMD(options=self.config_cplex()))
+            return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1))
 
         with tempfile.TemporaryFile() as tmp_output:
             orig_std_out = dup(1)

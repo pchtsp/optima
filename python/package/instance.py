@@ -126,7 +126,7 @@ class Instance(object):
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
-        v_at = aux.tup_to_dict(avt, result_col=1, is_list=True)
+        v_at = aux.fill_dict_with_default(aux.tup_to_dict(avt, result_col=1, is_list=True), at, [])
         at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
         t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
         t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
