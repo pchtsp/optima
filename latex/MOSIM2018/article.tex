@@ -1,0 +1,501 @@
+\documentclass[a4paper,twocolumn,fleqn]{article}
+\textwidth 17cm \textheight 247mm
+\topmargin -4mm
+\hoffset -9mm \voffset -14mm
+%\setlength{\topmargin}{-0.8truecm}
+\setlength{\oddsidemargin}{0.3cm}
+\setlength{\evensidemargin}{0.3cm}
+\setlength{\columnsep}{8mm}
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{-2.0ex}
+\setlength{\mathindent}{0mm}
+\flushbottom
+
+
+\usepackage{epsfig}
+%\usepackage{timesnew}
+\usepackage{harvard}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\usepackage[latin1]{inputenc}
+\usepackage{aeguill}
+\usepackage[frenchb,english]{babel}
+\usepackage{caption}
+
+
+\setlength{\parskip}{2ex} \pagestyle{myheadings}
+\markright{\hspace*{3.8cm} \textit{MOSIM18 - June 27-29, 2018 - Toulouse - France}}
+
+\renewcommand{\thepage}{}
+\renewcommand{\refname}{REFERENCES}
+
+
+
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {1\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\itshape\bfseries}}
+\makeatother
+
+
+\begin{document}
+
+\title{ \vspace*{-25mm}
+\centering
+\fbox{\normalsize
+\begin{minipage}{17cm}
+\centering
+\em \small{$12^{th}$ International Conference on MOdeling, Optimization and SIMlation - MOSIM18 - June 27-29 2018  \\ Toulouse - France "The rise of connected systems in industry and services"}
+\end{minipage} }\\
+\vspace*{6mm}
+{\Large \textbf{Maintenance planning on French military aircraft operations}}}
+
+\author{
+\begin{tabular}{c}
+\bf \normalsize {Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin} \\
+\\
+     \normalsize ISAE-SUPAERO \\
+     \normalsize Université de Toulouse \\
+     \normalsize 57045 Metz cedex 01 - France\\
+     \normalsize {\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
+     \\
+\end{tabular}
+}
+
+\date{\begin{minipage}{17cm}
+\normalsize
+{\bf  ABSTRACT:}
+\rm
+{\em The Military Flight and Maintenance Planning problem is presented. In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular missions. The scheduling of maintenances and mission assignments is a tedious task currently done manually by specialized personnel. A MIP mathematical model is formulated in order to produce better quality solutions and reduce the time it takes to find them. The quality of the solutions is measured via a multi-objective function that smooths both maintenances and aircraft unavailability among time periods. A real world dataset provided by the French Airforce is used to test the implementation.}\\~\\
+{\bf KEYWORDS:}
+\rm
+{\em optimization, planning, military, maintenance}
+\end{minipage}
+}
+\maketitle
+
+% Here I put the list of things we will leave for another article:
+% 1. stochasticity
+% 2. symmetry breaking inside model.
+% 3. storage?
+
+\section{Introduction}
+  
+  The Military Flight and Maintenance Planning problem considered assigns missions and schedules maintenances to aircraft. In this problem, aircraft are needed to comply with a series of planned missions while at the same time needing to receive frequent preventive maintenances in order to be ready for new missions.
+
+  It is a variant of the Flight and Maintenance Planning problem, where maintenances and flights are scheduled to commercial aircraft. The main differences are the fact that flights are not modeled geographically: all aircraft are assumed to exit the main depot and return to the same depot at the end of the flight.
+
+  Other differences include the following.
+
+  First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
+
+  The temporal scope of the problem is also bigger, making the normal planning horizon bigger and each period bigger too: months instead of days. On the other hand, the physical scope, while present in the commercial planning, is not present in the military one: aircraft are assumed to return to the origin every time.
+
+\section{Related work}
+
+  % TODO: add FMP biblio?
+
+  % The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically since a round-trip to the base is assumed for each flight.
+
+  % It also includes different objectives and constraints. 
+
+  % Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
+
+  In \cite{Kozanidis2008}, a model was made for the Hellenic Air Force. It assigned flight hours to aircraft and scheduled flexible maintenance periods based on a "remaining usage time" rule. The objectives were to maximize this "remaining usage time" in the aircraft as well as to smooth the availability of aircraft during the planning period. Instances of 24 aircraft and 6 monthly periods were tested with Mixed Integer Programming (MIP) formulations and heuristics.
+
+  In \cite{Cho2011}, the objective was to smooth the maintenances as much as possible. Randomly generated instances of 15 aircraft and 520 bi-daily periods were tested with MIP formulations. The final state of aircraft was taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
+
+  The concept of mission is not introduced as part of these formulations, only a demand of flight hours is given for all aircraft in total. The aircraft themselves have been assumed as homogeneous and interchangeable. Due to this aggregation of demand, there are no minimal time assignments for aircraft to missions. Missions are important in order to guarantee that aircraft have the required capabilities needed for the missions it is assigned to.
+
+  % Additionally, the possibility of storage of aircraft is not present in the previous work.
+
+  Lastly, in \cite{Chastellux2017} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
+
+  Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
+
+\section{The problem}
+
+  The problem consists in assigning resources to predefined tasks and scheduling periodic preventive maintenances for these same resources in order to keep them ready for doing tasks in the future. In order to generalize the formulation of the model, in the description presented below, the following naming convention has been adopted: aircraft are called resources, missions are called tasks.
+
+  \subsection{Tasks}
+    \label{def:task}
+
+    There is a fixed set of $j \in \mathcal{J}$ tasks to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. In order to be accomplished, these tasks require the assignment of a specific number of resources $r_{j}$ each period of time the task is active. Tasks have both a fixed start and end time that define the set of periods of time it is active.
+    
+    During each assigned period, tasks use the assigned resources for a time $h_j$.
+
+    The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($mt$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $r_{j}$.
+
+    Finally, tasks have a set of requisites that the resources that can be assigned to it need to comply with.
+
+    % TODO: add graph showing some tasks. 
+
+  \subsection{Resources}
+    \label{def:res}
+
+    There is a set $i \in \mathcal{I}$ of available resources that are assigned to tasks in order to accomplish them. Each resource can only be assigned to a single task in any given period. These resources suffer from wear and tear and require regular maintenances during their lifetime. The need for these maintenances is calculated based on two indicators every resource has.
+    
+    We will call "remaining elapsed time" (or $ret_{it}$) to the amount of time (measured in time periods) that needs to pass in order for the resource $i$ to need a maintenance at any given period $t$. In a similar way, we will call "remaining usage time" (or $rut_{it}$) to the amount of time that the resource $i$ needs to be used in order for it to need a maintenance at any given period $t$.
+
+    Additionally, after an absolute amount of time and/or usage ($aet_i$ or $aut_i$), the resource becomes obsolete. There is no way to reverse this process.
+
+    At any given period, including at the start of the planning period, each resources has a specific status given by:
+
+    \begin{itemize}
+        \item remaining usage time.
+        \item remaining elapsed time.
+        \item remaining absolute elapsed time.
+        \item remaining absolute usage time.
+        % \item remaining storage time (see \ref{def:sto}).
+        \item type of last maintenance (see \ref{def:maint}).
+    \end{itemize}
+
+
+  \subsection{Maintenances}
+    \label{def:maint}
+
+    Maintenances are the process by which resources that have reached a limit in their usage can return to a state where they can continue to be used in tasks.
+
+    % Each maintenance belongs to a specific type of maintenance $m \in \mathcal{M}$. These types of maintenance differentiate between each other by having potentially different characteristics such as: different durations, the provision of new functionalities for the resource or the restoration of the storage capacity (see \ref{def:sto}). The maintenance type is not a decision to be made since there is a specific sequence of maintenance types a resources needs to follow according to the resource type.
+
+    Maintenances have a fix duration of $m$ periods.
+
+    After receiving a maintenance, a resource restores its remaining elapsed time and remaining usage time back to their max values $E$ and $H$ respectively.
+
+    Finally, resources are organized into families or groups. Each resource inside a family or group shares the same types of maintenances and, usually, is able to do the same type of tasks.
+
+% \subsection{Storages}
+%   \label{def:sto}
+
+%   Following the rule of remaining elapsed time, even if a resource is not being used, it still needs to have a maintenance after a given amount of time has passed. In order to avoid this problem, the resource can be put into a storage state.
+
+%   A resource in this states has to be kept for a minimum time of $sm$ periods. While in this state it cannot receive maintenance or be assigned any task.
+
+%   Every resource has the capacity to be stored and this capacity is measured in a number of periods $sc$. In order for a resource to restore its remaining storage capacity, it needs to receive a specific maintenance (see \ref{def:maint}). Similar to the remaining elapsed time, after these maintenances, the resource recovers its storage capacity up to a certain level $S$.
+
+  \subsection{Possible states}
+
+    As a summary, the following are the possible logical states that a resource can be in:
+
+      \begin{itemize}
+          \item Assigned to a task (see \ref{def:task}).
+          \item Under maintenance (see \ref{def:maint}).
+          % \item Under storage (see \ref{def:sto}).
+            \item Obsolete (see \ref{def:res}).
+          \item Available.
+      \end{itemize}
+
+
+    Figure \ref{fig:solution} shows an example of an assignment of missions (red) and maintenances (blue) to aircraft (codes A1 - A9).
+
+      \begin{figure}
+        \centering
+          \includegraphics[width=0.5\textwidth]{./../../img/calendar.png}
+        \caption{Example solution}
+        \label{fig:solution}
+      \end{figure}
+    
+
+  \subsection{Horizon}
+    \label{def:hor}
+
+    In planning tasks and maintenances, it is important to take into account the initial state of each resource. This initial state can be a maintenance or an assigned task. If a resource is under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
+
+    On the other hand, the remaining used and elapsed times need to be assigned to each resource at the beginning of the planning period.
+
+    Finally, the end state of each resource needs to be addressed too. This implies guaranteeing that the remaining (elapsed, used) time of resources is sustainable for future tasks and the final states of resources are not too skewed.
+  
+  \subsection{Objectives}
+    
+    The are multiple objectives that need to be taken into account. 
+
+    Given that the creation of new tasks and the duration of maintenance are considered stochastic, the basic goal is to maximize the robustness of the planning. 
+
+    Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of resources under maintenance over the planning horizon.
+
+    This is summarized by the following two sentences:
+
+    \begin{enumerate}
+        \item Minimize the maximum number of unavailable resources in any given period.
+        \item Minimize the maximum number of resources under maintenance in any given period.
+    \end{enumerate}
+
+    As it will be shown in the mathematical formulation, these objectives are quite related one with the other: the more resources are in maintenance in a given period, the more unavailable resources will be had.
+
+\section{Optimization model}
+
+  \subsection{Parameters}
+
+    \begin{tabular}{p{8mm}p{67mm}}
+        $h_j$             & amount of usage time for resources used in task $j$. \\
+        $r_j$             & amount of resources that task $j$ needs when active. \\
+        $mt$              & minimum number of periods a resource can be assigned to a task. \\
+        $aut_t$           & maximal absolute usage time for a resource. \\
+        $aet_i$           & maximal absolute elapsed time for a resource. \\
+        $m$               & maintenance duration in number of periods. \\
+        $E$               & remaining elapsed time after a maintenance. \\
+        $H$               & remaining usage time after a maintenance. \\
+        % $S$               & remaining storage time after (certain) maintenances. \\
+        $w$               & weight of smoothness for maintenances. \\
+        $n_t$             & number of resources in already-planned maintenance per period.\\
+        $d_t$             & number of resources that need to be assigned in total in period $t$. \\
+        $rut^{Init}_{i}$  & remaining usage time per resource at the start of the planning period. \\
+        $ret^{Init}_{i}$  & remaining elapsed time per resource at the start of the planning period. \\
+    \end{tabular}
+
+  \subsection{Sets}
+
+    \begin{tabular}{p{5mm}p{70mm}}
+        $T_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ will be active. \\
+        $J_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
+        $a_{j}$   &  resources $i \in \mathcal{I}$ that can be assigned to each task $j$. \\
+        $O_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
+        $T^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - m+1\}},  ..., {t}$\}. \\
+    \end{tabular}
+
+  \subsection{Variables}
+
+     The decision variables manage the previously defined resources.
+    
+    \begin{tabular}{p{8mm}p{67mm}}
+        $A_{jti}$   &  1 if task $j \in J$ in period $t\in T_j$ is realized with resource $i \in a_j$, 0 otherwise. \\  
+        $M_{it}$    &  1 if resource $i \in I$ starts maintenance in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+        $ret_{it}$  &  remaining elapsed time (integer) for resource $i$ after period $t \in \mathcal{T}0$. \\  
+        $U_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
+        $M_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
+    \end{tabular}
+    
+    Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning period for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning period is used to initialize $rut_{i0}$. 
+
+  \subsection{Constraints}
+
+    The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
+
+    \begin{align}
+        & \text{Min}\; w1 \times M_{max} + w2 \times U_{max}
+    \end{align}
+    where relative weight $w$ is chosen by the decision maker. 
+    The following constraints are used in the model:       
+    \begin{align}
+        % maximum capacity1:
+        & \sum_{t' \in T^{s}_t} \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
+          & t \in \mathcal{T} \label{eq:capacity1}\\
+               % maximum capacity2:                
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} \leq M_{max}
+        % & t =m, ..., |\mathcal{T}|  \label{eq:capacity2}\\
+               %avail
+       & \sum_{t' \in T^{s}_t} \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \notag \\
+           &\hspace*{10mm}+ d_t\leq U_{max} 
+        &t \in \mathcal{T} \label{eq:avalaibility1}\\
+               % maximum capacity2:                
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_t\leq U_{max} 
+        % & t =m, ..., |\mathcal{T}|  \label{eq:avalaibility2}\\
+        & \sum_{i \in a_j} A_{jti} = r_{j}
+                & j \in \mathcal{J}, t \in T_j  \label{eq:taskres}\\
+        & \sum_{t' \in T^{s}_t} M_{it'} + \sum_{j \in J_t \cap O_i} A_{jti} \leq 1 
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+    \end{align}
+
+    Maintenance capacity is controlled by (\ref{eq:capacity1}). The number of unavailable resources is defined by (\ref{eq:avalaibility1})). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task or maintenance operation at the same period.  
+    \begin{align}
+        % remaining used time
+         & rut_{it} \leq rut_{it-1} + H M_{it} \notag \\ 
+           &\hspace*{4mm}- \sum_{j \in J_t \cap O_i} A_{jti} h_{j} \notag \\
+                && t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+        & rut_{i0} = rut^{Init}_i
+               & i \in \mathcal{I} \label{eq:rut_initial}\\
+        & rut_{it} \geq H M_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
+        & rut_{it} \in [0,H]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\
+        & ret_{it} \leq ret_{it-1} - 1 \notag \\
+          &\hspace*{4mm}+ E M_{it}
+                & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
+        & ret_{i0} = ret^{Init}_r
+                & i \in \mathcal{I} \label{eq:ret_initial}\\
+        & ret_{it} \geq E M_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
+        & ret_{it} \in [0,me]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}
+    \end{align}
+        % These constraints calculate the balances of hours for each resource.
+    The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
+    Similarly, the remaining elapsed time is defined by (\ref{eq:ret_upper})-(\ref{eq:ret_initial}) and its limits by (\ref{eq:ret_lower})-(\ref{eq:me}). 
+
+\section{Datasets}
+
+  The dataset that was used was provided by the French Direction Générale de l'Armement (DGA).
+  Based on the information provided, a number of datasets were created to run different tests.
+
+  \subsection{Tasks}
+
+    The main characteristics of the dataset are the following. 11 tasks, 127 resources.
+    Most tasks demand between 1 and 8 resources per month. The biggest and second biggest tasks demand 50 and 20 resources respectively each month.
+    More details in table \ref{tab:tasks}.
+    Candidates are calculated based on each task's requirements matching the candidate's capabilities.
+
+    It is possible to see that task 08 is impossible to satisfy given that there are less candidates than resources needed. This task has been taken out from all of the instances.
+
+    \begin{table}
+    \begin{tabular}{lrrr}
+    \toprule
+    {} &  usage (h) &  \# resource &  \# candidates \\
+    \midrule
+    O1  &         80 &           8 &            50 \\
+    O10 &         23 &          50 &            74 \\
+    O11 &         23 &           6 &             8 \\
+    O12 &         23 &           8 &            16 \\
+    O2  &         60 &           2 &            50 \\
+    O3  &         50 &           2 &            16 \\
+    O4  &         50 &           2 &            50 \\
+    O5  &         23 &           4 &            29 \\
+    O6  &         23 &          20 &            29 \\
+    O7  &         23 &           1 &            16 \\
+    O8  &         23 &           4 &             3 \\
+    O9  &         23 &           1 &            29 \\
+    \bottomrule
+    \end{tabular}
+    \caption{Tasks' comparative table}
+    \vspace{-0.5cm}
+    \label{tab:tasks}
+    \end{table}
+
+  \subsection{Maintenances}
+
+    All maintenances take 6 months (periods). Each maintenance provides with 1000 hours of usage time to the resource and a resource can be without maintenance for a maximum of 60 periods. The nominative capacity for maintenance is 18 resources at any given time.
+
+    \subsection{Resources}
+
+      The distribution of initial usage times is shown in the figure \ref{fig:histogramUsage}. It can be seen that the aircraft do not necessarily follow an horizontal line.
+
+      \begin{figure}
+        \centering
+          \includegraphics[width=0.5\textwidth]{./../../img/initial_used.png}
+        \caption{Distribution of Initial Usage Times among resources}
+        \label{fig:histogramUsage}
+      \end{figure}
+
+
+\section{Heuristics}
+
+\section{Results}
+
+  All tests were run on a 64 bit Ubuntu 16.04 workstation with 16GB of RAM and Intel i7-6700HQ CPU \@ 2.60GHz x 8 processor.
+  Several experiments were done with the MIP formulation. Table \ref{tab:instance} shows the characteristics of each instance. 
+  Most of the columns describe the size of the instance: number of periods, number of tasks and number of assignments.
+  The assign column indicates the number of assignments that are needed to be done to all the task-periods.
+
+  Both weights on the objective function were set at 1. For a sensibility analysis on these two parameters, see section \ref{sec:multi}.
+
+  \begin{table}[h]
+  \begin{center}
+
+\begin{tabular}{lrrrrrr}
+\toprule
+   id &  $|\mathcal{T}|$ &  assign &  $|\mathcal{J}|$ &  vars &  cons &  nonzeros \\
+\midrule
+ 2321 &               11 &    1080 &               11 &  7270 &  6329 &     41266 \\
+ 1839 &               41 &    2069 &               10 & 26171 & 25062 &    169532 \\
+ 2127 &               31 &    1610 &               10 & 19789 & 18750 &    126376 \\
+\bottomrule
+\end{tabular}
+
+
+  \caption{Instances' description}
+  \vspace{-0.5cm}
+  \label{tab:instance}
+  \end{center}
+  \end{table}
+
+
+    Table \ref{tab:results} show the details of the solving process for each instance.
+
+  \begin{table}[h]
+  \begin{center}
+
+\begin{tabular}{lrrrr}
+\toprule
+   id &  gap (\%) &    OF &  time (s) &  bound \\
+\midrule
+ 2321 &      0.7 & 139.0 &       500 &  138.0 \\
+ 1839 &     90.5 & 855.0 &      3600 &   81.7 \\
+ 2127 &      1.2 &  83.0 &      3600 &   82.0 \\
+\bottomrule
+\end{tabular}
+
+
+
+  \caption{Solutions' description}
+  \vspace{-0.5cm}
+  \label{tab:results}
+  \end{center}
+  \end{table}
+
+  \section{Multiobjective analysis}
+  \label{sec:multi}
+
+    In order to understand the sensibility of the weights $w1$ and $w2$ on the solution, a multiobjective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used was the one of 31 periods and 10 tasks.
+
+    The instances were not solved until optimum value but it can be seen that the remaining gap is very low (1.5\% maximum).
+
+    In figure \ref{fig:pareto} it's possible to see that solutions W01, W05, W06 and W09 dominate the other solutions, having the latter three the same objective function.
+
+  \begin{table}[h]
+  \begin{center}
+
+\begin{tabular}{lrrrrr}
+\toprule
+  id &  maint &   w2 &   w1 &  unavailable &  gap (\%) \\
+\midrule
+ W00 &     21 &  1.0 &  0.0 &           67 &     1.49 \\
+ W01 &     16 &  0.9 &  0.1 &           67 &     0.00 \\
+ W10 &     15 &  0.0 &  1.0 &           69 &     0.00 \\
+ W02 &     19 &  0.8 &  0.2 &           67 &     0.35 \\
+ W03 &     17 &  0.7 &  0.3 &           68 &     0.58 \\
+ W04 &     15 &  0.6 &  0.4 &           69 &     0.43 \\
+ W05 &     15 &  0.5 &  0.5 &           68 &     1.20 \\
+ W06 &     15 &  0.4 &  0.6 &           68 &     1.10 \\
+ W07 &     16 &  0.3 &  0.7 &           70 &     0.97 \\
+ W08 &     16 &  0.2 &  0.8 &           70 &     0.78 \\
+ W09 &     15 &  0.1 &  0.9 &           68 &     0.49 \\
+\bottomrule
+\end{tabular}
+
+
+  \caption{Multiobjective comparison}
+  \vspace{-0.5cm}
+  \label{tab:multiobj}
+  \end{center}
+  \end{table}
+
+      \begin{figure}
+        \centering
+          \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
+        \caption{Pareto diagram of weight combinations}
+        \label{fig:pareto}
+      \end{figure}
+
+  
+
+\section{Conclusions}
+
+  The results show that a direct exact method to solve the whole dataset is not ideal.
+
+
+\bibliographystyle{dcu}
+\bibliography{./../biblio/MFMP}
+
+\end{document}
