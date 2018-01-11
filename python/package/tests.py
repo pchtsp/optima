@@ -62,7 +62,8 @@ class Experiment(object):
             ,'resources':   self.check_task_num_resources
             ,'usage':       self.check_resource_consumption
         }
-        return {k: v() for k, v in func_list.items()}
+        result = {k: v() for k, v in func_list.items()}
+        return {k: v for k, v in result.items() if len(v) > 0}
 
     def check_task_num_resources(self):
         task_reqs = self.instance.get_tasks('num_resource')
@@ -203,10 +204,11 @@ class Experiment(object):
         return maintenance_duration_incorrect
 
     def get_objective_function(self):
-        weight = self.instance.get_param("maint_weight")
+        weight1 = self.instance.get_param("maint_weight")
+        weight2 = self.instance.get_param("unavail_weight")
         unavailable = max(self.solution.get_unavailable().values())
         in_maint = max(self.solution.get_in_maintenance().values())
-        return in_maint * weight + unavailable
+        return in_maint * weight1 + unavailable * weight2
 
 
 def clean_experiments(path, clean=True):
@@ -252,7 +254,8 @@ def list_experiments(path):
                 log_info = di.get_log_info_gurobi(log_path)
         parameters = exp.instance.get_param()
         directory = os.path.basename(e)
-        experiments[directory] = {**parameters, **options, **log_info}
+        inst_info = exp.instance.get_info()
+        experiments[directory] = {**parameters, **options, **log_info, **inst_info}
     return experiments
 
 
@@ -326,16 +329,3 @@ if __name__ == "__main__":
     # sol.Solution(solution).get_schedule()
     # check.check_resource_consumption()
     # check.check_resource_state()
-    exps = list_experiments(path)
-    pp.pprint(exps)
-    table = pd.DataFrame.from_dict(exps, orient="index")
-    table.drop(['path', 'max_elapsed_time', 'maint_duration',
-                'maint_capacity', 'maint_weight', 'max_used_time',
-                'solver', 'comments', 'bound_out'],
-               axis=1, inplace=True)
-    table = table[np.logical_and(table.model == 'states', table.gap == 0)].reset_index(drop=True)
-    table.drop(['gap', 'model'],axis=1, inplace=True)
-
-    table['periods'] = table.apply(lambda x: len(aux.get_months(x.start, x.end)), axis=1)
-    table.drop(['end', 'start'], axis=1, inplace=True)
-    print(table.to_latex())

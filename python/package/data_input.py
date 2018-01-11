@@ -246,17 +246,36 @@ def get_log_info_cplex(path):
     with open(path, 'r') as f:
         content = f.read()
     numberSearch = r'([\de\.\+]+)'
-    # "Objective =  1.4800000000e+02\nCurrent MIP best bound =  1.2799071852e+02 (gap = 20.0093, 13.52%)"
-    regex = r'Objective =  {0}\nCurrent MIP best bound =  {0} \(gap = {0}, {0}%\)'.format(numberSearch)
+    wordsSearch = r'([\w,\s]+)'
+    # MIP - Integer optimal solution:  Objective =  1.5000000000e+01
+
+    # MIP - Time limit exceeded, integer feasible:  Objective =  2.0300000000e+01
+    # Current MIP best bound =  1.2799071852e+02 (gap = 20.0093, 13.52%)
+
+    regex = r'MIP - {1}:  Objective =  {0}\n'.format(numberSearch, wordsSearch)
     solution = re.search(regex, content, flags=re.MULTILINE)
+
+    if solution is None:
+        return {}
+
+    objective = float(solution.group(2))
+    bound = objective
+    gap = 0
+    if solution.group(1) == "Time limit exceeded, integer feasible":
+        regex = r'Current MIP best bound =  {0} \(gap = {0}, {0}%\)'.format(numberSearch)
+        solution = re.search(regex, content)
+        bound = float(solution.group(1))
+        gap = float(solution.group(3))
 
     regex = r'Reduced MIP has {0} rows, {0} columns, and {0} nonzeros'.format(numberSearch)
     size = re.search(regex, content)
 
+    if size is None:
+        return {}
     return {
-        'bound_out': float(solution.group(2)),
-        'objective_out': float(solution.group(1)),
-        'gap_out': float(solution.group(4)),
+        'bound_out': bound,
+        'objective_out': objective,
+        'gap_out': gap,
         'cons': int(size.group(1)),
         'vars': int(size.group(2)),
         'nonzeros': int(size.group(3)),

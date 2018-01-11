@@ -161,56 +161,6 @@ def model_no_states(instance, options=None):
 
     return solution
 
+
 if __name__ == "__main__":
-    model_data = di.get_model_data()
-    historic_data = di.generate_solution_from_source()
-    model_data = di.combine_data_states(model_data, historic_data)
-
-    # this is for testing purposes:
-    num_start_period = 0
-    num_max_periods = 10
-    model_data['parameters']['start'] = \
-        aux.shift_month(model_data['parameters']['start'], num_start_period)
-    model_data['parameters']['end'] = \
-        aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    forbidden_tasks = ['O10', 'O8']
-    forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
-    model_data['tasks'] = \
-        {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
-    # this was for testing purposes
-
-    instance = inst.Instance(model_data)
-    # instance.check_enough_candidates()
-
-    options = {
-        'timeLimit': 30
-        , 'gap': 0
-        , 'solver': "CPLEX"
-        , 'path':
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                format(aux.get_timestamp())
-        , "model": "no_states"
-        # , "comments": "periods 0 to 30 without tasks: O10, O8"
-        # , "comments": "periods 0 to 10 without tasks: O8"
-    }
-
-    # solving part:
-    # solution = solve_with_states(instance, options)
-    solution = model_no_states(instance, options)
-    if solution is not None:
-        # di.export_data(options['path'], instance.data, name="data_in", file_type='pickle')
-        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
-        # di.export_data(options['path'], solution.data, name="data_out", file_type='pickle')
-        di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-        di.export_data(options['path'], options, name="options", file_type='json')
-
-    # testing = test.CheckModel(instance, solution)
-    # result = testing.check_task_num_resources()
-    #  testing...
-
-    # import pprint
-    # pp = pprint.PrettyPrinter()
-    # pp.pprint({k: len(v) for k, v in l.items()})
-    # {k:v for k,v in rut_init.items() if v<0}
-
-
+    pass

@@ -244,6 +244,16 @@ class Instance(object):
 
         return {k: (v, v / task_num_resources[k]) for k, v in task_slack.items()}
 
+    def get_info(self):
+        assign = \
+            sum(v * self.data['tasks'][k]['num_resource'] for k, v in
+                aux.dict_to_lendict(self.get_task_period_list(True)).items())
+
+        return {
+            'periods': len(self.get_periods()),
+            'tasks': len(self.get_tasks()),
+            'assignments': assign
+        }
 
 if __name__ == "__main__":
     path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
