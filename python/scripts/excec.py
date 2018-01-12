@@ -15,13 +15,13 @@ if __name__ == "__main__":
 
     # this is for testing purposes:
     num_start_period = 0
-    num_max_periods = 20
+    num_max_periods = 50
     model_data['parameters']['start'] = \
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
     forbidden_tasks = ['O10', 'O8']
-    forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
+    # forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
     model_data['tasks'] = \
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
     # this was for testing purposes
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     instance = inst.Instance(model_data)
 
     options = {
-        'timeLimit': 3600
+        'timeLimit': 7200
         , 'gap': 0
         , 'solver': "CPLEX"
         , 'path':
@@ -38,10 +38,11 @@ if __name__ == "__main__":
         , "model": "no_states"
     }
 
+    di.export_data(options['path'], instance.data, name="data_in", file_type='json')
+    di.export_data(options['path'], options, name="options", file_type='json')
+
     # solving part:
     solution = md.model_no_states(instance, options)
     if solution is not None:
-        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
         di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-        di.export_data(options['path'], options, name="options", file_type='json')
 

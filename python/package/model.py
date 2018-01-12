@@ -74,6 +74,7 @@ def model_no_states(instance, options=None):
     model += max_unavail * unavail_weight + max_maint * maint_weight
 
     # CONSTRAINTS:
+
     for t in l['periods']:
         # objective: maintenance
         model += pl.lpSum(start[(a, _t)] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \

@@ -206,7 +206,7 @@ def load_data(path, file_type=None):
 
 def export_data(path, obj, name=None, file_type="pickle"):
     if not os.path.exists(path):
-        return False
+        os.mkdir(path)
     if name is None:
         name = aux.get_timestamp()
     path = os.path.join(path, name + "." + file_type)
@@ -242,16 +242,14 @@ def get_log_info_gurobi(path):
 
 
 def get_log_info_cplex(path):
-    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190053/results.log"
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801110004/results.log"
     with open(path, 'r') as f:
         content = f.read()
     numberSearch = r'([\de\.\+]+)'
-    wordsSearch = r'([\w,\s]+)'
+    wordsSearch = r'([\w, ]+)'
     # MIP - Integer optimal solution:  Objective =  1.5000000000e+01
-
     # MIP - Time limit exceeded, integer feasible:  Objective =  2.0300000000e+01
     # Current MIP best bound =  1.2799071852e+02 (gap = 20.0093, 13.52%)
-
     regex = r'MIP - {1}:  Objective =  {0}\n'.format(numberSearch, wordsSearch)
     solution = re.search(regex, content, flags=re.MULTILINE)
 
@@ -272,6 +270,41 @@ def get_log_info_cplex(path):
 
     if size is None:
         return {}
+    regex = r'Root relaxation solution time = {0} sec\. \({0} ticks\)'.format(numberSearch)
+    result = re.search(regex, content)
+    rootTime = float(result.group(1))
+    regex = r'Elapsed time = {0} sec\. \({0} ticks, tree = {0} MB, solutions = {0}\)'.format(numberSearch)
+    result = re.search(regex, content)
+    cutsTime = float(result.group(1))
+    regex = r'{1} cuts applied:  {0}'.format(numberSearch, wordsSearch)
+    result = re.findall(regex, content)
+    cuts = {}
+    if result:
+        cuts = {k[0]: int(k[1]) for k in result}
+    regex = r'LP Presolve eliminated {0} rows and {0} columns'.format(numberSearch)
+    result = re.findall(regex, content)
+    presolve = {}
+    if result:
+        presolve = {
+            'rows': result[0][0],
+            'cols': result[0][1]
+        }
+    regex = r'Presolve time = {0} sec. \({0} ticks\)'.format(numberSearch)
+    result = re.findall(regex, content)
+    if result:
+        presolve['time'] = result[0]
+
+    regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}?\s+{0}\s+{0}?\%?$'.format(numberSearch)
+    result = re.findall(regex, content, flags=re.MULTILINE)
+    after_cuts = -1
+    first_relax = -1
+    if result:
+        first_relax = float(result[0][2])
+        for r in result:
+            if r[0] == '0' and r[1] == '2':
+                after_cuts = float(r[2])
+                break
+
     return {
         'bound_out': bound,
         'objective_out': objective,
@@ -279,6 +312,12 @@ def get_log_info_cplex(path):
         'cons': int(size.group(1)),
         'vars': int(size.group(2)),
         'nonzeros': int(size.group(3)),
+        'cuts': cuts,
+        'rootTime': rootTime,
+        'cutsTime': cutsTime,
+        'presolve': presolve,
+        'first_relaxed': first_relax,
+        'after_cuts': after_cuts
     }
 
 
