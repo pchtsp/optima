@@ -242,7 +242,8 @@ def get_log_info_gurobi(path):
 
 
 def get_log_info_cplex(path):
-    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801110004/results.log"
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141331/results.log"
+    # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/results.log'
     with open(path, 'r') as f:
         content = f.read()
     numberSearch = r'([\de\.\+]+)'
@@ -297,16 +298,21 @@ def get_log_info_cplex(path):
     result = re.findall(regex, content, flags=re.MULTILINE)
     after_cuts = -1
     first_relax = -1
+    first_solution = -1
+    sol_after_cuts = -1
     progress = pd.DataFrame()
     if result:
         first_relax = float(result[0][2])
         for r in result:
             if r[0] == '0' and r[1] == '2':
                 after_cuts = float(r[2])
+                if r[4]:
+                    sol_after_cuts= float(r[4])
                 break
-        relax, obj, it = zip(*[[r[2], r[4], r[7]] for r in result if
-                             r[2] != '' if r[4] != '' if r[6] != ''])
-        progress = pd.DataFrame({'relax': relax, 'obj': obj, 'it': it})
+        for r in result[1:]:
+            if r[4] != "":
+                first_solution = float(r[4])
+                break
     return {
         'bound_out': bound,
         'objective_out': objective,
@@ -320,9 +326,25 @@ def get_log_info_cplex(path):
         'presolve': presolve,
         'first_relaxed': first_relax,
         'after_cuts': after_cuts,
-        'progress': progress
-
+        'progress': progress,
+        'first_solution': first_solution,
+        'sol_after_cuts': sol_after_cuts
     }
+
+
+def get_log_info_cplex_progress(path):
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/results.log"
+    with open(path, 'r') as f:
+        content = f.read()
+    numberSearch = r'([\de\.\+]+)'
+    regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}?\s+{0}\s+{0}?\%?$'.format(numberSearch)
+    result = re.findall(regex, content, flags=re.MULTILINE)
+    progress = pd.DataFrame()
+    if result:
+        relax, obj, it = zip(*[[float(r[2]), float(r[4]), float(r[7])] for r in result if
+                             r[2] != '' if r[4] != '' if r[6] != ''])
+        progress = pd.DataFrame({'relax': relax, 'obj': obj, 'it': it})
+    return progress
 
 
 if __name__ == "__main__":

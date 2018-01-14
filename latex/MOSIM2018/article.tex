@@ -185,7 +185,7 @@
       \begin{figure}
         \centering
           \includegraphics[width=0.5\textwidth]{./../../img/calendar.png}
-        \caption{Visual representation of part of the solution to an instance of the problem showing maintenances and assignments}
+        \caption{Visual representation of part of the solution to an instance of the problem showing maintenances and assignments. Resources are listed in the vertical axis and the horizontal axis defines the time. Red periods correspond to task assignments while blue ones to maintenance assignments.}
         \label{fig:solution}
       \end{figure}
     
@@ -253,8 +253,8 @@
         $E$               & remaining elapsed time after a maintenance. \\
         $H$               & remaining usage time after a maintenance. \\
         % $S$               & remaining storage time after (certain) maintenances. \\
-        $w1$               & weight of smoothness for maintenances. \\
-        $w2$               & weight of smoothness for unavailabilities. \\
+        $w_1$               & weight of smoothness for maintenances. \\
+        $w_2$               & weight of smoothness for unavailabilities. \\
         $n_t$             & number of resources in already-planned maintenance in period $t$.\\
         $d_t$             & number of resources that need to be assigned in total in period $t$. \\
         $rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning period. \\
@@ -293,9 +293,9 @@
     The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
 
     \begin{align}
-        & \text{Min}\; w1 \times M_{max} + w2 \times U_{max}
+        & \text{Min}\; w_1 \times M_{max} + w_2 \times U_{max}
     \end{align}
-    where weights $w1$ and $w2$ are chosen by the decision maker. 
+    where weights $w_1$ and $w_2$ are chosen by the decision maker. 
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
@@ -366,7 +366,7 @@
 
     \input{tables/tasks.tex}
 
-    \caption{Tasks' main characteristics including number of candidate resources and monthly needs}
+    \caption{Tasks' main characteristics including number of candidate resources and monthly needs. It reads in the following way: Task 'O1' consumes 80 flight hours of each of 8 resources each month. These resources need to be chosen from a pool of 50 possible candidates.}
     \vspace{-0.5cm}
     \label{tab:tasks}
     \end{table}
@@ -405,7 +405,7 @@
 
   \input{tables/instance.tex}
 
-  \caption{Instances used in the experiments with indicators of size}
+  \caption{Instances used in the experiments with indicators of size. "id" is the instance; $|\mathcal{T}|$ the number of periods; "assign" the number of assignments of resources to tasks; $|\mathcal{J}|$ the number of tasks; "vars" the number of variables; "cons" the number of constraints; and "nonzeros" the number of non zero values in the matrix}
   \vspace{-0.5cm}
   \label{tab:instance}
   \end{center}
@@ -416,7 +416,7 @@
 
   \input{tables/summary.tex}
 
-  \caption{Solution information for each tested instance}
+  \caption{Solution information for each tested instance. "id" is the instance identifier; "objective" the best integer solution found; "gap" the percentage gap between the integer solution and the lineal relaxation; "time (s)" the time limit that was chosen; and "bound" the lower bound from the lineal relaxation}
   \vspace{-0.5cm}
   \label{tab:summary}
   \end{center}
@@ -424,36 +424,59 @@
 
     Table \ref{tab:results} show the details of the solving process for each instance. As can be seen, cuts do not improve significantly the relaxation (bound cuts is very close to the root solution). In fact, the original lineal relaxation (root) is quite similar to the final lower bound (bound). This suggests further improvement in more compact modelization could help reduce the gap faster.
 
-    The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance.
+    The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance. Being these two generic cuts, it appears the solver has not detected any particular structure as part of this problem.
 
   \begin{table}[h]
   \begin{center}
 
   \input{tables/results.tex}
 
-  \caption{Solution details on the progress of the lower bound}
+  \caption{Solution details on the progress of the lower bound. "id" shows the name of the instance; "root" the relaxation before cuts; "b. cuts" the relaxation after the cuts; "bound" the relaxation at the time limit; "cuts (\#)" the number of cuts; and "cuts (s)" the time the cuts took in seconds}
   \vspace{-0.5cm}
   \label{tab:results}
   \end{center}
   \end{table}
 
+
+  \begin{table}[h]
+  \begin{center}
+
+  \input{tables/results2.tex}
+
+  \caption{Solution details on the progress of the integer solution. "id" shows the name of the instance; "first" is the first solution integer found; "sol. cuts" the solution after the cuts; "last" is the last solution found at the time limit; "cuts (\#)" the number of cuts; and "cuts (s)" the time the cuts took in seconds}
+  \vspace{-0.5cm}
+  \label{tab:results2}
+  \end{center}
+  \end{table}
+
+
+
+  Figure \ref{fig:progress} shows an example of progress for instance with id=1817.
+
+  \begin{figure}
+    \centering
+      \includegraphics[width=0.5\textwidth]{./../../img/progress.png}
+    \caption{Solving progress of the integer solution (in blue) and the lower bound (red) along the solver iterations (x axis). Instance id=1817.}
+    \label{fig:progress}
+  \end{figure}
+
+
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    In order to understand the sensibility of the weights $w1$ and $w2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 31 periods and 10 tasks corresponding to id 2127.
+    In order to understand the sensibility of the weights $w_1$ and $w_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id 1331.
 
-    The instances were stopped after 3600 seconds and most did not solve until optimality. Nevertheless, it can be seen that the remaining gap is very low (1.5\% maximum).
+    The instances that were chosen solved up to optimality.
 
-    In figure \ref{fig:pareto} it is possible to see that solutions W01, W05, W06 and W09 dominate the rest, having the latter three the same objective function.
+    In figure \ref{fig:pareto} it is possible to see that there are at least three Pareto optimal points. Further analysis must be done with different instances to obtain insights on the relation between the two objectives.
 
-    One last test was made by constraining the solution to be the intermediate point (15, 67) shown in the graph. After 3600 seconds, an integer solution was not found.
 
   \begin{table}[h]
   \begin{center}
 
   \input{tables/multiobj.tex}
 
-  \caption{Comparison of instances where variations on the weight of its two objectives has been done}
+  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance id=1331.}
   \vspace{-0.5cm}
   \label{tab:multiobj}
   \end{center}
@@ -462,7 +485,7 @@
   \begin{figure}
     \centering
       \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
-    \caption{Pareto diagram comparing the quality of both objectives for each instance}
+    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=1331.}
     \label{fig:pareto}
   \end{figure}
 
@@ -471,10 +494,11 @@
 
   The results show that a direct exact method to solve the whole dataset may not be ideal. Although medium size instances have been solved, the complete dataset is not solved in a reasonable time for more horizons bigger than 10 periods. Still, the analysis on the progress of the lower bound shows that further work can be done to improve the model in order for it to have a better relaxation. One possibility is replacing the constraints that count the remaining usage time and elapsed time for more tighter constraints. Another possibility is slightly changing the objective function so it can measure more gradually the smoothness of the objective and help get better lower bounds.
 
-  Regarding the multi-objective nature of the problem, the bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. Further tests with different, bigger, instances could reveal if this is the case. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions. In addition to this, new objectives could be included into the analysis, such as smoothing the remaining usage time among periods instead of doing it only in the last period.
+  Regarding the multi-objective nature of the problem, the bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. To confirm the true number of solutions, an analysis using epsilon constrains should follow. Further tests with different, bigger, instances could also reveal more information regarding the relation between the two objectives. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions. In addition to this, new objectives could be included into the analysis, such as smoothing the remaining usage time among periods instead of doing it only in the last period.
 
-  Another possible reason for the difficult in solving big instances could be the quantity of symmetries among candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources of the task. This could be handled by assigning priorities to some combinations of resource-task or by limiting the number of candidates that can be assign to each task by some heuristic that clusters resources.
+  Another possible reason for the difficult in solving big instances could be the quantity of symmetries among candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources of the task. This could be handled by assigning priorities to some combinations of resource-task or by limiting the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks.
 
+  As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, the present instances will grow bigger still. This, of course, will require new better techniques to decompose the problem into smaller problems using heuristics or take a decomposition approach such as Column Generation.
 
 \bibliographystyle{dcu}
 \bibliography{./../biblio/MFMP}

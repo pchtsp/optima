@@ -20,7 +20,7 @@ if __name__ == "__main__":
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    forbidden_tasks = ['O10', 'O8', '06']
+    forbidden_tasks = ['O10', 'O8', 'O6']
     # forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
     model_data['tasks'] = \
         {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}

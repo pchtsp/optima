@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     plot = ggplot(aes(x='initial_used'), data=data) + geom_histogram() + \
            theme(axis_text=element_text(size=15)) + \
-           xlab("Initial Remaining Usage Time (hours)")
+           xlab(element_text("Initial Remaining Usage Time (hours)", size=15))
     plot.save(path_img + 'initial_used.png')
 
     ################################################
@@ -95,9 +95,14 @@ if __name__ == "__main__":
                    'gap_out': 'gap (%)', 'bound_out': 'bound'
                    }
     cols_rename2 = {
-        'index': 'id', 'after_cuts': 'bound cuts',
+        'index': 'id', 'after_cuts': 'b. cuts',
         'first_relaxed': 'root', '# cuts': 'cuts (#)',
         'cutsTime': 'cuts (s)', 'bound_out': 'bound'}
+
+    cols_rename3 = {
+        'index': 'id', 'sol_after_cuts': 'sol. cuts',
+        'first_solution': 'first', 'objective_out': 'last'
+    }
 
     table = pd.DataFrame.from_dict(exps, orient="index")
     table = table[np.all((table.model == 'no_states',
@@ -112,17 +117,24 @@ if __name__ == "__main__":
                    ][0])
     table['index'] = table['index'].str.slice(8)
 
-    table1 = table.rename(columns=cols_rename2)[
-        ['id', 'root', 'bound cuts',
+    table2 = table.rename(columns=cols_rename2)[
+        ['id', 'root', 'b. cuts',
          'bound', 'cuts (#)', 'cuts (s)']]
-    latex = table1.to_latex(bold_rows=True, index=False, float_format='%.1f')
+    latex = table2.to_latex(bold_rows=True, index=False, float_format='%.1f')
     with open(path_latex + 'MOSIM2018/tables/results.tex', 'w') as f:
         f.write(latex)
 
-    table2 = table.rename(columns=cols_rename)[
+    table1 = table.rename(columns=cols_rename)[
         ['id', 'objective', 'gap (%)', 'time (s)', 'bound']]
-    latex = table2.to_latex(bold_rows=True, index=False, float_format='%.1f')
+    latex = table1.to_latex(bold_rows=True, index=False, float_format='%.1f')
     with open(path_latex + 'MOSIM2018/tables/summary.tex', 'w') as f:
+        f.write(latex)
+
+    table3 = table.rename(columns=cols_rename3)[
+        ['id', 'first', 'sol. cuts',
+         'last']]
+    latex = table3.to_latex(bold_rows=True, index=False, float_format='%.1f')
+    with open(path_latex + 'MOSIM2018/tables/results2.tex', 'w') as f:
         f.write(latex)
 
 
@@ -156,11 +168,11 @@ if __name__ == "__main__":
          for k in maint_weight
          }
 
-    cols_rename = {'maint_weight': 'w1', 'unavail_weight': 'w2', 'index': 'id', 'gap': 'gap (%)'}
+    cols_rename = {'maint_weight': '$w_1$', 'unavail_weight': '$w_2$', 'index': 'id', 'gap': 'gap (\%)'}
     data = pd.DataFrame.from_dict(data_dic, orient='index').reset_index().rename(columns=cols_rename)
     data.id = data.id.apply(lambda x: 'W' + x.zfill(2))
     data = data.sort_values("id").iloc[:, [0, 3, 2, 1, 4, 5]]
-    latex = data.to_latex(bold_rows=True, index=False)
+    latex = data.to_latex(bold_rows=True, index=False, escape=False)
     with open(path_latex + 'MOSIM2018/tables/multiobj.tex', 'w') as f:
         f.write(latex)
 
@@ -176,9 +188,9 @@ if __name__ == "__main__":
         ggplot(data_graph, aes(x='maint', y='unavailable', label='id')) + \
         geom_point(size=50) +\
         geom_text(hjust=0.15, vjust=0) + \
-        theme(axis_text=element_text(size=15), legend_position="none") + \
-        xlab('max resources in maintenance') + \
-        ylab('max resources unavailable')
+        theme(axis_text=element_text(size=15)) + \
+        xlab(element_text('max resources in maintenance', size=15)) + \
+        ylab(element_text('max resources unavailable', size=15))
 
     # plot.add_legend()
     # theme(axis_text=element_text(size=15),
@@ -187,3 +199,18 @@ if __name__ == "__main__":
 
     plot.save(path_img + 'multiobjective.png')
 
+    ################################################
+    # Progress
+    ################################################
+    path = path_abs + '201801131817/results.log'
+    table = di.get_log_info_cplex_progress(path)
+
+    plot = \
+        ggplot(table, aes(x='it', y='obj')) + \
+        geom_line(color='blue') +\
+        geom_line(aes(y='relax'), color='red') +\
+        theme(axis_title_x=element_text('Iterations', size=15),
+              axis_title_y=element_text('Objective and relaxation', size=15))+\
+        theme(axis_text=element_text(size=15))
+
+    plot.save(path_img + 'progress.png')
