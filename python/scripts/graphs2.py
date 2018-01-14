@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # Multiobjective
     ################################################
     # paths = os.listdir()
-    path_comp = path_abs + "weights/"
+    path_comp = path_abs + "weights2/"
     exps = exp.list_experiments(path_comp)
     # pp.pprint(exps)
 

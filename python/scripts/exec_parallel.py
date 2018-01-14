@@ -44,12 +44,12 @@ model_data = di.combine_data_states(model_data, historic_data)
 
 # this is for testing purposes:
 num_start_period = 0
-num_max_periods = 30
+num_max_periods = 20
 model_data['parameters']['start'] = \
     aux.shift_month(model_data['parameters']['start'], num_start_period)
 model_data['parameters']['end'] = \
     aux.shift_month(model_data['parameters']['start'], num_max_periods)
-forbidden_tasks = ['O10', 'O8']
+forbidden_tasks = ['O10', 'O8', '06']
 # forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
 model_data['tasks'] = \
     {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
@@ -58,13 +58,13 @@ model_data['tasks'] = \
 instance = inst.Instance(model_data)
 
 def_options = {
-    'timeLimit': 7200
+    'timeLimit': 3600
     , 'gap': 0
     , 'solver': "CPLEX"
     , 'path':
         '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/weights2/'
     , "model": "no_states"
-    , "comments": "periods 0 to 30 without tasks: O10, O8"
+    # , "comments": "periods 0 to 30 without tasks: O10, O8"
 }
 
 # solving part:
@@ -73,10 +73,25 @@ weight_options = [round(0.1*value, 1) for value in range(11)]
 
 if __name__ == "__main__":
 
-    time = datetime.datetime.now()
-    working(instance, def_options, weight_options)
-    duration = datetime.datetime.now() - time
-    print("The time it took = {} seconds".format(duration.seconds))
+    # time = datetime.datetime.now()
+    # working(instance, def_options, weight_options)
+    # duration = datetime.datetime.now() - time
+    # print("The time it took = {} seconds".format(duration.seconds))
 
+    results = {}
 
+    for pos, w in enumerate(weight_options):
+        name = str(int(w * 10))
+        instance.data["parameters"]['maint_weight'] = w
+        instance.data["parameters"]['unavail_weight'] = 1 - w
+        options = dict(def_options)
+        options["weights"] = {'maint_weight': w, 'unavail_weight': 1 - w}
+        options["path"] += name + '/'
+        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
+        di.export_data(options['path'], options, name="options", file_type='json')
+
+        # solving part:
+        solution = md.model_no_states(instance, options)
+        if solution is not None:
+            di.export_data(options['path'], solution.data, name="data_out", file_type='json')
 

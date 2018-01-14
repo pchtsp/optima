@@ -97,6 +97,8 @@
 
   It is a variant of the Flight and Maintenance Planning problem, where maintenances and flights are scheduled to commercial aircraft. The main differences are the fact that flights are not modeled geographically: all aircraft are assumed to exit the main depot and return to the same depot at the end of the flight.
 
+
+
   Other differences include the following.
 
   First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
@@ -106,29 +108,6 @@
   In section \ref{sec:soa} we present previous work in this domain. Section \ref{sec:problem} describes with detail the problem, its different elements, conditions and objectives, while the particular dataset used in this study is described in \ref{sec:data}. Section \ref{sec:model} presents a complete MIP formulation to solve the described problem.
 
   Section \ref{sec:results} shows the results obtained while solving several instances of the problem and finally, section \ref{sec:conclusions} mentions the conclusions obtained from the experimentation and the possible direction of further work in this domain.
-
-\section{Related work}
-  \label{sec:soa}
-
-  % TODO: add FMP biblio?
-
-  % The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically since a round-trip to the base is assumed for each flight.
-
-  % It also includes different objectives and constraints. 
-
-  % Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
-
-  In \cite{Kozanidis2008}, a model was made for the Hellenic Air Force. It assigned flight hours to aircraft and scheduled flexible maintenance periods based on a "remaining usage time" rule. The objectives were to maximize this "remaining usage time" in the aircraft as well as to smooth the availability of aircraft during the planning period. Instances of 24 aircraft and 6 monthly periods were tested with Mixed Integer Programming (MIP) formulations and heuristics.
-
-  In \cite{Cho2011}, the objective was to smooth the maintenances as much as possible. Randomly generated instances of 15 aircraft and 520 bi-daily periods were tested with MIP formulations. The final state of aircraft was taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
-
-  The concept of mission is not introduced as part of these formulations, only a demand of flight hours is given for all aircraft in total. The aircraft themselves have been assumed as homogeneous and interchangeable. Due to this aggregation of demand, there are no minimal time assignments for aircraft to missions. Missions are important in order to guarantee that aircraft have the required capabilities needed for the missions it is assigned to.
-
-  % Additionally, the possibility of storage of aircraft is not present in the previous work.
-
-  Lastly, in \cite{Chastellux2017} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
-
-  % Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
 
 \section{Problem statement}
   \label{sec:problem}
@@ -236,6 +215,29 @@
     \end{enumerate}
 
     As it will be shown in the mathematical formulation, these objectives are quite related one with the other: the more resources are in maintenance in a given period, the more unavailable resources will be had.
+
+\section{Related work}
+  \label{sec:soa}
+
+  % TODO: add FMP biblio?
+
+  % The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically since a round-trip to the base is assumed for each flight.
+
+  % It also includes different objectives and constraints. 
+
+  % Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
+
+  In \cite{Kozanidis2008}, a model was made for the Hellenic Air Force. It assigned flight hours to aircraft and scheduled flexible maintenance periods based on a "remaining usage time" rule. The objectives were to maximize this "remaining usage time" in the aircraft as well as to smooth the availability of aircraft during the planning period. Instances of 24 aircraft and 6 monthly periods were tested with Mixed Integer Programming (MIP) formulations and heuristics.
+
+  In \cite{Cho2011}, the objective was to smooth the maintenances as much as possible. Randomly generated instances of 15 aircraft and 520 bi-daily periods were tested with MIP formulations. The final state of aircraft was taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
+
+  The concept of mission is not introduced as part of these formulations, only a demand of flight hours is given for all aircraft in total. The aircraft themselves have been assumed as homogeneous and interchangeable. Due to this aggregation of demand, there are no minimal time assignments for aircraft to missions. Missions are important in order to guarantee that aircraft have the required capabilities needed for the missions they are assigned to.
+
+  % Additionally, the possibility of storage of aircraft is not present in the previous work.
+
+  Lastly, in \cite{Chastellux2017} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
+
+  % Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
 
 \section{Optimization model}
   \label{sec:model}

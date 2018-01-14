@@ -293,18 +293,20 @@ def get_log_info_cplex(path):
     result = re.findall(regex, content)
     if result:
         presolve['time'] = result[0]
-
     regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}?\s+{0}\s+{0}?\%?$'.format(numberSearch)
     result = re.findall(regex, content, flags=re.MULTILINE)
     after_cuts = -1
     first_relax = -1
+    progress = pd.DataFrame()
     if result:
         first_relax = float(result[0][2])
         for r in result:
             if r[0] == '0' and r[1] == '2':
                 after_cuts = float(r[2])
                 break
-
+        relax, obj, it = zip(*[[r[2], r[4], r[7]] for r in result if
+                             r[2] != '' if r[4] != '' if r[6] != ''])
+        progress = pd.DataFrame({'relax': relax, 'obj': obj, 'it': it})
     return {
         'bound_out': bound,
         'objective_out': objective,
@@ -317,7 +319,9 @@ def get_log_info_cplex(path):
         'cutsTime': cutsTime,
         'presolve': presolve,
         'first_relaxed': first_relax,
-        'after_cuts': after_cuts
+        'after_cuts': after_cuts,
+        'progress': progress
+
     }
 
 
