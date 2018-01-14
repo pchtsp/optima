@@ -59,39 +59,34 @@ if __name__ == "__main__":
     plot.save(path_img + 'initial_used.png')
 
     ################################################
-    # Instances table
+    # Instances and Results table
     ################################################
 
     paths = os.listdir(path_abs)
     exps = exp.list_experiments(path_abs)
     # pp.pprint(exps)
     # input: num missions, num periods, variables, constraints, assignments, timeLimit
-    input_cols = ['periods', 'assignments', 'tasks', 'vars', 'cons', 'nonzeros']
+    input_cols = ['index', 'tasks', 'periods', 'assignments', 'vars', 'cons', 'nonzeros']
     cols_rename = {'periods': '$|\mathcal{T}|$', 'tasks': '$|\mathcal{J}|$', 'assignments': 'assign',
                    'timeLimit': 'time (s)', 'index': 'id'}
     table = pd.DataFrame.from_dict(exps, orient="index")
     table = table[np.all((table.model == 'no_states',
                   table.gap == 0,
                   table.timeLimit >= 500),
-                 axis=0)] \
-        [input_cols].reset_index().rename(columns=cols_rename)
-    table.id = table.id.str.slice(8)
-    latex = table.to_latex(escape=False, bold_rows=True, index=False, float_format='%.0f')
+                 axis=0)].reset_index().sort_values(['tasks', 'periods'])
+
+    table['index'] = table['index'].str.slice(8)
+
+    table_in = table[input_cols].rename(columns=cols_rename)
+    latex = table_in.to_latex(escape=False, bold_rows=True, index=False, float_format='%.0f')
     with open(path_latex + 'MOSIM2018/tables/instance.tex', 'w') as f:
         f.write(latex)
 
-    ################################################
-    # Results table
-    ################################################
-
-    paths = os.listdir(path_abs)
-    exps = exp.list_experiments(path_abs)
-    # pp.pprint(exps)
     # output: number of cuts, initial relaxation, relaxation after cuts, end relaxation, cuts' time.
     # variable number before and after cuts
     # input_cols = ['timeLimit']
     cols_rename = {
-        'timeLimit': 'time (s)', 'index': 'id', 'objective_out': 'objective',
+        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
                    'gap_out': 'gap (%)', 'bound_out': 'bound'
                    }
     cols_rename2 = {
@@ -104,30 +99,25 @@ if __name__ == "__main__":
         'first_solution': 'first', 'objective_out': 'last'
     }
 
-    table = pd.DataFrame.from_dict(exps, orient="index")
-    table = table[np.all((table.model == 'no_states',
-                  table.gap == 0,
-                  table.timeLimit >= 500),
-                 axis=0)].reset_index()
-    table['# cuts'] = table.cuts.apply(lambda x: sum(x.values()))
-    table['most cuts'] = table.cuts.apply(
-        lambda x: ["{}: {}".format(k, v)
-                   for k, v in x.items()
-                   if v == max(x.values())
-                   ][0])
-    table['index'] = table['index'].str.slice(8)
-
-    table2 = table.rename(columns=cols_rename2)[
-        ['id', 'root', 'b. cuts',
-         'bound', 'cuts (#)', 'cuts (s)']]
-    latex = table2.to_latex(bold_rows=True, index=False, float_format='%.1f')
-    with open(path_latex + 'MOSIM2018/tables/results.tex', 'w') as f:
-        f.write(latex)
+    # table['most cuts'] = table.cuts.apply(
+    #     lambda x: ["{}: {}".format(k, v)
+    #                for k, v in x.items()
+    #                if v == max(x.values())
+    #                ][0])
 
     table1 = table.rename(columns=cols_rename)[
         ['id', 'objective', 'gap (%)', 'time (s)', 'bound']]
     latex = table1.to_latex(bold_rows=True, index=False, float_format='%.1f')
     with open(path_latex + 'MOSIM2018/tables/summary.tex', 'w') as f:
+        f.write(latex)
+
+    table2 = table
+    table2['# cuts'] = table2.cuts.apply(lambda x: sum(x.values()))
+    table2 = table.rename(columns=cols_rename2)[
+        ['id', 'root', 'b. cuts',
+         'bound', 'cuts (#)', 'cuts (s)']]
+    latex = table2.to_latex(bold_rows=True, index=False, float_format='%.1f')
+    with open(path_latex + 'MOSIM2018/tables/results.tex', 'w') as f:
         f.write(latex)
 
     table3 = table.rename(columns=cols_rename3)[
@@ -171,7 +161,7 @@ if __name__ == "__main__":
     cols_rename = {'maint_weight': '$w_1$', 'unavail_weight': '$w_2$', 'index': 'id', 'gap': 'gap (\%)'}
     data = pd.DataFrame.from_dict(data_dic, orient='index').reset_index().rename(columns=cols_rename)
     data.id = data.id.apply(lambda x: 'W' + x.zfill(2))
-    data = data.sort_values("id").iloc[:, [0, 3, 2, 1, 4, 5]]
+    data = data.sort_values("id")[['id', 'maint', 'unavailable', '$w_1$', '$w_2$']]
     latex = data.to_latex(bold_rows=True, index=False, escape=False)
     with open(path_latex + 'MOSIM2018/tables/multiobj.tex', 'w') as f:
         f.write(latex)
@@ -181,11 +171,14 @@ if __name__ == "__main__":
 
     data_graph = data.groupby(['maint', 'unavailable'])['id'].agg(lambda x: ', '.join(x))
     data_graph = data_graph.reset_index()
-    condition = np.logical_or(data_graph.id == 'W01', data_graph.id == 'W05, W06, W09')
-    data_graph['pareto optimal'] = np.where(condition, 'yes', 'no')
+    condition = np.any((data_graph.id == 'W00, W01, W02',
+                        data_graph.id == 'W03, W04',
+                        data_graph.id == 'W05, W06, W08'
+                       ), axis=0)
+    data_graph['Pareto optimal'] = np.where(condition, 'yes', 'no')
 
     plot = \
-        ggplot(data_graph, aes(x='maint', y='unavailable', label='id')) + \
+        ggplot(data_graph, aes(x='maint', y='unavailable', label='id', color='Pareto optimal')) + \
         geom_point(size=50) +\
         geom_text(hjust=0.15, vjust=0) + \
         theme(axis_text=element_text(size=15)) + \

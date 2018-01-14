@@ -244,6 +244,7 @@ def get_log_info_gurobi(path):
 def get_log_info_cplex(path):
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141331/results.log"
     # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/results.log'
+    # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801102259/results.log'
     with open(path, 'r') as f:
         content = f.read()
     numberSearch = r'([\de\.\+]+)'
@@ -294,6 +295,11 @@ def get_log_info_cplex(path):
     result = re.findall(regex, content)
     if result:
         presolve['time'] = result[0]
+    regex = r'Solution time =\s+{0} sec\.\s+Iterations = {0}\s+Nodes = {0}'.format(numberSearch)
+    result = re.findall(regex, content)
+    time_out = -1
+    if result:
+        time_out = float(result[0][0])
     regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}?\s+{0}\s+{0}?\%?$'.format(numberSearch)
     result = re.findall(regex, content, flags=re.MULTILINE)
     after_cuts = -1
@@ -317,6 +323,7 @@ def get_log_info_cplex(path):
         'bound_out': bound,
         'objective_out': objective,
         'gap_out': gap,
+        'time_out': time_out,
         'cons': int(size.group(1)),
         'vars': int(size.group(2)),
         'nonzeros': int(size.group(3)),

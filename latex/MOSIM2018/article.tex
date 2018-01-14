@@ -93,21 +93,15 @@
 
 \section{Introduction}
   
-  The Military Flight and Maintenance Planning problem considered assigns missions and schedules maintenances to aircraft. In this problem, aircraft are needed to comply with a series of planned missions while at the same time needing to receive frequent preventive maintenances in order to be ready for new missions.
+  This paper presents a specific version of the Flight and Maintenance Problem, which we call Military Flight and Maintenance Problem. We provide a description of the problem, a mathematical formulation to obtain quality solutions for a bi-objective optimization function and experimental results to show both the quality of the solutions and the limitations of the technique.
 
-  It is a variant of the Flight and Maintenance Planning problem, where maintenances and flights are scheduled to commercial aircraft. The main differences are the fact that flights are not modeled geographically: all aircraft are assumed to exit the main depot and return to the same depot at the end of the flight.
+  The article is structured as follows:
 
+  Section \ref{sec:problem} describes with detail the problem, its different elements, conditions and objectives. We also make a review of previous work done in the subject in section \ref{sec:soa} where we compare the addressed problems with our own and explain the differences.
 
+  Later, in section \ref{sec:data}, the specific dataset at hand is described. Section \ref{sec:model} presents a complete MIP formulation to solve the described problem and section \ref{sec:results} shows the commented results obtained while solving several instances of the problem based on the provided dataset.
 
-  Other differences include the following.
-
-  First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
-
-  The temporal scope of the problem is also bigger, making the normal planning horizon bigger and each period bigger too: months instead of days. On the other hand, the physical scope, while present in the commercial planning, is not present in the military one: aircraft are assumed to return to the origin every time.
-
-  In section \ref{sec:soa} we present previous work in this domain. Section \ref{sec:problem} describes with detail the problem, its different elements, conditions and objectives, while the particular dataset used in this study is described in \ref{sec:data}. Section \ref{sec:model} presents a complete MIP formulation to solve the described problem.
-
-  Section \ref{sec:results} shows the results obtained while solving several instances of the problem and finally, section \ref{sec:conclusions} mentions the conclusions obtained from the experimentation and the possible direction of further work in this domain.
+  Finally, section \ref{sec:conclusions} mentions the conclusions obtained from the experimentation and the possible direction of further work.
 
 \section{Problem statement}
   \label{sec:problem}
@@ -227,6 +221,17 @@
 
   % Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
 
+  The Military Flight and Maintenance Planning problem considered assigns missions and schedules maintenances to aircraft. In this problem, aircraft are needed to comply with a series of planned missions while at the same time needing to receive frequent preventive maintenances in order to be ready for new missions.
+
+  It is a variant of the Flight and Maintenance Planning problem, where maintenances and flights are scheduled to commercial aircraft. The main differences are the fact that flights are not modeled geographically: all aircraft are assumed to exit the main depot and return to the same depot at the end of the flight.
+
+  Other differences include the following.
+
+  First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
+
+  The temporal scope of the problem is also bigger, making the normal planning horizon bigger and each period bigger too: months instead of days. On the other hand, the physical scope, while present in the commercial planning, is not present in the military one: aircraft are assumed to return to the origin every time.
+
+
   In \cite{Kozanidis2008}, a model was made for the Hellenic Air Force. It assigned flight hours to aircraft and scheduled flexible maintenance periods based on a "remaining usage time" rule. The objectives were to maximize this "remaining usage time" in the aircraft as well as to smooth the availability of aircraft during the planning period. Instances of 24 aircraft and 6 monthly periods were tested with Mixed Integer Programming (MIP) formulations and heuristics.
 
   In \cite{Cho2011}, the objective was to smooth the maintenances as much as possible. Randomly generated instances of 15 aircraft and 520 bi-daily periods were tested with MIP formulations. The final state of aircraft was taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
@@ -237,7 +242,7 @@
 
   Lastly, in \cite{Chastellux2017} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
 
-  % Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
+  Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
 
 \section{Optimization model}
   \label{sec:model}
@@ -350,14 +355,14 @@
 
 \section{Datasets}
   \label{sec:data}
-  The dataset that was used was provided by the French Airforce and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
-  Based on the information provided, a number of datasets were created with subsets of the main dataset in order to run different tests.
+  The dataset being used was provided by the French Airforce and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
+  Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments.
 
   \subsection{Tasks}
 
-    The main characteristics of the dataset are the following. 11 tasks, 127 resources.
+    There are a total of 12 tasks.
     Most tasks demand between 1 and 8 resources per month. The biggest and second biggest tasks demand 50 and 20 resources respectively each month.
-    More details in table \ref{tab:tasks}.
+    More details of task differences are found in table \ref{tab:tasks}.
     Candidates are calculated based on each task's requirements matching the candidate's capabilities.
 
     It is possible to see that task 08 is impossible to satisfy given that there are less candidates than resources needed. This task has been taken out from all of the instances.
@@ -373,18 +378,19 @@
 
   \subsection{Maintenances}
 
-    All maintenances take 6 months (periods). Each maintenance provides with 1000 hours of usage time to the resource and a resource can be without maintenance for a maximum of 60 periods. The nominative capacity for maintenance is 18 resources at any given time.
+    All maintenances take 6 months (periods). Each maintenance provides with 1000 hours of usage time to the resource and a resource can be without maintenance for a maximum of 60 consecutive periods. The nominative capacity for maintenance is 18 resources at any given time.
 
-    \subsection{Resources}
+  \subsection{Resources}
 
-      The distribution of initial usage times is shown in the figure \ref{fig:histogramUsage}. It can be seen that the aircraft do not necessarily follow an horizontal line.
+    There are 127 resources in total. Each one with its functionalities and past assignments.
+    The distribution of initial usage times is shown in the figure \ref{fig:histogramUsage}. It can be seen that the aircraft do not necessarily follow an horizontal line.
 
-      \begin{figure}
-        \centering
-          \includegraphics[width=0.5\textwidth]{./../../img/initial_used.png}
-        \caption{Distribution of Usage Times among resources at the beginning of the planning horizon}
-        \label{fig:histogramUsage}
-      \end{figure}
+    \begin{figure}
+      \centering
+        \includegraphics[width=0.5\textwidth]{./../../img/initial_used.png}
+      \caption{Distribution of Usage Times among resources at the beginning of the planning horizon}
+      \label{fig:histogramUsage}
+    \end{figure}
 
 % \section{Heuristics}
 
@@ -392,11 +398,9 @@
   \label{sec:results}
 
   All tests were run on a 64 bit Ubuntu 16.04 workstation with 16GB of RAM and Intel i7-6700HQ CPU \@ 2.60GHz x 8 processor.
-  Several experiments were done with the MIP formulation. Table \ref{tab:instance} shows the characteristics of each instance. 
-  Most of the columns describe the size of the instance: number of periods, number of tasks and number of assignments.
-  The assign column indicates the number of assignments that are needed to be done to all the task-periods.
+  Several experiments were done with the MIP formulation. Table \ref{tab:instance} shows the characteristics of each experiment. The main differences between instances is the number of tasks and the number of periods.
 
-  Table \ref{tab:summary} gives an overview on the results obtained for each of the executed instances.
+  Table \ref{tab:summary} gives an overview on the results obtained for each of the executed instances. As can be seen, smaller instances are solved up to optimality while medium size ones are stopped after one hour.
 
   Both weights on the objective function were set at 1. For a sensibility analysis on these two parameters, see section \ref{sec:multi}.
 
@@ -431,27 +435,28 @@
 
   \input{tables/results.tex}
 
-  \caption{Solution details on the progress of the lower bound. "id" shows the name of the instance; "root" the relaxation before cuts; "b. cuts" the relaxation after the cuts; "bound" the relaxation at the time limit; "cuts (\#)" the number of cuts; and "cuts (s)" the time the cuts took in seconds}
+  \caption{Solution details on the progress of the lower bound. "id" shows the name of the instance; "root" the relaxation before cuts; "b. cuts" the relaxation after the cuts; "bound" the relaxation at the time limit; "cuts (\#)" the number of cuts; and "cuts (s)" the time the cuts took in seconds.}
   \vspace{-0.5cm}
   \label{tab:results}
   \end{center}
   \end{table}
 
+  The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail of this progress, figure \ref{fig:progress} shows an example of progress for instance with id=1817. It can be seen that initial solutions are quite big in comparison with the optimal.
+
+  For two, rather small, instances the solver was able to find an optimal solution before starting to branch. In these two instances, the missing values have been replaced by "-1".
+
+  These results show how the branching is not providing with much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
 
   \begin{table}[h]
   \begin{center}
 
   \input{tables/results2.tex}
 
-  \caption{Solution details on the progress of the integer solution. "id" shows the name of the instance; "first" is the first solution integer found; "sol. cuts" the solution after the cuts; "last" is the last solution found at the time limit; "cuts (\#)" the number of cuts; and "cuts (s)" the time the cuts took in seconds}
+  \caption{Solution details on the progress of the integer solution. "id" shows the name of the instance; "first" is the first solution integer found; "sol. cuts" the solution after the cuts; "last" is the last solution found at the time limit.}
   \vspace{-0.5cm}
   \label{tab:results2}
   \end{center}
   \end{table}
-
-
-
-  Figure \ref{fig:progress} shows an example of progress for instance with id=1817.
 
   \begin{figure}
     \centering
@@ -470,13 +475,15 @@
 
     In figure \ref{fig:pareto} it is possible to see that there are at least three Pareto optimal points. Further analysis must be done with different instances to obtain insights on the relation between the two objectives.
 
+    The bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions.
+
 
   \begin{table}[h]
   \begin{center}
 
   \input{tables/multiobj.tex}
 
-  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance id=1331.}
+  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance id=1331. All experiments were solved to optimality.}
   \vspace{-0.5cm}
   \label{tab:multiobj}
   \end{center}
@@ -492,13 +499,15 @@
 \section{Conclusions and further work}
   \label{sec:conclusions}
 
-  The results show that a direct exact method to solve the whole dataset may not be ideal. Although medium size instances have been solved, the complete dataset is not solved in a reasonable time for more horizons bigger than 10 periods. Still, the analysis on the progress of the lower bound shows that further work can be done to improve the model in order for it to have a better relaxation. One possibility is replacing the constraints that count the remaining usage time and elapsed time for more tighter constraints. Another possibility is slightly changing the objective function so it can measure more gradually the smoothness of the objective and help get better lower bounds.
+  The results show that a direct exact method to solve the whole dataset may not be ideal. Although medium size instances have been solved, the complete dataset is not solved in a reasonable time for more horizons bigger than 10 periods. Still, the analysis on the progress of the lower bound shows that further work can be done to improve the model in order for it to have a tighter, better relaxation. One possibility is to replace the constraints that count the remaining usage time and elapsed time for tighter constraints. Another possibility is slightly changing the objective function so it can measure more gradually the smoothness of the objective and help get better bounds.
 
-  Regarding the multi-objective nature of the problem, the bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. To confirm the true number of solutions, an analysis using epsilon constrains should follow. Further tests with different, bigger, instances could also reveal more information regarding the relation between the two objectives. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions. In addition to this, new objectives could be included into the analysis, such as smoothing the remaining usage time among periods instead of doing it only in the last period.
+  Regarding the multi-objective nature of the problem, to confirm the true number of solutions, an analysis using epsilon constrains should follow. Further tests with different, bigger, instances could also reveal more information regarding the relation between the two objectives. In addition to this, new objectives could be included into the analysis, such as smoothing the remaining usage time among periods instead of doing it only in the last period.
 
-  Another possible reason for the difficult in solving big instances could be the quantity of symmetries among candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources of the task. This could be handled by assigning priorities to some combinations of resource-task or by limiting the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks.
+  Regarding the branching and symmetries: this could be handled by assigning priorities to some combinations of resource-task or by limiting the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks. Finally, arbitrarily preassigning (fixing) the final state (in terms of remaining usage time) to each resource could also help break those symmetries.
 
-  As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, the present instances will grow bigger still. This, of course, will require new better techniques to decompose the problem into smaller problems using heuristics or take a decomposition approach such as Column Generation.
+  As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, it is predicted that the present instances will grow bigger. This, of course, will require new and better techniques to decompose the problem into smaller problems using heuristics or to take a decomposition approach such as Column Generation.
+
+  Finally, this work presents a first step useful into the solving of the Military Flight and Maintenance Planning. The model presented provides already good initial solutions and also the potential of solving even bigger, more complex problems.
 
 \bibliographystyle{dcu}
 \bibliography{./../biblio/MFMP}
