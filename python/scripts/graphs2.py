@@ -12,6 +12,7 @@ import package.data_input as di
 path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
 path_img = "/home/pchtsp/Documents/projects/OPTIMA/img/"
 path_latex = "/home/pchtsp/Documents/projects/OPTIMA/latex/"
+
 if __name__ == "__main__":
 
     # here we get some data inside
@@ -55,7 +56,8 @@ if __name__ == "__main__":
 
     plot = ggplot(aes(x='initial_used'), data=data) + geom_histogram() + \
            theme(axis_text=element_text(size=15)) + \
-           xlab(element_text("Initial Remaining Usage Time (hours)", size=15))
+           xlab(element_text("Initial Remaining Usage Time (hours)", size=15))+ \
+           ylab(element_text("Number of resources", size=15))
     plot.save(path_img + 'initial_used.png')
 
     ################################################
