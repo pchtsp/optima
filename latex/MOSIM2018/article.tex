@@ -110,11 +110,11 @@
   \subsection{Tasks}
     \label{def:task}
 
-    There is a fixed set of $j \in \mathcal{J}$ tasks to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. In order to be accomplished, these tasks require the assignment of a specific number of resources $r_{j}$ each period of time the task is active. Tasks have both a fixed start and end time that define the set of periods of time it is active.
+    There is a fixed set of $j \in \mathcal{J}$ tasks to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. In order to be accomplished, these tasks require the assignment of a specific number of resources $R_j$ each period of time the task is active. Tasks have both a fixed start and end time that define the set of periods of time it is active.
     
-    During each assigned period, tasks use the assigned resources for a time $h_j$.
+    During each assigned period, tasks use the assigned resources for a time $H_j$.
 
-    The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($mt$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $r_{j}$.
+    The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($MT$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $R_j$.
 
     Finally, tasks have a set of requisites that the resources that can be assigned to it need to comply with.
 
@@ -146,7 +146,7 @@
 
     % Each maintenance belongs to a specific type of maintenance $m \in \mathcal{M}$. These types of maintenance differentiate between each other by having potentially different characteristics such as: different durations, the provision of new functionalities for the resource or the restoration of the storage capacity (see \ref{def:sto}). The maintenance type is not a decision to be made since there is a specific sequence of maintenance types a resources needs to follow according to the resource type.
 
-    Maintenances have a fix duration of $m$ periods.
+    Maintenances have a fix duration of $M$ periods.
 
     After receiving a maintenance, a resource restores its remaining elapsed time and remaining usage time back to their max values $E$ and $H$ respectively.
 
@@ -236,11 +236,17 @@
 
   In \cite{Cho2011}, the objective was to smooth the maintenances as much as possible. Randomly generated instances of 15 aircraft and 520 bi-daily periods were tested with MIP formulations. The final state of aircraft was taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
 
+  In \cite{Verhoeff2015}, a model for the Royal Netherlands Air Force was developed. Here, three criteria for improving the planning robustness are presented and applied in a MIP model: availability, serviceability and sustainability.
+
+  With respect to heuristic methods for solving this problem, both \cite{Kozanidis2008} and \cite{Cho2011} already presented alternatives to the MIP formulation for solving bigger instances with reduced scope. In \cite{steiner2006heuristic}, a constructive, stepped heuristic approach is described to obtain balanced maintenances for the Swiss Air Force. Both calendar-based maintenances actions (CBMA) and usage-based maintenance actions (UBMA) are used. In \cite{gavranis2015exact}, an exact algorithm was presented and tested on instances of 6 periods and between 10 and 200 aircraft for the special case of maximizing the residual flight time availability or total remaining usage time. Finally, in \cite{kozanidis2014heuristics}, two heuristics to solve big instances of the problem by taking consecutive decisions period by period with the help of mathematical models at each step.
+
+  Regarding operational-level planning, a more detailed implementation is found in \cite{safaei2011workforce}, where the specific conditions during the maintenances operations are taken into account to schedule the maintenance jobs, such as the workforce skills and availability.
+
   The concept of mission is not introduced as part of these formulations, only a demand of flight hours is given for all aircraft in total. The aircraft themselves have been assumed as homogeneous and interchangeable. Due to this aggregation of demand, there are no minimal time assignments for aircraft to missions. Missions are important in order to guarantee that aircraft have the required capabilities needed for the missions they are assigned to.
 
   % Additionally, the possibility of storage of aircraft is not present in the previous work.
 
-  Lastly, in \cite{Chastellux2017} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
+  Lastly, in \cite{Chastellux2016} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were tested, founding close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations.
 
   Here, an alternative model is presented that simplifies the formulation and should permit the inclusion of the rest of constraints without sacrificing optimality.
 
@@ -249,23 +255,23 @@
   \subsection{Parameters}
 
     \begin{tabular}{p{8mm}p{67mm}}
-        $h_j$             & amount of usage time for resources used in task $j$. \\
-        $r_j$             & amount of resources that task $j$ needs when active. \\
-        $mt$              & minimum number of periods a resource can be assigned to a task. \\
+        $H_j$             & amount of usage time for resources used in task $j$. \\
+        $R_j$             & amount of resources that task $j$ needs when active. \\
+        $MT$              & minimum number of periods a resource can be assigned to a task. \\
         % $aut_i$           & maximal absolute usage time for resource $i$. \\
         % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
-        $m$               & maintenance duration in number of periods. \\
+        $M$               & maintenance duration in number of periods. \\
         $E$               & remaining elapsed time after a maintenance. \\
         $H$               & remaining usage time after a maintenance. \\
         % $S$               & remaining storage time after (certain) maintenances. \\
-        $w_1$               & weight of smoothness for maintenances. \\
-        $w_2$               & weight of smoothness for unavailabilities. \\
-        $n_t$             & number of resources in already-planned maintenance in period $t$.\\
-        $d_t$             & number of resources that need to be assigned in total in period $t$. \\
-        $rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning period. \\
-        $ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning period. \\
-        $ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning period. \\
-        $rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning period. \\
+        $W_1$               & weight of smoothness for maintenances. \\
+        $W_2$               & weight of smoothness for unavailabilities. \\
+        $N_t$             & number of resources in already-planned maintenance in period $t$.\\
+        $D_t$             & number of resources that need to be assigned in total in period $t$. \\
+        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning period. \\
+        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning period. \\
+        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning period. \\
+        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning period. \\
     \end{tabular}
 
   \subsection{Sets}
@@ -283,69 +289,69 @@
      The decision variables manage the previously defined resources.
     
     \begin{tabular}{p{8mm}p{67mm}}
-        $A_{jti}$   &  1 if task $j \in J$ in period $t\in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
-        $M_{it}$    &  1 if resource $i \in I$ starts maintenance in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $a_{jti}$   &  1 if task $j \in J$ in period $t\in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
+        $m_{it}$    &  1 if resource $i \in I$ starts maintenance in period $t \in \mathcal{T}$, 0 otherwise. \\
         $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
         $ret_{it}$  &  remaining elapsed time (integer) for resource $i$ after period $t \in \mathcal{T}0$. \\  
-        $U_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
-        $M_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
+        $u_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
+        $m_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
     \end{tabular}
     
-    Note that  $A_{jti}$ and $M_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning period for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning period is used to initialize $rut_{i0}$. 
+    Note that  $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning period for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning period is used to initialize $rut_{i0}$. 
 
   \subsection{Constraints}
 
     The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
 
     \begin{align}
-        & \text{Min}\; w_1 \times M_{max} + w_2 \times U_{max}
+        & \text{Min}\; W_1 m_{max} + W_2 u_{max}
     \end{align}
-    where weights $w_1$ and $w_2$ are chosen by the decision maker. 
+    where weights $W_1$ and $W_2$ are chosen by the decision maker. 
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
-        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \leq M_{max}
+        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
           & t \in \mathcal{T} \label{eq:capacity1}\\
                % maximum capacity2:                
-        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} \leq M_{max}
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} \leq m_{max}
         % & t =m, ..., |\mathcal{T}|  \label{eq:capacity2}\\
                %avail
-       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} M_{it'} + n_{t} \notag \\
-           &\hspace*{10mm}+ d_t\leq U_{max} 
+       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \notag \\
+           &\hspace*{10mm}+ D_t\leq u_{max} 
         &t \in \mathcal{T} \label{eq:avalaibility1}\\
                % maximum capacity2:                
-        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} M_{it'} + d_t\leq U_{max} 
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} + D_t\leq u_{max} 
         % & t =m, ..., |\mathcal{T}|  \label{eq:avalaibility2}\\
-        & \sum_{i \in \mathcal{I}_j} A_{jti} = r_{j}
+        & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
                 & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
-        & \sum_{t' \in \mathcal{T}^{s}_t} M_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} A_{jti} \leq 1 
+        & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
 
     Maintenance capacity is controlled by (\ref{eq:capacity1}). The number of unavailable resources is defined by (\ref{eq:avalaibility1}). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task or maintenance operation at the same period.  
     \begin{align}
         % remaining used time
-         & rut_{it} \leq rut_{it-1} + H M_{it} \notag \\ 
-           &\hspace*{4mm}- \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} A_{jti} h_{j} \notag \\
+         & rut_{it} \leq rut_{it-1} + H m_{it} \notag \\ 
+           &\hspace*{4mm}- \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j \notag \\
                 && t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
-        & rut_{i0} = rut^{Init}_i
+        & rut_{i0} = Rut^{Init}_i
                & i \in \mathcal{I} \label{eq:rut_initial}\\
-        & rut_{it} \geq H M_{it}
+        & rut_{it} \geq H m_{it}
                 & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
         & rut_{it} \in [0,H]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\
         & ret_{it} \leq ret_{it-1} - 1 \notag \\
-          &\hspace*{4mm}+ E M_{it}
+          &\hspace*{4mm}+ E m_{it}
                 & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
-        & ret_{i0} = ret^{Init}_r
+        & ret_{i0} = Ret^{Init}_i
                 & i \in \mathcal{I} \label{eq:ret_initial}\\
-        & ret_{it} \geq E M_{it}
+        & ret_{it} \geq E m_{it}
                 & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
         & ret_{it} \in [0,me]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
-        & \sum_{i \in \mathcal{I}} ret_{it} \geq ret^{Init}_{sum}
+        & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
               & t = |\mathcal{T}| \label{eq:min_ret}\\
-        & \sum_{i \in \mathcal{I}} rut_{it} \geq rut^{Init}_{sum}
+        & \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
               & t = |\mathcal{T}| \label{eq:min_rut}
     \end{align}
         % These constraints calculate the balances of hours for each resource.
@@ -404,7 +410,7 @@
 
   Both weights on the objective function were set at 1. For a sensibility analysis on these two parameters, see section \ref{sec:multi}.
 
-  \begin{table}[h]
+  \begin{table}
   \begin{center}
 
   \input{tables/instance.tex}
@@ -415,7 +421,7 @@
   \end{center}
   \end{table}
 
-    \begin{table}[h]
+    \begin{table}
   \begin{center}
 
   \input{tables/summary.tex}
@@ -430,7 +436,7 @@
 
     The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance. Being these two generic cuts, it appears the solver has not detected any particular structure as part of this problem.
 
-  \begin{table}[h]
+  \begin{table}
   \begin{center}
 
   \input{tables/results.tex}
@@ -447,7 +453,7 @@
 
   These results show how the branching is not providing with much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
 
-  \begin{table}[h]
+  \begin{table}
   \begin{center}
 
   \input{tables/results2.tex}
@@ -469,7 +475,7 @@
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    In order to understand the sensibility of the weights $w_1$ and $w_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id 1331.
+    In order to understand the sensibility of the weights $W_1$ and $W_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id 1331.
 
     The instances that were chosen solved up to optimality.
 
