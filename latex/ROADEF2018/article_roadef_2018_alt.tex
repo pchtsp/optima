@@ -30,7 +30,7 @@ ISAE-SUPAERO, Université de Toulouse, France \\
 
 
 \section{Introduction}
-    The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically since a round-trip to the base is assumed for each flight. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
+    The Military Flight and Maintenance Planning Problem considered here aims to assign missions and maintenance tasks to military aircraft. It is a variant of the Flight and Maintenance Planning problem where flights are not modeled geographically since a round-trip to the base is assumed for each flight. It also includes different objectives and constraints. Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered. With respect to \cite{Chastellux2017}, a new model will be presented.
 
     % First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
@@ -49,7 +49,7 @@ ISAE-SUPAERO, Université de Toulouse, France \\
     % \subsection{iesources}
     % \label{def:resource}
 
-    Resources require recurrent preventive maintenance operations since the realization of tasks diminish the remaining usage time of resources. A resource cannot be used for a task $j$ if its remaining usage time is less that usage $h_j$ required by task $j$. A maintenance operation assigns to the resource exactly $H$ units of remaining usage time. The remaining usage time not used before the maintenance operation is lost. %Independently of its usage, each resource has to be maintained each $t^u$ periods of time since the end of the last maintenance operation. 
+    Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time. A resource cannot be used for a task $j$ if its remaining usage time is less than usage $h_j$ required by task $j$. A maintenance operation assigns to the resource exactly $H$ units of remaining usage time. The remaining usage time not used before the maintenance operation is lost. %Independently of its usage, each resource has to be maintained each $t^u$ periods of time since the end of the last maintenance operation. 
 		A maintenance operation takes exactly $m$ periods and cannot be interrupted: during this time the resource cannot be assigned to any task. Some resources can be in maintenance at the beginning of the planning horizon, $n_t$ is used for the number of aircraft in such planned maintenance per period $t$ and defined only for the first $m-1$ time periods. In the next section, we present a new mathematical model for this problem.
     % We will call "remaining elapsed time" (or $ret$) to the amount of time that needs to pass in order for the resource to need a maintenance at any given period.
 
