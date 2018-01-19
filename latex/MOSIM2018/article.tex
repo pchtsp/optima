@@ -362,25 +362,22 @@
 \section{Datasets}
   \label{sec:data}
   The dataset being used was provided by the French Airforce and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
-  Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments.
+  Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments. The criteria for the creation of the instances was the following:
+
+    \begin{enumerate}
+        \item The base instances was the biggest instance where an integer solution was found in less than 3600 seconds: all 11 tasks and 31 periods.
+        \item Take out the task with the biggest number of required resources.
+        \item Increase the number of periods in multiples of 10 until no integer solutions can be found in 3600 seconds.
+        \item Repeat step 2.
+    \end{enumerate}
 
   \subsection{Tasks}
 
-    There are a total of 12 tasks.
+    There are a total of 11 tasks.
     Most tasks demand between 1 and 8 resources per month. The biggest and second biggest tasks demand 50 and 20 resources respectively each month.
-    More details of task differences are found in table \ref{tab:tasks}.
     Candidates are calculated based on each task's requirements matching the candidate's capabilities.
 
-    It is possible to see that task 08 is impossible to satisfy given that there are less candidates than resources needed. This task has been taken out from all of the instances.
-
-    \begin{table}
-
-    \input{tables/tasks.tex}
-
-    \caption{Tasks' main characteristics including number of candidate resources and monthly needs. It reads in the following way: Task 'O1' consumes 80 flight hours of each of 8 resources each month. These resources need to be chosen from a pool of 50 possible candidates.}
-    \vspace{-0.5cm}
-    \label{tab:tasks}
-    \end{table}
+    Some tasks have a limited duration, meaning they start and end during the planning horizon. Others are active during the whole planning horizon.
 
   \subsection{Maintenances}
 
@@ -447,7 +444,7 @@
   \end{center}
   \end{table}
 
-  The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail of this progress, figure \ref{fig:progress} shows an example of progress for instance with id=1817. It can be seen that initial solutions are quite big in comparison with the optimal.
+  The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail of this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite big in comparison with the optimal.
 
   For two, rather small, instances the solver was able to find an optimal solution before starting to branch. In these two instances, the missing values have been replaced by "-1".
 
@@ -467,7 +464,7 @@
   \begin{figure}
     \centering
       \includegraphics[width=0.5\textwidth]{./../../img/progress.png}
-    \caption{Solving progress of the integer solution (in blue) and the lower bound (red) along the solver iterations (x axis). Instance id=1817.}
+    \caption{Solving progress of the integer solution (in blue) and the lower bound (red) along the solver iterations (x axis). Instance id=I\_7.}
     \label{fig:progress}
   \end{figure}
 
@@ -475,7 +472,7 @@
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    In order to understand the sensibility of the weights $W_1$ and $W_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id 1331.
+    In order to understand the sensibility of the weights $W_1$ and $W_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id=I\_1.
 
     The instances that were chosen solved up to optimality.
 
@@ -489,7 +486,7 @@
 
   \input{tables/multiobj.tex}
 
-  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance id=1331. All experiments were solved to optimality.}
+  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance I\_1. All experiments were solved to optimality.}
   \vspace{-0.5cm}
   \label{tab:multiobj}
   \end{center}
@@ -498,7 +495,7 @@
   \begin{figure}
     \centering
       \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
-    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=1331.}
+    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=I\_1.}
     \label{fig:pareto}
   \end{figure}
 
