@@ -10,7 +10,6 @@ import package.solution as sol
 
 ######################################################
 # TODO: add minimum mission duration assignment
-# TODO: test different weights on OF
 # TODO: contraintes les posibilités des candidates: maximum X candidates par task ou par resource
 # TODO: ajouter un heuristique pour les 50 avions de la mission O10 en rotation.
 

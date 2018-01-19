@@ -24,6 +24,10 @@ def shift_month(month, shift=1):
     return arrow.get(month + "-01").shift(months=shift).format("YYYY-MM")
 
 
+def month_to_arrow(month):
+    return arrow.get(month + "-01")
+
+
 def get_prev_month(month):
     return shift_month(month, shift=-1)
 
@@ -157,7 +161,9 @@ def tup_to_start_finish(tup_list, pp=1):
 
 
 def vars_to_tups(var):
-    return [tup for tup in var if var[tup].value()]
+    # because of rounding approximations; we need to check if its bigger than half:
+    # return [tup for tup in var if var[tup].value()]
+    return [tup for tup in var if var[tup].value() > 0.5]
 
 
 def fill_dict_with_default(dict_in, keys, default=0):
@@ -168,8 +174,8 @@ def get_property_from_dic(dic, property):
     return {key: value[property] for key, value in dic.items() if property in value}
 
 
-def get_timestamp():
-    return datetime.datetime.now().strftime("%Y%m%d%H%M")
+def get_timestamp(form="%Y%m%d%H%M"):
+    return datetime.datetime.now().strftime(form)
 
 
 def graph_dict_time(dict_to_graph, path, **kwags):
