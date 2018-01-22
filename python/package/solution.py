@@ -78,8 +78,7 @@ class Solution(object):
     def get_in_maintenance(self):
         states = [(t, r) for (r, t), v in self.get_state().items() if v == 'M']
         in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
-        # TODO: add fixed maintenances? Or maybe it should be included in the states already
-        # fixed_maints = self.instance.get_fixed_maintenances()
+        # fixed maintenances should be included in the states already
         return aux.fill_dict_with_default(in_maint, self.get_periods())
 
     def graph_maintenances(self, path, **kwags):
