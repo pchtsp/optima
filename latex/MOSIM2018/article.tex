@@ -66,8 +66,8 @@
 \begin{tabular}{c}
 \bf \normalsize {Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin} \\
 \\
-     \normalsize ISAE-SUPAERO \\
-     \normalsize Université de Toulouse \\
+     \normalsize ISAE-SUPAERO, % \\
+     \normalsize Université de Toulouse, % \\
      \normalsize 31055 Toulouse cedex 4 - France\\
      \normalsize {\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
      \\
@@ -78,10 +78,18 @@
 \normalsize
 {\bf  ABSTRACT:}
 \rm
-{\em The Military Flight and Maintenance Planning problem is presented. In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular missions. The scheduling of maintenances and mission assignments is a tedious task currently done manually by specialized personnel. A MIP mathematical model is formulated in order to produce better quality solutions and reduce the time it takes to find them. The quality of the solutions is measured via a bi-objective function that smooths both maintenances and aircraft unavailability among time periods. A real world dataset provided by the French Airforce is used to test the implementation.}\\~\\
+{\em A specific Flight and Maintenance Planning problem is presented in this paper, regarding special requirements from the French Airforce's real-life operative.
+In this problem, preventive maintenance operations are scheduled for military aircraft, along with the assignment of regular missions, fulfilling requirements in terms of standards and retrofits. 
+The quality of the solutions is measured via a bi-objective function that smooths both maintenances and aircraft unavailability among time periods. 
+An exact optimization approach is provided by a Mixed Integer Programming model.
+A real world dataset is used to test the implementation.
+Mono-objective computations are solved to optimality for medium size instances, allowing to compute exactly the Pareto frontier of the bi-objective optimization problems.
+An industrial result is that these two objectives do not lead to the same optimal solution, but very good compromise solutions
+can be computed thanks to the bi-objective optimization.
+}\\~\\
 {\bf KEYWORDS:}
 \rm
-{\em optimization, planning, aircraft maintenance, MIP formulation, bi-objective optimization}
+{\em optimization, Flight and Maintenance Planning, aircraft maintenance, Mixed Integer Programming, bi-objective optimization}
 \end{minipage}
 }
 \maketitle
@@ -93,7 +101,15 @@
 
 \section{Introduction}
   
-  This paper presents a specific version of the Flight and Maintenance Problem, which we call Military Flight and Maintenance Problem. We provide a description of the problem, a mathematical formulation to obtain quality solutions for a bi-objective optimization function and experimental results to show both the quality of the solutions and the limitations of the technique.
+  Flight and Maintenance Planning (FMP) problems gather optimization problematics from civilian or military operational applications,
+  to schedule maintenances of aircrafts taking into account the implications of maintenance immobilizations for the demand in flight hours,
+  for a conjoint optimization among maintenance dates and flight hours.
+
+  The specific FMP  of this paper comes from the French Airforce's real-life operations, with two specificities regarding the state-of-the-art FMP.
+  On one hand, the fleet of aircraft is heterogeneous, with different standards, capacities and retrofits which are required for some missions.
+  On the other hand, there is a will to align two objectives: the smoothing of the maintenance planning in order to better use the maintenance capacities and for the organization of external contracting; and the minimization of the global unavailability of aircrafts to be able to add new missions. This last point raises a problematic of bi-objective optimization.
+
+  This paper investigates how to solve such new problematic, and how to take good compromise decisions if these objectives are antagonistic.
 
   The article is structured as follows:
 
@@ -362,14 +378,29 @@
 \section{Datasets}
   \label{sec:data}
   The dataset being used was provided by the French Airforce and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
-  Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments. The criteria for the creation of the instances was the following:
+  Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments. 
+
+  Table \ref{tab:instance} shows the characteristics of each instance. The main differences between instances are in the number of tasks and the number of periods.
+  
+  The criteria for the creation of the instances was the following:
 
     \begin{enumerate}
         \item The base instances was the biggest instance where an integer solution was found in less than 3600 seconds: all 11 tasks and 31 periods.
-        \item Take out the task with the biggest number of required resources.
-        \item Increase the number of periods in multiples of 10 until no integer solutions can be found in 3600 seconds.
-        \item Repeat step 2.
+        \item We take out the task with the biggest number of required resources.
+        \item We increased the number of periods in multiples of 10 until no integer solutions can be found in 3600 seconds.
+        \item Repeated step 2.
     \end{enumerate}
+
+  \begin{table}
+  \begin{center}
+
+  \input{tables/instance.tex}
+
+  \caption{Instances used in the experiments with indicators of size. "id" is the instance; $|\mathcal{T}|$ the number of periods; "assign" the number of assignments of resources to tasks; $|\mathcal{J}|$ the number of tasks; "vars" the number of variables; "cons" the number of constraints; and "nonzeros" the number of non zero values in the matrix}
+  \vspace{-0.5cm}
+  \label{tab:instance}
+  \end{center}
+  \end{table}
 
   \subsection{Tasks}
 
@@ -401,24 +432,13 @@
   \label{sec:results}
 
   All tests were run on a 64 bit Ubuntu 16.04 workstation with 16GB of RAM and Intel i7-6700HQ CPU \@ 2.60GHz x 8 processor.
-  Several experiments were done with the MIP formulation. Table \ref{tab:instance} shows the characteristics of each experiment. The main differences between instances is the number of tasks and the number of periods.
+  Several experiments were done with the MIP formulation, following instances created from the base dataset and shown in table \ref{tab:instance}.
 
   Table \ref{tab:summary} gives an overview on the results obtained for each of the executed instances. As can be seen, smaller instances are solved up to optimality while medium size ones are stopped after one hour.
 
   Both weights on the objective function were set at 1. For a sensibility analysis on these two parameters, see section \ref{sec:multi}.
 
   \begin{table}
-  \begin{center}
-
-  \input{tables/instance.tex}
-
-  \caption{Instances used in the experiments with indicators of size. "id" is the instance; $|\mathcal{T}|$ the number of periods; "assign" the number of assignments of resources to tasks; $|\mathcal{J}|$ the number of tasks; "vars" the number of variables; "cons" the number of constraints; and "nonzeros" the number of non zero values in the matrix}
-  \vspace{-0.5cm}
-  \label{tab:instance}
-  \end{center}
-  \end{table}
-
-    \begin{table}
   \begin{center}
 
   \input{tables/summary.tex}
@@ -429,9 +449,11 @@
   \end{center}
   \end{table}
 
-    Table \ref{tab:results} show the details of the solving process for each instance. As can be seen, cuts do not improve significantly the relaxation (bound cuts is very close to the root solution). In fact, the original lineal relaxation (root) is quite similar to the final lower bound (bound). This suggests further improvement in more compact modelization could help reduce the gap faster.
+  Table \ref{tab:results} show the details of the solving process for each instance. As can be seen, cuts do not improve significantly the relaxation ("bound cuts" is very close to the root solution). In fact, the original lineal relaxation (root) is quite similar to the final lower bound (bound). This suggests further improvement in more compact modelization could help reduce the gap faster.
 
-    The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance. Being these two generic cuts, it appears the solver has not detected any particular structure as part of this problem.
+  An example of tighter modelization could be to replace the constraints that count the remaining usage time and elapsed time for tighter equivalents. 
+  
+  The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance. Being these two generic cuts, it appears the solver has not detected any particular structure as part of this problem.
 
   \begin{table}
   \begin{center}
@@ -444,11 +466,30 @@
   \end{center}
   \end{table}
 
+  \begin{figure}
+    \centering
+      \includegraphics[width=0.5\textwidth]{./../../img/num-maintenances.png}
+    \caption{Solution for instance id=I\_7: number of resources under maintenance at each period.}
+    \label{fig:num-maintenances}
+  \end{figure}
+
+    \begin{figure}
+    \centering
+      \includegraphics[width=0.5\textwidth]{./../../img/num-maintenances.png}
+    \caption{Solution for instance id=I\_7: number of unavailable resources at each period.}
+    \label{fig:num-unavailable}
+  \end{figure}
+
+
   The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail of this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite big in comparison with the optimal.
+
+  Figures \ref{fig:num-maintenances} and \ref{fig:num-unavailable} show the solution for the maintenance and unavailable smoothing objectives, respectively.
 
   For two, rather small, instances the solver was able to find an optimal solution before starting to branch. In these two instances, the missing values have been replaced by "-1".
 
-  These results show how the branching is not providing with much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task: there exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
+  These results show how the branching is not providing much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task. There appears to exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
+
+  An example to break these symmetries could be to slightly change the objective function so it can measure more gradually the smoothness of the objective and help get better bounds. Another alternative could be to assign priorities to some combinations of resource-task or to limit the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks. Finally, arbitrarily preassigning (fixing) the final state (in terms of remaining usage time) to each resource could also help break those symmetries without sacrificing too much optimality.
 
   \begin{table}
   \begin{center}
@@ -468,25 +509,26 @@
     \label{fig:progress}
   \end{figure}
 
+    As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, it is predicted that the present instances will grow bigger. 
+    This, of course, will require new and better techniques to decompose the problem into smaller problems using heuristics or to take a decomposition approach such as Column Generation.
 
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    In order to understand the sensibility of the weights $W_1$ and $W_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 9 tasks corresponding to id=I\_1.
+    In order to understand the sensibility of the weights $w_1$ and $w_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 10 tasks corresponding to id=I\_5.
 
-    The instances that were chosen solved up to optimality.
+    The experiments done with this instance solved up to optimality.
 
     In figure \ref{fig:pareto} it is possible to see that there are at least three Pareto optimal points. Further analysis must be done with different instances to obtain insights on the relation between the two objectives.
 
     The bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions.
-
 
   \begin{table}[h]
   \begin{center}
 
   \input{tables/multiobj.tex}
 
-  \caption{Comparison of instances where variations on the weight of its two objectives has been done. Instance I\_1. All experiments were solved to optimality.}
+  \caption{Comparison of experiments where variations on the weight of its two objectives has been done. Instance id=I\_5. All experiments were solved to optimality.}
   \vspace{-0.5cm}
   \label{tab:multiobj}
   \end{center}
@@ -495,22 +537,42 @@
   \begin{figure}
     \centering
       \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
-    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=I\_1.}
+    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=I\_5.}
     \label{fig:pareto}
   \end{figure}
+
+    A second analysis was done on all the previously defined instances (see \ref{tab:instance}). This second analysis is similar to the first one but included all of the instances instead of just picking one. The analysis had as objective to observe the amount of Pareto optimal points for each instance.
+
+    Table \ref{tab:multmultiobj} shows the results of this analysis. It can be seen that almost all of the instances have a small number of Pareto optimal solutions. This shows how both objectives really are quite aligned one with the other.
+
+  \begin{table}[h]
+  \begin{center}
+
+  \input{tables/multi-multiobj.tex}
+
+  \caption{Pareto optimal points found on each instance after 3600 seconds. All instances were analyzed. "First" and "Last" indicate the two extremes of the Pareto frontier. "\# points" indicates the number of Pareto optimal points found. Not all experiments were solved up to optimality.}
+  \vspace{-0.5cm}
+  \label{tab:multmultiobj}
+  \end{center}
+  \end{table}
 
 \section{Conclusions and further work}
   \label{sec:conclusions}
 
-  The results show that a direct exact method to solve the whole dataset may not be ideal. Although medium size instances have been solved, the complete dataset is not solved in a reasonable time for more horizons bigger than 10 periods. Still, the analysis on the progress of the lower bound shows that further work can be done to improve the model in order for it to have a tighter, better relaxation. One possibility is to replace the constraints that count the remaining usage time and elapsed time for tighter constraints. Another possibility is slightly changing the objective function so it can measure more gradually the smoothness of the objective and help get better bounds.
+  This paper proposed a new MIP formulation to address a specific FMP with an heterogeneous fleet of aircraft with different  capacities and retrofits which are required for some missions.
+  Two objective functions were modeled to tackle the  bi-objective optimization problematic, trying to maximize both  the aircraft availability 
+  and the smoothness of maintenances.
+  MIP convergence characteristics are analyzed on real-world instances.
+  Mono-objective computations are solved to optimality for medium size instances, allowing to compute exactly the Pareto frontier of the bi-objective optimization problems.
+  An industrial result is that these two objectives  do not lead to the same optimal solution, but very good compromise solutions
+  can be computed thanks to the bi-objective optimization.
+  For larger instances, difficulties occurred because of multiple symmetries and a poor quality of MIP generic primal heuristics.
 
-  Regarding the multi-objective nature of the problem, to confirm the true number of solutions, an analysis using epsilon constrains should follow. Further tests with different, bigger, instances could also reveal more information regarding the relation between the two objectives. In addition to this, new objectives could be included into the analysis, such as smoothing the remaining usage time among periods instead of doing it only in the last period.
-
-  Regarding the branching and symmetries: this could be handled by assigning priorities to some combinations of resource-task or by limiting the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks. Finally, arbitrarily preassigning (fixing) the final state (in terms of remaining usage time) to each resource could also help break those symmetries.
-
-  As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, it is predicted that the present instances will grow bigger. This, of course, will require new and better techniques to decompose the problem into smaller problems using heuristics or to take a decomposition approach such as Column Generation.
-
-  Finally, this work presents a first step useful into the solving of the Military Flight and Maintenance Planning. The model presented provides already good initial solutions and also the potential of solving even bigger, more complex problems.
+  A first perspective is to improve the resolution for large size instances. Heuristics are a first research direction, but also mathematical programming work to improve the exact resolution
+  with symmetry breaking or MIP reformulations. 
+  For the bi-objective optimization for large size instances, more advanced bi-objective methods such as $\epsilon$-constraints or Two-Phases-Method are likely to be investigated
+  for the computation of larger Pareto frontiers.
+  Lastly, additional constraints from the real world application can be incorporated in the model.
 
 \bibliographystyle{dcu}
 \bibliography{./../biblio/MFMP}
