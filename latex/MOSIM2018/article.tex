@@ -78,8 +78,8 @@
 \normalsize
 {\bf  ABSTRACT:}
 \rm
-{\em A specific Flight and Maintenance Planning problem is presented in this paper, regarding special requirements from the French Airforce's real-life operative.
-In this problem, preventive maintenance operations are scheduled for military aircraft, along with the assignment of regular missions, fulfilling requirements in terms of standards and retrofits. 
+{\em A specific Flight and Maintenance Planning problem is presented in this paper, regarding special requirements from the French Air Force's real-life operative.
+In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular missions, fulfilling requirements in terms of standards and retrofits. 
 The quality of the solutions is measured via a bi-objective function that smooths both maintenances and aircraft unavailability among time periods. 
 An exact optimization approach is provided by a Mixed Integer Programming model.
 A real world dataset is used to test the implementation.
@@ -101,13 +101,13 @@ can be computed thanks to the bi-objective optimization.
 
 \section{Introduction}
   
-  Flight and Maintenance Planning (FMP) problems gather optimization problematics from civilian or military operational applications,
-  to schedule maintenances of aircrafts taking into account the implications of maintenance immobilizations for the demand in flight hours,
+  Flight and Maintenance Planning (FMP) problems gather optimization problematics from civilian or military operational applications. 
+  They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours,
   for a conjoint optimization among maintenance dates and flight hours.
 
-  The specific FMP  of this paper comes from the French Airforce's real-life operations, with two specificities regarding the state-of-the-art FMP.
+  The specific FMP  of this paper comes from the French Air Force's real-life operations, with two specificities regarding the state-of-the-art FMP.
   On one hand, the fleet of aircraft is heterogeneous, with different standards, capacities and retrofits which are required for some missions.
-  On the other hand, there is a will to align two objectives: the smoothing of the maintenance planning in order to better use the maintenance capacities and for the organization of external contracting; and the minimization of the global unavailability of aircrafts to be able to add new missions. This last point raises a problematic of bi-objective optimization.
+  On the other hand, there is a will to align two objectives: the smoothing of the maintenance planning in order to better use the maintenance capacities and for the organization of external contracting; and the minimization of the global unavailability of aircraft to be able to add new missions. This last point raises a problematic of bi-objective optimization.
 
   This paper investigates how to solve such new problematic, and how to take good compromise decisions if these objectives are antagonistic.
 
@@ -121,7 +121,7 @@ can be computed thanks to the bi-objective optimization.
 
 \section{Problem statement}
   \label{sec:problem}
-  The problem consists in assigning resources to predefined tasks and scheduling periodic preventive maintenances for these same resources in order to keep them ready for doing tasks in the future. In order to generalize the formulation of the model, in the description presented below, the following naming convention has been adopted: aircraft are called resources, missions are called tasks.
+  The problem consists in assigning resources to predefined tasks and scheduling periodic preventive maintenances for these same resources in order to keep them ready for doing (more) tasks in the future. In order to generalize the formulation of the model, in the description presented below, the following naming convention has been adopted: aircraft are called resources, missions are called tasks.
 
   \subsection{Tasks}
     \label{def:task}
@@ -130,9 +130,10 @@ can be computed thanks to the bi-objective optimization.
     
     During each assigned period, tasks use the assigned resources for a time $H_j$.
 
-    The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($MT$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. The total number of resources being used at any given time in a specific task can never be less than the required $R_j$.
+    % The assignment of a resource to a task is not decided for the whole duration of the task. After a minimum amount of time ($MT$), a resource can be freed and exchanged for another one, even if the task it is assigned to has not finished. 
+    The total number of resources being used at any given time in a specific task can never be less than the required $R_j$.
 
-    Finally, tasks have a set of requisites that the resources that can be assigned to it need to comply with.
+    Finally, tasks have a set of requisites that the resources that can be assigned to it need to comply with. Each task requires one and only one type of resource. In addition to this, specific functionalities can be demanded by the task.
 
   \subsection{Resources}
     \label{def:res}
@@ -151,7 +152,7 @@ can be computed thanks to the bi-objective optimization.
         % \item remaining absolute elapsed time.
         % \item remaining absolute usage time.
         % \item remaining storage time (see \ref{def:sto}).
-        \item type of last maintenance (see \ref{def:maint}).
+        % \item type of last maintenance (see \ref{def:maint}).
     \end{itemize}
 
 
@@ -203,7 +204,7 @@ can be computed thanks to the bi-objective optimization.
   \subsection{Horizon}
     \label{def:hor}
 
-    In planning tasks and maintenances, it is important to take into account the initial state of each resource. This initial state can be a maintenance or an assigned task. If a resource is under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
+    In planning tasks and maintenances, it is important to take into account the initial and end state of each resource. This initial state can be a maintenance or an assigned task. If a resource is under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
 
     On the other hand, the remaining used and elapsed times need to be assigned to each resource at the beginning of the planning period.
 
@@ -213,7 +214,7 @@ can be computed thanks to the bi-objective optimization.
     
     The are multiple objectives that need to be taken into account. In this study two will be addressed. 
 
-    Given that the creation of new tasks and the duration of maintenance are considered stochastic, one basic goal is to maximize the robustness of the planning by having the greatest amount of available resources at every period of the planning horizon. 
+    Given that the creation of new tasks and the duration of maintenance are considered stochastic in real-life, one basic goal is to maximize the robustness of the planning by having the greatest amount of available resources at every period of the planning horizon. 
 
     Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of resources under maintenance over the planning horizon.
 
@@ -243,7 +244,7 @@ can be computed thanks to the bi-objective optimization.
 
   Other differences include the following.
 
-  First of all, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
+  Firstly, the objective function's motivation is on reducing the load on the maintenance facilities and guaranteeing the availability of the fleet instead of reducing the cost. Also, the maintenance operations take considerably longer and the rules that govern the maintenances are different.
 
   The temporal scope of the problem is also bigger, making the normal planning horizon bigger and each period bigger too: months instead of days. On the other hand, the physical scope, while present in the commercial planning, is not present in the military one: aircraft are assumed to return to the origin every time.
 
@@ -254,7 +255,7 @@ can be computed thanks to the bi-objective optimization.
 
   In \cite{Verhoeff2015}, a model for the Royal Netherlands Air Force was developed. Here, three criteria for improving the planning robustness are presented and applied in a MIP model: availability, serviceability and sustainability.
 
-  With respect to heuristic methods for solving this problem, both \cite{Kozanidis2008} and \cite{Cho2011} already presented alternatives to the MIP formulation for solving bigger instances with reduced scope. In \cite{steiner2006heuristic}, a constructive, stepped heuristic approach is described to obtain balanced maintenances for the Swiss Air Force. Both calendar-based maintenances actions (CBMA) and usage-based maintenance actions (UBMA) are used. In \cite{gavranis2015exact}, an exact algorithm was presented and tested on instances of 6 periods and between 10 and 200 aircraft for the special case of maximizing the residual flight time availability or total remaining usage time. Finally, in \cite{kozanidis2014heuristics}, two heuristics to solve big instances of the problem by taking consecutive decisions period by period with the help of mathematical models at each step.
+  With respect to heuristic methods for solving this problem, both \cite{Kozanidis2008} and \cite{Cho2011} already presented alternatives to the MIP formulation for solving bigger instances with reduced scope. In \cite{steiner2006heuristic}, a constructive, stepped heuristic approach is described to obtain balanced maintenances for the Swiss Air Force. Both calendar-based maintenances actions (CBMA) and usage-based maintenance actions (UBMA) are used. In \cite{gavranis2015exact}, an exact algorithm was presented and tested on instances of 6 periods and between 10 and 200 aircraft for the special case of maximizing the residual flight time availability or total remaining usage time. Finally, in \cite{kozanidis2014heuristics}, two heuristics are presented to solve big instances of the problem by taking consecutive decisions period by period with the help of mathematical models at each step.
 
   Regarding operational-level planning, a more detailed implementation is found in \cite{safaei2011workforce}, where the specific conditions during the maintenances operations are taken into account to schedule the maintenance jobs, such as the workforce skills and availability.
 
@@ -273,7 +274,7 @@ can be computed thanks to the bi-objective optimization.
     \begin{tabular}{p{8mm}p{67mm}}
         $H_j$             & amount of usage time for resources used in task $j$. \\
         $R_j$             & amount of resources that task $j$ needs when active. \\
-        $MT$              & minimum number of periods a resource can be assigned to a task. \\
+        % $MT$              & minimum number of periods a resource can be assigned to a task. \\
         % $aut_i$           & maximal absolute usage time for resource $i$. \\
         % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
         $M$               & maintenance duration in number of periods. \\
@@ -297,7 +298,7 @@ can be computed thanks to the bi-objective optimization.
         $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
         $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to each task $j$. \\
         $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - m+1\}},  ..., {t}$\}. \\
+        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. \\
     \end{tabular}
 
   \subsection{Variables}
@@ -363,7 +364,7 @@ can be computed thanks to the bi-objective optimization.
                 & i \in \mathcal{I} \label{eq:ret_initial}\\
         & ret_{it} \geq E m_{it}
                 & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
-        & ret_{it} \in [0,me]
+        & ret_{it} \in [0,E]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
         & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
               & t = |\mathcal{T}| \label{eq:min_ret}\\
@@ -377,7 +378,7 @@ can be computed thanks to the bi-objective optimization.
 
 \section{Datasets}
   \label{sec:data}
-  The dataset being used was provided by the French Airforce and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
+  The dataset being used was provided by the French Air Force and already used by the French Defense Procurement Agency in \cite{Chastellux2017}.
   Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments. 
 
   Table \ref{tab:instance} shows the characteristics of each instance. The main differences between instances are in the number of tasks and the number of periods.
@@ -385,10 +386,10 @@ can be computed thanks to the bi-objective optimization.
   The criteria for the creation of the instances was the following:
 
     \begin{enumerate}
-        \item The base instances was the biggest instance where an integer solution was found in less than 3600 seconds: all 11 tasks and 31 periods.
+        \item The base instances was the biggest instance where an integer solution was found in less than 3600 seconds: all 11 tasks and 21 periods.
         \item We take out the task with the biggest number of required resources.
         \item We increased the number of periods in multiples of 10 until no integer solutions can be found in 3600 seconds.
-        \item Repeated step 2.
+        \item We repeated step 2.
     \end{enumerate}
 
   \begin{table}
@@ -417,7 +418,7 @@ can be computed thanks to the bi-objective optimization.
   \subsection{Resources}
 
     There are 127 resources in total. Each one with its functionalities and past assignments.
-    The distribution of initial usage times is shown in the figure \ref{fig:histogramUsage}. It can be seen that the aircraft do not necessarily follow an horizontal line.
+    The distribution of initial usage times is shown in the figure \ref{fig:histogramUsage}. It can be seen that the distribution of remaining usage times does not necessarily follow an horizontal line as is expected.
 
     \begin{figure}
       \centering
@@ -434,24 +435,26 @@ can be computed thanks to the bi-objective optimization.
   All tests were run on a 64 bit Ubuntu 16.04 workstation with 16GB of RAM and Intel i7-6700HQ CPU \@ 2.60GHz x 8 processor.
   Several experiments were done with the MIP formulation, following instances created from the base dataset and shown in table \ref{tab:instance}.
 
-  Table \ref{tab:summary} gives an overview on the results obtained for each of the executed instances. As can be seen, smaller instances are solved up to optimality while medium size ones are stopped after one hour.
+  Table \ref{tab:summary} gives an overview on the results obtained for each of the executed instances. As can be seen, smaller instances are solved up to optimality while medium-size ones are stopped after one hour.
 
-  Both weights on the objective function were set at 1. For a sensibility analysis on these two parameters, see section \ref{sec:multi}.
+  Both weights on the objective function were set at 1. For a sensibility analysis of these two parameters, see section \ref{sec:multi}.
+
+  It is worth noticing that the final gap between integer and lineal solutions is relatively small given that instances only a little bigger did not provide an integer solution after 3600 seconds.
 
   \begin{table}
   \begin{center}
 
   \input{tables/summary.tex}
 
-  \caption{Solution information for each tested instance. "id" is the instance identifier; "objective" the best integer solution found; "gap" the percentage gap between the integer solution and the lineal relaxation; "time (s)" the time limit that was chosen; and "bound" the lower bound from the lineal relaxation}
+  \caption{Solution information for each tested instance. "id" is the instance identifier; "objective" the best integer solution found; "gap" the percentage gap between the integer solution and the lineal relaxation; "time (s)" the time it took to solve or 3600; and "bound" the biggest lower bound found from the lineal relaxation}
   \vspace{-0.5cm}
   \label{tab:summary}
   \end{center}
   \end{table}
 
-  Table \ref{tab:results} show the details of the solving process for each instance. As can be seen, cuts do not improve significantly the relaxation ("bound cuts" is very close to the root solution). In fact, the original lineal relaxation (root) is quite similar to the final lower bound (bound). This suggests further improvement in more compact modelization could help reduce the gap faster.
+  Table \ref{tab:results} shows the details of the solving process for each instance. As can be seen, cuts do not improve significantly the relaxation ("bound cuts" is very close to the root solution). In fact, the original lineal relaxation (root) is quite similar to the final lower bound (bound). This suggests further improvement in more compact modelization could help reduce the gap faster.
 
-  An example of tighter modelization could be to replace the constraints that count the remaining usage time and elapsed time for tighter equivalents. 
+  An example of tighter modelization could be to replace the constraints that count the remaining usage time and elapsed time for tighter equivalents.
   
   The biggest amount of cuts that were used were 'Implied bound' and 'Mixed integer rounding', depending on the instance. Being these two generic cuts, it appears the solver has not detected any particular structure as part of this problem.
 
@@ -466,30 +469,11 @@ can be computed thanks to the bi-objective optimization.
   \end{center}
   \end{table}
 
-  \begin{figure}
-    \centering
-      \includegraphics[width=0.5\textwidth]{./../../img/num-maintenances.png}
-    \caption{Solution for instance id=I\_7: number of resources under maintenance at each period.}
-    \label{fig:num-maintenances}
-  \end{figure}
+  The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail on this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite big in comparison with the optimal due to the use of heuristics being run at the beginning of the solving process. In fact, for two rather small instances the solver was able to find an optimal solution before starting to branch. In these two instances, the missing values have been replaced by "-1".
 
-    \begin{figure}
-    \centering
-      \includegraphics[width=0.5\textwidth]{./../../img/num-maintenances.png}
-    \caption{Solution for instance id=I\_7: number of unavailable resources at each period.}
-    \label{fig:num-unavailable}
-  \end{figure}
+  Both graphically and tabularly, results show that the branching is not providing much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task. There appears to exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
 
-
-  The table \ref{tab:results2} show the progress of the integer solution for each instance. For more detail of this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite big in comparison with the optimal.
-
-  Figures \ref{fig:num-maintenances} and \ref{fig:num-unavailable} show the solution for the maintenance and unavailable smoothing objectives, respectively.
-
-  For two, rather small, instances the solver was able to find an optimal solution before starting to branch. In these two instances, the missing values have been replaced by "-1".
-
-  These results show how the branching is not providing much improvement in increasing the lower bound or finding better integer solutions. This hints into a possible reason for the difficult in solving big instances: the quantity of symmetries in the model, represented as candidates for each task. There appears to exist a very big number of possible candidates to be potentially assigned for each task with respect with the actual needed resources for the task. This reduces the capacity of the branching the solver does by making it explore many nodes that are really almost equivalent.
-
-  An example to break these symmetries could be to slightly change the objective function so it can measure more gradually the smoothness of the objective and help get better bounds. Another alternative could be to assign priorities to some combinations of resource-task or to limit the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks. Finally, arbitrarily preassigning (fixing) the final state (in terms of remaining usage time) to each resource could also help break those symmetries without sacrificing too much optimality.
+  An example of an alternative to break these symmetries could be to slightly change the objective function so it can measure more gradually the smoothness of the objective and help get better bounds. Another alternative could be to assign priorities to some combinations of resource-task or to limit the number of candidates that can be assigned to each task by some heuristic that clusters resources with tasks. Finally, arbitrarily preassigning (fixing) the final state (in terms of remaining usage time) to each resource could also help break those symmetries without sacrificing too much optimality.
 
   \begin{table}
   \begin{center}
@@ -509,52 +493,70 @@ can be computed thanks to the bi-objective optimization.
     \label{fig:progress}
   \end{figure}
 
-    As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, it is predicted that the present instances will grow bigger. 
-    This, of course, will require new and better techniques to decompose the problem into smaller problems using heuristics or to take a decomposition approach such as Column Generation.
+  As new constraints are added, such as minimum durations for assignments and the possibility to "store" resources for a predefined time, it is predicted that the present instances will grow bigger. 
+  This, of course, will require new and better techniques to decompose the problem into smaller problems using heuristics or to take a decomposition approach such as Column Generation.
+
+  As an example, figures \ref{fig:num-maintenances} and \ref{fig:num-unavailables} show the solution for the maintenance and unavailable smoothing objectives, respectively.
+
+  \begin{figure}
+    \centering
+      \includegraphics[width=0.5\textwidth]{./../../img/num-maintenances.png}
+    \caption{Solution for instance id=I\_7: number of resources under maintenance at each period.}
+    \label{fig:num-maintenances}
+  \end{figure}
+
+  \begin{figure}
+    \centering
+      \includegraphics[width=0.5\textwidth]{./../../img/num-unavailables.png}
+    \caption{Solution for instance id=I\_7: number of unavailable resources at each period.}
+    \label{fig:num-unavailables}
+  \end{figure}
+
 
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    In order to understand the sensibility of the weights $w_1$ and $w_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. Table \ref{tab:multiobj} shows the obtained results for each instance. The base instance that was used for this comparison was the one of 21 periods and 10 tasks corresponding to id=I\_5.
+    In order to understand the sensibility of the weights $W_1$ and $W_2$ on the solution, a bi-objective analysis was done. In it, both weights were changed between 0 and 1 in intervals of 0.1 so that they always summed 1. This was done in all of the previously defined instances (see \ref{tab:instance}).
 
-    The experiments done with this instance solved up to optimality.
+    Table \ref{tab:multmultiobj} shows the results of this analysis. It can be seen that all of the instances have a small number of Pareto optimal solutions.
 
-    In figure \ref{fig:pareto} it is possible to see that there are at least three Pareto optimal points. Further analysis must be done with different instances to obtain insights on the relation between the two objectives.
+    \begin{table}[h]
+    \begin{center}
 
-    The bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions.
+    \input{tables/multi-multiobj.tex}
 
-  \begin{table}[h]
-  \begin{center}
+    \caption{Pareto optimal points found on each instance after 3600 seconds. All instances were analyzed. "First" and "Last" indicate the two extremes of the Pareto frontier. "\# points" indicates the number of Pareto optimal points found. Not all experiments were solved up to optimality.}
+    \vspace{-0.5cm}
+    \label{tab:multmultiobj}
+    \end{center}
+    \end{table}
 
-  \input{tables/multiobj.tex}
+    More particularly, an individual instance was analyzed, where an optimal solution was found in each experiment.
+    Table \ref{tab:multiobj} shows the obtained results for each experiment. The base instance that was used for this comparison was the one of 21 periods and 10 tasks corresponding to id=I\_5.
 
-  \caption{Comparison of experiments where variations on the weight of its two objectives has been done. Instance id=I\_5. All experiments were solved to optimality.}
-  \vspace{-0.5cm}
-  \label{tab:multiobj}
-  \end{center}
-  \end{table}
+    In figure \ref{fig:pareto} it is possible to see the different solutions for this instance.
 
-  \begin{figure}
-    \centering
-      \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
-    \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=I\_5.}
-    \label{fig:pareto}
-  \end{figure}
+    This bi-objective analysis appears to indicate the existence of a small number of solutions that are Pareto optimal. If this is the case, an iterative approach that explores these solutions could be done. Improvement in the mono-objective modeling could also lead to producing non-dominated solutions. 
 
-    A second analysis was done on all the previously defined instances (see \ref{tab:instance}). This second analysis is similar to the first one but included all of the instances instead of just picking one. The analysis had as objective to observe the amount of Pareto optimal points for each instance.
+    Finally, the results show that both objectives are quite aligned one with the other.
 
-    Table \ref{tab:multmultiobj} shows the results of this analysis. It can be seen that almost all of the instances have a small number of Pareto optimal solutions. This shows how both objectives really are quite aligned one with the other.
+    \begin{table}[h]
+    \begin{center}
 
-  \begin{table}[h]
-  \begin{center}
+    \input{tables/multiobj.tex}
 
-  \input{tables/multi-multiobj.tex}
+    \caption{Comparison of experiments where variations on the weight of its two objectives has been done. Instance id=I\_5. All experiments were solved to optimality.}
+    \vspace{-0.5cm}
+    \label{tab:multiobj}
+    \end{center}
+    \end{table}
 
-  \caption{Pareto optimal points found on each instance after 3600 seconds. All instances were analyzed. "First" and "Last" indicate the two extremes of the Pareto frontier. "\# points" indicates the number of Pareto optimal points found. Not all experiments were solved up to optimality.}
-  \vspace{-0.5cm}
-  \label{tab:multmultiobj}
-  \end{center}
-  \end{table}
+    \begin{figure}
+      \centering
+        \includegraphics[width=0.5\textwidth]{./../../img/multiobjective.png}
+      \caption{Pareto diagram comparing the quality of both objectives for each instance. Instance id=I\_5.}
+      \label{fig:pareto}
+    \end{figure}
 
 \section{Conclusions and further work}
   \label{sec:conclusions}
@@ -564,7 +566,7 @@ can be computed thanks to the bi-objective optimization.
   and the smoothness of maintenances.
   MIP convergence characteristics are analyzed on real-world instances.
   Mono-objective computations are solved to optimality for medium size instances, allowing to compute exactly the Pareto frontier of the bi-objective optimization problems.
-  An industrial result is that these two objectives  do not lead to the same optimal solution, but very good compromise solutions
+  An industrial result is that these two objectives do not lead to the same optimal solution, but very good compromise solutions
   can be computed thanks to the bi-objective optimization.
   For larger instances, difficulties occurred because of multiple symmetries and a poor quality of MIP generic primal heuristics.
 
