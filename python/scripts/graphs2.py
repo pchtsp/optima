@@ -195,10 +195,10 @@ def multiobjective_table():
     path_comp = path_abs + "weights2/"
     data_dic = multi_get_info(path_comp)
 
-    cols_rename = {'maint_weight': '$w_1$', 'unavail_weight': '$w_2$', 'index': 'exp', 'gap': 'gap (\%)'}
+    cols_rename = {'maint_weight': '$W_1$', 'unavail_weight': '$W_2$', 'index': 'exp', 'gap': 'gap (\%)'}
     data = pd.DataFrame.from_dict(data_dic, orient='index').reset_index().rename(columns=cols_rename)
     data.exp = data.exp.apply(lambda x: 'W' + x.zfill(2))
-    data = data.sort_values("exp")[['exp', 'maint', 'unavailable', '$w_1$', '$w_2$']]
+    data = data.sort_values("exp")[['exp', 'maint', 'unavailable', '$W_1$', '$W_2$']]
     latex = data.to_latex(bold_rows=True, index=False, escape=False)
     with open(path_latex + 'MOSIM2018/tables/multiobj.tex', 'w') as f:
         f.write(latex)
@@ -231,18 +231,18 @@ def multi_multiobjective_table():
 
     pareto_dict = {key: {} for key in data_dic}
     # pareto_p2 = {}
-    for key in data_dic:
+    for key, value in data_dic.items():
         # key = '201801141646'
-        x = aux.get_property_from_dic(d[key], 'maint')
-        y = aux.get_property_from_dic(d[key], 'unavailable')
+        x = aux.get_property_from_dic(value, 'maint')
+        y = aux.get_property_from_dic(value, 'unavailable')
         points1 = get_pareto_points(x, y)
         points2 = get_pareto_points(y, x)
         points = np.intersect1d(points1, points2).tolist()
         pareto_dict[key]['points'] = points
         point = points[0]
-        pareto_dict[key]['first'] = (x[point], y[point])
+        pareto_dict[key]['First'] = (x[point], y[point])
         point = points[-1]
-        pareto_dict[key]['last'] = (x[point], y[point])
+        pareto_dict[key]['Last'] = (x[point], y[point])
 
     table_ref = get_results_table(path_abs)
     table_ref = table_ref[['date', 'index']].set_index('date')
@@ -250,7 +250,7 @@ def multi_multiobjective_table():
     table['\# points'] = table.points.apply(len)
     table = pd.merge(table_ref, table, left_index=True, right_index=True).\
         reset_index(drop=True).rename(columns={'index': 'id'})
-    data = table[['id', '\# points', 'first', 'last']]
+    data = table[['id', '\# points', 'First', 'Last']]
     latex = data.to_latex(bold_rows=True, index=False, escape=False)
     with open(path_latex + 'MOSIM2018/tables/multi-multiobj.tex', 'w') as f:
         f.write(latex)
@@ -375,10 +375,10 @@ if __name__ == "__main__":
 
     # maintenances_graph()
     # maintenances_graph(maint=False)
-    d = multi_multiobjective_table()
-    pp.pprint(d)
+    multi_multiobjective_table()
+    # pp.pprint(d)
     # for x_key in x:
     #     print(x[x_key], y[x_key])
 
-
+    # multiobjective_table()
     # pp.pprint(pareto_p2)

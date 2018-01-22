@@ -62,8 +62,9 @@ def_options = {
     , 'gap': 0
     , 'solver': "CPLEX"
     , 'path':
-        '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/weights2/'
+        '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/weights3/'
     , "model": "no_states"
+    , "timestamp": aux.get_timestamp()
     # , "comments": "periods 0 to 30 without tasks: O10, O8"
 }
 
@@ -77,21 +78,4 @@ if __name__ == "__main__":
     # working(instance, def_options, weight_options)
     # duration = datetime.datetime.now() - time
     # print("The time it took = {} seconds".format(duration.seconds))
-
-    results = {}
-
-    for pos, w in enumerate(weight_options):
-        name = str(int(w * 10))
-        instance.data["parameters"]['maint_weight'] = w
-        instance.data["parameters"]['unavail_weight'] = 1 - w
-        options = dict(def_options)
-        options["weights"] = {'maint_weight': w, 'unavail_weight': 1 - w}
-        options["path"] += name + '/'
-        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
-        di.export_data(options['path'], options, name="options", file_type='json')
-
-        # solving part:
-        solution = md.model_no_states(instance, options)
-        if solution is not None:
-            di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-
+    pass
