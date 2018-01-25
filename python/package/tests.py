@@ -8,6 +8,7 @@ import package.instance as inst
 import os
 import shutil
 import pprint as pp
+import re
 
 
 # TODO: make Experiment subclass of Solution.
@@ -211,14 +212,17 @@ class Experiment(object):
         return in_maint * weight1 + unavailable * weight2
 
 
-def clean_experiments(path, clean=True):
+def clean_experiments(path, clean=True, regex=""):
     """
     loads and cleans all experiments that are incomplete
     :param path: path to experiments
     :param clean: if set to false it only does not delete them
     :return: deleted experiments
     """
-    exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+    exps_paths = [os.path.join(path, f) for f in os.listdir(path)
+                  if os.path.isdir(os.path.join(path, f))
+                  if re.search(regex, f)
+                  ]
     to_delete = []
     for e in exps_paths:
         exp = Experiment.from_dir(e, format="json")

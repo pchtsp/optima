@@ -45,9 +45,9 @@ def generate_data_from_csv(directory=r'../data/csv/'):
     return {csvfiles_dict[csv]: pd.read_csv(directory + csv) for csv in csvfiles}
 
 
-def get_model_data():
+def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
     # we import the data set.
-    table = generate_data_from_source()
+    table = generate_data_from_source(source=source)
 
     params = table['Parametres']
 
@@ -129,6 +129,8 @@ def get_model_data():
             , 'end': tasks_data.end.to_dict()[task]
             , 'consumption': tasks_data['MaxPu/avion/mois'].to_dict()[task]
             , 'num_resource': tasks_data.nombreRequisA1.to_dict()[task]
+            , 'type_resource': tasks_data['Type'].to_dict()[task]
+            , 'matricule': tasks_data['MatriculeMission'].to_dict()[task]
             , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].
                 apply(lambda x: x.tolist()).to_dict()[task]
         } for task in av_tasks
@@ -231,13 +233,20 @@ def get_log_info_gurobi(path):
     regex = r'Optimize a model with {0} rows, {0} columns and {0} nonzeros'.format(numberSearch)
     size = re.search(regex, content)
 
+    regex = r"Explored {0} nodes \({0} simplex iterations\) in {0} seconds".format(numberSearch)
+    stats = re.findall(regex, content)
+    time_out = -1
+    if stats:
+        time_out = float(stats[0][2])
+
     return {
         'bound_out': float(solution.group(2)),
         'objective_out': float(solution.group(1)),
         'gap_out': float(solution.group(3)),
         'cons': int(size.group(1)),
         'vars': int(size.group(2)),
-        'nonzeros': int(size.group(3))
+        'nonzeros': int(size.group(3)),
+        'time_out': time_out
     }
 
 
@@ -354,6 +363,38 @@ def get_log_info_cplex_progress(path):
     return progress
 
 
+def import_pie_solution(path_solution, path_input):
+    path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
+    path_input = "/home/pchtsp/Documents/projects/PIE/glouton/parametres_DGA_final.xlsm"
+    model_data = get_model_data(path_input)
+    table = pd.read_csv(path_solution, sep=';')
+    periods = [i for i in range(1, len(table.columns))]
+    table.columns = ['resource'] + periods
+    table = pd.melt(table, value_vars=periods, id_vars=['resource'])
+    table = table[~pd.isna(table.value)]
+    table = table[~(table.value == '-')]
+
+    resources_equiv = aux.get_property_from_dic(model_data["resources"], 'code')
+
+    elements = table.value.str.split('$')
+    ismission = elements.apply(lambda x: len(x) == 2)
+    state = table[~ismission].reset_index(drop=True)
+    state.value = "M"
+    state_dict = state.set_index(['resource', 'variable'])['value'].to_dict()
+    state_dict = aux.dicttup_to_dictdict(state_dict)
+
+
+    table.value = elements.apply(lambda x: x[0])
+
+    tasks_equiv = aux.get_property_from_dic(model_data["tasks"], 'matricule')
+
+    missions = table[ismission]
+    missions_dict = missions.set_index(['resource', 'variable'])['value'].to_dict()
+    missions_dict = aux.dicttup_to_dictdict(missions_dict)
+
 if __name__ == "__main__":
-    get_model_data()
+    # get_model_data()
+    path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
+    path_input = "/home/pchtsp/Documents/projects/PIE/glouton/parametres_DGA_final.xlsm"
+    import_pie_solution(path_solution, path_input)
     pass
