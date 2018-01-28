@@ -252,7 +252,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
   It should be noted that previous formulations only consider an aggregate demand in flight hours for all aircraft.
   The aircraft are assumed to be homogeneous and interchangeable.
-  The use of aggregate demand makes it impossible to optimize the task assignments for aircraft.
+  The use of aggregate demand makes it impossible to take into account the task requirements for aircraft.
    % The concept of mission is not introduced as part of these formulations, only a demand of flight hours is given for all aircraft in total. The aircraft themselves have been assumed as homogeneous and interchangeable. Due to this aggregation of demand, there are no minimal time assignments for aircraft to missions. Missions are important in order to guarantee that aircraft have the required capabilities needed for the missions they are assigned to.
 
   % Additionally, the possibility of storage of aircraft is not present in the previous work.
@@ -406,7 +406,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
   \subsection{Maintenances}
 
-    All maintenance operations last exactly 6 periods. Each maintenance provides with 1000 hours of usage time to the resource. After it, a resource can be without maintenance for a maximum of 60 consecutive periods. The nominative capacity for maintenance is 18 resources at any given time.
+    All maintenance operations last exactly 6 periods. Each maintenance sets the remaining usage time of a resource to 1000 hours. After it, a resource can be without maintenance for a maximum of 60 consecutive periods. The nominative capacity for maintenance is 18 resources at any given time.
 
   \subsection{Resources}
 
@@ -464,7 +464,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
     \end{center}
     \end{table}
 
-    Table \ref{tab:results2} shows the progress of the integer solution for each instance. For more detail on this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite big in comparison with the optimal due to the use of heuristics being run at the beginning of the solving process. In fact, for two rather small instances the solver was able to find an optimal solution before starting to branch.
+    Table \ref{tab:results2} shows the progress of the integer solution for each instance. For more detail on this progress, figure \ref{fig:progress} shows an example of progress for instance with id=I\_7. It can be seen that initial solutions are quite far from the optimal one due to the use of heuristics at the beginning of the solving process. In fact, for two rather small instances the solver was able to find an optimal solution before starting to branch.
 
     The obtained results show that the branching is not providing much improvement in increasing the lower bound or finding better integer solutions. The quantity of symmetries in the model, represented as candidates for each task could be a reason the difficulty in solving large instances. It may exist a very large number of possible candidates to be potentially assigned for each task with respect to the requirements in resources for each task. This reduces the branching capacity for the solver, which tries to explore many nodes that are almost equivalent in reality.
 
