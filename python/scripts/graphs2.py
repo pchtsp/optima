@@ -8,6 +8,7 @@ import os
 import numpy as np
 import random
 import package.data_input as di
+import tabulate
 
 path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
 path_img = "/home/pchtsp/Documents/projects/OPTIMA/img/"
@@ -60,9 +61,14 @@ def remaining_graph():
         rename(columns={0: 'initial_used'})
 
     plot = ggplot(aes(x='initial_used'), data=data) + geom_histogram() + \
-           theme(axis_text=element_text(size=15)) + \
-           xlab(element_text("Initial Remaining Usage Time (hours)", size=15))+ \
-           ylab(element_text("Number of resources", size=15))
+           theme(axis_text=element_text(size=20)) + \
+           xlab(element_text("Initial Remaining Usage Time (hours)",
+                             size=20,
+                             vjust=-0.05))+ \
+           ylab(element_text("Number of resources",
+                             size=20,
+                             vjust=0.15))
+    # print(plot)
     plot.save(path_img + 'initial_used.png')
 
 
@@ -72,7 +78,8 @@ def get_results_table(path_abs):
     table = pd.DataFrame.from_dict(exps, orient="index")
     table = table[np.all((table.model == 'no_states',
                           table.gap == 0,
-                          table.timeLimit >= 500),
+                          table.timeLimit >= 500,
+                          table.solver == 'CPLEX'),
                          axis=0)].sort_values(['tasks', 'periods']).reset_index()
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
@@ -192,7 +199,7 @@ def multiobjective_table():
     ################################################
     # Multiobjective
     ################################################
-    path_comp = path_abs + "weights2/"
+    path_comp = path_abs + "weights3/"
     data_dic = multi_get_info(path_comp)
 
     cols_rename = {'maint_weight': '$W_1$', 'unavail_weight': '$W_2$', 'index': 'exp', 'gap': 'gap (\%)'}
@@ -214,10 +221,10 @@ def multiobjective_table():
     plot = \
         ggplot(data_graph, aes(x='maint', y='unavailable', label='exp', color='Pareto optimal')) + \
         geom_point(size=50) +\
-        geom_text(hjust=0.15, vjust=0) + \
-        theme(axis_text=element_text(size=15)) + \
-        xlab(element_text('max resources in maintenance', size=15)) + \
-        ylab(element_text('max resources unavailable', size=15))
+        geom_text(hjust=-0, vjust=0.05, size=20) + \
+        theme(axis_text=element_text(size=20)) + \
+        xlab(element_text('Max resources in maintenance', size=20, vjust=-0.05)) + \
+        ylab(element_text('Max resources unavailable', size=20, vjust=0.15))
 
     plot.save(path_img + 'multiobjective.png')
 
@@ -262,15 +269,19 @@ def progress_graph():
     ################################################
     path = path_abs + '201801131817/results.log'
     table = di.get_log_info_cplex_progress(path)
+    table.it = round(table.it / 1000)
 
     plot = \
         ggplot(table, aes(x='it', y='obj')) + \
         geom_line(color='blue') +\
         geom_line(aes(y='relax'), color='red') +\
-        theme(axis_title_x=element_text('Iterations', size=15),
-              axis_title_y=element_text('Objective and relaxation', size=15))+\
-        theme(axis_text=element_text(size=15))
-
+        theme(axis_title_x=element_text('Iterations (thousands)', size=20, vjust=-0.05),
+              axis_title_y=element_text(
+                  'Objective and relaxation',
+                  size=20,
+                  vjust=0.15),
+              axis_text=element_text(size=20))
+    # print(plot)
     plot.save(path_img + 'progress.png')
 
 
@@ -286,7 +297,7 @@ def maintenances_graph(maint=True):
         data = experiment.solution.get_unavailable()
         name = 'unavailables'
     table = pd.DataFrame.from_dict(data, orient="index").\
-        reset_index().rename(columns={'index': 'month', 0: 'maint'})
+        reset_index().rename(columns={'index': 'month', 0: 'maint'}).sort_values('month')
     # table.month = pd.to_datetime(table.month.apply(lambda x:
     #                                 aux.month_to_arrow(x).naive))
     # table.month = table.month.apply(lambda x: x + "-01")
@@ -311,10 +322,13 @@ def maintenances_graph(maint=True):
     labels = ticks
     limits = [first, ticks[-1]]
     p = \
-        ggplot(table, aes(x='month', y='maint')) + geom_line() + \
+        ggplot(table, aes(x='month', y='maint')) + geom_step() + \
+        theme(axis_text=element_text(size=20)) +\
         scale_x_continuous(breaks=ticks, labels=labels, limits=limits) +\
-        theme(axis_title_y=element_text('Number of {}'.format(name), size=15),
-              axis_title_x=element_text('Periods (months)', size=15))
+        theme(axis_title_y=element_text('Number of {}'.format(name), size=20, vjust=0.15),
+              axis_title_x=element_text('Periods (months)', size=20, vjust=-0.05))
+
+    # print(p)
     # geom_point() + \
     p.save(path_img + 'num-{}.png'.format(name))
         # scale_x_date(labels='%Y')
@@ -322,6 +336,72 @@ def maintenances_graph(maint=True):
     # ggplot(meat, aes('date', 'beef')) + \
     # geom_line() + \
     # scale_x_date(labels="%Y-%m-%d")
+
+
+def gurobi_vs_cplex():
+    cols_rename = {
+        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
+                   'gap_out': 'gap (\%)', 'bound_out': 'bound'
+                   }
+    cplex_results = get_results_table(path_abs)
+    gurobi_results = get_results_table(path_abs + 'GUROBI/')
+    df_cplex = cplex_results.rename(columns=cols_rename)[list(cols_rename.values())]
+    df_gurobi = gurobi_results.rename(columns=cols_rename)[list(cols_rename.values())]
+    print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print(df_gurobi.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+
+
+def add_task_types():
+    # path_types = path_abs + 'pieces10/'
+    # path_to_compare = path_abs + '201801141607'
+
+    path_types = path_abs + 'pieces20/'
+    path_to_compare = path_abs + '201801102259'
+
+    exp_complete = exp.Experiment.from_dir(path_to_compare)
+    unavailables_complete = exp_complete.solution.get_unavailable()
+    maintenances_complete = exp_complete.solution.get_in_maintenance()
+
+    table_ref =\
+        pd.merge(
+            pd.DataFrame.from_dict(unavailables_complete, orient='index').rename(columns={0: 'ref_unavail'})
+            ,pd.DataFrame.from_dict(maintenances_complete, orient='index').rename(columns={0: 'ref_maint'})
+            ,left_index = True, right_index = True
+        )
+
+    exps = {f: exp.Experiment.from_dir(os.path.join(path_types, f)) for f in os.listdir(path_types)}
+    unavailables = {k: v.solution.get_unavailable() for k, v in exps.items()}
+    maintenances = {k: v.solution.get_in_maintenance() for k, v in exps.items()}
+    # exp.exp_get_info(path_to_compare)['tasks']
+    # exp.exp_get_info(path_to_compare)['periods']
+    # sum(exp.exp_get_info(path_types + f)['tasks']
+    #     for f in os.listdir(path_types))
+    # [exp.exp_get_info(path_types + f)['periods']
+    #     for f in os.listdir(path_types)]
+
+    # pp.pprint(di.load_data(path_to_compare + '/options.json'))
+    # pp.pprint(di.load_data(path_types + '2000_D/options.json'))
+    # pp.pprint(exp.)
+    # di.load_data(path_to_compare + '/options.json')
+
+    table1 = pd.DataFrame.from_dict(unavailables, orient='index')
+    table1 = table1.reset_index().melt(value_vars=table1.columns, id_vars='index').\
+        rename(columns={'index': 'type', 'variable': 'period', 'value': 'unavail'}).\
+        groupby('period').unavail.apply(sum).to_frame()
+
+    table2 = pd.DataFrame.from_dict(maintenances, orient='index')
+    table2 = table2.reset_index().melt(value_vars=table2.columns, id_vars='index').\
+        rename(columns={'index': 'type', 'variable': 'period', 'value': 'maint'}).\
+        groupby('period').maint.apply(sum).to_frame()
+
+    table =\
+        pd.merge(
+            table1
+            ,table2
+            ,left_index = True, right_index = True
+        ).merge(table_ref,left_index = True, right_index = True)
+
+    print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 
 def tests():
@@ -372,13 +452,17 @@ def tests():
 
 
 if __name__ == "__main__":
-
+    # results_table()
+    # remaining_graph()
+    # progress_graph()
     # maintenances_graph()
     # maintenances_graph(maint=False)
-    multi_multiobjective_table()
+    multiobjective_table()
+    # multi_multiobjective_table()
     # pp.pprint(d)
     # for x_key in x:
     #     print(x[x_key], y[x_key])
 
     # multiobjective_table()
     # pp.pprint(pareto_p2)
+    pass

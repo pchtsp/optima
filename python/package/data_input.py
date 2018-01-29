@@ -254,6 +254,7 @@ def get_log_info_cplex(path):
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141331/results.log"
     # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/results.log'
     # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801102259/results.log'
+    # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141334/results.log'
     with open(path, 'r') as f:
         content = f.read()
     numberSearch = r'([\de\.\+]+)'
@@ -309,25 +310,28 @@ def get_log_info_cplex(path):
     time_out = -1
     if result:
         time_out = float(result[0][0])
-    regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}?\s+{0}\s+{0}?\%?$'.format(numberSearch)
+    regex = r'^\*?\s+{0}\s+{0}\s+{0}?\s+{0}?\s+{0}?\s+(Cuts: )?{0}\s+{0}?\s+({0}\%)?$'.format(numberSearch)
     result = re.findall(regex, content, flags=re.MULTILINE)
-    after_cuts = -1
+    after_cuts = bound  # by default: it's the last bound
     first_relax = -1
     first_solution = -1
-    sol_after_cuts = -1
+    sol_after_cuts = objective  # by default: it's the objective value
     progress = pd.DataFrame()
     if result:
-        first_relax = float(result[0][2])
+        first_relax = min(float(result[1][6]), float(result[1][2]))
         for r in result:
             if r[0] == '0' and r[1] == '2':
                 after_cuts = float(r[2])
                 if r[4]:
-                    sol_after_cuts= float(r[4])
+                    sol_after_cuts = float(r[4])
                 break
         for r in result[1:]:
-            if r[4] != "":
-                first_solution = float(r[4])
+            if r[0][-1] == "+":
+                # if r[4] != "":
+                # print(r[4])
+                first_solution = float(max(r[2:5]))
                 break
+
     return {
         'bound_out': bound,
         'objective_out': objective,

@@ -236,30 +236,37 @@ def clean_experiments(path, clean=True, regex=""):
     return exps_to_delete
 
 
+def exp_get_info(path):
+    exp = Experiment.from_dir(path, format="json")
+    if exp is None:
+        exp = Experiment.from_dir(path, format="pickle")
+    if exp is None:
+        return None
+    options_path = os.path.join(path, "options.json")
+    options = di.load_data(options_path)
+    if not options:
+        return None
+    log_path = os.path.join(path, "results.log")
+    log_info = {}
+    if os.path.exists(log_path):
+        if options['solver'] == 'CPLEX':
+            log_info = di.get_log_info_cplex(log_path)
+        elif options['solver'] == 'GUROBI':
+            log_info = di.get_log_info_gurobi(log_path)
+    parameters = exp.instance.get_param()
+    inst_info = exp.instance.get_info()
+    return {**parameters, **options, **log_info, **inst_info}
+
+
 def list_experiments(path):
     exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
-        exp = Experiment.from_dir(e, format="json")
-        if exp is None:
-            exp = Experiment.from_dir(e, format="pickle")
-        if exp is None:
+        info = exp_get_info(e)
+        if info is None:
             continue
-        options_path = os.path.join(e, "options.json")
-        options = di.load_data(options_path)
-        if not options:
-            continue
-        log_path = os.path.join(e, "results.log")
-        log_info = {}
-        if os.path.exists(log_path):
-            if options['solver'] == 'CPLEX':
-                log_info = di.get_log_info_cplex(log_path)
-            elif options['solver'] == 'GUROBI':
-                log_info = di.get_log_info_gurobi(log_path)
-        parameters = exp.instance.get_param()
         directory = os.path.basename(e)
-        inst_info = exp.instance.get_info()
-        experiments[directory] = {**parameters, **options, **log_info, **inst_info}
+        experiments[directory] = info
     return experiments
 
 
