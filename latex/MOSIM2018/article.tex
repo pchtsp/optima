@@ -14,7 +14,8 @@
 
 \usepackage{epsfig}
 %\usepackage{timesnew}
-\usepackage{harvard}
+% \usepackage{harvard}
+\usepackage[]{natbib}
 \usepackage{amsmath}
 \usepackage{booktabs}
 
@@ -100,7 +101,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
 \section{Introduction}
   
-  Flight and Maintenance Planning (FMP) problems raise in civilian or military operational applications. 
+  Flight and Maintenance Planning (FMP) problems are raised in civilian or military operational applications. 
   They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours, for a conjoint optimization among maintenance dates and flight hours.
 
   The specific FMP of this paper comes from the French Air Force's operations. It has two specificities regarding the classical FMP considered in the literature.
@@ -223,7 +224,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
   % It also includes different objectives and constraints. 
 
-  % Although the former has been studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
+  % Although the former has been studied in literature in \citet{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015}, it has not received as much attention as the latter. In the following, the problem with already scheduled missions is considered.
 
   The Military Flight and Maintenance Planning problem considered assigns missions and schedules maintenance operations to aircraft. In this problem, aircraft are needed to comply with a series of planned missions while at the same time needing to receive frequent preventive maintenances in order to be ready for new missions.
 
@@ -237,17 +238,17 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
   In the following, the studies on the Military Flight and Maintenance Planning are discussed.
 
-  In \cite{Kozanidis2008}, a model for the Hellenic Air Force is presented. It assigns flight hours to aircraft and schedules flexible maintenance periods based on a "remaining usage time" rule. The objectives are to maximize this "remaining usage time" for the aircraft as well as to smooth the availability of aircraft during the planning horizon. Instances of 24 aircraft and 6 monthly periods were solved with Mixed Integer Programming (MIP) formulations and heuristics.
+  In \citet{Kozanidis2008}, a model for the Hellenic Air Force is presented. It assigns flight hours to aircraft and schedules flexible maintenance periods based on a "remaining usage time" rule. The objectives are to maximize this "remaining usage time" for the aircraft as well as to smooth the availability of aircraft during the planning horizon. Instances of 24 aircraft and 6 monthly periods were solved with Mixed Integer Programming (MIP) formulations and heuristics.
 
-  In \cite{Cho2011}, the objective is to smooth the maintenance operations. Randomly generated instances of 15 aircraft and 520 bi-daily periods were solved with MIP formulations. The final state of aircraft is taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
+  In \citet{Cho2011}, the objective is to smooth the maintenance operations. Randomly generated instances of 15 aircraft and 520 bi-daily periods were solved with MIP formulations. The final state of aircraft is taken into account in order to distribute as much as possible the "remaining usage time" of aircraft.
 
-  In \cite{Verhoeff2015}, a model for the Royal Netherlands Air Force is developed. Here, three criteria for improving the planning robustness are presented and applied in a MIP model: availability, serviceability and sustainability.
+  In \citet{Verhoeff2015}, a model for the Royal Netherlands Air Force is developed. Here, three criteria for improving the planning robustness are presented and applied in a MIP model: availability, serviceability and sustainability.
 
-  In \cite{gavranis2015exact}, an exact algorithm is presented and tested on instances of 6 periods and between 10 and 200 aircraft for the special case of maximizing the residual flight time availability or total remaining usage time. 
+  In \citet{gavranis2015exact}, an exact algorithm is presented and tested on instances of 6 periods and between 10 and 200 aircraft for the special case of maximizing the residual flight time availability or total remaining usage time. 
 
-  Both \cite{Kozanidis2008} and \cite{Cho2011} develop heuristic alternatives to the MIP formulation for solving larger problem instances. In \cite{steiner2006heuristic}, a constructive, multi-stage heuristic approach is described to obtain balanced maintenances for the Swiss Air Force. Both calendar-based maintenances actions (CBMA) and usage-based maintenance actions (UBMA) are used. Finally, in \cite{kozanidis2014heuristics}, two heuristics are presented to solve large instances of the problem by taking consecutive decisions period by period with the help of mathematical models at each step.
+  Both \citet{Kozanidis2008} and \citet{Cho2011} develop heuristic alternatives to the MIP formulation for solving larger problem instances. In \citet{steiner2006heuristic}, a constructive, multi-stage heuristic approach is described to obtain balanced maintenances for the Swiss Air Force. Both calendar-based maintenances actions (CBMA) and usage-based maintenance actions (UBMA) are used. Finally, in \citet{kozanidis2014heuristics}, two heuristics are presented to solve large instances of the problem by taking consecutive decisions period by period with the help of mathematical models at each step.
 
-  % Regarding operational-level planning, a more detailed implementation can be found in \cite{safaei2011workforce}, where the specific conditions during the maintenance operations are taken into account to schedule the maintenance jobs, such as the workforce skills and availability.
+  % Regarding operational-level planning, a more detailed implementation can be found in \citet{safaei2011workforce}, where the specific conditions during the maintenance operations are taken into account to schedule the maintenance jobs, such as the workforce skills and availability.
 
   It should be noted that previous formulations only consider an aggregate demand in flight hours for all aircraft.
   The aircraft are assumed to be homogeneous and interchangeable.
@@ -256,7 +257,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
   % Additionally, the possibility of storage of aircraft is not present in the previous work.
 
-  Lastly, in \cite{Chastellux2016} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were solved. Close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations were found.
+  Lastly, in \citet{Chastellux2016} a mission-centered modeled is presented. Here, cycles, composed of one maintenance followed by mission assignments were used. Instances of 6 - 70 aircraft and 60 monthly periods were solved. Close to optimal solutions for small to medium instances using MIP formulations and heuristics based on these MIP formulations were found.
 
   In the following, an alternative model is presented. This model is then tested in a case study.
 
@@ -375,7 +376,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
 
 \section{Datasets}
   \label{sec:data}
-  The dataset being used was provided by the French Air Force and already used in \cite{Chastellux2017}.
+  The dataset being used was provided by the French Air Force and already used in \citet{Chastellux2017}.
   Based on the information provided, a number of instances were created as subsets of the main dataset in order to run different experiments. 
 
   Table \ref{tab:instance} shows the characteristics of each instance. The main differences between instances are in the number of tasks and the number of periods.
