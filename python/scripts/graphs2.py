@@ -9,6 +9,8 @@ import numpy as np
 import random
 import package.data_input as di
 import tabulate
+import package.logFiles as log
+import re
 
 path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
 path_img = "/home/pchtsp/Documents/projects/OPTIMA/img/"
@@ -146,6 +148,8 @@ def results_table():
         ['id', 'first', 'sol. cuts',
          'last']]
     latex = table3.to_latex(escape=False, bold_rows=True, index=False, float_format='%.1f')
+    # we replaces the possible NaN values for a - symbol
+    latex = re.sub(r'NaN', '-', latex)
     with open(path_latex + 'MOSIM2018/tables/results2.tex', 'w') as f:
         f.write(latex)
 
@@ -268,7 +272,16 @@ def progress_graph():
     # Progress
     ################################################
     path = path_abs + '201801131817/results.log'
-    table = di.get_log_info_cplex_progress(path)
+    result_log = log.LogFile(path)
+    table = result_log.get_progress()
+    table.rename(columns={'ItCnt': 'it', 'Objective': 'relax', 'BestInteger': 'obj'},
+                 inplace=True)
+    table = table[table.it.str.match(r'\s*\d')][['it', 'relax', 'obj']]
+    table.it = table.it.astype(int)
+    table.obj = table.obj.str.replace(r'^\s+$', '0')
+    table.relax = table.relax.str.replace(r'^\s+$', '0')
+    table.obj = table.obj.astype(float)
+    table.relax = table.relax.astype(float)
     table.it = round(table.it / 1000)
 
     plot = \
@@ -457,7 +470,7 @@ if __name__ == "__main__":
     # progress_graph()
     # maintenances_graph()
     # maintenances_graph(maint=False)
-    multiobjective_table()
+    # multiobjective_table()
     # multi_multiobjective_table()
     # pp.pprint(d)
     # for x_key in x:
@@ -465,4 +478,7 @@ if __name__ == "__main__":
 
     # multiobjective_table()
     # pp.pprint(pareto_p2)
+    table = get_results_table(path_abs)
+    print(table.ref)
+    # table = 1
     pass

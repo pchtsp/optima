@@ -9,6 +9,7 @@ import os
 import shutil
 import pprint as pp
 import re
+import package.logFiles as log
 
 
 # TODO: make Experiment subclass of Solution.
@@ -250,9 +251,11 @@ def exp_get_info(path):
     log_info = {}
     if os.path.exists(log_path):
         if options['solver'] == 'CPLEX':
-            log_info = di.get_log_info_cplex(log_path)
+            log_results = log.LogFile(log_path)
+            log_info = log_results.get_log_info_cplex()
         elif options['solver'] == 'GUROBI':
-            log_info = di.get_log_info_gurobi(log_path)
+            log_results = log.LogFile(log_path)
+            log_info = log_results.get_log_info_gurobi()
     parameters = exp.instance.get_param()
     inst_info = exp.instance.get_info()
     return {**parameters, **options, **log_info, **inst_info}
@@ -262,6 +265,7 @@ def list_experiments(path):
     exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
+        # print(e)
         info = exp_get_info(e)
         if info is None:
             continue
@@ -286,7 +290,7 @@ if __name__ == "__main__":
     path = path_abs + "201801091412/"
     sol_states = Experiment.from_dir(path)
     check = sol_states.check_solution()
-    check['resources']
+    # check['resources']
 
 
     rut_old = sol_states.solution.data["aux"]['rut']
