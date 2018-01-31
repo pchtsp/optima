@@ -69,7 +69,6 @@ class LogFile(object):
 
     def get_matrix(self):
         """
-
         :return: tuple of length 3
         """
         regex = r'Reduced MIP has {0} rows, {0} columns, and {0} nonzeros'.format(self.numberSearch)

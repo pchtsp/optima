@@ -165,7 +165,7 @@ class Instance(object):
         key_initial = "initial_" + time_type
         key_max = "max_" + time_type + "_time"
         param_resources = self.get_resources()
-        rt_max = self.get_param()[key_max]
+        rt_max = self.get_param(key_max)
 
         rt_read = aux.get_property_from_dic(param_resources, key_initial)
 

@@ -12,9 +12,10 @@ import tabulate
 import package.logFiles as log
 import re
 
-path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
-path_img = "/home/pchtsp/Documents/projects/OPTIMA/img/"
-path_latex = "/home/pchtsp/Documents/projects/OPTIMA/latex/"
+path_root = '/home/pchtsp/Documents/projects/'
+path_abs = root + "OPTIMA_documents/results/experiments/"
+path_img = root + "OPTIMA/img/"
+path_latex = root + "OPTIMA/latex/"
 
 
 # here we get some data inside
@@ -75,7 +76,6 @@ def remaining_graph():
 
 
 def get_results_table(path_abs):
-    # paths = os.listdir(path_abs)
     exps = exp.list_experiments(path_abs)
     table = pd.DataFrame.from_dict(exps, orient="index")
     table = table[np.all((table.model == 'no_states',
@@ -223,12 +223,13 @@ def multiobjective_table():
     data_graph['Pareto optimal'] = np.where(condition, 'yes', 'no')
 
     plot = \
-        ggplot(data_graph, aes(x='maint', y='unavailable', label='exp', color='Pareto optimal')) + \
-        geom_point(size=50) +\
+        ggplot(data_graph, aes(x='maint', y='unavailable', label='exp')) + \
+        geom_point(size=70) +\
         geom_text(hjust=-0, vjust=0.05, size=20) + \
         theme(axis_text=element_text(size=20)) + \
         xlab(element_text('Max resources in maintenance', size=20, vjust=-0.05)) + \
-        ylab(element_text('Max resources unavailable', size=20, vjust=0.15))
+        ylab(element_text('Max resources unavailable', size=20, vjust=0.15)) + \
+        xlim(low=14.5, high=21)
 
     plot.save(path_img + 'multiobjective.png')
 
@@ -478,7 +479,8 @@ if __name__ == "__main__":
 
     # multiobjective_table()
     # pp.pprint(pareto_p2)
-    table = get_results_table(path_abs)
-    print(table.ref)
+    multiobjective_table()
+    # table = get_results_table(path_abs)
+    # print(table.ref)
     # table = 1
     pass

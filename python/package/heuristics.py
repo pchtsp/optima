@@ -4,7 +4,12 @@ import numpy as np
 import package.tests as test
 import package.instance as inst
 import package.solution as sol
+import pprint as pp
+import pandas as pd
+import package.tests as exp
 
+
+# TODO: fix some infeasibilities with usage time, resources and number of maintenances
 
 class Greedy(test.Experiment):
 
@@ -54,33 +59,48 @@ class Greedy(test.Experiment):
             if len(periods_task) == 0:
                 candidates.pop(0)
                 continue
-            print('candidate={}\ntask={}\nperiods={}'.format(candidate, task, periods_task))
+            # print('candidate={}\ntask={}\nperiods={}'.format(candidate, task, periods_task))
             maint_period = ''
-            # TODO: this is still wrong:
+            # next_maint = None
             for start, end in periods_task:
-                for period in aux.get_months(start, end):
-                    result = self.check_set_task(candidate, period, task)
-                    if not result:
-                        maint_period = period
-                        break
+                next_maint = self.get_next_maintenance(candidate, end)
+                periods_to_assign = self.check_assign_task(candidate, aux.get_months(start, end), task)
+                for period in periods_to_assign:
+                    self.expand_resource_period(self.solution.data['task'], candidate, period)
+                    self.solution.data['task'][candidate][period] = task
                     rem_resources[period] -= 1
-                    self.update_time_usage(candidate, periods=aux.get_months(period, end), time='rut')
-                    # self.update_time_usage(candidate, period, self.get_next_maintenance(candidate, period), 'rut')
-
+                if len(periods_to_assign) == 0:
+                    # if there was nothing assigned: there is nothing to do
+                    maint_period = start
+                    continue
+                if periods_to_assign[-1] != end:
+                    # if last assigned period corresponds with the end:
+                    # this means we did not have problems.
+                    # if not, a maintenance is needed after that period.
+                    maint_period = periods_to_assign[-1]
+                if next_maint is None:
+                    next_maint = self.instance.get_param('end')
+                self.update_time_usage(candidate, periods=aux.get_months(start, next_maint), time='rut')
             if maint_period == '':
+                # if the resources doesn't have a maintenance in the future
+                # and needs one...
                 continue
+            print("resource {} needs a maintenance after period {}".format(candidate, maint_period))
             # find soonest period to start maintenance:
             maint_start = self.get_soonest_maint(candidate, maint_period)
             if maint_start is None:
                 # this means that we cannot assign tasks BUT
                 # we cannot assign maintenance either :/
                 # we should then take out the candidate:
+                print("resource {} has no candidate periods for maintenance".format(candidate))
                 candidates.pop(0)
                 continue
-            maint_end = aux.shift_month(maint_start, 5)
+            maint_end = aux.shift_month(maint_start, self.instance.get_param('maint_duration') - 1)
+            print("resource {} will get a maintenance in periods {} -> {}".format(candidate, maint_start, maint_end))
             periods_maint = aux.get_months(maint_start,  maint_end)
             for period in periods_maint:
                 self.set_maint(candidate, period)
+            self.update_time_maint(candidate, periods_maint, time='ret')
             self.update_time_maint(candidate, periods_maint, time='rut')
 
             if maint_end == self.instance.get_param('end'):
@@ -97,10 +117,29 @@ class Greedy(test.Experiment):
 
         return
 
-    def get_soonest_maint(self, resource, min_period):
+    def check_assign_task(self, resource, periods, task):
+        consumption = self.instance.data['tasks'][task]['consumption']
+        start = periods[0]
+        end = periods[-1]
+        number_periods = len(periods)
+
+        horizon_end = self.instance.get_param('end')
+        next_maint = self.get_next_maintenance(resource, end)
+        if next_maint is not None:
+            before_maint = aux.shift_month(next_maint, -1)
+            rut = self.solution.data['aux']['rut'][resource][before_maint]
+        else:
+            rut = self.solution.data['aux']['rut'][resource][horizon_end]
+        # ret = self.solution.data['aux']['ret'][resource][end]
+        number_periods_ret = self.solution.data['aux']['ret'][resource][start] - 2
+        number_periods_rut = int(rut // consumption)
+        final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
+        return periods[:final_number_periods]
+
+    def get_soonest_maint(self, resource, min_period, maint_duration=6):
         free = [(1, period) for period in self.get_free_periods(resource) if period >= min_period]
         for (id, st, end) in aux.tup_to_start_finish(free):
-            if len(aux.get_months(st, end)) >= 6:
+            if len(aux.get_months(st, end)) >= maint_duration:
                 return st
         return None
 
@@ -143,19 +182,6 @@ class Greedy(test.Experiment):
         self.solution.data['state'][resource][period] = 'M'
         return True
 
-    def check_set_task(self, resource, period, task):
-        # check
-        # ret and rut
-        if self.solution.data['aux']['rut'][resource][period] < \
-                self.instance.data['tasks'][task]['consumption'] \
-                or self.solution.data['aux']['ret'][resource][period] < 2:
-            return False
-
-        # assign:
-        self.expand_resource_period(self.solution.data['task'], resource, period)
-        self.solution.data['task'][resource][period] = task
-        return True
-
     def get_maintenances(self, resource):
         return self.solution.data['state'].get(resource, {}).keys()
 
@@ -170,6 +196,7 @@ class Greedy(test.Experiment):
             if st >= min_start:
                 return st
         return None
+
 
 def heuristic(instance, options):
     # 1. Choose a mission.
@@ -189,7 +216,7 @@ def heuristic(instance, options):
 
 
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141334/"
+    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/"
     model_data = di.load_data(path + "data_in.json")
     # this was for testing purposes
 
@@ -198,13 +225,36 @@ if __name__ == "__main__":
     heur = Greedy(instance, solution)
     # heur.instance.get_tasks()
     # heur.expand_resource_period(heur.solution.data['task'], 'A100', '2017-01')
-    tasks = list(heur.instance.get_tasks().keys())
+
+    tasks = heur.instance.get_tasks()
+    tasks_sorted = sorted(tasks.items(), key=lambda x: len(x[1]['candidates']))
     # tasks = ['O5']
-    for task in tasks:
+    for task, content in tasks_sorted:
         heur.fill_mission(task)
     heur.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
     checks = heur.check_solution()
-    print([k for k, v in checks.items() if len(v) > 0])
+    pp.pprint(checks)
+
+    # comparisons between model and heur:
+    model_sol = exp.Experiment.from_dir(path)
+    end = model_sol.instance.get_param('end')
+    rut_init = model_sol.instance.get_initial_state('used')
+    ret_init = model_sol.instance.get_initial_state('elapsed')
+    rut_init = sum(rut_init.values())
+    ret_init = sum(ret_init.values())
+
+    rut_heur = heur.set_remaining_usage_time()
+    maint_obj_heur = max(heur.solution.get_in_maintenance().values())
+    avail_obj_heur = max(heur.solution.get_unavailable().values())
+    rut_end_heur = sum(v[end] for v in rut_heur.values())
+
+    rut_sol = model_sol.set_remaining_usage_time()
+    maint_obj_sol = max(model_sol.solution.get_in_maintenance().values())
+    avail_obj_sol = max(model_sol.solution.get_unavailable().values())
+    rut_end_sol = sum(v[end] for v in rut_sol.values())
+
+    # model_sol.solution
+    # print([k for k, v in checks.items() if len(v) > 0])
     # {k: v for k, v in checks.items() if len(v) > 0}.keys()
     # checks.keys()
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
