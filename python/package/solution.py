@@ -27,6 +27,13 @@ class Solution(object):
     def __init__(self, solution):
         self.data = solution
 
+    def get_category(self, category, param):
+        if param is None:
+            return self.data[category]
+        if param in list(self.data[category].values())[0]:
+            return aux.get_property_from_dic(self.data[category], param)
+        raise IndexError("param {} is not present in the category {}".format(param, category))
+
     def get_periods(self):
         resource_period = list(self.get_tasks().keys())
         return sorted(aux.tup_to_dict(resource_period, result_col=0).keys())
