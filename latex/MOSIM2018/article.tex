@@ -65,12 +65,12 @@
 
 \author{
 \begin{tabular}{c}
-\bf \normalsize {Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin} \\
+\bf \normalsize {Franco Peschiera, Nicolas Dupin, Olga Battaïa, Alain Haït} \\
 \\
      \normalsize ISAE-SUPAERO, % \\
      \normalsize Université de Toulouse, % \\
      \normalsize 31055 Toulouse cedex 4 - France\\
-     \normalsize {\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
+     \normalsize {\{franco.peschiera,nicolas.dupin,olga.battaia,alain.hait\}@isae-supaero.fr}
      \\
 \end{tabular}
 }
@@ -512,8 +512,10 @@ The tests show that these two objectives do not lead to the same optimal solutio
   \subsection{Bi-objective analysis}
   \label{sec:multi}
 
-    The further calculation was done in order to analyze the impact of the weights $W_1$ and $W_2$ on the solution. In it, both weights were changed between 0 and 1 with pace of 0.1 under the condition that $W_1 + W_2 = 1 $. This was done for all previously defined instances.
-
+    The further calculation was done in order to analyze the impact of the weights $W_1$ and $W_2$ on the solution.
+    In it, both weights were changed between 0 and 1 with pace of 0.1 under the condition that $W_1 + W_2 = 1 $. This was done for all previously defined instances.
+    This method does not a priori guarantee to compute exactly Pareto Fronts: optimal weighted computations can only prove that some points guarantee supported solutions.
+    However, a posteriori analysis can conclude that the bi-objective convex relaxation guarantees the completeness of the Pareto Front. By doing this analysis, exact extreme points can be computed (and thus the Nadir and ideal points), and some intermediate points found for all the intermediate integer values.
     Table \ref{tab:multmultiobj} presents the obtained results of this analysis. It can be seen that all instances have a small number of non-dominated solutions.
 
     \begin{table}[h]
@@ -527,10 +529,14 @@ The tests show that these two objectives do not lead to the same optimal solutio
     \end{center}
     \end{table}
 
-    More particularly, an individual instance was analyzed, where an optimal solution was found in each experiment.
+    An individual case study is illustrated in Figure \ref{fig:pareto}, where an optimal solution was found in each experiment.
     Table \ref{tab:multiobj} shows the obtained results. The instance used consisted of 21 periods and 10 tasks corresponding to instance with id=I\_5.
+    Computations $W10$ and $W09$ prove that $(15,68)$ is an extreme point of the Pareto Front.
+    Computations $W00$ and $W01$ prove that $(20,66)$ is the other extreme point of the Pareto Front. This implies the ideal and Nadir points are, respectively, $(15,66)$ and $(20,68)$.
+    Computation $W03$ proves that $(16,67)$ is also a non dominated point.
+    Having all the discrete points in $[\![66,68]\!]$ for the $m_{max}$ objective, it can be concluded that no other non dominated points exists.
+    In this case, weighted computations prove the completeness of the convex relaxation, which is also exactly the Pareto front of non-dominated solutions: no unsupported solution exists in this case.
 
-    For all solved instances, a small number of non dominated solutions was observed.
     \begin{table}[h]
     \begin{center}
 
