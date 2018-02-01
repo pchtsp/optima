@@ -182,7 +182,7 @@ class Instance(object):
 
         return rt_init
 
-    def get_fixed_maintenances(self):
+    def get_fixed_maintenances(self, in_dict=False):
         previous_states = aux.get_property_from_dic(self.get_resources(), "states")
         first_period = self.get_param()['start']
         duration = self.get_param()['maint_duration']
@@ -205,7 +205,9 @@ class Instance(object):
             finish_maint = aux.shift_month(last_maint[res], duration - 1)
             for period in aux.get_months(first_period, finish_maint):
                 planned_maint.append((res, period))
-        return planned_maint
+        if not in_dict:
+            return planned_maint
+        return aux.tup_to_dict(planned_maint, result_col=1)
 
     def get_task_period_list(self, in_dict=False):
 

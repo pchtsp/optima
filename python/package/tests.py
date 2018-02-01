@@ -212,6 +212,17 @@ class Experiment(object):
         in_maint = max(self.solution.get_in_maintenance().values())
         return in_maint * weight1 + unavailable * weight2
 
+    def get_kpis(self):
+        rut = self.set_remaining_usage_time(time='rut')
+        ret = self.set_remaining_usage_time(time='ret')
+        end = self.instance.get_param('end')
+        return {
+            'unavail': max(self.solution.get_unavailable().values())
+            , 'maint': max(self.solution.get_in_maintenance().values())
+            , 'rut_end': sum(v[end] for v in rut.values())
+            , 'ret_end': sum(v[end] for v in ret.values())
+        }
+
 
 def clean_experiments(path, clean=True, regex=""):
     """

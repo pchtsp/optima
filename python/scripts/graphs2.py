@@ -11,11 +11,12 @@ import package.data_input as di
 import tabulate
 import package.logFiles as log
 import re
+import package.heuristics as heur
 
 path_root = '/home/pchtsp/Documents/projects/'
-path_abs = root + "OPTIMA_documents/results/experiments/"
-path_img = root + "OPTIMA/img/"
-path_latex = root + "OPTIMA/latex/"
+path_abs = path_root + "OPTIMA_documents/results/experiments/"
+path_img = path_root + "OPTIMA/img/"
+path_latex = path_root + "OPTIMA/latex/"
 
 
 # here we get some data inside
@@ -418,6 +419,43 @@ def add_task_types():
     print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 
+def compare_heur_model():
+    experiments = \
+        ['201801141705', '201801141331', '201801141334', '201801141706',
+         '201801141646', '201801131813', '201801102127', '201801131817',
+         '201801141607', '201801102259']
+
+    paths = {k: path_abs + k for k in experiments}
+    exps = {k: exp.Experiment.from_dir(v) for k, v in paths.items()}
+    heurs = {}
+    for k, v in exps.items():
+        heur_obj = heur.Greedy(v.instance, options={'print': False})
+        heur_obj.solve()
+        heurs[k] = heur_obj
+
+    results = {}
+    results2 = {}
+    for k in experiments:
+        results[k] = exps[k].get_kpis()
+        results2[k] = heurs[k].get_kpis()
+        results2[k]["_resources"] = sum(heurs[k].check_solution().get('resources', {}).values())
+
+    args = {'left_index': True, 'right_index': True, 'how': 'left', 'suffixes': ('_mod', '_heur')}
+    table = pd.merge(
+        pd.DataFrame.from_dict(results, orient="index")
+        ,pd.DataFrame.from_dict(results2, orient="index")
+        ,**args
+    )
+    table = table[sorted(table.columns)]
+    table.reset_index(drop=True)
+
+    reftable = get_results_table(path_abs)
+    reftable = reftable[['index', 'date']].set_index('date')
+    comparison = pd.merge(table, reftable, left_index=True, right_index=True).set_index('index').sort_index()
+    print(comparison.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    return comparison
+
+
 def tests():
     ################################################
     # Tests
@@ -479,7 +517,7 @@ if __name__ == "__main__":
 
     # multiobjective_table()
     # pp.pprint(pareto_p2)
-    multiobjective_table()
+    # multiobjective_table()
     # table = get_results_table(path_abs)
     # print(table.ref)
     # table = 1

@@ -4,30 +4,55 @@ import numpy as np
 import package.tests as test
 import package.instance as inst
 import package.solution as sol
-import pprint as pp
+# import pprint as pp
 import pandas as pd
 import package.tests as exp
 
 
 class Greedy(test.Experiment):
 
-    def __init__(self, instance, solution, options=None):
+    def __init__(self, instance, options=None):
+
+        solution = sol.Solution({'state': {}, 'task': {}})
         super().__init__(instance, solution)
 
         self.solution.data['aux'] = {'ret': {}, 'rut': {}}
-        for resource in self.instance.get_resources():
-            for time in ['rut', 'ret']:
-                label = 'initial_{}'.format(self.label_rt(time))
-                initial = self.instance.data['resources'][resource][label]
-                label = 'max_{}_time'.format(self.label_rt(time))
-                max_time = self.instance.get_param(label)
-                period = aux.get_prev_month(self.instance.get_param('start'))
-                self.set_remainingtime(resource, period, time, min(max_time, initial))
-                self.update_time_usage(resource,
-                                       self.instance.get_periods(),
-                                       time=time)
+        first_period = aux.get_prev_month(self.instance.get_param('start'))
+        last_period = self.instance.get_param('end')
+        resources = list(self.instance.get_resources())
 
-        self.options = options
+        # we preassign ruts and rets.
+        for time in ['rut', 'ret']:
+            initial_state = self.instance.get_initial_state(self.label_rt(time))
+            for resource in resources:
+                self.set_remainingtime(resource, first_period, time, initial_state[resource])
+
+        periods_to_update = {r: self.instance.get_periods() for r in resources}
+
+        # we preassign fixed maintenances:
+        fixed_maintenances = self.instance.get_fixed_maintenances(in_dict=True)
+        for resource, periods in fixed_maintenances.items():
+            periods_to_update[resource] = \
+                aux.get_months(aux.get_next_month(periods[-1]), last_period)
+
+            for period in periods:
+                self.set_maint(resource, period)
+            self.update_time_maint(resource, periods, time='ret')
+            self.update_time_maint(resource, periods, time='rut')
+
+        for t in ['rut', 'ret']:
+            for r in resources:
+                self.update_time_usage(r, periods_to_update[r], time=t)
+
+        def_options = {'print': True}
+        self.options = {**def_options, **options}
+
+    def solve(self):
+        # tasks = self.instance.get_tasks()
+        check_candidates = self.instance.check_enough_candidates()
+        tasks_sorted = sorted(check_candidates.items(), key=lambda x: x[1][1])
+        for task, content in tasks_sorted:
+            self.fill_mission(task)
 
     def fill_mission(self, task):
         duration = self.instance.get_param('maint_duration')
@@ -54,7 +79,7 @@ class Greedy(test.Experiment):
                 continue
             maint_need = ''
             for start, end in periods_task:
-                last_month = self.find_assign_task(candidate, start, end)
+                last_month = self.find_assign_task(candidate, start, end, task)
                 for period in aux.get_months(start, last_month):
                     # we assign all found periods
                     rem_resources[period] -= 1
@@ -64,7 +89,8 @@ class Greedy(test.Experiment):
             if maint_need == '':
                 # if the resource has no need for maintenance yet, we don't attempt one
                 continue
-            print("resource {} needs a maintenance after period {}".format(candidate, maint_need))
+            if self.options['print']:
+                print("resource {} needs a maintenance after period {}".format(candidate, maint_need))
             # find soonest period to start maintenance:
             result = self.find_assign_maintenance(candidate, maint_need)
             if not result:
@@ -73,7 +99,7 @@ class Greedy(test.Experiment):
 
         return
 
-    def find_assign_task(self, resource, start, end):
+    def find_assign_task(self, resource, start, end, task):
         next_maint = self.get_next_maintenance(resource, end)
         periods_to_assign = self.check_assign_task(resource, aux.get_months(start, end), task)
         for period in periods_to_assign:
@@ -102,7 +128,8 @@ class Greedy(test.Experiment):
             # this means that we cannot assign tasks BUT
             # we cannot assign maintenance either :/
             # we should then take out the candidate:
-            print("resource {} has no candidate periods for maintenance".format(resource))
+            if self.options['print']:
+                print("resource {} has no candidate periods for maintenance".format(resource))
             return False
         maint_end = aux.shift_month(maint_start, duration - 1)
         periods_maint = aux.get_months(maint_start, maint_end)
@@ -110,17 +137,24 @@ class Greedy(test.Experiment):
         next_maint = self.get_next_maintenance(resource, maint_start)
         if next_maint is not None:
             if maint_start > next_maint:
-                print("resource {} has already a maintenance at {}".format(resource, next_maint))
+                if self.options['print']:
+                    print("resource {} has already a maintenance at {}".format(resource, next_maint))
                 return False
             else:
                 # we need to take out the old one, that happens *after* the new.
                 # and choose carefully the periods to update.
-                print("resource {} will swap maintenances: {} to {}".format(resource, next_maint, maint_start))
+                if self.options['print']:
+                    print("resource {} could swap maintenances: {} to {}".format(resource, next_maint, maint_start))
+                # return False
                 old_maint_end = aux.shift_month(next_maint, duration - 1)
-                periods_to_update = aux.get_months(maint_start, old_maint_end)
                 for period in aux.get_months(next_maint, old_maint_end):
                     self.del_maint(resource, period)
-        print("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
+        if self.options['print']:
+            print("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
+        start_update_rt = aux.get_next_month(maint_end)
+        end_update_rt = self.get_next_maintenance(resource, start_update_rt)
+        if end_update_rt is None:
+            end_update_rt = self.instance.get_param('end')
         for period in periods_maint:
             self.set_maint(resource, period)
         self.update_time_maint(resource, periods_to_update, time='ret')
@@ -130,12 +164,8 @@ class Greedy(test.Experiment):
             # we assigned the last day to maintenance:
             # there is nothing to update.
             return True
-        start = aux.get_next_month(maint_end)
-        end = self.get_next_maintenance(resource, start)
-        if end is None:
-            end = self.instance.get_param('end')
-        self.update_time_usage(resource, aux.get_months(start, end), time='ret')
-        self.update_time_usage(resource, aux.get_months(start, end), time='rut')
+        self.update_time_usage(resource, aux.get_months(start_update_rt, end_update_rt), time='ret')
+        self.update_time_usage(resource, aux.get_months(start_update_rt, end_update_rt), time='rut')
         return True
 
     def check_assign_task(self, resource, periods, task):
@@ -236,66 +266,23 @@ class Greedy(test.Experiment):
         return table
 
 
-def heuristic(instance, options):
-    # 1. Choose a mission.
-    # 2. Choose candidates for that mission.
-    # 3. Start assigning candidates to the mission's months.
-        # Here the selection order could be interesting
-        #  Assign maintenances when needed to each aircraft.
-    # 4. When finished with the mission, repeat with another mission.
-
-    # MAIN VARS:
-    solution = sol.Solution({'state': {}, 'task': {}})
-    heur = Greedy(instance, solution)
-    heur.instance.get_tasks()
-    heur.fill_mission('O10')
-
-    return False
+# def heuristic(instance, options):
+#     # 1. Choose a mission.
+#     # 2. Choose candidates for that mission.
+#     # 3. Start assigning candidates to the mission's months.
+#         # Here the selection order could be interesting
+#         #  Assign maintenances when needed to each aircraft.
+#     # 4. When finished with the mission, repeat with another mission.
+#
+#     # MAIN VARS:
+#     solution = sol.Solution({'state': {}, 'task': {}})
+#     heur = Greedy(instance, solution)
+#     heur.instance.get_tasks()
+#     heur.fill_mission('O10')
+#
+#     return False
 
 
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801131817/"
-    model_data = di.load_data(path + "data_in.json")
-    # this was for testing purposes
-
-    instance = inst.Instance(model_data)
-    solution = sol.Solution({'state': {}, 'task': {}})
-    heur = Greedy(instance, solution)
-    # heur.instance.get_tasks()
-    # heur.expand_resource_period(heur.solution.data['task'], 'A100', '2017-01')
-
-    tasks = heur.instance.get_tasks()
-    check_candidates = heur.instance.check_enough_candidates()
-    tasks_sorted = sorted(check_candidates.items(), key=lambda x: x[1][1])
-    # tasks = ['O5']
-    for task, content in tasks_sorted:
-        heur.fill_mission(task)
-    heur.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
-    checks = heur.check_solution()
-    pp.pprint(checks)
-
-    # comparisons between model and heur:
-    model_sol = exp.Experiment.from_dir(path)
-    end = model_sol.instance.get_param('end')
-    rut_init = model_sol.instance.get_initial_state('used')
-    ret_init = model_sol.instance.get_initial_state('elapsed')
-    rut_init = sum(rut_init.values())
-    ret_init = sum(ret_init.values())
-
-    rut_heur = heur.set_remaining_usage_time()
-    maint_obj_heur = max(heur.solution.get_in_maintenance().values())
-    avail_obj_heur = max(heur.solution.get_unavailable().values())
-    rut_end_heur = sum(v[end] for v in rut_heur.values())
-
-    rut_sol = model_sol.set_remaining_usage_time()
-    maint_obj_sol = max(model_sol.solution.get_in_maintenance().values())
-    avail_obj_sol = max(model_sol.solution.get_unavailable().values())
-    rut_end_sol = sum(v[end] for v in rut_sol.values())
-
-    # model_sol.solution
-    # print([k for k, v in checks.items() if len(v) > 0])
-    # {k: v for k, v in checks.items() if len(v) > 0}.keys()
-    # checks.keys()
-    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
-    # self = Greedy.from_dir(path)
-    #
+    #  see ../scripts/exec_heur.py
+    pass
