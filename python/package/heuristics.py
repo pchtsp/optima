@@ -30,11 +30,7 @@ class Greedy(test.Experiment):
         self.options = options
 
     def fill_mission(self, task):
-
-        # label = 'max_' + self.label_rt(time) + '_time'
-        # max_rut = self.instance.get_param('max_used_time')
         duration = self.instance.get_param('maint_duration')
-
         dtype = 'U7'
         # get task candidates: we copy the list.
         candidates = self.instance.data['tasks'][task]['candidates'][:]
@@ -47,90 +43,100 @@ class Greedy(test.Experiment):
         while len(rem_resources) > 0 and len(candidates) > 0:
             # delete periods that have 0 rem_resources to assign
             rem_resources = {p: v for p, v in rem_resources.items() if v > 0}
-            # candidate = 'A124'
             candidate = candidates[0]
             # get free periods for candidate
             periods_task = \
                 self.get_free_starts(candidate, np.fromiter(rem_resources, dtype=dtype))
-            # consider eliminating the resource from the list.
-            # if all its periods are 'used'
             if len(periods_task) == 0:
+                # consider eliminating the resource from the list.
+                # if all its periods are 'used'
                 candidates.pop(0)
                 continue
-            # print('candidate={}\ntask={}\nperiods={}'.format(candidate, task, periods_task))
-            maint_period = ''
-            next_maint = None
+            maint_need = ''
             for start, end in periods_task:
-                next_maint = self.get_next_maintenance(candidate, end)
-                periods_to_assign = self.check_assign_task(candidate, aux.get_months(start, end), task)
-                for period in periods_to_assign:
-                    self.expand_resource_period(self.solution.data['task'], candidate, period)
-                    self.solution.data['task'][candidate][period] = task
+                last_month = self.find_assign_task(candidate, start, end)
+                for period in aux.get_months(start, last_month):
+                    # we assign all found periods
                     rem_resources[period] -= 1
-                if len(periods_to_assign) == 0:
-                    # if there was nothing assigned: there is nothing to do
-                    if maint_period == '':
-                        maint_period = aux.shift_month(start, -duration+1)
-                    continue
-                if periods_to_assign[-1] != end:
-                    # if last assigned period corresponds with the end:
-                    # this means we did not have problems.
-                    # if not, a maintenance is needed after that period.
-                    maint_period = aux.shift_month(periods_to_assign[-1], -duration+1)
-                if next_maint is None:
-                    periods_to_update = aux.get_months(start, self.instance.get_param('end'))
-                else:
-                    periods_to_update = aux.get_months(start, next_maint)
-                self.update_time_usage(candidate, periods=periods_to_update, time='rut')
-            if maint_period == '':
-                # if the resources doesn't have a maintenance in the future
-                # and needs one...
+                if maint_need == '' and last_month < end:
+                    # we register the first need of maintenance:
+                    maint_need = aux.shift_month(last_month, -duration+1)
+            if maint_need == '':
+                # if the resource has no need for maintenance yet, we don't attempt one
                 continue
-            print("resource {} needs a maintenance after period {}".format(candidate, maint_period))
+            print("resource {} needs a maintenance after period {}".format(candidate, maint_need))
             # find soonest period to start maintenance:
-            maint_start = self.get_soonest_maint(candidate, maint_period)
-            if maint_start is None:
-                # this means that we cannot assign tasks BUT
-                # we cannot assign maintenance either :/
-                # we should then take out the candidate:
-                print("resource {} has no candidate periods for maintenance".format(candidate))
+            result = self.find_assign_maintenance(candidate, maint_need)
+            if not result:
+                # the maintenance failed: we pop the candidate.
                 candidates.pop(0)
-                continue
-            maint_end = aux.shift_month(maint_start, duration - 1)
-            periods_maint = aux.get_months(maint_start, maint_end)
-            periods_to_update = periods_maint
-            next_maint = self.get_next_maintenance(candidate, maint_start)
-            if next_maint is not None:
-                if maint_start > next_maint:
-                    print("resource {} has already a maintenance at {}".format(candidate, next_maint))
-                    candidates.pop(0)
-                    continue
-                else:
-                    # we need to take out the old one, that happens *after* the new.
-                    # and choose carefully the periods to update.
-                    print("resource {} will swap maintenances: {} to {}".format(candidate, next_maint, maint_start))
-                    old_maint_end = aux.shift_month(next_maint, duration - 1)
-                    periods_to_update = aux.get_months(maint_start, old_maint_end)
-                    for period in aux.get_months(next_maint, old_maint_end):
-                        self.del_maint(candidate, period)
-            print("resource {} will get a maintenance in periods {} -> {}".format(candidate, maint_start, maint_end))
-            for period in periods_maint:
-                self.set_maint(candidate, period)
-            self.update_time_maint(candidate, periods_to_update, time='ret')
-            self.update_time_maint(candidate, periods_to_update, time='rut')
-            # it doesn't make sense to assign a maintenance after a maintenance
-            if maint_end == self.instance.get_param('end'):
-                # we assigned the last day to maintenance:
-                # there is nothing to update.
-                continue
-            start = aux.get_next_month(maint_end)
-            end = self.get_next_maintenance(candidate, start)
-            if end is None:
-                end = self.instance.get_param('end')
-            self.update_time_usage(candidate, aux.get_months(start, end), time='ret')
-            self.update_time_usage(candidate, aux.get_months(start, end), time='rut')
 
         return
+
+    def find_assign_task(self, resource, start, end):
+        next_maint = self.get_next_maintenance(resource, end)
+        periods_to_assign = self.check_assign_task(resource, aux.get_months(start, end), task)
+        for period in periods_to_assign:
+            self.expand_resource_period(self.solution.data['task'], resource, period)
+            self.solution.data['task'][resource][period] = task
+        last_month = end
+        if len(periods_to_assign) == 0:
+            # if there was nothing assigned: there is nothing to do
+            return aux.shift_month(start, -1)
+        if periods_to_assign[-1] != end:
+            # if last assigned period corresponds with the end:
+            # this means we did not have problems.
+            # if not, a maintenance is needed after that period.
+            last_month = periods_to_assign[-1]
+        if next_maint is None:
+            periods_to_update = aux.get_months(start, self.instance.get_param('end'))
+        else:
+            periods_to_update = aux.get_months(start, next_maint)
+        self.update_time_usage(resource, periods=periods_to_update, time='rut')
+        return last_month
+
+    def find_assign_maintenance(self, resource, maint_need):
+        duration = self.instance.get_param('maint_duration')
+        maint_start = self.get_soonest_maint(resource, maint_need)
+        if maint_start is None:
+            # this means that we cannot assign tasks BUT
+            # we cannot assign maintenance either :/
+            # we should then take out the candidate:
+            print("resource {} has no candidate periods for maintenance".format(resource))
+            return False
+        maint_end = aux.shift_month(maint_start, duration - 1)
+        periods_maint = aux.get_months(maint_start, maint_end)
+        periods_to_update = periods_maint
+        next_maint = self.get_next_maintenance(resource, maint_start)
+        if next_maint is not None:
+            if maint_start > next_maint:
+                print("resource {} has already a maintenance at {}".format(resource, next_maint))
+                return False
+            else:
+                # we need to take out the old one, that happens *after* the new.
+                # and choose carefully the periods to update.
+                print("resource {} will swap maintenances: {} to {}".format(resource, next_maint, maint_start))
+                old_maint_end = aux.shift_month(next_maint, duration - 1)
+                periods_to_update = aux.get_months(maint_start, old_maint_end)
+                for period in aux.get_months(next_maint, old_maint_end):
+                    self.del_maint(resource, period)
+        print("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
+        for period in periods_maint:
+            self.set_maint(resource, period)
+        self.update_time_maint(resource, periods_to_update, time='ret')
+        self.update_time_maint(resource, periods_to_update, time='rut')
+        # it doesn't make sense to assign a maintenance after a maintenance
+        if maint_end == self.instance.get_param('end'):
+            # we assigned the last day to maintenance:
+            # there is nothing to update.
+            return True
+        start = aux.get_next_month(maint_end)
+        end = self.get_next_maintenance(resource, start)
+        if end is None:
+            end = self.instance.get_param('end')
+        self.update_time_usage(resource, aux.get_months(start, end), time='ret')
+        self.update_time_usage(resource, aux.get_months(start, end), time='rut')
+        return True
 
     def check_assign_task(self, resource, periods, task):
         consumption = self.instance.data['tasks'][task]['consumption']
