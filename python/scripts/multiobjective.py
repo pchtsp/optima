@@ -5,6 +5,22 @@ import package.instance as inst
 import package.tests as exp
 import os
 
+path_root = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/"
+path_in = path_root + "MOSIM2018/"
+path_out = path_root + "experiments/"
+
+weight_options = [round(0.1 * value, 1) for value in range(11)]
+experiments = \
+    ['201801141705', '201801141331', '201801141334', '201801141706',
+     '201801141646', '201801131813', '201801102127', '201801131817',
+     '201801141607', '201801102259']
+experiments = \
+    ['201801141705', '201801141334', '201801141706',
+     '201801131813', '201801131817', '201801102259']
+paths = {k: path_in + k for k in experiments}
+instances = {k: exp.Experiment.from_dir(v).instance for k, v in paths.items()}
+options_all = {k: di.load_data(v + '/options.json') for k, v in paths.items()}
+
 
 def compare_two_weights(instance, def_options, weight_options):
 
@@ -24,22 +40,10 @@ def compare_two_weights(instance, def_options, weight_options):
             di.export_data(options['path'], solution.data, name="data_out", file_type='json')
 
 
-if __name__ == "__main__":
+def test_all_multiobjective():
 
-    path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
-    weight_options = [round(0.1 * value, 1) for value in range(11)]
-
-    experiments =\
-        ['201801141705', '201801141331', '201801141334', '201801141706',
-         '201801141646', '201801131813', '201801102127', '201801131817',
-         '201801141607', '201801102259']
-
-    paths = {k: path_abs + k for k in experiments}
-
-    instances = {k: exp.Experiment.from_dir(v).instance for k, v in paths.items()}
-    options = {k: di.load_data(v + '/options.json') for k, v in paths.items()}
-    for k, v in options.items():
-        v['path'] = path_abs + 'weights_all/' + k + '/'
+    for k, v in options_all.items():
+        v['path'] = path_out + 'weights_all/' + k + '/'
         if not os.path.exists(v['path']):
             os.mkdir(v['path'])
 
@@ -47,23 +51,32 @@ if __name__ == "__main__":
     # option = options['201801141607']
 
     for _id in experiments:
-        if _id != '201801141607':
-            instance = instances[_id]
-            option = options[_id]
-            compare_two_weights(instance, option, weight_options)
+        # if _id != '201801141607':
+        instance = instances[_id]
+        options = options_all[_id]
+        compare_two_weights(instance, options, weight_options)
 
-if __name__ == "__main__AAAA":
 
-    # instance = inst.Instance(model_data)
+def test_all_solver_change():
 
-    def_options = {
-        'timeLimit': 3600
-        , 'gap': 0
-        , 'solver': "CPLEX"
-        , 'path':
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/weights3/'
-        , "model": "no_states"
-        , "timestamp": aux.get_timestamp()
-        # , "comments": "periods 0 to 30 without tasks: O10, O8"
-    }
+    for k, v in options_all.items():
+        v['path'] = path_out + 'CPLEX128/' + k + '/'
+        v['comment'] = 'CPLEX 12.8'
+        if not os.path.exists(v['path']):
+            os.mkdir(v['path'])
 
+    for _id in instances:
+        options = options_all[_id]
+        instance = instances[_id]
+        di.export_data(options['path'], instance.data, name="data_in", file_type='json')
+        di.export_data(options['path'], options, name="options", file_type='json')
+
+        solution = md.model_no_states(instance, options)
+        if solution is not None:
+            di.export_data(options['path'], solution.data, name="data_out", file_type='json')
+
+
+
+if __name__ == "__main__":
+    # test_all_multiobjective()
+    test_all_solver_change()

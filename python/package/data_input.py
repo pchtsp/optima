@@ -95,18 +95,13 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
     capacites_avion_extra = capacites_avion.IdAvion.drop_duplicates().to_frame().assign(value=99)
     capacites_avion = pd.concat([capacites_avion[~capacites_avion.value.isna()],
                                  capacites_avion_extra]).set_index('value')
-    num_capacites = capacites_mission.reset_index().groupby("IdMission"). \
-        agg(len).reset_index()
-    capacites_join = capacites_mission.join(capacites_avion)
-    capacites_join = capacites_join.reset_index(). \
-        groupby(['IdMission', 'IdAvion']).agg(len).reset_index()
 
-    mission_aircraft = \
-        pd.merge(capacites_join, num_capacites, on=["IdMission", "value"]) \
-            [["IdMission", "IdAvion"]]
+    mission_capacities = aux.tup_to_dict(
+        capacites_mission.to_records().tolist(), result_col=0)
+    aircraft_capacities = aux.tup_to_dict(
+        capacites_avion.to_records().tolist(), result_col=0)
 
     maint = table['DefinitionMaintenances']
-
     avions_state = table['Avions_Potentiels']
 
     model_data = {}
@@ -121,7 +116,7 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
         ,'end': horizon["Fin"]
     }
 
-    av_tasks = np.intersect1d(mission_aircraft.IdMission.unique(), tasks_data.index)
+    av_tasks = tasks_data.index
     # [task]
     model_data['tasks'] = {
         task: {
@@ -131,8 +126,9 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
             , 'num_resource': tasks_data.nombreRequisA1.to_dict()[task]
             , 'type_resource': tasks_data['Type'].to_dict()[task]
             , 'matricule': tasks_data['MatriculeMission'].to_dict()[task]
-            , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].
-                apply(lambda x: x.tolist()).to_dict()[task]
+            # , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].
+            #     apply(lambda x: x.tolist()).to_dict()[task]
+            , 'capacities': mission_capacities[task]
         } for task in av_tasks
     }
 
@@ -143,6 +139,7 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
             'initial_used': avions_state.set_index("IdAvion")['PotentielHoraire_HdV'].to_dict()[resource]
             , 'initial_elapsed': avions_state.set_index("IdAvion")['PotentielCalendaire'].to_dict()[resource]
             , 'code': avions.set_index("IdAvion")['MatriculeAvion'].to_dict()[resource]
+            , 'capacities': aircraft_capacities[resource]
         } for resource in av_resource
     }
 
@@ -222,8 +219,8 @@ def export_data(path, obj, name=None, file_type="pickle"):
 
 
 def import_pie_solution(path_solution, path_input):
-    path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
-    path_input = "/home/pchtsp/Documents/projects/PIE/glouton/parametres_DGA_final.xlsm"
+    # path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
+    # path_input = "/home/pchtsp/Documents/projects/PIE/glouton/parametres_DGA_final.xlsm"
     model_data = get_model_data(path_input)
     table = pd.read_csv(path_solution, sep=';')
     periods = [i for i in range(1, len(table.columns))]
@@ -233,26 +230,55 @@ def import_pie_solution(path_solution, path_input):
     table = table[~(table.value == '-')]
 
     resources_equiv = aux.get_property_from_dic(model_data["resources"], 'code')
+    r_e_i = {v: k for k, v in resources_equiv.items()}
+    tasks_equiv = aux.get_property_from_dic(model_data["tasks"], 'matricule')
+    t_e_i = {v: k for k, v in tasks_equiv.items()}
+    start, end = model_data['parameters']['start'], model_data['parameters']['end']
+    p_e_i = {k: aux.get_months(start, end)[k-1] for k in periods}
 
     elements = table.value.str.split('$')
     ismission = elements.apply(lambda x: len(x) == 2)
     state = table[~ismission].reset_index(drop=True)
     state.value = "M"
-    state_dict = state.set_index(['resource', 'variable'])['value'].to_dict()
-    state_dict = aux.dicttup_to_dictdict(state_dict)
 
+    state_dict = state.set_index(['resource', 'variable'])['value'].to_dict()
+    state_dict_e = {(r_e_i[k[0]], p_e_i[k[1]]): v for k, v in state_dict.items()}
+    state_dict_f = aux.dicttup_to_dictdict(state_dict_e)
 
     table.value = elements.apply(lambda x: x[0])
 
-    tasks_equiv = aux.get_property_from_dic(model_data["tasks"], 'matricule')
-
     missions = table[ismission]
     missions_dict = missions.set_index(['resource', 'variable'])['value'].to_dict()
-    missions_dict = aux.dicttup_to_dictdict(missions_dict)
+    missions_dict_e = {(r_e_i[k[0]], p_e_i[k[1]]): t_e_i[v] for k, v in missions_dict.items()}
+    task_dict_f = aux.dicttup_to_dictdict(missions_dict_e)
+
+    return {
+        'state': state_dict_f,
+        'task': task_dict_f
+    }
+
 
 if __name__ == "__main__":
     # get_model_data()
     path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
     path_input = "/home/pchtsp/Documents/projects/PIE/glouton/parametres_DGA_final.xlsm"
+    model_data = get_model_data(path_input)
     import_pie_solution(path_solution, path_input)
-    pass
+
+
+    def _function(cell):
+        # cell = "LUXEUIL_5F$23"
+        if pd.isna(cell):
+            return None
+        result = re.search("(.*)\$", cell)
+        if result is not None:
+            return result.group(1)
+        return None
+
+    table = pd.read_csv(path_solution, sep=';')
+    periods = [i for i in range(1, len(table.columns))]
+    table.columns = ['resource'] + periods
+    table = pd.melt(table, value_vars=periods, id_vars=['resource'])
+    table.value = table.value.apply(_function)
+    table = table[~pd.isnull(table.value)]
+    len(table)

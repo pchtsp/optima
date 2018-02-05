@@ -84,10 +84,11 @@ class Experiment(object):
         return task_under_assigned
 
     def check_resource_in_candidates(self):
-        task_data = self.instance.get_tasks()
+        # task_data = self.instance.get_tasks()
         task_solution = self.solution.get_tasks()
 
-        task_candidates = aux.get_property_from_dic(task_data, 'candidates')
+        task_candidates = self.instance.get_task_candidates()
+        # aux.get_property_from_dic(task_data, 'candidates')
 
         bad_assignment = {
             (resource, period): task
