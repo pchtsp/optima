@@ -184,7 +184,7 @@ class Instance(object):
 
         return rt_init
 
-    def get_fixed_maintenances(self, in_dict=False):
+    def get_fixed_maintenances(self, dict_key=None):
         previous_states = aux.get_property_from_dic(self.get_resources(), "states")
         first_period = self.get_param()['start']
         duration = self.get_param()['maint_duration']
@@ -207,9 +207,12 @@ class Instance(object):
             finish_maint = aux.shift_month(last_maint[res], duration - 1)
             for period in aux.get_months(first_period, finish_maint):
                 planned_maint.append((res, period))
-        if not in_dict:
+        if dict_key is None:
             return planned_maint
-        return aux.tup_to_dict(planned_maint, result_col=1)
+        if dict_key == 'resource':
+            return aux.tup_to_dict(planned_maint, result_col=1)
+        if dict_key == 'period':
+            return aux.tup_to_dict(planned_maint, result_col=0)
 
     def get_task_period_list(self, in_dict=False):
 
@@ -318,8 +321,18 @@ class Instance(object):
         cluster = self.get_clusters()
         for k, v in t_candidates.items():
             c_candidates[cluster[k]] = v
-
         return c_candidates
+
+    def get_fixed_maintenances_cluster(self):
+        fixed_per_period = self.get_fixed_maintenances(dict_key='period')
+        candidates_per_cluster = self.get_cluster_candidates()
+        fixed_per_period_cluster = {}
+        for period, resources in fixed_per_period.items():
+            for cluster, candidates in candidates_per_cluster.items():
+                fixed_per_period_cluster[(cluster, period)] =\
+                    np.intersect1d(resources, candidates)
+        return fixed_per_period_cluster
+
 
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"

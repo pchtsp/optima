@@ -12,11 +12,12 @@ import tabulate
 import package.logFiles as log
 import re
 import package.heuristics as heur
+from package.params import PATHS
 
-path_root = '/home/pchtsp/Documents/projects/'
-path_abs = path_root + "OPTIMA_documents/results/experiments/"
-path_img = path_root + "OPTIMA/img/"
-path_latex = path_root + "OPTIMA/latex/"
+path_root = PATHS['root']
+path_abs = PATHS['experiments']
+path_img = PATHS['img']
+path_latex = PATHS['latex']
 
 
 # here we get some data inside
@@ -28,6 +29,9 @@ def task_table():
     historic_data = di.generate_solution_from_source()
     model_data = di.combine_data_states(model_data, historic_data)
     instance = inst.Instance(model_data)
+
+    for k, v in instance.get_task_candidates().items():
+        instance.data['tasks'][k]['candidates'] = v
 
     cols = ['consumption', 'num_resource', 'candidates']
 

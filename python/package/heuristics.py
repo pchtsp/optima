@@ -30,7 +30,7 @@ class Greedy(test.Experiment):
         periods_to_update = {r: self.instance.get_periods() for r in resources}
 
         # we preassign fixed maintenances:
-        fixed_maintenances = self.instance.get_fixed_maintenances(in_dict=True)
+        fixed_maintenances = self.instance.get_fixed_maintenances(dict_key='resource')
         for resource, periods in fixed_maintenances.items():
             periods_to_update[resource] = \
                 aux.get_months(aux.get_next_month(periods[-1]), last_period)

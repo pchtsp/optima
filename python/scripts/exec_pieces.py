@@ -55,7 +55,7 @@ if __name__ == "__main__":
         di.export_data(options['path'], instance.data, name="data_in", file_type='json')
         di.export_data(options['path'], options, name="options", file_type='json')
         # solving part:
-        solution = md.model_no_states(instance, options)
+        solution = md.solve_model(instance, options)
 
         if solution is not None:
             di.export_data(options['path'], solution.data, name="data_out", file_type='json')
