@@ -124,6 +124,15 @@ def solve_model(instance, options=None):
     for a in l['resources']:
         model += rut[(a, l['period_0'])] == rut_init[a]
         model += ret[(a, l['period_0'])] == ret_init[a]
+        if ret_init[a] < len(l['periods']):
+            # if ret is low: we know we need a maintenance
+            model += pl.lpSum(start.get((a, t), 0) for pos, t in enumerate(l['periods'])
+                              if pos < ret_init[a]) >= 1
+
+    # model += pl.lpSum(start.get((a, t2), 0) for t2 in l['periods']
+    #                   if t <= t2 <= aux.shift_month(t, 59) ) \
+    #          >= start.get((a, t), 0)
+
 
     # minimum availability per cluster and period
     for k, t in c_needs:
