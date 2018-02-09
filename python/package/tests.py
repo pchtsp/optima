@@ -63,9 +63,14 @@ class Experiment(object):
             ,'state':       self.check_resource_state
             ,'resources':   self.check_task_num_resources
             ,'usage':       self.check_resource_consumption
+            ,'capacity':    self.check_maintenance_capacity
         }
         result = {k: v() for k, v in func_list.items()}
         return {k: v for k, v in result.items() if len(v) > 0}
+
+    def check_maintenance_capacity(self):
+        maints = self.solution.get_in_maintenance()
+        return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
 
     def check_task_num_resources(self):
         task_reqs = self.instance.get_tasks('num_resource')
@@ -84,10 +89,11 @@ class Experiment(object):
         return task_under_assigned
 
     def check_resource_in_candidates(self):
-        task_data = self.instance.get_tasks()
+        # task_data = self.instance.get_tasks()
         task_solution = self.solution.get_tasks()
 
-        task_candidates = aux.get_property_from_dic(task_data, 'candidates')
+        task_candidates = self.instance.get_task_candidates()
+        # aux.get_property_from_dic(task_data, 'candidates')
 
         bad_assignment = {
             (resource, period): task

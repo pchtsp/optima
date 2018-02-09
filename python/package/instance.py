@@ -3,6 +3,7 @@
 import numpy as np
 import package.aux as aux
 import package.data_input as di
+import pandas as pd
 
 
 class Instance(object):
@@ -85,15 +86,16 @@ class Instance(object):
         # tasks
         task_data = self.get_tasks()
         tasks = list(task_data.keys())
-        start_time = aux.get_property_from_dic(task_data, 'start')
-        end_time = aux.get_property_from_dic(task_data, 'end')
-        candidates = aux.get_property_from_dic(task_data, 'candidates')
+        start_time = self.get_tasks('start')
+        end_time = self.get_tasks('end')
+        candidates = self.get_task_candidates()
+        # candidates = aux.get_property_from_dic(task_data, 'candidates')
 
         # resources
         resources_data = self.get_resources()
         resources = list(resources_data.keys())
         duration = param_data['maint_duration']
-        previous_states = aux.get_property_from_dic(resources_data, 'states')
+        # previous_states = aux.get_property_from_dic(resources_data, 'states')
 
         """
         Indentation means "includes the following:".
@@ -182,7 +184,7 @@ class Instance(object):
 
         return rt_init
 
-    def get_fixed_maintenances(self, in_dict=False):
+    def get_fixed_maintenances(self, dict_key=None):
         previous_states = aux.get_property_from_dic(self.get_resources(), "states")
         first_period = self.get_param()['start']
         duration = self.get_param()['maint_duration']
@@ -205,9 +207,12 @@ class Instance(object):
             finish_maint = aux.shift_month(last_maint[res], duration - 1)
             for period in aux.get_months(first_period, finish_maint):
                 planned_maint.append((res, period))
-        if not in_dict:
+        if dict_key is None:
             return planned_maint
-        return aux.tup_to_dict(planned_maint, result_col=1)
+        if dict_key == 'resource':
+            return aux.tup_to_dict(planned_maint, result_col=1)
+        if dict_key == 'period':
+            return aux.tup_to_dict(planned_maint, result_col=0)
 
     def get_task_period_list(self, in_dict=False):
 
@@ -241,7 +246,7 @@ class Instance(object):
 
     def check_enough_candidates(self):
         task_num_resources = self.get_tasks('num_resource')
-        task_num_candidates = {task: len(candidates) for task, candidates in self.get_tasks('candidates').items()}
+        task_num_candidates = {task: len(candidates) for task, candidates in self.get_task_candidates().items()}
         task_slack = {task: task_num_candidates[task] - task_num_resources[task] for task in task_num_resources}
 
         return {k: (v, v / task_num_resources[k]) for k, v in task_slack.items()}
@@ -257,13 +262,82 @@ class Instance(object):
             'assignments': assign
         }
 
+    def get_clusters(self):
+        capacities = self.get_tasks('capacities')
+        group = {}
+        present_group = 1
+        for task1, cap1 in capacities.items():
+            if task1 not in group:
+                group[task1] = present_group
+                present_group += 1
+            for task2, cap2 in capacities.items():
+                if task2 not in group:
+                    int_caps = np.intersect1d(cap1, cap2)
+                    if len(int_caps) == len(task1):
+                        group[task2] = group[task1]
+        return group
+
+    def get_cluster_needs(self):
+        cluster = self.get_clusters()
+        task_needs = self.get_task_period_needs()
+        cluster_needs = {(c, period): 0
+                         for c in cluster.values()
+                         for period in self.get_periods()}
+        for (task, period), value in task_needs.items():
+            cluster_needs[(cluster[task], period)] += value
+        return cluster_needs
+
+    def get_task_candidates(self, task=None):
+        r_cap = self.get_resources('capacities')
+        t_cap = self.get_tasks('capacities')
+        if task is not None:
+            t_cap = t_cap[task]
+        t_cap_df = pd.DataFrame([(t, c) for t in t_cap for c in t_cap[t]], columns=['IdTask', 'CAP'])
+        r_cap_df = pd.DataFrame([(t, c) for t in r_cap for c in r_cap[t]], columns=['IdResource', 'CAP'])
+
+        # task_df = .from_dict(, orient='index')
+        num_capacites = t_cap_df.groupby("IdTask"). \
+            agg(len).reset_index()
+        capacites_join = t_cap_df.merge(r_cap_df, on='CAP').\
+            groupby(['IdTask', 'IdResource']).agg(len).reset_index()
+        # capacites_join = capacites_join.reset_index(). \
+        #     groupby(['IdMission', 'IdAvion']).agg(len).reset_index()
+        mission_aircraft = \
+            pd.merge(capacites_join, num_capacites, on=["IdTask", "CAP"]) \
+                [["IdTask", "IdResource"]]
+
+        t_candiddates =\
+            aux.tup_to_dict(
+                mission_aircraft.to_records(index=False).tolist(),
+                result_col=1
+            )
+        if task is not None:
+            return t_candiddates[task]
+        return t_candiddates
+
+    def get_cluster_candidates(self):
+        c_candidates = {}
+        t_candidates = self.get_task_candidates()
+        cluster = self.get_clusters()
+        for k, v in t_candidates.items():
+            c_candidates[cluster[k]] = v
+        return c_candidates
+
+    def get_fixed_maintenances_cluster(self):
+        fixed_per_period = self.get_fixed_maintenances(dict_key='period')
+        candidates_per_cluster = self.get_cluster_candidates()
+        fixed_per_period_cluster = {}
+        for period, resources in fixed_per_period.items():
+            for cluster, candidates in candidates_per_cluster.items():
+                fixed_per_period_cluster[(cluster, period)] =\
+                    np.intersect1d(resources, candidates)
+        return fixed_per_period_cluster
+
+
 if __name__ == "__main__":
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
-    model_data = di.load_data(path + "data_in.json")
-    # model_data = di.get_model_data()
+    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
+    # model_data = di.load_data(path + "data_in.json")
+    model_data = di.get_model_data()
     instance = Instance(model_data)
     instance.get_categories()
     result = instance.get_total_fixed_maintenances()
-
-    candidates = instance.get_tasks('candidates')
-    {k: len(v) for k, v in candidates.items()}

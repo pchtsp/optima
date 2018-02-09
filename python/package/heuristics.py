@@ -30,7 +30,7 @@ class Greedy(test.Experiment):
         periods_to_update = {r: self.instance.get_periods() for r in resources}
 
         # we preassign fixed maintenances:
-        fixed_maintenances = self.instance.get_fixed_maintenances(in_dict=True)
+        fixed_maintenances = self.instance.get_fixed_maintenances(dict_key='resource')
         for resource, periods in fixed_maintenances.items():
             periods_to_update[resource] = \
                 aux.get_months(aux.get_next_month(periods[-1]), last_period)
@@ -58,7 +58,7 @@ class Greedy(test.Experiment):
         duration = self.instance.get_param('maint_duration')
         dtype = 'U7'
         # get task candidates: we copy the list.
-        candidates = self.instance.data['tasks'][task]['candidates'][:]
+        candidates = self.instance.get_task_candidates(task)
         # get task periods to satisfy:
         rem_resources = \
             aux.dicttup_to_dictdict(
@@ -255,7 +255,6 @@ class Greedy(test.Experiment):
         return None
 
     def get_status(self, candidate):
-        # TODO: this can be done prettier:
         rut = pd.DataFrame.from_dict(self.solution.data['aux']['rut'].get(candidate, {}), orient='index')
         ret = pd.DataFrame.from_dict(self.solution.data['aux']['ret'].get(candidate, {}), orient='index')
         state = pd.DataFrame.from_dict(self.solution.data['state'].get(candidate, {}), orient='index')

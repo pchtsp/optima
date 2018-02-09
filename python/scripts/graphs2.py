@@ -12,11 +12,12 @@ import tabulate
 import package.logFiles as log
 import re
 import package.heuristics as heur
+from package.params import PATHS
 
-path_root = '/home/pchtsp/Documents/projects/'
-path_abs = path_root + "OPTIMA_documents/results/experiments/"
-path_img = path_root + "OPTIMA/img/"
-path_latex = path_root + "OPTIMA/latex/"
+path_root = PATHS['root']
+path_abs = PATHS['experiments']
+path_img = PATHS['img']
+path_latex = PATHS['latex']
 
 
 # here we get some data inside
@@ -28,6 +29,9 @@ def task_table():
     historic_data = di.generate_solution_from_source()
     model_data = di.combine_data_states(model_data, historic_data)
     instance = inst.Instance(model_data)
+
+    for k, v in instance.get_task_candidates().items():
+        instance.data['tasks'][k]['candidates'] = v
 
     cols = ['consumption', 'num_resource', 'candidates']
 
@@ -76,14 +80,25 @@ def remaining_graph():
     plot.save(path_img + 'initial_used.png')
 
 
-def get_results_table(path_abs):
+def get_results_table(path_abs, exp_list=None):
     exps = exp.list_experiments(path_abs)
     table = pd.DataFrame.from_dict(exps, orient="index")
-    table = table[np.all((table.model == 'no_states',
-                          table.gap == 0,
-                          table.timeLimit >= 500,
-                          table.solver == 'CPLEX'),
-                         axis=0)].sort_values(['tasks', 'periods']).reset_index()
+    # table = table[np.all((table.model == 'no_states',
+    #                       table.gap == 0,
+    #                       table.timeLimit >= 500,
+    #                       table.solver == 'CPLEX'),
+    #                      axis=0)]
+
+    # Changed the logic to a fix set of results.
+    # This makes it possible to recover the original results
+    if exp_list is None:
+        exp_list = [
+            '201801141705', '201801141331', '201801141334', '201801141706',
+            '201801141646', '201801131813', '201801102127', '201801131817',
+            '201801141607', '201801102259'
+        ]
+    table = table.loc[exp_list]
+    table = table.sort_values(['tasks', 'periods']).reset_index()
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
     table['index'] = ['I\_' + str(num) for num in table.index]
@@ -518,7 +533,7 @@ if __name__ == "__main__":
     # multiobjective_table()
     # pp.pprint(pareto_p2)
     # multiobjective_table()
-    # table = get_results_table(path_abs)
+    table = get_results_table(path_abs)
     # print(table.ref)
     # table = 1
     pass
