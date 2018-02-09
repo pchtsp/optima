@@ -2,10 +2,9 @@
 
 # requires having set environment variables for user and pass:
 # IBOX_USER and IBOX_PASS
-
-SOURCE=/home/pchtsp/Documents/projects/OPTIMA_documents/
-DEST=//disc/f.peschiera/Documents/OPTIMA
-TEMP_MOUNT=/mnt/Shared
+# SOURCE
+# DEST
+# TEMP_MOUNT
 
 if [ -n "`mount | grep $TEMP_MOUNT`" ]; then
     echo "Already mounted"
