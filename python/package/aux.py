@@ -44,6 +44,15 @@ def tup_filter(tuplist, indeces):
     return [tuple(np.take(tup, indeces)) for tup in tuplist]
 
 
+def dict_filter(dictionary, indeces):
+    if type(indeces) is not list:
+        indeces = [indeces]
+    bad_elem = np.setdiff1d(indeces, list(dictionary.keys()))
+    if len(bad_elem) > 0:
+        raise KeyError("following elements not in keys: {}".format(bad_elem))
+    return {k: dictionary[k] for k in indeces}
+
+
 def tup_to_dict(tuplist, result_col=0, is_list=True, indeces=None):
     if type(result_col) is not list:
         result_col = [result_col]
