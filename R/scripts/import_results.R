@@ -9,22 +9,93 @@ library(timevis)
 library(Hmisc)
 library(RColorBrewer)
 library(htmlwidgets)
+library(jsonlite)
 
-collapse_states <- function(table, column_name){
+collapse_states <- function(table){
     
-    series <- table[[column_name]]
+    # we complete missing months
+    months <- table$month
+    resources <- table %>% extract2('UNIT')
+    min_date <- months %>% min %>% paste0('-01') %>% as.Date()
+    max_date <- months %>% max %>% paste0('-01') %>% as.Date()
+    total_rows <- 
+        seq(from= min_date, to=max_date, "months") %>% 
+        as.character() %>% 
+        str_sub(end='7') %>% 
+        CJ(month= ., UNIT=resources)
     
     table %>% 
-        mutate(temp = series) %>% 
+        full_join(total_rows) %>% 
+        mutate(state = if_else(is.na(state), "", state),
+               temp = state) %>% 
         arrange(UNIT, month) %>% 
-        group_by(UNIT) %>% 
+        group_by(UNIT) %>%  
         mutate(prev_temp= temp %>% lag,
                first_row= row_number()==1,
                change = temp != prev_temp) %>% 
         filter(first_row | change) %>% 
-        mutate(post_month = month %>% lead %>% paste0("-01") %>% ymd() %>% add(0) %>% format("%Y-%m")) %>% 
+        mutate(post_month = month %>% lead %>% paste0("-01") %>% ymd() %>% add(0) %>% format("%Y-%m"),
+               post_month = post_month %>% if_else(is.na(.), max_date %>% ymd() %>% format("%Y-%m"), .)) %>% 
         select(-temp, -prev_temp, -first_row, -change) %>% 
-        ungroup()
+        ungroup() %>% filter(state != "")
+}
+
+print_solution <- function(exp_directory, max_resources=NULL){
+    solution_path = exp_directory %>% paste0('data_out.json')
+    input_path = exp_directory %>% paste0('data_in.json')
+    
+    solution <- read_json(solution_path)
+    input <- read_json(input_path)
+    
+    task_hours <-
+        input %>% 
+        extract2('tasks') %>% 
+        lapply("[[", 'consumption') %>% 
+        bind_rows() %>% 
+        gather(key='state', value = 'hours') %>% 
+        bind_rows(data.table(state='M', hours=0)) %>% 
+        mutate(bucket= hours %>% as.integer %>% multiply_by(-1) %>% cut2(g= 4),
+               color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket])
+    
+    tasks <- 
+        solution %>% 
+        extract2('task') %>% 
+        bind_rows(.id = "UNIT") %>% 
+        gather(key = 'month', value = 'state', -UNIT) %>% 
+        filter(state %>% is.na %>% not)
+    
+    states <- 
+        solution %>% 
+        extract2('state') %>% 
+        bind_rows(.id = "UNIT") %>% 
+        gather(key = 'month', value = 'state', -UNIT) %>% 
+        filter(state %>% is.na %>% not) %>% 
+        bind_rows(tasks) %>% 
+        collapse_states() %>% 
+        inner_join(task_hours) %>% 
+        mutate(id= c(1:nrow(.)),
+               style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color)
+        ) %>% 
+        select(id, start= month, end= post_month, content = state, group= UNIT, style)
+    
+    if (max_resources %>% is.null %>% not){
+        resources <- states %>% distinct(group) %>% slice(1:max_resources)
+        states <- states %>% inner_join(resources)
+    }
+    
+    groups_c <- states %>% distinct(group) %>% unlist
+    groups <- data.table(id= groups_c, content= groups_c)
+    
+    config <- list(
+        stack = FALSE,
+        editable = TRUE,
+        align = "center",
+        orientation = "top",
+        snap = NULL,
+        margin = 0
+    )
+    
+    timevis(states, groups= groups, options= config, width="100%")
 }
 
 if (FALSE){
@@ -53,7 +124,7 @@ if (FALSE){
         filter(str_sub(UNIT, 1, 1)=="D") %>% 
         slice(2:78) %>% 
         gather(key= "month", value="state", starts_with("20")) %>% 
-        collapse_states("state") %>% 
+        collapse_states() %>% 
         mutate(id= c(1:nrow(.))) %>% 
         mutate(bucket= state %>% as.integer %>% cut2(g= 5),
                maint = state %>% str_detect('^V\\d+'),
@@ -62,7 +133,6 @@ if (FALSE){
                color= if_else(color %>% is.na, '', color),
                style= sprintf("background-color:%s;border-color:%s", color, color)
                ) %>% 
-        collapse_states("bucket") %>% 
         select(id, start= month, end= post_month, content = bucket, group= UNIT, style) %>% 
         slice(1:1000)
     
@@ -79,6 +149,6 @@ if (FALSE){
     )
     
     result <- timevis(states, groups= groups, options= config)
+    saveWidget(result, file = "/home/pchtsp/Downloads/test.html", selfcontained = FALSE)
 }
 
-saveWidget(result, file = "/home/pchtsp/Downloads/test.html", selfcontained = FALSE)

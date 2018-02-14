@@ -1,0 +1,154 @@
+---
+title: "ROADEF"
+author: "Franco Peschiera"
+date: "February 14, 2018"
+output: 
+  slidy_presentation:
+    css: ./../../css/baobab_MH.css
+    incremental: yes
+  beamer_presentation:
+    incremental: yes
+nocite: '@*'
+bibliography: MFMP.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("../")
+source('scripts/params.R')
+source('scripts/import_results.R')
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+gantt <- print_solution(exp_directory, max_resources = 30)
+```
+
+## Introduction
+
+## Problem
+
+**Informally**:
+
+Assign both missions and maintenance operations to a fleet of aircraft in order to maximize availability and minimize costs. Missions have particular needs in terms of aircraft and time.
+
+## Example
+
+<div style="font-size: 20px;">
+```{r}
+gantt
+```
+</div>
+
+## Problem
+
+**Formally**:
+
+A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. 
+
+Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
+
+## Relevance and origin
+
+The problem was born out of the need of the french Air Force to maximize the availability of their Mirage 2000 fleet.
+
+In fact, a similar subject has been presented as a challenge in a open competition: Défit Opti-plan.
+
+## State of the art
+
+* In @Cho2011, US Army aircraft was assigned daily operations over a year to aircraft.
+* In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours. 
+* In @Verhoeff2015, monthly assignments were also done, and several objectives were taken into account: availability, serviceability and sustainability.
+* In @Chastellux2017, a first version of the model was done, assigning missions instead of flight hours.
+
+## State of the art (2)
+
+The present model assigns missions to aircraft, permitting to add more complex functionality, such as minimum assignment durations.
+
+This model also features several improvements in the MIP modelling that permit greater instance sizes.
+
+## Model: sets
+
+|Set|Description|
+|-----|--------------------------------------------------------------------|
+|    $\mathcal{T}_j$     |  time periods $t \in \mathcal{T}$ in which task $j$ is active. |
+|    $\mathcal{J}_t$    |  tasks $j \in \mathcal{J}$ to be realized in period $t$. |
+|    $\mathcal{I}_j$     |  resources $i \in \mathcal{I}$ that can be assigned to task $j$. |
+|    $\mathcal{O}_i$     |  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. |
+|    $\mathcal{T}^{s}_t$ |  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. |
+
+## Model: parameters
+
+Only *main parameters* are shown
+
+|Parameters|Description|
+|--------------|-------------------------------------------------|
+| $H_j$ |  amount of **resource time required** by task $j$. |
+| $R_j$ |  number of **resources required** by task $j$. |
+| $M$   |  **maintenance duration** in number of periods. |
+| $E$   |  remaining **elapsed time** after a maintenance. |
+| $H$   |  remaining **usage time** after a maintenance. |
+
+<!-- ## Model: parameters (2) -->
+
+<!-- |Parameters|Description| -->
+<!-- |--------------|----------------------------------------------------------------------| -->
+<!-- | $N_t$              | number of resources in already-planned maintenances in period $t$ at the beginning | of the planning ho |izon.| -->
+<!-- | $D_t$              | number of resources to be assigned in total in period $t$. | -->
+<!-- | $Rut^{Init}_{i}$   | remaining usage time for resource $i$ at the start of the planning horizon. | -->
+<!-- | $Ret^{Init}_{i}$   | remaining elapsed time for resource $i$ at the start of the planning horizon. | -->
+<!-- | $Ret^{Init}_{sum}$ | sum of remaining elapsed times at the start of the planning horizon. | -->
+<!-- | $Rut^{Init}_{sum}$ | sum of remaining elapsed time at the start of the planning horizon. | -->
+
+## Model: variables
+
+| Variable   |  Description |
+|-----------|------------------------------------------------------- |
+| $a_{jti}$   |  =1 if **task** $j \in J$ in period $t \in \mathcal{T}_j$ **is realized with resource** $i \in \mathcal{I}_j$, 0 otherwise. |
+| $m_{it}$    |  =1 if resource $i \in I$ **starts a maintenance** operation in period $t \in \mathcal{T}$, 0 otherwise. |
+| $rut_{it}$  |  **remaining usage time** (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. |
+| $ret_{it}$  |  **remaining elapsed time** (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. |
+| $u_{max}$   |  maximal number (integer) of **unavailable resources** in any period. |
+| $m_{max}$   |  maximal number (integer) of **resources in maintenance** in any period. |
+
+## Model: constraints (1)
+
+$$
+\begin{align}
+&\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
+&t \in \mathcal{T} \\
+&\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
+&t \in \mathcal{T}\\
+&\sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+&j \in \mathcal{J}, t \in \mathcal{T}_j\\
+&\sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+& t \in \mathcal{T}, i \in \mathcal{I}
+\end{align}
+$$
+
+## Model: constraints (2)
+
+Only usage time is shown. Elapsed times are treated in the same way.
+
+$$
+\begin{align}
+& rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
+& rut_{i0} = Rut^{Init}_i
+        & i \in \mathcal{I}\\
+& rut_{it} \geq H m_{it}
+        & t \in \mathcal{T}, i \in \mathcal{I}\\ 
+& rut_{it} \in [0,H]
+        & t \in \mathcal{T}, i \in \mathcal{I} \\
+& \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
+        & t = |\mathcal{T}|
+\end{align}
+$$
+
+
+## Results
+
+
+## Multi-objective
+
+## Next steps
+
+## References
+
+
