@@ -1,0 +1,105 @@
+---
+title: "heuristic1"
+author: "Franco Peschiera"
+date: "January 9, 2018"
+output:
+    html_document:
+        # css: ./../../css/baobab.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Basic idea
+
+The algorithm consists on a greedy logic to fill, one mission at a time, with aircraft until the needed amount is reached. It tries to use each aircraft as much as possible until it reaches its maximum flight time. When this happens: the aircraft is granted a maintenance, if possible and as soon as possible. When the aircraft has all its slots full or can't be assigned a maintenance and needs one, the algorithm continues with the next aircraft.
+
+## Pseudocode
+
+With the candidate and the task we do the following:
+
+    for every task:
+        1. calculate candidates.
+        for each candidate until we run out of candidates or we satisfy task's needs:
+            1. find available periods.
+            Until we run out of periods:
+                1. we check if we can assign it (checking remaining time and elapsed time). 
+                    * If we can't: we tag the aircraft as "in need of a maintenance'.
+                    * if we can: we assign the task.
+                2. After assigning a task: we update the remaining and elapsed times for the aircraft.
+
+For assigning maintenances is more or less similar:
+
+    if the aircraft is tagged as 'in need of a maintenance':
+        1. we check if we can reserve 6 continous months of maintenance.
+            * if we can: we do it (and continue assigining tasks to the aircraft).
+            * if we cannot: we go to the next candidate.
+        2. After assigning a maintenance: we update the remaining and elapsed times for the aircraft.
+  
+<!-- <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br> -->
+## Main python code
+
+I think the code gives an idea of the logic behind it. I only include the code for each mission so we would have to execute this function for each mission (or task).
+
+`task` is the mission to satisfy.
+
+* **candidates**: a list with the universe of aircraft that can be assigned to that task.
+* **rem_resources**: remaining aircraft that need to be assigned at each period of the task's duration.
+* **periods_task**: intersection of available slots for the aircraft (periods without taks or maintenance) and the task's period's needs.
+
+```python
+
+def fill_mission(self, task):
+    dtype = 'U7'
+    # get task candidates: we copy the list.
+    candidates = self.instance.data['tasks'][task]['candidates'][:]
+    # get task periods to satisfy:
+    rem_resources = \
+        aux.dicttup_to_dictdict(
+            self.instance.get_task_period_needs()
+        )[task]
+
+    while len(rem_resources) > 0 and len(candidates) > 0:
+        # candidate = 'A124'
+        candidate = candidates[0]
+        # get free periods for candidate
+        periods_task = \
+            self.get_free_starts(candidate, np.fromiter(rem_resources, dtype=dtype))
+
+        # consider eliminating the resource from the list.
+        # if all its periods are 'used'
+        if len(periods_task) == 0:
+            candidates.pop(0)
+            continue
+        print('candidate={}\ntask={}\nperiods={}'.format(candidate, task, periods_task))
+        maint_period = ''
+        # TODO: this is still wrong:
+        for start, end in periods_task:
+            for period in aux.get_months(start, end):
+                result = self.check_set_task(candidate, period, task)
+                if not result:
+                    maint_period = period
+                    break
+                rem_resources[period] -= 1
+            self.update_time_usage(candidate, period, self.get_next_maintenance(candidate, period), 'rut')
+
+        if maint_period != '':
+            # find soonest period to start maintenance:
+            maint_start = self.get_soonest_maint(candidate, maint_period)
+            if maint_start is None:
+                # this means that we cannot assign tasks BUT
+                # we cannot assign maintenance either :/
+                # we should then take out the candidate:
+                candidates.pop(0)
+                continue
+            maint_end = aux.shift_month(maint_start, 5)
+            periods_maint = aux.get_months(maint_start,  maint_end)
+            for period in periods_maint:
+                self.set_maint(candidate, period)
+            self.update_time_maint(maint_start, maint_end)
+            next_month = aux.get_next_month(maint_end)
+            self.update_time_usage(candidate, next_month, 'ret')
+            self.update_time_usage(candidate, next_month, 'rut')
+
+```
