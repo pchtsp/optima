@@ -74,9 +74,10 @@ print_solution <- function(exp_directory, max_resources=NULL){
         collapse_states() %>% 
         inner_join(task_hours) %>% 
         mutate(id= c(1:nrow(.)),
-               style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color)
+               style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
+               content = if_else(state=='M', 'M', sprintf('%s (%sh)', state, hours))
         ) %>% 
-        select(id, start= month, end= post_month, content = state, group= UNIT, style)
+        select(id, start= month, end= post_month, content, group= UNIT, style)
     
     if (max_resources %>% is.null %>% not){
         resources <- states %>% distinct(group) %>% slice(1:max_resources)
