@@ -13,6 +13,8 @@ output:
     css: ./../../css/baobab_MH.css
     incremental: yes
     footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    slide_level: 2
+    toc: true
 nocite: '@*'
 bibliography: MFMP.bib
 ---
@@ -29,19 +31,21 @@ gantt <- print_solution(exp_directory, max_resources = 30)
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
 ```
 
+# Introduction
+
 ## Introduction
 
 Flight and Maintenance Planning (FMP) problems are raised in civilian or military operational applications. 
   
 They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours, for a conjoint optimization among maintenance dates and flight hours.
 
-## Problem
+# Problem
 
-**Informally**:
+## Problem (informally)
 
 Assign both missions and maintenance operations to a fleet of aircraft in order to maximize availability and minimize costs. Missions have particular needs in terms of aircraft and time.
 
-## Example
+## Problem (example)
 
 
 ```{r, echo=FALSE, out.width='100%'}
@@ -56,9 +60,7 @@ if (show_gantt){
 ```
 
 
-## Problem
-
-**Formally**:
+## Problem (formally)
 
 * A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. 
 * Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
@@ -69,7 +71,9 @@ This thesis was started out of the need of the french Air Force to maximize the 
 
 In fact, a similar subject has been presented as a challenge in a open competition: Défit Opti-plan.
 
-## State of the art
+# State of the art
+
+## State of the art (1)
 
 * In @Cho2011, US Army aircraft were assigned daily operations over a year to aircraft.
 * In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours. 
@@ -81,6 +85,8 @@ In fact, a similar subject has been presented as a challenge in a open competiti
 * The present model deals with an heterogeneus fleet, with different standards and capacities.
 * Multiple objectives have been incorporated in order to satisfy the French Air Force's specific needs.
 * This model also features several improvements in the MIP modelling that permit greater instance sizes.
+
+# Model
 
 ## Model: sets
 
@@ -95,9 +101,7 @@ In fact, a similar subject has been presented as a challenge in a open competiti
 |    $\mathcal{O}_i$     |  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. |
 |    $\mathcal{T}^{s}_t$ |  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. |
 
-## Model: parameters
-
-(Only **main parameters** are shown).
+## Model: main parameters
 
 |Parameters|Description|
 |--------------|-------------------------------------------------|
@@ -107,9 +111,8 @@ In fact, a similar subject has been presented as a challenge in a open competiti
 | $E$   |  remaining **elapsed time** after a maintenance. |
 | $H$   |  remaining **usage time** after a maintenance. |
 
-## Model: parameters (2)
 
-(**secondary parameters**).
+## Model: more parameters
 
 |Parameters|Description|
 |--------------|----------------------------------------------------------------------|
@@ -131,7 +134,21 @@ In fact, a similar subject has been presented as a challenge in a open competiti
 | $u_{max}$   |  maximal number (integer) of **unavailable resources** in any period. |
 | $m_{max}$   |  maximal number (integer) of **resources in maintenance** in any period. |
 
-## Model: constraints (1)
+## Model: main constraints
+
+Requirements per task:
+```{r out.width="250px", echo=FALSE}
+knitr::include_graphics("./../../img/tasks_gantt.png")
+```
+\pause
+
+Max maintenances:
+```{r out.width="150px", echo=FALSE}
+knitr::include_graphics("./../../img/num-maintenances.png")
+```
+
+
+## Model: main constraints
 
 <div class="incremental">
 
@@ -142,6 +159,8 @@ The two components of the objective function: the max number of maintenance and 
     &\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max}
     &t \in \mathcal{T}
 \end{align}
+
+\pause
 
 Mission's needs and incompatibility of several tasks or maintenance in the same period.
 \begin{align}
@@ -154,8 +173,17 @@ Mission's needs and incompatibility of several tasks or maintenance in the same 
 </div>
 
 
+## Model: flow constraints
 
-## Model: constraints (2)
+Visualization of accumulated time constraints for one resource.
+
+```{r out.width="250px", echo=FALSE}
+# img <- readPNG("./../../img/balance2.png")
+#  grid.raster(img)
+knitr::include_graphics("./../../img/balance2.png")
+```
+
+## Model: flow constraints
 
 Time usage of an aircraft depending on the assignment to a task.
 <!-- <div class="incremental" style="margin-left: 4em; position: relative">  -->
@@ -175,7 +203,7 @@ Time usage of an aircraft depending on the assignment to a task.
   <!-- </div>  -->
   <!-- <div style="position: absolute; left: 0; top: 0;background-color:white;width:100%"> -->
   
-## Model: constraints (3)
+## Model: flow constraints
 
 Elapsed times are treated in the same way but consumption is always 1.
 \begin{align}
@@ -190,17 +218,10 @@ Elapsed times are treated in the same way but consumption is always 1.
         & t = |\mathcal{T}|
 \end{align}
 
-## Model: constraints (4)
 
-Visualization of each constraints for one resource.
+# Results
 
-```{r out.width="250px", echo=FALSE}
-# img <- readPNG("./../../img/balance2.png")
-#  grid.raster(img)
-knitr::include_graphics("./../../img/balance2.png")
-```
-
-## Results
+## Experiments
 
 The following instances were tested:
 
@@ -236,6 +257,7 @@ Pareto diagram for instance id=I_5.
 * Between 2 and 4 for all instances
 * The objectives are quite aligned one with the other.
 
+# Next steps
 ## Next steps
 
 * **Try different objectives**: availability and maintenances.
@@ -243,6 +265,8 @@ Pareto diagram for instance id=I_5.
 * **Break symmetries**: clustering candidates, fixing end availabilities.
 * **Add more constraints**: minimal duration of assignments, storage of aircraft.
 
+# References
 ## References
 
-
+<!-- \bibliographystyle{dcu} -->
+<!-- \bibliography{./../biblio/MFMP} -->

@@ -40,6 +40,31 @@ collapse_states <- function(table){
         ungroup() %>% filter(state != "")
 }
 
+print_tasks <- function(exp_directory){
+    input_path = exp_directory %>% paste0('data_in.json')
+    input <- read_json(input_path)
+    tasks <-
+        input %>% 
+        extract2('tasks') %>% 
+        lapply("[", c('consumption', 'num_resource', 'start', 'end')) %>% 
+        bind_rows(.id="group") %>% 
+        mutate(id= c(1:nrow(.)),
+               content = sprintf('%s aircraft (%sh)', num_resource, consumption),
+               color = RColorBrewer::brewer.pal(5, "YlOrRd")[c(1, 2)],
+               style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
+        )
+    config <- list(
+        stack = FALSE,
+        editable = TRUE,
+        align = "center",
+        orientation = "top",
+        snap = NULL,
+        margin = 0
+    )
+    groups <- tasks %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
+    timevis(tasks, groups= groups, options= config, width="100%")
+}
+
 print_solution <- function(exp_directory, max_resources=NULL){
     solution_path = exp_directory %>% paste0('data_out.json')
     input_path = exp_directory %>% paste0('data_in.json')
