@@ -1,14 +1,20 @@
 ---
 title: "Maintenance planning on French military aircraft operations"
-author: "Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin"
-date: "February 14, 2018"
+author: |
+    | Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin
+    | \tiny (franco.peschiera@isae-supaero.fr)
+institute: "ISAE SUPAERO"
+date: "February 22, 2018"
 output: 
   beamer_presentation:
-    theme: "Madrid"
+    theme: "Berlin"
     toc: true
     slide_level: 2
     incremental: yes
     fig_height: 4
+    # footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    includes:
+        in_header: header.tex
   slidy_presentation:
     css: ./../../css/baobab_MH.css
     incremental: yes
@@ -31,27 +37,28 @@ gantt <- print_solution(exp_directory, max_resources = 30)
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
 ```
 
-# Introduction
+<!-- # Introduction -->
 
-## Introduction
+<!-- ## Introduction -->
 
-Flight and Maintenance Planning (FMP) problems are raised in civilian or military operational applications. 
-  
-They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours, for a conjoint optimization among maintenance dates and flight hours.
+<!-- Flight and Maintenance Planning (FMP) problems are raised in civilian or military operational applications.  -->
+
+<!-- They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours, for a conjoint optimization among maintenance dates and flight hours. -->
 
 # Problem
 
 ## Problem (informally)
 
-Assign both missions and maintenance operations to a fleet of aircraft in order to maximize availability and minimize costs. Missions have particular needs in terms of aircraft and time.
+Assign both missions and maintenance operations to a fleet of aircraft in order to maximize availability and minimize costs. Missions have fixed start and end times and have particular needs in terms of aircraft and time.
 
 ## Problem (example)
 
 
-```{r, echo=FALSE, out.width='100%'}
+```{r, echo=FALSE, out.width='70%'}
+
 if (show_gantt){
     htmltools::HTML('<div style="font-size: 20px;width:100%">')
-    gantt    
+    gantt
     htmltools::HTML("</div>")
 } else {
     knitr::include_graphics('./../../img/calendar.png')
@@ -60,24 +67,25 @@ if (show_gantt){
 ```
 
 
-## Problem (formally)
+## Problem
 
 * A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. 
 * Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
 
-## Relevance and origin
+<!-- ## Relevance and origin -->
 
-This thesis was started out of the need of the french Air Force to maximize the availability of their Mirage 2000 fleet while controlling cost and maintenance capacity.
+<!-- This thesis was started out of the need of the french Air Force to maximize the availability of their Mirage 2000 fleet while controlling cost and maintenance capacity. -->
 
-In fact, a similar subject has been presented as a challenge in a open competition: Défit Opti-plan.
+<!-- In fact, a similar subject has been presented as a challenge in a open competition: Défit Opti-plan. -->
 
 # State of the art
 
 ## State of the art (1)
 
-* In @Cho2011, US Army aircraft were assigned daily operations over a year to aircraft.
-* In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours. 
-* In @Verhoeff2015, monthly assignments were done and several objectives were taken into account: availability, serviceability and sustainability.
+* FMP: Flight and Maintenance Planning problem.
+* In @Cho2011, US Army aircraft were assigned daily operations over a year to aircraft in order to minimize the maximum number of maintenances.
+* In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours in order to maximize the availability and final state of squadrons.
+* In @Verhoeff2015, monthly assignments were done and several objectives were taken into account: availability, serviceability and final state.
 * In @Chastellux2017, an initial version of the model was done, assigning missions instead of only flight hours.
 
 ## State of the art (2)
@@ -88,69 +96,77 @@ In fact, a similar subject has been presented as a challenge in a open competiti
 
 # Model
 
-## Model: sets
+<!-- ## Model: sets -->
 
-|Set|Description|
-|-----|--------------------------------------------------------------------|
-|    $\mathcal{I}$       |  resources. |
-|    $\mathcal{T}$       |  time periods inside planning horizon. |
-|    $\mathcal{J}$       |  tasks. |
-|    $\mathcal{T}_j$     |  time periods $t \in \mathcal{T}$ in which task $j$ is active. |
-|    $\mathcal{J}_t$    |  tasks $j \in \mathcal{J}$ to be realized in period $t$. |
-|    $\mathcal{I}_j$     |  resources $i \in \mathcal{I}$ that can be assigned to task $j$. |
-|    $\mathcal{O}_i$     |  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. |
-|    $\mathcal{T}^{s}_t$ |  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. |
+<!-- |Set|Description| -->
+<!-- |-----|--------------------------------------------------------------------| -->
+<!-- |    $\mathcal{I}$       |  resources. | -->
+<!-- |    $\mathcal{T}$       |  time periods inside planning horizon. | -->
+<!-- |    $\mathcal{J}$       |  tasks. | -->
+<!-- |    $\mathcal{T}_j$     |  time periods $t \in \mathcal{T}$ in which task $j$ is active. | -->
+<!-- |    $\mathcal{J}_t$    |  tasks $j \in \mathcal{J}$ to be realized in period $t$. | -->
+<!-- |    $\mathcal{I}_j$     |  resources $i \in \mathcal{I}$ that can be assigned to task $j$. | -->
+<!-- |    $\mathcal{O}_i$     |  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. | -->
+<!-- |    $\mathcal{T}^{s}_t$ |  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. | -->
 
-## Model: main parameters
+<!-- ## Model: main parameters -->
 
-|Parameters|Description|
-|--------------|-------------------------------------------------|
-| $H_j$ |  amount of **resource time required** by task $j$. |
-| $R_j$ |  number of **resources required** by task $j$. |
-| $M$   |  **maintenance duration** in number of periods. |
-| $E$   |  remaining **elapsed time** after a maintenance. |
-| $H$   |  remaining **usage time** after a maintenance. |
-
-
-## Model: more parameters
-
-|Parameters|Description|
-|--------------|----------------------------------------------------------------------|
-| $N_t$              | number of resources in already-planned maintenances in period $t$ at the beginning | of the planning ho |izon.|
-| $D_t$              | number of resources to be assigned in total in period $t$. |
-| $Rut^{Init}_{i}$   | remaining usage time for resource $i$ at the start of the planning horizon. |
-| $Ret^{Init}_{i}$   | remaining elapsed time for resource $i$ at the start of the planning horizon. |
-| $Ret^{Init}_{sum}$ | sum of remaining elapsed times at the start of the planning horizon. |
-| $Rut^{Init}_{sum}$ | sum of remaining elapsed time at the start of the planning horizon. |
-
-## Model: variables
-
-| Variable   |  Description |
-|-----------|------------------------------------------------------- |
-| $a_{jti}$   |  =1 if **task** $j \in J$ in period $t \in \mathcal{T}_j$ **is realized with resource** $i \in \mathcal{I}_j$, 0 otherwise. |
-| $m_{it}$    |  =1 if resource $i \in I$ **starts a maintenance** operation in period $t \in \mathcal{T}$, 0 otherwise. |
-| $rut_{it}$  |  **remaining usage time** (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. |
-| $ret_{it}$  |  **remaining elapsed time** (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. |
-| $u_{max}$   |  maximal number (integer) of **unavailable resources** in any period. |
-| $m_{max}$   |  maximal number (integer) of **resources in maintenance** in any period. |
-
-## Model: main constraints
-
-Requirements per task:
-```{r out.width="250px", echo=FALSE}
-knitr::include_graphics("./../../img/tasks_gantt.png")
-```
-\pause
-
-Max maintenances:
-```{r out.width="150px", echo=FALSE}
-knitr::include_graphics("./../../img/num-maintenances.png")
-```
+<!-- |Parameters|Description| -->
+<!-- |--------------|-------------------------------------------------| -->
+<!-- | $H_j$ |  amount of **resource time required** by task $j$. | -->
+<!-- | $R_j$ |  number of **resources required** by task $j$. | -->
+<!-- | $M$   |  **maintenance duration** in number of periods. | -->
+<!-- | $E$   |  remaining **elapsed time** after a maintenance. | -->
+<!-- | $H$   |  remaining **usage time** after a maintenance. | -->
 
 
-## Model: main constraints
+<!-- ## Model: more parameters -->
+
+<!-- |Parameters|Description| -->
+<!-- |--------------|----------------------------------------------------------------------| -->
+<!-- | $N_t$              | number of resources in already-planned maintenances in period $t$ at the beginning | of the planning ho |izon.| -->
+<!-- | $D_t$              | number of resources to be assigned in total in period $t$. | -->
+<!-- | $Rut^{Init}_{i}$   | remaining usage time for resource $i$ at the start of the planning horizon. | -->
+<!-- | $Ret^{Init}_{i}$   | remaining elapsed time for resource $i$ at the start of the planning horizon. | -->
+<!-- | $Ret^{Init}_{sum}$ | sum of remaining elapsed times at the start of the planning horizon. | -->
+<!-- | $Rut^{Init}_{sum}$ | sum of remaining elapsed time at the start of the planning horizon. | -->
+
+<!-- ## Model: variables -->
+
+<!-- | Variable   |  Description | -->
+<!-- |-----------|------------------------------------------------------- | -->
+<!-- | $a_{jti}$   |  =1 if **task** $j \in J$ in period $t \in \mathcal{T}_j$ **is realized with resource** $i \in \mathcal{I}_j$, 0 otherwise. | -->
+<!-- | $m_{it}$    |  =1 if resource $i \in I$ **starts a maintenance** operation in period $t \in \mathcal{T}$, 0 otherwise. | -->
+<!-- | $rut_{it}$  |  **remaining usage time** (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. | -->
+<!-- | $ret_{it}$  |  **remaining elapsed time** (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. | -->
+<!-- | $u_{max}$   |  maximal number (integer) of **unavailable resources** in any period. | -->
+<!-- | $m_{max}$   |  maximal number (integer) of **resources in maintenance** in any period. | -->
+
+<!-- ## Model: main constraints -->
+
+<!-- Requirements per task: -->
+<!-- ```{r out.width="250px", echo=FALSE} -->
+<!-- knitr::include_graphics("./../../img/tasks_gantt.png") -->
+<!-- ``` -->
+<!-- \pause -->
+
+<!-- Max maintenances: -->
+<!-- ```{r out.width="150px", echo=FALSE} -->
+<!-- knitr::include_graphics("./../../img/num-maintenances.png") -->
+<!-- ``` -->
+
+
+<!-- ## Model: main constraints -->
+
+## Model: objective function
 
 <div class="incremental">
+
+\begin{align}
+    & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+\end{align}
+
+\pause
 
 The two components of the objective function: the max number of maintenance and the max number of unavailable aircraft.
 \begin{align}
@@ -160,7 +176,9 @@ The two components of the objective function: the max number of maintenance and 
     &t \in \mathcal{T}
 \end{align}
 
-\pause
+</div>
+
+## Model: main constraints
 
 Mission's needs and incompatibility of several tasks or maintenance in the same period.
 \begin{align}
@@ -170,18 +188,15 @@ Mission's needs and incompatibility of several tasks or maintenance in the same 
 & t \in \mathcal{T}, i \in \mathcal{I}
 \end{align}
 
-</div>
+<!-- ## Model: flow constraints -->
 
+<!-- Visualization of accumulated time constraints for one resource. -->
 
-## Model: flow constraints
-
-Visualization of accumulated time constraints for one resource.
-
-```{r out.width="250px", echo=FALSE}
-# img <- readPNG("./../../img/balance2.png")
-#  grid.raster(img)
-knitr::include_graphics("./../../img/balance2.png")
-```
+<!-- ```{r out.width="250px", echo=FALSE} -->
+<!-- # img <- readPNG("./../../img/balance2.png") -->
+<!-- #  grid.raster(img) -->
+<!-- knitr::include_graphics("./../../img/balance2.png") -->
+<!-- ``` -->
 
 ## Model: flow constraints
 
@@ -205,7 +220,7 @@ Time usage of an aircraft depending on the assignment to a task.
   
 ## Model: flow constraints
 
-Elapsed times are treated in the same way but consumption is always 1.
+Elapsed times are treated in the same way but consumption is expressed in time periods.
 \begin{align}
 & ret_{it} \leq ret_{it-1} + E m_{it} - 1 & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
 & ret_{i0} = Ret^{Init}_i
@@ -238,35 +253,46 @@ The following instances were tested:
 | I_8 |               11 |               11 |    1080 |       139.0 |      530.6 |   139.0 |
 | I_9 |               11 |               21 |    2120 |       149.0 |     3600.0 |   139.9 |
 
+## Sample solution progress
+
+The analysis of the solution progress for all instances shows that:
+
+* Initial solutions are quite far from the linear relaxation.
+* Branching does not improve significantly the lower bound.
+
+\pause
+```{r out.width="150pt", echo=FALSE}
+knitr::include_graphics("./../../img/progress.png.png")
+```
+
+*(Progress diagram for instance id=I_7).*
+
 ## Multi-objective (1)
 
 Comparison of two objectives: max availability or maintenance capacity.
-Different weights were used for the two objectives: $W_1, W_2 \in [0..1]$ with pace of 0.1
-```{r out.width="200pt", echo=FALSE}
-# img <- readPNG()
-#  grid.raster(img)
+Different weights were used for the two objectives: $W_1, W_2 \in [0..1]$ with pace of 0.1.
+\pause
+```{r out.width="180pt", echo=FALSE}
 knitr::include_graphics("./../../img/multiobjective.png")
-
 ```
 
-Pareto diagram for instance id=I_5.
+*(Pareto diagram for instance id=I_5).*
 
 ## Multi-objective (2)
 
-* Analysis for all instances: not many pareto optimal points available.
-* Between 2 and 4 for all instances
+* Analysis for all instances: not many pareto optimal points available (between two and four).
 * The objectives are quite aligned one with the other.
 
 # Next steps
 ## Next steps
 
-* **Try different objectives**: availability and maintenances.
+* **Try different objective formulations**: availability - maintenability - future state.
 * **Try more linent objectives**: relax the `max` in the objective.
 * **Break symmetries**: clustering candidates, fixing end availabilities.
 * **Add more constraints**: minimal duration of assignments, storage of aircraft.
 
 # References
-## References
+## References / Questions?
 
 <!-- \bibliographystyle{dcu} -->
 <!-- \bibliography{./../biblio/MFMP} -->
