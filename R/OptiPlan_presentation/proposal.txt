@@ -1,0 +1,165 @@
+## Introduction
+
+In the present document we present the problem as the team understands it, followed by a technical proposal that includes the functionalities a possible complete application would include based on the exchanges made with during the OptiPlan day in Paris.
+
+Furthermore, the team's credentials are presented. Finally, the technologies and tools to be used are presented, describing the use and justifying the choice at each point.
+
+## Problem
+
+The problem is considered a Flight and Maintenance Planning problem. Work has been already done...
+(Add MOSIM translated to non-mathematics).
+
+### Proposal
+
+A summary of the application's functionalities is shown in the following image:
+
+![](../../img/functionalities.png)
+
+### Usage
+
+<!-- TODO: flowcharts! -->
+
+### Cases and experimentation
+
+Given the strategic nature of the application, it will be cased-centric. This means that it will support saving all the relevant data (input and output) in a case. This way, different experiments could be done by copying and modifying an existing case. This is similar as working with multiple spreadsheets, each one with its own name, while sharing the same logic in one place.
+
+The following figure shows an hypothetical set of cases already saved:
+
+<!-- TODO: cases figure. -->
+
+The available functionality will be the following:
+
+1. Create a new empty case.
+2. Copy an existing case.
+3. Delete a case.
+4. Compare two cases
+
+#### Contents of a case
+
+A case consists on all the information needed to construct a planning and one possible planning built from this information. This unit of storage permits to easily integrate with current data structures and run, compare different experiments.
+
+More explicitly:
+
+* Set of aircraft with their characteristics and historic information on them until a certain date.
+* Set of missions or flight hours to do in the planning period.
+* Assignments of aircraft to operations during the planning horizon.
+* Future maintenance schedules.
+* Configuration such as maintenance duration, flight hours after a maintenance, etc.
+
+#### Comparison of cases
+
+This functionality will potentially work in several levels depending on the final needs of the client.
+One option would be to visualize the differences in input data for two cases.
+Another option would be to visualize the differences in the resulting planning for the two cases.
+Finally, it could be interesting to compare specific KPI for two or more cases, in order to choose the best scenario.
+
+#### Main case
+
+A situation that is common in the creation of plannings is the fact that several different cases may exist but it is still important to identify which one is the 'active' one. In order to deal with this, a simple publication system will be included in the application, where the 'planner' (see *Users* section) can identify the case that should be shared with others.
+
+<!-- TODO: figure explaining publication of active case -->
+
+### Screens and GUI
+
+<!-- TODO: figure with beautiful screens -->
+
+* Some example screen captures of how it could look (web, of course):
+    - maps?
+    - interactive gantt charts.
+    - Excel-type tables to edit and calculate loads.
+
+### Data integration
+
+The application will include its own data storage through a database. All information used by the application will be stored here. In addition to this system, the application will permit several ways to import and export data from it.
+
+## Importing data
+
+A new case can be created from the following options:
+
+* The Excel file that is currently being used.
+* An new yet-to-be-created Excel template file.
+
+In addition to this, the historic data could be potential read from another system, if available.
+
+## Exporting data
+
+The data in a case will be able to be exported in the following ways:
+
+* In the *current Excel* format (or one that is similar).
+* Into the new Excel template that is will be created.
+* csv and/ or json files if needed.
+
+### Architecture and deployment
+
+The application will be deployed via a client-server architecture. This way, it would be easy to share the application given that it will only require having a modern web browser installed (Google Chrome).
+
+The server should be installed somewhere inside the client's infrastructure.
+
+The default requirements for the server are:
+
+* Ubuntu Server 64 bits.
+* Cores >= 4
+* RAM >= 8GB
+* Hard drive >= 500 GB
+
+Depending on the future integration, additional data flows will be included in the design. The only known data flow is between the existing Excel file and the application.
+
+<!-- TODO: figure deployment with data flows -->
+
+### Users
+
+Two possible roles are identified for the users of this application.
+
+The first one will be called "planner". This user is in charge of creating (manually or automatically) different plannings.
+The second one will be called "viewer". This user will be able to visualize the results of the planning created and stored inside the application. 
+Depending on the needs of the client, several "viewer" profiles could be created in order to share only parts of the stored information with each profile.
+
+## Team
+
+<!-- TODO: names, CV and résumés-->
+
+* Operations research experts.
+* Familiar with maintenance planning.
+* With experience building applications for industrial clients.
+* Direct experience with the problem at hand.
+
+## Technologies and techniques
+
+* **Mathematical Modeling** to solve the problem.
+* **Python** for modeling, heuristics and data integration.
+* **R** for statistics, possible forecasting and data visualization.
+* **PostgreSQL** for storing data.
+* **HTML5** for reports, visualization.
+
+### Mathematical modeling
+
+Mathematical modeling is a technique that is part of the branch of Operations Research in mathematics. It permits the construction of a set of equations to represent a specific well-defined situation and the use of advanced state of the art programs to search for and find the best solution that takes respects these equations. These programs (solvers) are available both in commercial and open source (free).
+
+Advantages of using this technique compared to other alternatives are that it can prove the optimality of a solution, it can incorporate multiple objectives easily and it is possible to easily fix certain decisions that are already taken, making it possible to have interactive user-model use cases. With little modifications, it can be reused to take into account different situations.
+
+Other functionality also includes having time limits and other more complex stop conditions.
+
+### Python
+
+python permits at the same time rapid prototyping as well as good code syntax. It offer a extremely wide offer of libraries and, in particular, it includes the best APIs to solver and non commercial solvers for Mixed Integer Programming problems.
+
+It also excels at web developing with libraries such as flask and jinja templates.
+
+### R
+
+R is the state of the art in statistics and forecasting modelling. It includes several libraries for data manipulation, visualization and, as a programming language, good integrations with other languages and software.
+
+Finally, it offers specially good integration with html-based applications via the Shiny technology.
+
+### PostgreSQL
+
+PostgreSQL is one of the most well-known open-source database alternatives. It includes many functionalities that are not present in other database engines (namely MySQL) such as:
+
+* NoSQL storing (for cases, for example).
+* window-functions integrated with R.
+
+### HTML5
+
+
+
+<!-- TODO -->

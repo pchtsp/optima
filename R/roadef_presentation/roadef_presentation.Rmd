@@ -69,8 +69,10 @@ if (show_gantt){
 
 ## Problem
 
-* A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. 
-* Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
+* A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. 
+* Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period.
+* Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time.
+* A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H$ units.
 
 <!-- ## Relevance and origin -->
 
