@@ -1,13 +1,94 @@
+# Optiplan proposal
+
 ## Introduction
 
-In the present document we present the problem as the team understands it, followed by a technical proposal that includes the functionalities a possible complete application would include based on the exchanges made with during the OptiPlan day in Paris.
+In this document we present the problem as the team understands it. The information used was the previous knowledge the team and the OptiPlan meeting in Paris.
 
-Furthermore, the team's credentials are presented. Finally, the technologies and tools to be used are presented, describing the use and justifying the choice at each point.
+Following, a technical proposal is presented that includes the functionalities a possible complete application would include based on the exchanges made during the OptiPlan day in Paris and from previous experiences the team has in building planning applications for industry.
+
+Furthermore, the team's credentials are presented, mentioning the different projects and research that is relevant to the present project.
+
+Finally, the technologies and tools to be used are presented, describing the use and justifying the choice at each point.
+
+## Summary
+
+The project presented is a web-based modern interactive application. It uses a mathematical model to generate new solutions, permits different users to access it with different access rights and provides powerful visualization to show, compare, and analyze plannings. It integrates with existing data sources (Excel file), new proposed ones (Excel template) and possible existing ones (other internal systems) as well as simple output (csv, json). Finally, it permits the use of cases to store information, making it easy to test, experiment and compare different scenarios.
+
+We believe this team is uniquely well-positioned to tackle this project because of the following reasons:
+
+* The team has more than 40 years of experience in the Operations Research field, which is the theory behind this problem.
+* The team has years of experience in building planning and optimization software applications for a wide range of big industrial companies.
+* The team has vast experience in both scientific articles and commercial projects related to planning and maintenance.
+* The team has unique knowledge of the specific problem at hand, because a PhD thesis with this subject was started in October 2017 in collaboration with the DGA. Work was presented in ROADEF 2018 and is going to be presented in MOSIM 2018.
+
 
 ## Problem
 
-The problem is considered a Flight and Maintenance Planning problem. Work has been already done...
-(Add MOSIM translated to non-mathematics).
+<!-- TODO: translate into non-mathematical -->
+
+The problem is considered a Flight and Maintenance Planning problem. Work has been already done by \citet{Kozanidis2008}, \citet{Cho2011}, \citet{Verhoeff2015} and \citet{Chastellux2016}.
+
+  The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenances for these same aircraft.
+
+### Missions
+
+There is a fixed set of $j \in \mathcal{J}$ missions to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. For their execution, these missions require the assignment of a specific number of aircraft $R_j$ each period of time the mission is active. The start and end periods for each mission are known and a mission is considered active between its start and end period.
+
+During each period, missions consume an amount of time equal to $H_j$ from each of its assigned aircraft.
+
+% The assignment of a resource to a mission is not decided for the whole duration of the mission. After a minimum amount of time ($MT$), a resource can be freed and exchanged for another one, even if the mission it is assigned to has not finished. 
+The total number of aircraft being used at any given time in a specific mission should be equal to $R_j$.
+
+Each mission requires one and only one type of resource which, in addition, should comply with additional mission requirements.
+
+### Aircraft
+
+There is a set $i \in \mathcal{I}$ of available aircraft that are assigned to missions in order to accomplish them. Each resource can only be assigned to a single mission in any given period. These aircraft suffer from wear and tear and require regular maintenance operations during their lifetime. The need for maintenance is calculated based on two indicators.
+
+The first one is called "remaining elapsed time" (or $ret_{it}$). It expresses the amount of time (measured in time periods) after which the resource cannot be used anymore and has to undergo a maintenance operation. Its value is calculated for each resource $i$ and each time period $t$. In a similar way, "remaining usage time" (or $rut_{it}$) is used to measure the amount of time that the resource $i$ can be used before needing a maintenance operation at any given period $t$.
+
+% Additionally, after an absolute amount of time and/or usage ($aet_i$ or $aut_i$), the resource becomes obsolete. There is no way to reverse this process.
+
+At any given period, including at the start of the planning horizon, each resource has a specific status given by remaining usage time and remaining elapsed time.
+
+### Maintenances
+
+Maintenances operations are the process by which aircraft that have reached a limit in some indicator can return to a state where they can continue to be used in missions.
+
+Each maintenance operation has a fix duration of $M$ periods.
+
+After a maintenance operation, a resource restores its remaining elapsed time and remaining usage time to their max values $E$ and $H$ respectively.
+
+### Storages
+
+Following the rule of remaining elapsed time, even if a resource is not being used, it still needs to have a maintenance after a given amount of time has passed. In order to avoid this problem, the resource can be put into a storage state.
+
+A resource in this states has to be kept for a minimum time of $sm$ periods. While in this state it cannot receive maintenance or be assigned any mission.
+
+Every resource has the capacity to be stored and this capacity is measured in a number of periods $sc$. In order for a resource to restore its remaining storage capacity, it needs to receive a specific maintenance (see \ref{def:maint}). Similar to the remaining elapsed time, after these maintenances, the resource recovers its storage capacity up to a certain level $S$.
+
+### Possible states
+
+   As a summary, the following are the possible logical states that a resource can be in: assigned to a mission (see \ref{def:mission}); under maintenance (see \ref{def:maint}); available.
+
+### Time
+
+In planning missions and maintenances, it is important to take into account the initial and end state of each resource. This initial state can be a maintenance or an assigned mission. If a resource is under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
+
+The remaining used and elapsed times are assigned to each resource at the beginning of the planning horizon.
+
+Finally, the state of each resource at the end of the planning horizon, its remaining (elapsed, used) time, needs to be defined.
+  % needs to be addressed too. This implies guaranteeing that the remaining (elapsed, used) time of aircraft is sustainable for future missions and the final states of aircraft are not too skewed.
+
+### Objectives
+
+In this study, the following objectives are considered.
+
+Given that the creation of new missions and the duration of maintenance are considered stochastic in real-life, one basic goal is to maximize the robustness of the planning by having the greatest amount of available aircraft at every period of the planning horizon. 
+
+Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon.
+
+As it will be shown in the mathematical formulation, these objectives are quite related one with the other: the more aircraft are in maintenance in a given period, the more unavailable aircraft will be had.
 
 ### Proposal
 
@@ -21,18 +102,23 @@ A summary of the application's functionalities is shown in the following image:
 
 ### Cases and experimentation
 
-Given the strategic nature of the application, it will be cased-centric. This means that it will support saving all the relevant data (input and output) in a case. This way, different experiments could be done by copying and modifying an existing case. This is similar as working with multiple spreadsheets, each one with its own name, while sharing the same logic in one place.
+Given the strategic nature of the application, it will be case-centric. This means that it will support saving all the relevant data (input and output) in a case. This way, different experiments could be done by copying and modifying an existing case. This is similar as working with multiple spreadsheets, each one with its own name, while sharing the same logic in one place.
 
 The following figure shows an hypothetical set of cases already saved:
 
-<!-- TODO: cases figure. -->
+The following figure represents the possible interactions between cases. Case 1 was published for the month of March. During the month, it received some modifications, resulting in cases 2 and 3. Finally, Case 3 was (re)published for March.
+Later, Case 4 was created and modified before publication to Case 5. Case 5 was published for April.
+
+![](../../img/cases.png)
 
 The available functionality will be the following:
 
 1. Create a new empty case.
 2. Copy an existing case.
 3. Delete a case.
-4. Compare two cases
+4. Compare two cases.
+5. Publish a case.
+6. Export a case.
 
 #### Contents of a case
 
@@ -53,11 +139,9 @@ One option would be to visualize the differences in input data for two cases.
 Another option would be to visualize the differences in the resulting planning for the two cases.
 Finally, it could be interesting to compare specific KPI for two or more cases, in order to choose the best scenario.
 
-#### Main case
+#### Published case
 
 A situation that is common in the creation of plannings is the fact that several different cases may exist but it is still important to identify which one is the 'active' one. In order to deal with this, a simple publication system will be included in the application, where the 'planner' (see *Users* section) can identify the case that should be shared with others.
-
-<!-- TODO: figure explaining publication of active case -->
 
 ### Screens and GUI
 
@@ -72,7 +156,7 @@ A situation that is common in the creation of plannings is the fact that several
 
 The application will include its own data storage through a database. All information used by the application will be stored here. In addition to this system, the application will permit several ways to import and export data from it.
 
-## Importing data
+#### Importing data
 
 A new case can be created from the following options:
 
@@ -81,7 +165,7 @@ A new case can be created from the following options:
 
 In addition to this, the historic data could be potential read from another system, if available.
 
-## Exporting data
+#### Exporting data
 
 The data in a case will be able to be exported in the following ways:
 
@@ -104,7 +188,9 @@ The default requirements for the server are:
 
 Depending on the future integration, additional data flows will be included in the design. The only known data flow is between the existing Excel file and the application.
 
-<!-- TODO: figure deployment with data flows -->
+The following figure shows a summary of the architecture to be implemented and the data flows between components.
+
+![](../../img/architecture.png)
 
 ### Users
 
@@ -149,7 +235,7 @@ It also excels at web developing with libraries such as flask and jinja template
 
 R is the state of the art in statistics and forecasting modelling. It includes several libraries for data manipulation, visualization and, as a programming language, good integrations with other languages and software.
 
-Finally, it offers specially good integration with html-based applications via the Shiny technology.
+Finally, it offers specially good integration with html-based applications via the [Shiny](https://shiny.rstudio.com/) technology.
 
 ### PostgreSQL
 
@@ -160,6 +246,6 @@ PostgreSQL is one of the most well-known open-source database alternatives. It i
 
 ### HTML5
 
+HTML 5 is the most recent change to the HTML that incorporates graphical functionality. This standard has permited a multitude of open sourced libraries that offer very powerful interactive graphics that are easily incorporated into webpages.
 
-
-<!-- TODO -->
+Examples of these libraries are: [leaflet](http://leafletjs.com/), [visjs](visjs.org), [d3js](https://d3js.org/) among many others.
