@@ -1,6 +1,47 @@
-# Optiplan proposal
+---
+title: "Optiplan proposal"
+date: "March 11, 2018"
+output: 
+  html_document:
+    css: ./../../css/baobab_docs.css
+    toc: true
+  beamer_presentation:
+    theme: "Berlin"
+    toc: true
+    slide_level: 3
+    incremental: yes
+    fig_height: 4
+    # footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    includes:
+        in_header: header.tex
+  slidy_presentation:
+    css: ./../../css/baobab_MH.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    slide_level: 4
+    toc: true
+nocite: '@*'
+bibliography: MFMP.bib
+---
 
-## Introduction
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("../")
+source('scripts/params.R')
+source('scripts/import_results.R')
+source('diagrams/cases.R')
+source("diagrams/architecture.R")
+source("diagrams/functionalities.R")
+source('diagrams/exampleDT.R')
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+gantt <- print_solution(exp_directory, max_resources = 5, width="100%", height="200px")
+graphs_rem <- graph_remaining(exp_directory)
+table_rem <- table_remaining(exp_directory)
+html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html')
+```
+
+
+## Introduction
 
 In this document we present the problem as the team understands it. The information used was the previous knowledge the team and the OptiPlan meeting in Paris.
 
@@ -22,17 +63,15 @@ We believe this team is uniquely well-positioned to tackle this project because 
 * The team has unique knowledge of the specific problem at hand, because a PhD thesis with this subject was started in October 2017 in collaboration with the DGA. Work was presented in ROADEF 2018 and is going to be presented in MOSIM 2018.
 
 
-## Problem
+## Problem
 
-<!-- TODO: translate into non-mathematical -->
-
-The problem is considered a Flight and Maintenance Planning problem. Work has been already done by \citet{Kozanidis2008}, \citet{Cho2011}, \citet{Verhoeff2015} and \citet{Chastellux2016}, among others.
+The problem is considered a Flight and Maintenance Planning problem. Work has been already done by @Kozanidis2008, @Cho2011, @Verhoeff2015 and @Chastellux2016, among others.
 
 The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenances for these same aircraft.
 
 Missions can only be understood as a budget of hours per month or per year. In this document we present the most general formulation possible, where missions are assigned to aircraft for one or more months.
 
-### Missions
+### Missions
 
 There is a fixed set of $j \in \mathcal{J}$ missions to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. For their execution, these missions require the assignment of a specific number of aircraft $R_j$ each period of time the mission is active. The start and end periods for each mission are known and a mission is considered active between its start and end period.
 
@@ -100,11 +139,17 @@ Given that the creation of new missions and the duration of maintenance are cons
 
 Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon. Maintenances should also be controlled so it does not pass the maximum capacity.
 
-### Proposal
+## Proposal
 
 A summary of the application's functionalities is shown in the following image:
 
-![](../../img/functionalities.png)
+```{r, echo=FALSE, out.width='70%'}
+if (html_output){
+    graph_functionalities()
+} else {
+    knitr::include_graphics('../../img/functionalities.png')
+}
+```
 
 ### Usage
 
@@ -119,7 +164,14 @@ The following figure shows an hypothetical set of cases already saved:
 The following figure represents the possible interactions between cases. Case 1 was published for the month of March. During the month, it received some modifications, resulting in cases 2 and 3. Finally, Case 3 was (re)published for March.
 Later, Case 4 was created and modified before publication to Case 5. Case 5 was published for April.
 
-![](../../img/cases.png)
+
+```{r, echo=FALSE, out.width='70%'}
+if (html_output){
+    graph_cases()
+} else {
+    knitr::include_graphics('../../img/cases.png')
+}
+```
 
 The available functionality will be the following:
 
@@ -153,7 +205,7 @@ Finally, it could be interesting to compare specific KPI for two or more cases, 
 
 A situation that is common in the creation of plannings is the fact that several different cases may exist but it is still important to identify which one is the 'active' one. In order to deal with this, a simple publication system will be included in the application, where the 'planner' (see *Users* section) can identify the case that should be shared with others.
 
-### Graphic User Interface (GUI)
+### Graphic User Interface (GUI)
 
 All interaction from the user with the application will be done via an HTML application.
 
@@ -161,17 +213,36 @@ Besides showing data in interactive tables, specific alternatives can be incorpo
 
 Here are some examples of available functionality:
 
-Here, an interactive gantt is used to present and potentially modify a maintenance plan:
+Here, an interactive gantt is used to present and potentially modify a maintenance plan. It is possible to edit the maintenances and assignments tasks (change the size or move it) by double clicking on them and dragging. Also, it is possible to add new assignments by double clicking.
 
-<!-- TODO: gantt example -->
+```{r, echo=FALSE, out.width='70%'}
 
-Here, an interactive graph is used to present the usage of aircraft:
+if (html_output){
+    gantt
+} else {
+    knitr::include_graphics('./../../img/calendar.png')
+}
+```
 
-<!-- TODO: rut example -->
+Here, an interactive graph is used to present the evolution of the status of a single aircraft over time:
 
-Here, an interactive table is used to present the usage of aircraft:
+```{r, echo=FALSE, out.width='90%'}
 
-<!-- TODO: DT example -->
+if (html_output){
+    graphs_rem
+} else {
+    knitr::include_graphics('./../../img/remaining.png')
+}
+```
+
+Here, an interactive table is used to present some data:
+
+```{r, echo=FALSE, out.width='90%'}
+
+if (html_output){
+    table_rem
+}
+```
 
 ### Data integration
 
@@ -186,7 +257,7 @@ A new case can be created from the following options:
 
 In addition to this, the historic data could be potential read from another system, if available.
 
-#### Exporting data
+#### Exporting data
 
 The data in a case will be able to be exported in the following ways:
 
@@ -217,7 +288,16 @@ The server will be in charge of solving and generating new planning solutions an
 
 Users will be able to recover visually the results. Also, they will be able to export the results into csv, Excel and json formats depending on their needs.
 
-![Proposed architecture with data flows between components](../../img/architecture.png)
+```{r, echo=FALSE, out.width='70%'}
+
+if (html_output){
+    graph_architecture()
+} else {
+    knitr::include_graphics('../../img/architecture.png')
+}
+```
+
+<!-- ![Proposed architecture with data flows between components]() -->
 
 This client-server architecture provides several advantages:
 
@@ -255,7 +335,7 @@ Franco has been working in the Operations Research industry for almost 7 years. 
 
 Franco started a PhD at ISAE-SUPAERO university in October 2017 on the topic of military aircraft maintenance planning.
 
-## Technologies and techniques
+## Technologies and techniques
 
 * **Mathematical Modeling** to solve the problem.
 * **Python** for modeling, heuristics and data integration.
@@ -295,3 +375,5 @@ PostgreSQL is one of the most well-known open-source database alternatives. It i
 HTML 5 is the most recent change to the HTML that incorporates graphical functionality. This standard has permited a multitude of open sourced libraries that offer very powerful interactive graphics that are easily incorporated into webpages.
 
 Examples of these libraries are: [leaflet](http://leafletjs.com/), [visjs](visjs.org), [d3js](https://d3js.org/) among many others.
+
+### References

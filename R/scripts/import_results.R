@@ -65,7 +65,7 @@ print_tasks <- function(exp_directory){
     timevis(tasks, groups= groups, options= config, width="100%")
 }
 
-print_solution <- function(exp_directory, max_resources=NULL){
+print_solution <- function(exp_directory, max_resources=NULL, ...){
     solution_path = exp_directory %>% paste0('data_out.json')
     input_path = exp_directory %>% paste0('data_in.json')
     
@@ -105,7 +105,7 @@ print_solution <- function(exp_directory, max_resources=NULL){
         select(id, start= month, end= post_month, content, group= UNIT, style)
     
     if (max_resources %>% is.null %>% not){
-        resources <- states %>% distinct(group) %>% slice(1:max_resources)
+        resources <- states %>% distinct(group) %>% sample_n(max_resources)
         states <- states %>% inner_join(resources)
     }
     
@@ -118,10 +118,11 @@ print_solution <- function(exp_directory, max_resources=NULL){
         align = "center",
         orientation = "top",
         snap = NULL,
-        margin = 0
+        margin = 0,
+        zoomable= FALSE
     )
     
-    timevis(states, groups= groups, options= config, width="100%")
+    timevis(states, groups= groups, options= config, ...)
 }
 
 if (FALSE){
