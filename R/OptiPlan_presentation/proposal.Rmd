@@ -26,30 +26,32 @@ We believe this team is uniquely well-positioned to tackle this project because 
 
 <!-- TODO: translate into non-mathematical -->
 
-The problem is considered a Flight and Maintenance Planning problem. Work has been already done by \citet{Kozanidis2008}, \citet{Cho2011}, \citet{Verhoeff2015} and \citet{Chastellux2016}.
+The problem is considered a Flight and Maintenance Planning problem. Work has been already done by \citet{Kozanidis2008}, \citet{Cho2011}, \citet{Verhoeff2015} and \citet{Chastellux2016}, among others.
 
-  The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenances for these same aircraft.
+The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenances for these same aircraft.
+
+Missions can only be understood as a budget of hours per month or per year. In this document we present the most general formulation possible, where missions are assigned to aircraft for one or more months.
 
 ### Missions
 
 There is a fixed set of $j \in \mathcal{J}$ missions to be accomplished over an horizon of time divided into $t \in \mathcal{T}$ discrete periods. For their execution, these missions require the assignment of a specific number of aircraft $R_j$ each period of time the mission is active. The start and end periods for each mission are known and a mission is considered active between its start and end period.
 
-During each period, missions consume an amount of time equal to $H_j$ from each of its assigned aircraft.
+During each period, missions consume an amount of time equal to $H_j$ hours from each of its assigned aircraft.
 
-% The assignment of a resource to a mission is not decided for the whole duration of the mission. After a minimum amount of time ($MT$), a resource can be freed and exchanged for another one, even if the mission it is assigned to has not finished. 
-The total number of aircraft being used at any given time in a specific mission should be equal to $R_j$.
+The assignment of an aircraft to a mission is not decided for the whole duration of the mission. After a minimum amount of time $MT_j$, an aircraft can be freed and exchanged for another one, even if the mission it is assigned to has not finished. 
+The total number of aircraft being used at any given time in a specific mission should always be equal to $R_j$.
 
-Each mission requires one and only one type of resource which, in addition, should comply with additional mission requirements.
+Each mission requires one and only one type of aircraft which, in addition, should comply with additional mission requirements.
 
 ### Aircraft
 
-There is a set $i \in \mathcal{I}$ of available aircraft that are assigned to missions in order to accomplish them. Each resource can only be assigned to a single mission in any given period. These aircraft suffer from wear and tear and require regular maintenance operations during their lifetime. The need for maintenance is calculated based on two indicators.
+There is a set $i \in \mathcal{I}$ of available aircraft that are assigned to missions in order to accomplish them. Each aircraft can only be assigned to a single mission in any given period. These aircraft suffer from wear and tear and require regular maintenance operations during their lifetime. The need for maintenance is calculated based on two indicators.
 
-The first one is called "remaining elapsed time" (or $ret_{it}$). It expresses the amount of time (measured in time periods) after which the resource cannot be used anymore and has to undergo a maintenance operation. Its value is calculated for each resource $i$ and each time period $t$. In a similar way, "remaining usage time" (or $rut_{it}$) is used to measure the amount of time that the resource $i$ can be used before needing a maintenance operation at any given period $t$.
+The first one is called "remaining elapsed time" (or $ret_{it}$). It expresses the amount of time (measured in time periods) after which the aircraft cannot be used anymore and has to undergo a maintenance operation. Its value is calculated for each aircraft $i$ and each time period $t$. In a similar way, "remaining usage time" (or $rut_{it}$) is used to measure the amount of time that the aircraft $i$ can be used before needing a maintenance operation at any given period $t$.
 
-% Additionally, after an absolute amount of time and/or usage ($aet_i$ or $aut_i$), the resource becomes obsolete. There is no way to reverse this process.
+Additionally, after an absolute amount of time and/or usage ($aet_i$ or $aut_i$), the aircraft becomes obsolete. There is no way to reverse this process.
 
-At any given period, including at the start of the planning horizon, each resource has a specific status given by remaining usage time and remaining elapsed time.
+At any given period, including at the start of the planning horizon, each aircraft has a specific status given by remaining usage time and remaining elapsed time.
 
 ### Maintenances
 
@@ -57,38 +59,46 @@ Maintenances operations are the process by which aircraft that have reached a li
 
 Each maintenance operation has a fix duration of $M$ periods.
 
-After a maintenance operation, a resource restores its remaining elapsed time and remaining usage time to their max values $E$ and $H$ respectively.
+After a maintenance operation, an aircraft restores its remaining elapsed time and remaining usage time to their max values $E$ (~60 months) and $H$ (~1200 hours) respectively.
+
+There are also special maintenances that improve the aircraft capabilities (their ability to be assigned to new missions). These maintenances will be decided by the user and fixed for the application so they can be taken into account when assigning the rest of maintenances.
 
 ### Storages
 
-Following the rule of remaining elapsed time, even if a resource is not being used, it still needs to have a maintenance after a given amount of time has passed. In order to avoid this problem, the resource can be put into a storage state.
+Following the rule of remaining elapsed time, even if an aircraft is not being used, it still needs to have a maintenance after a given amount of time has passed. In order to avoid this problem, the aircraft can be put into a storage state.
 
-A resource in this states has to be kept for a minimum time of $sm$ periods. While in this state it cannot receive maintenance or be assigned any mission.
+A aircraft in this state has to be kept for a minimum time of $sm$ periods. While in this state it cannot receive maintenance or be assigned to any mission.
 
-Every resource has the capacity to be stored and this capacity is measured in a number of periods $sc$. In order for a resource to restore its remaining storage capacity, it needs to receive a specific maintenance (see \ref{def:maint}). Similar to the remaining elapsed time, after these maintenances, the resource recovers its storage capacity up to a certain level $S$.
+Every aircraft has the capacity to be stored and this capacity is measured in a number of periods $sc$. In order for an aircraft to restore its remaining storage capacity, it needs to receive a specific maintenance. Similar to the remaining elapsed time, the aircraft recovers its storage capacity up to a certain level $S$.
 
 ### Possible states
 
-   As a summary, the following are the possible logical states that a resource can be in: assigned to a mission (see \ref{def:mission}); under maintenance (see \ref{def:maint}); available.
+As a summary, the following are the possible logical states that an aircraft can be in: 
+
+* Assigned to a mission.
+* Receiving maintenance.
+* Under storage.
+* Available.
 
 ### Time
 
-In planning missions and maintenances, it is important to take into account the initial and end state of each resource. This initial state can be a maintenance or an assigned mission. If a resource is under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
+In planning missions and maintenances, it is important to take into account the initial and end state of each aircraft. This initial state can be a maintenance or an assigned mission. If an aircraft is already under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
 
-The remaining used and elapsed times are assigned to each resource at the beginning of the planning horizon.
+For planned maintenances whose starting time is close to the beginning of the planning horizon, they should also be considered fixed.
 
-Finally, the state of each resource at the end of the planning horizon, its remaining (elapsed, used) time, needs to be defined.
-  % needs to be addressed too. This implies guaranteeing that the remaining (elapsed, used) time of aircraft is sustainable for future missions and the final states of aircraft are not too skewed.
+<!-- TODO: diagram -->
+
+The remaining used and elapsed times are assigned to each aircraft at the beginning of the planning horizon.
+
+Finally, the state of each aircraft at the end of the planning horizon, its remaining (elapsed, used) time, needs to be defined and taken into account.
 
 ### Objectives
 
-In this study, the following objectives are considered.
+The following objectives are considered, although more could be potentially added.
 
 Given that the creation of new missions and the duration of maintenance are considered stochastic in real-life, one basic goal is to maximize the robustness of the planning by having the greatest amount of available aircraft at every period of the planning horizon. 
 
-Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon.
-
-As it will be shown in the mathematical formulation, these objectives are quite related one with the other: the more aircraft are in maintenance in a given period, the more unavailable aircraft will be had.
+Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon. Maintenances should also be controlled so it does not pass the maximum capacity.
 
 ### Proposal
 
@@ -143,14 +153,25 @@ Finally, it could be interesting to compare specific KPI for two or more cases, 
 
 A situation that is common in the creation of plannings is the fact that several different cases may exist but it is still important to identify which one is the 'active' one. In order to deal with this, a simple publication system will be included in the application, where the 'planner' (see *Users* section) can identify the case that should be shared with others.
 
-### Screens and GUI
+### Graphic User Interface (GUI)
 
-<!-- TODO: figure with beautiful screens -->
+All interaction from the user with the application will be done via an HTML application.
 
-* Some example screen captures of how it could look (web, of course):
-    - maps?
-    - interactive gantt charts.
-    - Excel-type tables to edit and calculate loads.
+Besides showing data in interactive tables, specific alternatives can be incorporated to make the usage easier.
+
+Here are some examples of available functionality:
+
+Here, an interactive gantt is used to present and potentially modify a maintenance plan:
+
+<!-- TODO: gantt example -->
+
+Here, an interactive graph is used to present the usage of aircraft:
+
+<!-- TODO: rut example -->
+
+Here, an interactive table is used to present the usage of aircraft:
+
+<!-- TODO: DT example -->
 
 ### Data integration
 
@@ -190,7 +211,22 @@ Depending on the future integration, additional data flows will be included in t
 
 The following figure shows a summary of the architecture to be implemented and the data flows between components.
 
-![](../../img/architecture.png)
+Users will interact via web browsers with the server. In order to load new data they can upload a new Excel file with the relevant data or edit an existing case via the application.
+
+The server will be in charge of solving and generating new planning solutions and storing all relevant information in its database.
+
+Users will be able to recover visually the results. Also, they will be able to export the results into csv, Excel and json formats depending on their needs.
+
+![Proposed architecture with data flows between components](../../img/architecture.png)
+
+This client-server architecture provides several advantages:
+
+* Powerful graphics can be incorporated via open source javascript libraries.
+* It is easier to maintain as a clear separation of concerns is done between GUI, logic and model.
+* No installation of software besides a modern web browser is required.
+* Multiple users can be easily incorporated.
+* Integration with other systems can be done with minimal changes to the existing IT.
+* Powerful resources can be allocated where needed (server) instead of the users pcs.
 
 ### Users
 
@@ -208,6 +244,16 @@ Depending on the needs of the client, several "viewer" profiles could be created
 * Familiar with maintenance planning.
 * With experience building applications for industrial clients.
 * Direct experience with the problem at hand.
+
+### Alain Haït
+
+### Olga Battaïa
+
+### Franco Peschiera
+
+Franco has been working in the Operations Research industry for almost 7 years. During which he has been the Chief Technical Officer for a Spanish startup that builds software applications with mathematical optimization or simulation models inside for several big Spanish and international companies. Examples of clients have been: Repsol and CLH (oil logistics, marketing, human resources), General Motors, L.I. Lilly and Air Liquide (production planning), Alstom and ASM (logistics and transportation) among many others.
+
+Franco started a PhD at ISAE-SUPAERO university in October 2017 on the topic of military aircraft maintenance planning.
 
 ## Technologies and techniques
 
