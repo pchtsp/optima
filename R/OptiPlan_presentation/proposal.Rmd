@@ -40,6 +40,7 @@ table_rem <- table_remaining(exp_directory)
 html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html')
 ```
 
+<!-- TODO: check if all points from the rules are covered -->
 
 ## Introduction
 
@@ -67,7 +68,7 @@ We believe this team is uniquely well-positioned to tackle this project because 
 
 The problem is considered a Flight and Maintenance Planning problem. Work has been already done by @Kozanidis2008, @Cho2011, @Verhoeff2015 and @Chastellux2016, among others.
 
-The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenances for these same aircraft.
+The problem consists in assigning aircraft to predefined missions and scheduling periodic preventive maintenance for these same aircraft.
 
 Missions can only be understood as a budget of hours per month or per year. In this document we present the most general formulation possible, where missions are assigned to aircraft for one or more months.
 
@@ -94,13 +95,13 @@ At any given period, including at the start of the planning horizon, each aircra
 
 ### Maintenances
 
-Maintenances operations are the process by which aircraft that have reached a limit in some indicator can return to a state where they can continue to be used in missions.
+Maintenance operations are the process by which aircraft that have reached a limit in some indicator can return to a state where they can continue to be used in missions.
 
 Each maintenance operation has a fix duration of $M$ periods.
 
 After a maintenance operation, an aircraft restores its remaining elapsed time and remaining usage time to their max values $E$ (~60 months) and $H$ (~1200 hours) respectively.
 
-There are also special maintenances that improve the aircraft capabilities (their ability to be assigned to new missions). These maintenances will be decided by the user and fixed for the application so they can be taken into account when assigning the rest of maintenances.
+There are also special maintenance operations that improve the aircraft capabilities (their ability to be assigned to new missions). These operations will be decided by the user and fixed for the application so they can be taken into account when assigning the rest of maintenance operations.
 
 ### Storages
 
@@ -121,11 +122,9 @@ As a summary, the following are the possible logical states that an aircraft can
 
 ### Time
 
-In planning missions and maintenances, it is important to take into account the initial and end state of each aircraft. This initial state can be a maintenance or an assigned mission. If an aircraft is already under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
+In planning missions and maintenance operations, it is important to take into account the initial and end state of each aircraft. This initial state can be a maintenance or an assigned mission. If an aircraft is already under maintenance, it needs to continue in this state for its remaining maintenance time. Tasks' assignments should be taken into account in a similar manner.
 
-For planned maintenances whose starting time is close to the beginning of the planning horizon, they should also be considered fixed.
-
-<!-- TODO: diagram -->
+For planned maintenance operations whose starting time is close to the beginning of the planning horizon, they should also be considered fixed.
 
 The remaining used and elapsed times are assigned to each aircraft at the beginning of the planning horizon.
 
@@ -137,7 +136,7 @@ The following objectives are considered, although more could be potentially adde
 
 Given that the creation of new missions and the duration of maintenance are considered stochastic in real-life, one basic goal is to maximize the robustness of the planning by having the greatest amount of available aircraft at every period of the planning horizon. 
 
-Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon. Maintenances should also be controlled so it does not pass the maximum capacity.
+Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of aircraft under maintenance over the planning horizon. Maintenance operations should also be controlled so it does not pass the maximum capacity.
 
 ## Proposal
 
@@ -151,9 +150,67 @@ if (html_output){
 }
 ```
 
-### Usage
+    Graph showing functionalities for the application
 
-<!-- TODO: flowcharts! -->
+
+### Optimizer
+
+The model built to generate new solutions will comply with the requirements described below.
+
+#### RQ001: missions hours
+
+Each month, all missions need to be satisfied by assigning enough flight hours to each aircraft.
+
+
+#### RQ002: assigned aircraft
+
+Each month, all missions need to have a minimum number of aircraft assigned.
+
+#### RQ003: maintenance needs
+
+Each aircraft needs to always have enough flight hours to be able to do the required missions it is assigned to. In order to recover its flight hours (to around 1200 hours), a maintenance operation is needed.
+
+Similarly, after certain amount of time has passed, aircraft need a maintenance even if they did not reach this flight hour limit. This amount of time is around 5 years.
+
+#### RQ004: maintenance duration
+
+Maintenance operations take around 5 months and once an aircraft has started the maintenance operation, it needs to continue it. It cannot do any operation while in maintenance.
+
+#### RQ005: availability
+
+At each month, it is important to have the biggest possible number of available aircraft ready to engage in a new mission.
+
+#### RQ006: maintenance capacity
+
+The maintenance operations to be planned for all aircraft need to be done in the most smooth way possible, avoiding specific months were there are many aircraft under maintenance and other months were there are but a few aircraft under maintenance.
+
+In other words, it is important to have the lowest possible number of available aircraft under maintenance at each month.
+
+#### RQ007: end state
+
+At the end of the planning horizon, the aircraft need to be in the best state possible. This implies that, in average, they need to have a big budget of flight hours remaining and a big number of months before needing a maintenance.
+
+#### RQ008: storage
+
+The storage can be decided by the model in order to avoid the deterioration of the aircraft. The minimum period to store an aircraft is 6 months and while in this state it is unavailable both for maintenance and for missions.
+
+#### RQ009: fixing parts of the planning
+
+There are several reasons for the user to want to fix some part of a previous planning. For example, there are some maintenance operations that are already decided and need to take place in the future. There are some aircraft that are already in a mission and need to stay there for some months at least. Also, storage can be already decided or in process.
+
+Another reason for fixing maintenance operations could be for planned improvement operations to aircraft. These special type of maintenance operations are decided many months in advance for specific selected aircraft.
+
+These fixed assignments will be communicated to the planning generator in order for it to not change them.
+
+#### RQ010: configuration
+
+Available options will be, by default:
+
+* **Maximal time**: in case a solution is needed before proving optimality.
+* **Maximal GAP**: in order to apply a maximum allowed distance from the best obtained solution to the hypothetical best possible solution. This distance can be a proportional difference or an absolute difference.
+* **First and last month**: in order to define the horizon of planning to plan.
+* **Objective weights**: for the different objectives to optimize, to give preference to one or another objective.
+* **Maintenance parameters**: maintenance duration (in months), maximum flight hours, maximum elapsed time, and other maintenance-related parameters.
 
 ### Cases and experimentation
 
@@ -172,6 +229,8 @@ if (html_output){
     knitr::include_graphics('../../img/cases.png')
 }
 ```
+
+    Example showing interaction between cases and publication of cases.
 
 The available functionality will be the following:
 
@@ -209,11 +268,11 @@ A situation that is common in the creation of plannings is the fact that several
 
 All interaction from the user with the application will be done via an HTML application.
 
-Besides showing data in interactive tables, specific alternatives can be incorporated to make the usage easier.
+Besides showing data in interactive tables, specific alternatives can be incorporated to make the usage easier and more potent.
 
-Here are some examples of available functionality:
+Below are some examples of available functionality.
 
-Here, an interactive gantt is used to present and potentially modify a maintenance plan. It is possible to edit the maintenances and assignments tasks (change the size or move it) by double clicking on them and dragging. Also, it is possible to add new assignments by double clicking.
+Here, an interactive gantt is used to present and potentially modify a maintenance plan. It is possible to edit the maintenance operations and assignments tasks (change the size or move it) by double clicking on them and dragging. Also, it is possible to add new assignments by double clicking.
 
 ```{r, echo=FALSE, out.width='70%'}
 
@@ -224,7 +283,9 @@ if (html_output){
 }
 ```
 
-Here, an interactive graph is used to present the evolution of the status of a single aircraft over time:
+    Interactive gantt example
+
+Here, an interactive graph is used to present the evolution of the status of a single aircraft over time. It is possible to filter, see the data in details and export as an image.
 
 ```{r, echo=FALSE, out.width='90%'}
 
@@ -235,7 +296,9 @@ if (html_output){
 }
 ```
 
-Here, an interactive table is used to present some data:
+    Interactive graph example
+
+Here, an interactive table is used to present some data. It is possible to edit the contents, filter, re-order data, etc.
 
 ```{r, echo=FALSE, out.width='90%'}
 
@@ -243,6 +306,8 @@ if (html_output){
     table_rem
 }
 ```
+
+    Interactive table example
 
 ### Data integration
 
@@ -265,18 +330,28 @@ The data in a case will be able to be exported in the following ways:
 * Into the new Excel template that is will be created.
 * csv and/ or json files if needed.
 
+This exporting capabilities will also permit the sharing of partial information to other actors in Excel or flat files.
+
 ### Architecture and deployment
 
 The application will be deployed via a client-server architecture. This way, it would be easy to share the application given that it will only require having a modern web browser installed (Google Chrome).
 
 The server should be installed somewhere inside the client's infrastructure.
 
-The default requirements for the server are:
+The minimal hardware requirements for the server are:
 
 * Ubuntu Server 64 bits.
 * Cores >= 4
 * RAM >= 8GB
 * Hard drive >= 500 GB
+
+The minimal software requirements for the server are:
+
+* R + RStudio + Shiny
+* python >= 3.6
+* PostgreSQL
+
+Additional software could be needed depending on the final specifications. For example, in case the model is way to big for open source solvers, a commercial solver might be needed.
 
 Depending on the future integration, additional data flows will be included in the design. The only known data flow is between the existing Excel file and the application.
 
@@ -292,12 +367,13 @@ Users will be able to recover visually the results. Also, they will be able to e
 
 if (html_output){
     graph_architecture()
+    
 } else {
     knitr::include_graphics('../../img/architecture.png')
 }
 ```
 
-<!-- ![Proposed architecture with data flows between components]() -->
+    Proposed architecture with data flows between components
 
 This client-server architecture provides several advantages:
 
@@ -306,7 +382,9 @@ This client-server architecture provides several advantages:
 * No installation of software besides a modern web browser is required.
 * Multiple users can be easily incorporated.
 * Integration with other systems can be done with minimal changes to the existing IT.
-* Powerful resources can be allocated where needed (server) instead of the users pcs.
+* Powerful resources can be allocated where needed (server) instead of the users PCs.
+
+In addition to this, there is not third-party software to buy. All components are open source. The only possible exception could be the mathematical solver, depending on the size of the problem and the needs of speed.
 
 ### Users
 
@@ -316,14 +394,10 @@ The first one will be called "planner". This user is in charge of creating (manu
 The second one will be called "viewer". This user will be able to visualize the results of the planning created and stored inside the application. 
 Depending on the needs of the client, several "viewer" profiles could be created in order to share only parts of the stored information with each profile.
 
+
 ## Team
 
 <!-- TODO: names, CV and résumés-->
-
-* Operations research experts.
-* Familiar with maintenance planning.
-* With experience building applications for industrial clients.
-* Direct experience with the problem at hand.
 
 ### Alain Haït
 
@@ -331,9 +405,68 @@ Depending on the needs of the client, several "viewer" profiles could be created
 
 ### Franco Peschiera
 
-Franco has been working in the Operations Research industry for almost 7 years. During which he has been the Chief Technical Officer for a Spanish startup that builds software applications with mathematical optimization or simulation models inside for several big Spanish and international companies. Examples of clients have been: Repsol and CLH (oil logistics, marketing, human resources), General Motors, L.I. Lilly and Air Liquide (production planning), Alstom and ASM (logistics and transportation) among many others.
+An industrial engineer, mathematician by profession and a programmer by heart.
+
+Franco has been working in the Operations Research industry for almost 7 years. During which he has been the owner and Chief Technical Officer for a Spanish startup (www.baobabsoluciones.es) building software applications with mathematical optimization or simulation models inside for several big Spanish and international companies. Examples of clients have been: Repsol and CLH (oil logistics, marketing, human resources), General Motors, L.I. Lilly and Air Liquide (production planning), RATP, Alstom and ASM (logistics and transportation) among many others.
+
+These projects involved the following incomplete list of tasks: the specification of the client"s requirements, the construction of a mathematical or simulation model, the programming of a graphical user interface, deployment and integration with the IT systems, documentation and training for users.
 
 Franco started a PhD at ISAE-SUPAERO university in October 2017 on the topic of military aircraft maintenance planning.
+
+## Planning
+
+Here, the required tasks and their order are presented.
+The main risk on the present planning is the incomplete information about:
+
+* the specific problem to be solved.
+* the available IT infrastructure to work with.
+* availability of potential users to discuss example solutions and test and evaluate functionality.
+
+### Phase 1: requirements
+
+In this phase, several in-person and telephone meetings will be scheduled.
+
+The requisites for this phase are: **None**
+
+The deliverable of this phase will be: 
+
+* a document with an agreed description with the minimal requirements for the prototype and 
+* a draft of possible additional requirements to be specified later on.
+
+The duration of this phase is estimated to be: **3 weeks**
+
+### Phase 2: first iteration
+
+In this phase, a first version of the prototype will be constructed and deployed.
+
+The requisites for this phase are:
+
+* the list with minimal requirements.
+* a deployment alternative to share the application with the users.
+
+The deliverable of this phase will be: 
+
+* an prototype application that users can use and test.
+* example solutions for users to analyze.
+
+The duration of this phase is estimated to be: **5 weeks**
+
+### Phase 3: second iteration
+
+In this phase, a final version of the prototype will be constructed and deployed.
+
+The requisites for this phase are:
+
+* a list with changes to make to the first version based on the feedback from users.
+* a list with additional functionality that has high priority.
+
+The deliverable of this phase will be: 
+
+* an application that users can test.
+* technical documentation.
+* User's guide.
+
+The duration of this phase is estimated to be: **5 weeks**
 
 ## Technologies and techniques
 
@@ -359,9 +492,9 @@ It also excels at web developing with libraries such as flask and jinja template
 
 ### R
 
-R is the state of the art in statistics and forecasting modelling. It includes several libraries for data manipulation, visualization and, as a programming language, good integrations with other languages and software.
+R is the state of the art in statistics and forecasting modelling. It includes several libraries for data manipulation, visualization and, as a programming language, good integration with other languages and software.
 
-Finally, it offers specially good integration with html-based applications via the [Shiny](https://shiny.rstudio.com/) technology.
+Finally, it offers specially good integration with html-based applications via the [Shiny](https://shiny.rstudio.com/gallery/) technology, which will be used in this project.
 
 ### PostgreSQL
 
@@ -372,8 +505,17 @@ PostgreSQL is one of the most well-known open-source database alternatives. It i
 
 ### HTML5
 
-HTML 5 is the most recent change to the HTML that incorporates graphical functionality. This standard has permited a multitude of open sourced libraries that offer very powerful interactive graphics that are easily incorporated into webpages.
+HTML 5 is the most recent change to the HTML that incorporates graphical functionality. This standard has allowed a multitude of open sourced libraries that offer very powerful interactive graphics that are easily incorporated into webpages.
 
 Examples of these libraries are: [leaflet](http://leafletjs.com/), [visjs](visjs.org), [d3js](https://d3js.org/) among many others.
 
-### References
+
+## Disclaimers
+
+1. The proposal presented above is intended for a complete application delivered as a part of a complete project to DGA.
+1. The prototype to be delivered will not include the full functionality mentioned in this document but will show examples of the most important pieces of functionality following a meeting with the future users and decision makers.
+1. Integration with other systems is out of the scope of this proposal since more information is needed regarding the existing systems to be able to estimate workload.
+1. It is assumed that DGA will provide the hardware requirements together with the access rights and permissions to install all the components of the software. Alternatively, the software could be installed in the cloud upon agreement.
+1. Even though mathematical programming provides the capacity to prove the optimality of a solution, the application does not guarantee finding it en every case. The quality of the solutions and the time to obtain them will depend on many factors; the size of the instance being the main one.
+
+## References
