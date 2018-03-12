@@ -2,6 +2,8 @@ import package.aux as aux
 import package.data_input as di
 import package.instance as inst
 import package.model as md
+import package.params as params
+import os
 # import package.model as md
 # import multiprocessing as multi
 # import datetime
@@ -9,7 +11,8 @@ import package.model as md
 
 if __name__ == "__main__":
 
-    model_data = di.get_model_data()
+    input_file = params.PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
+    model_data = di.get_model_data(input_file)
     historic_data = di.generate_solution_from_source()
     model_data = di.combine_data_states(model_data, historic_data)
 
@@ -20,23 +23,35 @@ if __name__ == "__main__":
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    # forbidden_tasks = ['O10', 'O8', 'O6']
-    forbidden_tasks = ['O10', 'O8']
-    # forbidden_tasks = ['O8']  # this task has less candidates than what it asks.
-    model_data['tasks'] = \
-        {k: v for k, v in model_data['tasks'].items() if k not in forbidden_tasks}
+    # black_list = []
+    white_list = []
+    # white_list = ['O1', 'O5']
+    # black_list = ['O10', 'O8', 'O6']
+    # black_list = ['O10', 'O8']
+    black_list = ['O8']  # this task has less candidates than what it asks.
+    if len(black_list) > 0:
+        model_data['tasks'] = \
+            {k: v for k, v in model_data['tasks'].items() if k not in black_list}
+    if len(white_list) > 0:
+        model_data['tasks'] = \
+            {k: v for k, v in model_data['tasks'].items() if k in white_list}
     # this was for testing purposes
 
     instance = inst.Instance(model_data)
+    # num_res = instance.get_tasks('num_resource')
+    # candidates = aux.dict_filter(instance.get_task_candidates(), white_list)
+    # candidates = [c for k, l in candidates.items() for c in l[:num_res[k]+15]]
+    # candidates = list(np.unique(candidates))
+    # # candidates = list(candidates[:len(candidates)//3])
+    # instance.data['resources'] = aux.dict_filter(instance.data['resources'], candidates)
+    # instance.data['parameters']['maint_capacity'] /= 3
 
     options = {
         'timeLimit': 3600
-        , 'gap': 0.01
-        , 'solver': "GUROBI"
+        , 'gap': 0
+        , 'solver': "CPLEX"
         , 'path':
-            '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                format(aux.get_timestamp())
-        , "model": "maint_and_endstate"
+            os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
     }
 
     di.export_data(options['path'], instance.data, name="data_in", file_type='json')

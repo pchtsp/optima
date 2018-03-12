@@ -4,6 +4,7 @@ import package.aux as aux
 import pulp as pl
 import tempfile
 from os import dup, dup2, close
+import package.params as params
 
 
 class Config(object):
@@ -17,8 +18,9 @@ class Config(object):
             , 'gap': 0
             , 'solver': "GUROBI"
             , 'path':
-                '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                    format(aux.get_timestamp())
+                os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
+                # params.PATHS['experiments'] + '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
+                #     format(aux.get_timestamp())
         }
 
         # the following merges the two configurations (replace into):
@@ -66,11 +68,10 @@ class Config(object):
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi()))
         if self.solver == "CPLEX":
             return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1))
-
         with tempfile.TemporaryFile() as tmp_output:
             orig_std_out = dup(1)
             dup2(tmp_output.fileno(), 1)
-            result = model.solve(pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True))
+            result = model.solve(pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1))
             dup2(orig_std_out, 1)
             close(orig_std_out)
             tmp_output.seek(0)
