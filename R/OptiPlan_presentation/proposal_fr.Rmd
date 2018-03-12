@@ -1,8 +1,21 @@
 ---
 title: "Optiplan proposal"
+author: "ISAE-SUPAERO, Université de Toulouse"
 date: "Mars 11, 2018"
 nocite: '@*'
 output:
+  html_document:
+    css: ./../../css/baobab_docs.css
+    toc: yes
+  beamer_presentation:
+    pandoc_args: ["--slide-level=3", "--top-level-division=part"]
+    # fig_height: 4
+    # includes:
+    #   in_header: header.tex
+    # incremental: yes
+    # slide_level: 3
+    theme: Madrid
+    # toc: yes
   pdf_document:
     toc: yes
     # toc_depth: 2
@@ -11,22 +24,12 @@ output:
     # top_level_division: part
     keep_tex: true
     pandoc_args: ["--top-level-division=part"]
-  html_document:
-    css: ./../../css/baobab_docs.css
-    toc: yes
-  beamer_presentation:
-    fig_height: 4
-    includes:
-      in_header: header.tex
-    incremental: yes
-    slide_level: 3
-    theme: Berlin
-    toc: yes
   slidy_presentation:
     css: ./../../css/baobab_MH.css
     footer: ISAE-SUPAERO, Université de Toulouse, France
-    incremental: yes
-    slide_level: 4
+    # incremental: yes
+    slide_level: 3
+    pandoc_args: ["--slide-level=3"]
     toc: yes
 bibliography: MFMP.bib
 editor_options: 
@@ -45,7 +48,7 @@ source('diagrams/exampleDT.R')
 source('diagrams/gantt_tasks.R')
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
 exp_directory2 = PATHS[['experiments']] %>% paste0('201802061201/')
-gantt <- print_solution(exp_directory, max_resources = 5, width="100%", height="200px")
+gantt <- print_solution(exp_directory, max_resources = 10, width="100%", height="500px")
 gantt_tasks <- print_tasks(exp_directory2, width="100%", height="200px", max_tasks = 5)
 graphs_rem <- graph_remaining(exp_directory)
 table_rem <- table_remaining(exp_directory)
@@ -55,62 +58,154 @@ html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html
 <!-- TODO: check if all points from the rules are covered -->
 
 ## Introduction 
+### Introduction
 
+Dans ce document, nous présentons tout d’abord le problème tel que l’équipe le comprend. Les sources d’information sont la connaissance préliminaire de l’équipe et la réunion OptiPlan qui a eu lieu à Paris.
 
-Dans ce document, nous présentons d'abord le problème tel que l'équipe le comprend. Les sources d'information sont la connaissance préliminaire de l'équipe et la réunion OptiPlan qui a eu lieu à Paris.
+Notre proposition technique inclut des fonctionnalités qu’une éventuelle application complète comprendrait. Dans le temps imparti au projet nous projetons de réaliser un prototype basé sur cette proposition technique
 
-Une proposition technique est présentée qui inclut les fonctionnalités qu'une éventuelle application complète inclurait sur la base des échanges effectués lors de la journée OptiPlan à Paris et des expériences précédentes de l'équipe dans la construction d'applications d'aide à la planification pour l'industrie.
+## Présentation de l'entreprise
+### Présentation de l'entreprise
 
-Ensuite, les références de l'équipe sont présentées, mentionnant les différents projets et recherches pertinents liés au présent projet.
+Nom: ISAE-SUPAERO
+Activité: école d’ingénieurs.
 
-Une planification de temps est présenté pour le développement du logiciel prototype, avec les livrables par étape.
+Grand école du secteur aéronautique et spatial, l'ISAE-SUPAERO développe depuis 2007 une recherche propre portée par ses département. Le département d'ingénierie des systèmes complexes (DISC), par son groupe Systèmes Décisionnels, travaille sur les outils de décision appliqués aux systèmes industriels, en particulier pour la production et la maintenance dans l'industrie aérospatiale.
 
-Enfin, les technologies et les outils logiciels à utiliser sont présentés, décrivant l'utilisation et justifiant le choix à chaque point.
+## Savoir-faire
+### Compétences clés 
 
-## Résumé
+Nous pensons que cette équipe est particulièrement bien placée pour
+aborder ce projet pour les raisons suivantes:
 
-Le projet présenté est une application web interactive. Il utilise un modèle mathématique pour générer de nouvelles solutions, permet à différents utilisateurs d'y accéder avec différents droits d'accès et offre une puissante visualisation pour afficher, comparer et analyser les planifications. Il s'intègre aux sources de données existantes (fichier Excel), aux nouvelles proposées (modèle Excel) et a la possibilité de s’intégrer aux sources existantes (autres systèmes internes) ainsi qu'à la sortie simple (csv, json). Enfin, il permet l'utilisation de cas pour stocker des informations, ce qui facilite les essaies, l'expérimentation et la comparaison de différents scénarios.
+L’équipe possède une grande expérience en recherche opérationnelle:
 
-Nous pensons que cette équipe est particulièrement bien placée pour aborder ce projet pour les raisons suivantes:
+* recherche scientifique, publication d’articles
+* projets de recherche en collaboration avec l’industrie
+* conception d’applications logicielles en planification et optimisation pour des entreprises
 
-* L'équipe somme plus de 40 ans d'expérience dans le domaine de la recherche opérationnelle, qui est la théorie de bas derrière ce problème.
-* L'équipe possède des années d'expérience dans la conception d'applications logicielles de planification et d'optimisation pour un large ensemble de grandes entreprises industrielles.
-* L'équipe possède une vaste expérience produisant articles scientifiques et projets commerciaux liés à la planification et à la maintenance.
-* L'équipe a une connaissance unique du problème spécifique, car une thèse de doctorat sur ce sujet a été lancée en octobre 2017. Les travaux ont été présentés déjà à la conference ROADEF 2018 et seront présentés dans la conférence MOSIM 2018.
+L’équipe a déjà encadré des travaux de recherche sur le sujet de la maintenance aéronautique. En outre, elle a une connaissance du problème en question car une thèse de doctorat sur ce sujet a été lancée en octobre 2017. Les travaux ont été présentés à la conférence ROADEF 2018 et seront présentés dans la conférence MOSIM 2018
+
+### Alain Haït
+
+Ingénieur en mécanique, Alain Haït possède une thèse de robotique préparée au LAAS CNRS. Enseignant-chercheur à l’INP Toulouse, il participé à la conception et la mise en place du département de génie industriel de l’ENSIACET. Chercheur visiteur au département de mathématiques et génie industriel de l’École Polytechnique de Montréal pendant deux ans, il a co-édité un livre sur les méthodes de planification et d’ordonnancement de la production avec contraintes liées aux ressources humaines, avec les professeurs François Soumis, Vincent Giard et Pierre Baptiste. Alain Haït est certifié CPIM de l’APICS. Spécialisé dans les méthodes de planification, il a encadré une thèse sur la planification de la maintenance d’hélicoptères civils.
+
+Professeur à l’ISAE-SUPAERO depuis 2007, il dirige depuis trois ans le département d’ingénierie des systèmes complexes (DISC) qui couvre les thèmes mathématiques appliquées, réseaux de communication, systèmes embarqués, ingénierie système et systèmes décisionnels.
+
+### Olga Battaïa
+
+Professeur à l'ISAE-SUPAERO et responsable de la formation en Génie Industriel, Olga Battaïa est une chercheuse internationalement reconnue dans le domaine de l'optimisation des systèmes industriels.  Sa thèse de doctorat soutenue en 2007 à l’Ecole des Mines de Saint-Etienne a été primée du prix des meilleures thèses par le GdR MACS.  Olga Battaïa est auteure de plus de 170 publications scientifiques, parmi lesquelles plus de 50 articles dans les revues internationales et 57 articles dans les proceedings des conférences internationales. Elle a participé à la réalisation de nombreux projets de recherche nationaux et internationaux. Elle a été invitée à plusieurs reprises par des universités étrangères pour donner des conférences scientifiques : Linköping University (2016), University of Siegen (2016), Politecnico di Milano, 2014 (Italie), Tshwane University of Technology, 2014 (Afrique du Sud), Lebanese University, 2013 (Liban) MIT, 2011 (USA), University of Michigan, 2011 (USA). En 2018, elle est devenue la première femme française nommée Membre Associé de la prestigieuse Académie Internationale de Recherche en Productique (CIRP).
+
+### Franco Peschiera
+
+Franco Peschiera a travaillé dans l'industrie de la recherche opérationnelle depuis près de 7 ans. Au cours de ce temps il a été le propriétaire et le directeur technique pour une startup espagnole (www.baobabsoluciones.es), en construisant des applications logicielles avec des modèles d'optimisation mathématique ou de simulation à l'intérieur pour plusieurs grandes entreprises espagnoles et internationales.
+
+Ces projets comportaient la liste suivante de tâches: la spécification des besoins du client, la construction d'un modèle mathématique ou de simulation, la programmation d'une interface utilisateur graphique, le déploiement et l'intégration avec les systèmes informatiques, la documentation et la formation des utilisateurs.
+
+Franco a commencé un doctorat à l'université ISAE-SUPAERO en octobre 2017 sur le sujet de la planification de la maintenance des avions militaires.
+
+## Motivations
+### Motivations
+
+Nous sommes déjà engagé dans une thèse sur le sujet de planification de maintenances des aéronefs pour la DGA.
+
+Le challenge OptiPlan va nous permettre avoir interaction directe avec la DGA pendant que on développe des meilleurs modèles pour avoir une meilleure compréhension du problème et résoudre des possibles doutes, ainsi que de recevoir de données de qualité pour évaluer nos modèles.
+
+Le challenge va nous permettre recevoir feedback de la part DGA sur les résultats qu'on obtienne. Le retourne d'information permettra ensuite améliorer encore plus les résultats.
+
+Finalement, le challenge permettra valider l'utilité des modèles et techniques employés dans une application complète et réel.
+
+## Expérience
+
+### Plannification logistique et RH
+
+**Clients**: Repsol et CLH.
+
+**Problematiques**: 
+
+* Génération des horaires et affectation du personnel. 
+* Planification stratégique des réseaux de transport et production au niveau national.
+
+**Réponses**:
+
+* Logiciel de gestion de ressources humaines utilisé tous les jours.
+* Logiciel de optimisation mensuelle logistique.
+
+```{r, echo=FALSE, out.width='50%'}
+knitr::include_graphics('../../img/CLH.png')
+```
+
+### Plannification de la production
+
+**Clients**: General Motors, LI Lilly, Air Liquide, Repsol.
+
+**Problematiques**:
+
+* Planification de la production.
+* Détection de problèmes d'approvisionnement.
+
+**Réponses**:
+
+* Logiciel de simulation horaire de la production en temps réelle.
+* Logiciel optimisation de la production hebdomadaire.
+* Logiciel de planification mensuel de la production.
+ 
+```{r, echo=FALSE, out.width='50%'}
+knitr::include_graphics('../../img/Lilly.png')
+```
+
+### Logistique et transport
+
+**Clients**: Alstom, ASM et IO.
+
+**Problematiques**:
+
+* Simulation de trains et réseaux métro.
+* Optimisation de tournées de véhicules.
+
+**Réponses**:
+
+* Logiciel de simulation de réseaux de trains.
+* Logiciel d'optimisation de transports.
+
+```{r, echo=FALSE, out.width='50%'}
+knitr::include_graphics('../../img/IO.png')
+```
 
 ## Problème
 
-L'Armée de l'Air dispose d'une flotte d'avions Mirage 2000 de différents types, avec des fonctionnalités particulaires et avec un état d'opération spécifique donné par certains indicateurs temporelles d'usage.
+L’Armée de l’Air dispose d’une flotte d’avions Mirage 2000 de différents types, avec des fonctionnalités particulières et avec un état d’opération spécifique donné par certains indicateurs temporels d’usage.
 
-Au même temps, il existe un besoin opérationnel généré par les différents missions que la flotte doit être capable de remplir. Ce besoin peut être formulé comme un nombre de missions à satisfaire ou un budget d'heures de vol a atteindre à chaque période.
+En même temps, il existe un besoin opérationnel généré par les différentes missions que la flotte doit être capable de remplir. Ce besoin peut être formulé comme un nombre de missions à satisfaire ou un budget d’heures de vol a atteindre à chaque période.
 
-Finalement, il existe de contraintes opératifs du au fait que les avions ont besoin de maintenances régulières et possibles stockages pour être conservés en bon état et, de cette façon, garantir la capacité future de la flotte.
+Finalement, il existe des contraintes opérationnelles du au fait que les avions ont besoin de maintenances régulières pour être conservés en bon état et  garantir la capacité future de la flotte.
 
-Le problème consiste, donc, à affecter des avions aux missions prédéfinies et à programmer des opérations de maintenance préventive pour ces mêmes avions de façon d'avoir le plus grand quantité d'avions disponibles en lissant et réduisant les opérations de maintenance le plus possible dans le temps, sans impacter la capacité de la flotte présent ou future.
+Le problème consiste donc à affecter des avions aux missions prédéfinies et à programmer des opérations de maintenance préventive pour ces mêmes avions de façon à avoir la plus grand quantité d’avions disponibles en lissant et réduisant les opérations de maintenance le plus possible dans le temps, sans impacter la capacité présente ou future de la flotte.
 
-Dans la littérature, le problème est considéré comme un problème de planification de vol et de maintenance (Flight and Maintenance Planning problem). Travail a déjà été fait par @Kozanidis2008, @Cho2011, @Verhoeff2015, entre autres.
+Dans la littérature, le problème est considéré comme un problème de planification de vol et de maintenance (Flight and Maintenance Planning problem). Des recherches dans ce domaine ont été réalisées par @Kozanidis2008, @Cho2011, @Verhoeff2015 et @Chastellux2016, entre autres.
 
 ### Avions
 
-Il y a un ensemble $i \in \mathcal{I}$ des avions disponibles à être affectés aux missions. Chaque avion ne peut être affecté qu'à une seule mission au cours d'une période donnée. Ces avions souffrent d'usure et nécessitent des opérations de maintenance régulières pendant leur durée de vie. Le besoin de maintenance est calculé sur la base de deux indicateurs.
+Il y a un ensemble $i \in \mathcal{I}$ d’avions disponibles qui peuvent être affectés aux missions. Chaque avion ne peut être affecté qu’à une seule mission au cours d’une période donnée. Ces avions souffrent d’usure et nécessitent des opérations de maintenance régulières tout au long de leur durée de vie. Le besoin de maintenance est calculé sur la base de deux indicateurs:
 
-Le premier est appelé "temps écoulé restant" (ou $ret_{it}$). Il exprime la durée (mesurée en périodes) après laquelle l'aéronef ne peut plus être utilisé et doit subir une opération de maintenance. Sa valeur est calculée pour chaque avion   $i$ et chaque période de temps $t$. De la même manière, "temps d'utilisation restant" (ou $rut_{it}$) est utilisé pour mesurer la quantité de temps que l'avion $i$ peut être utilisé avant d'avoir besoin d'une opération de maintenance à une période donnée $t$.
+* Le temps écoulé restant ($ret_{it}$): durée (mesurée en périodes) après laquelle l'aéronef ne peut plus être utilisé et doit subir une opération de maintenance. Sa valeur est calculée pour chaque avion $i$ et chaque période de temps $t$. 
+* Le temps d’utilisation restant ($rut_{it}$): durée d’utilisation d’un avion $i$ avant d’avoir besoin d'une opération de maintenance à une période donnée $t$.
 
-De plus, après une quantité absolue de temps et / ou d'utilisation ($aet_i$ ou $aut_i$), l'aéronef devient obsolète. Il n'y a aucun moyen d'inverser ce processus.
+De plus, après une certaines durée ou temps d’utilisation ($aet_i$ or $aut_i$), l’aéronef devient obsolète. Il n’y a aucun moyen d’inverser ce processus.
 
-À toute période donnée, y compris au début de l'horizon de planification, chaque aéronef a un statut spécifique donné par le temps d'utilisation restant et le temps écoulé restant.
+À toute période donnée, y compris au début de l’horizon de planification, chaque aéronef a un statut spécifique donné par le temps d’utilisation restant et le temps écoulé restant.
 
 ### Missions
 
 Dans ce document, nous présentons la formulation la plus générale possible, où les missions sont affectés aux avions pour un ou plusieurs mois.
 
-Il y a un ensemble fixe de $j \in \mathcal{J}$ missions à accomplir sur un horizon de temps divisé en $t \in \mathcal{T}$ périodes discrètes. Pour leur exécution, ces missions nécessitent l'attribution d'un nombre spécifique d'aéronefs $R_j$ chaque période de temps la mission est active. Les périodes de début et de fin de chaque mission sont connues et une mission est considérée comme active dans les mois entre sa période de début et sa fin.
+Il y a un ensemble fixe de $j \in \mathcal{J}$ missions à accomplir sur un horizon de temps divisé en $t \in \mathcal{T}$ périodes discrètes. Pour leur exécution, ces missions nécessitent l’attribution d’un nombre spécifique d’aéronefs $R_j$ à chaque période active (c’est-à-dire entre le début et la fin de la mission). Les périodes de début et de fin de chaque mission sont connues.
 
-Au cours de chaque période, les missions consomment une quantité de temps égale à $H_j$ heures de chacun de ses avions affectés.
+Au cours de chaque période, les missions consomment une quantité de temps égale à $H_j$ heures de chacun des avions qui lui sont affectés.
 
-L'affectation d'un avion à une mission n'est pas décidée pour toute la durée de la mission. Après un minimum de temps $MT_j$, un aéronef peut être libéré et échangé par un autre, même si la mission à laquelle il est affecté n'a pas terminée. Le nombre total d'avions affectés à un moment donné à chaque mission doit toujours être égal à $R_j$.
+Chaque mission nécessite un et un seul type d’aéronef qui, de plus, doit satisfaire à des exigences de mission supplémentaires.
 
-Chaque mission nécessite un et un seul type d'aéronef qui, de plus, doit satisfaire à des exigences de mission supplémentaires.
+-----
 
 ```{r, echo=FALSE, out.width='90%'}
 if (html_output){
@@ -120,54 +215,58 @@ if (html_output){
 }
 ```
 
-    Graphique montrant possibles missions et ses besoins.
+    Exemples de missions avec leurs besoins en aéronefs.
 
 ### Maintenances
 
-Les opérations de maintenance sont le processus par lequel les aéronefs qui ont atteint une limite dans certains indicateurs peuvent revenir à un état où ils peuvent continuer à être utilisés dans les missions.
+Les opérations de maintenance sont le processus par lequel les aéronefs qui ont atteint une limite dans certains indicateurs peuvent revenir à un état où ils peuvent à nouveau être utilisés en mission.
 
-Chaque opération de maintenance a une durée fixe de $M$ périodes.
+Chaque opération de maintenance a une durée fixe de $M$ périodes.
 
-Après une opération de maintenance, un aéronef restaure le temps écoulé restant et le temps d'utilisation restant à leurs valeurs maximales $E$ (~ 60 mois) et $H$ (~ 1200 heures) respectivement.
+Après une opération de maintenance, un aéronef restaure le temps écoulé restant et le temps d’utilisation restant à leurs valeurs maximales respectives $E$ (~ 60 mois) et $H$ (~ 1200 heures).
 
-Il existe également des opérations de maintenance spéciales qui améliorent les capacités de l'avion (ils améliorent leur capacité à être affecté à de nouvelles missions). Ces opérations seront décidées par l'utilisateur et fixées pour l'application afin qu'elles puissent être prises en compte lors de l'attribution du reste des opérations de maintenance.
+Il existe également des opérations de maintenance spéciales qui améliorent les capacités de l’avion (ils améliorent leur capacité à être affectés à de nouvelles missions). Ces opérations seront décidées par l’utilisateur et fixées dans l’application afin qu’elles puissent être prises en compte lors de l’attribution du reste des opérations de maintenance.
 
 ### Stockages
 
-Conformément à la règle du temps écoulé, même si un aéronef n'est pas utilisé, il doit encore subir un opération de maintenance après un certain temps. Afin d'éviter ce problème, l'aéronef peut être mis dans un état de stockage.
+Conformément à la règle du temps écoulé, même si un aéronef n’est pas utilisé, il doit encore subir une opération de maintenance après un certain temps. Afin d’éviter ce problème, l’aéronef peut être mis dans un état de stockage.
 
-Un aéronef dans cet état doit être gardé pendant un temps minimum de $sm$ périodes. Dans cet état, il ne peut pas recevoir de maintenance ou être affecté à une mission.
+Un aéronef dans cet état doit être gardé pendant un temps minimum de $sm$ périodes. Dans cet état, il ne peut pas recevoir de maintenance ou être affecté à une mission.
 
-Chaque avion a une certaine capacité d'être stocké et cette capacité est mesurée en un nombre de périodes $sc$. Pour qu'un aéronef restaure sa capacité de stockage restante, il doit recevoir une opération de maintenance spécifique où l'avion récupère sa capacité de stockage jusqu'à un certain niveau $S$.
+Chaque avion a une certaine limite de temps de stockage. Cette limite est mesurée en nombre de périodes $sc$. Pour qu’un aéronef restaure sa limite de stockage à son maximum $S$, il doit recevoir une opération de maintenance spécifique.
 
 ### États possibles
 
 En résumé, voici les états logiques possibles d'un aéronef:
 
-* Assigné à une mission.
-* Réception de maintenance
-* Sous stockage
-* Disponible.
+- en mission
+- en maintenance
+- en stockage
+- disponible
 
 ### Temps
 
-Lors de la planification des missions et des opérations de maintenance, il est important de prendre en compte l'état initial et final de chaque aéronef. Cet état initial peut être une maintenance ou une mission assignée. Si un aéronef est déjà en maintenance, il doit continuer dans cet état pour son temps de maintenance restant. Les missions affectés doivent être prises en compte de la même manière.
+Lors de la planification des missions et des opérations de maintenance, il est important de prendre en compte l’état initial et final de chaque aéronef. Cet état initial peut être une maintenance ou une mission assignée. Si un aéronef est déjà en maintenance, il doit continuer dans cet état pendant le reste de sa durée de maintenance. Les missions affectés doivent être prises en compte de la même manière.
 
-Pour les opérations de maintenance planifiées dont l'heure de début est proche du début de l'horizon de planification, elles doivent également être considérées comme fixes.
+Pour les opérations de maintenance planifiées dont l’heure de début est proche du début de l’horizon de planification, elles doivent également être considérées comme fixes.
 
-Les temps (écoulé et d'utilisation) restants sont assignés à chaque aéronef au début de l'horizon de planification.
+Les temps (écoulé et d’utilisation) restants sont assignés à chaque aéronef au début de l’horizon de planification.
 
-Enfin, l'état de chaque aéronef à la fin de l'horizon de planification, ses temps restant (écoulé, utilisé), doivent être défini et pris en compte.
+Enfin, l’état de chaque aéronef à la fin de l’horizon de planification, ses temps restant (écoulé, utilisé), doivent être défini et pris en compte.
 
 ### Objectifs
 
-Les objectifs suivants sont considérés, bien que d'autres pourraient potentiellement être ajoutés.
+Deux objectifs principaux ont été considérés  bien que d’autres pourraient potentiellement être ajoutés.
 
-Étant donné que la possibilité de nouvelles missions et la durée de l'opération de maintenance sont considérées stochastiques dans la vie réelle, un objectif fondamental est de maximiser la robustesse de la planification en ayant la plus grande quantité d'avions disponibles à chaque période de l'horizon de planification.
+Étant donné que le déclenchement de nouvelles missions et la durée des opérations de maintenance sont en partie imprévisible dans la vie réelle, un objectif fondamental est de maximiser la robustesse de la planification en ayant la plus grande quantité d’avions disponibles à chaque période de l’horizon de planification.
 
-Compte tenu de la capacité limitée pour faire opérations de maintenance et de son coût, un autre objectif consiste à lisser le plus possible le nombre d'avions sous maintenance dans l'horizon de planification. Les opérations de maintenance doivent également être contrôlées afin de ne pas dépasser la capacité maximale.
+Compte tenu de la capacité limitée pour réaliser des opérations de maintenance et de leurs coûts, un autre objectif consiste à lisser le nombre d’avions en maintenance sur l’horizon de planification. Les opérations de maintenance doivent également être contrôlées afin de ne pas dépasser la capacité maximale.
 
 ## Proposition
+
+### Résumé
+
+Le projet présenté est une application web interactive. Il utilise un modèle mathématique pour générer de nouvelles solutions, permet à différents utilisateurs d'y accéder avec différents droits d'accès et offre une puissante visualisation pour afficher, comparer et analyser les planifications. Il s'intègre aux sources de données existantes (fichier Excel), aux nouvelles proposées (modèle Excel) et a la possibilité de s’intégrer aux sources existantes (autres systèmes internes) ainsi qu'à la sortie simple (csv, json). Enfin, il permet l'utilisation de cas pour stocker des informations, ce qui facilite les essaies, l'expérimentation et la comparaison de différents scénarios.
 
 Un résumé des fonctionnalités de l'application est montré dans l'image suivante:
 
@@ -187,67 +286,81 @@ if (html_output){
 
 Le modèle conçu pour générer de nouvelles solutions sera conforme aux exigences décrites ci-dessous.
 
-
 #### RQ001: heures de missions
 
-Chaque mois, toutes les missions doivent être satisfaites grâce à l'affectation des suffisamment d'heures de vol à chaque avion.
+Chaque mois, toutes les missions doivent être satisfaites grâce à l’affectation de suffisamment d’heures de vol à chaque avion.
 
 #### RQ002: aéronefs assignés
 
-Chaque mois, toutes les missions doivent avoir un nombre minimum d'avions affectés.
+Chaque mois, toutes les missions doivent avoir un nombre exact d’avions affectés.
 
 #### RQ003: besoins de maintenance
 
-Chaque avion doit toujours avoir suffisamment de "temps d'utilisation restant" pour pouvoir effectuer les missions requises. Afin de récupérer des heures de vol (environ 1200 heures), une opération de maintenance est nécessaire.
+Chaque avion doit toujours avoir suffisamment de “temps d’utilisation restant” pour pouvoir effectuer les missions requises. Afin de récupérer des heures de vol (environ 1200 heures), une opération de maintenance est nécessaire. Après un certain temps, les aéronefs ont besoin d’un entretien même s’ils n’ont pas atteint leur limite d’heures de vol. Ce temps est d’environ 5 ans.
 
-De même, après un certain temps, les aéronefs ont besoin d'un entretien même s'ils n'ont pas atteint cette limite d'heures de vol. Cette durée est d'environ 5 ans.
+-----
 
 #### RQ004: durée de maintenance
 
-Les opérations de maintenance prennent environ 5 mois et une fois qu'un avion a commencé l'opération de maintenance, il doit la continuer. Il ne peut pas être affectés aux missions pendant la durée de la opération de maintenance.
+Les opérations de maintenance prennent environ 5 mois et une fois qu’un avion a commencé l’opération de maintenance, il doit la terminer. Il ne peut pas être affectés aux missions pendant la durée de l'opération.
 
 #### RQ005: disponibilité
 
-Chaque mois, il est important d'avoir le plus grand nombre possible d'avions disponibles prêts à s'engager dans une nouvelle mission.
+Chaque mois, il est important d’avoir le plus grand nombre possible d’avions disponibles prêts à s’engager dans une nouvelle mission.
 
 #### RQ006: capacité de maintenance
 
-Les opérations de maintenance à planifier pour tous les avions doivent être effectuées de la manière la plus lissé possible, en évitant avoir des mois spécifiques avec un grand quantité des opérations de maintenance.
+Les opérations de maintenance à planifier pour tous les avions doivent être effectuées de la manière la plus lissée possible, en évitant d'avoir des mois spécifiques avec une grande quantité d’opérations de maintenance.
 
-En d'autres termes, il est important d'avoir le nombre le plus bas possible d'avions sous maintenance à chaque mois.
+En d’autres termes, il est important d’avoir le moins d’avions possible en maintenance chaque mois.
+
+-----
 
 #### RQ007: état final
 
-À la fin de l'horizon de planification, l'avion doit être dans le meilleur état possible. Cela implique que, en moyenne, les avions doivent avoir un gros budget d'heures de vol restant (temps d'utilisation restant) et un grand nombre de mois (temps écoulé restant) avant d'avoir besoin d'un entretien.
+À la fin de l’horizon de planification, chaque avion doit être dans le meilleur état possible. Cela implique qu’en moyenne, les avions doivent avoir si possible un budget important d’heures de vol et de mois restants.
 
 #### RQ008: stockage
 
-Le stockage peut être décidé par le modèle afin d'éviter la détérioration de l'aéronef. Le nombre de périodes minimale de stockage d'un avion est de 6 mois et, dans cet état, l'avion n'est pas disponible ni pour recevoir un maintenance ni pour faire une mission.
+Le stockage peut être décidé par le modèle afin d’éviter la détérioration de l’aéronef. Le nombre minimal de périodes de stockage d’un avion est de 6 mois et, dans cet état, l’avion n’est pas disponible ni pour recevoir une maintenance ni pour réaliser une mission.
+
+-----
 
 #### RQ009: fixation des parties de la planification
 
-Il existe plusieurs raisons pour lesquelles l'utilisateur peut avoir besoin de fixer une partie d'une planification précédente. Par exemple, certaines opérations de maintenance sont déjà décidées et doivent avoir lieu à l'avenir dans de dates spécifiques. Certains avions sont déjà en mission ou sous maintenance et doivent y rester au moins quelques mois dans cet état. En outre, le stockage peut être déjà décidé ou en cours.
+Il existe plusieurs raisons pour lesquelles l’utilisateur peut avoir besoin de fixer une partie d’une planification précédente. Par exemple, certaines opérations de maintenance sont déjà décidées et doivent avoir lieu à l’avenir à des dates spécifiques. Certains avions sont déjà en mission ou en maintenance et doivent y rester. En outre, le stockage peut être déjà décidé ou en cours.
 
-Une autre raison de la fixation des opérations de maintenance pourrait être pour les opérations d'amélioration planifiées aux aéronefs. Ces types spéciaux d'opérations de maintenance sont décidés plusieurs mois à l'avance pour certains avions sélectionnés.
+Une autre raison de la fixation des opérations de maintenance pourrait être une opération d’amélioration planifiée sur un aéronef. Ce type d’opérations de maintenance est décidé plusieurs mois à l’avance pour certains avions sélectionnés.
 
-Ces assignations fixes seront communiquées au optimiseur afin qu'il ne les change pas.
+Ces assignations fixes seront communiquées au modèle d'optimisation afin qu’il ne les change pas.
+
+
+-----
 
 #### RQ010: configuration
 
 Les options disponibles seront, par défaut:
 
-<!-- rut, ret -->
-* **Temps maximum**: dans le cas où une solution est nécessaire avant de prouver l'optimalité.
-* **Maximal GAP**: afin d'autoriser une distance maximal entre la meilleure solution obtenue et la meilleure solution hypothétique possible. Cette distance peut être une différence proportionnelle ou une différence absolue.
-* **Premier et dernier mois a planifier**: afin de définir l'horizon de planification à planifier.
-* **Poids des objectifs**: pour optimiser les différents objectifs et privilégier un ou autre objectif.
-* **Paramètres de maintenance**: durée de maintenance (en mois), temps d'utilisation maximal, temps écoulé maximal et d'autres paramètres liés à la maintenance.
+* **Temps maximum**: dans le cas où une solution est nécessaire rapidement sans prouver l’optimalité.
+* **Gap maximum**: afin d’autoriser une distance maximale entre la meilleure solution obtenue et la meilleure solution hypothétique possible. Cette distance peut être une différence proportionnelle ou une différence absolue.
+* **Premier et dernier mois à planifier**: afin de définir l’horizon de planification.
+* **Poids des objectifs**: pour optimiser les différents objectifs et privilégier un objectif ou un autre.
+* **Paramètres de maintenance**: durée de maintenance (en mois), temps d’utilisation maximal, temps écoulé maximal et autres paramètres liés à la maintenance.
+
 
 ### Cas et expérimentation
 
-Étant donné la nature stratégique de l'application, elle sera centrée sur les cas. Cela signifie qu'il permettra de sauvegarder toutes les données pertinentes (entrée et sortie) dans le même cas. De cette façon, différentes expériences pourraient être faites en copiant et en modifiant un cas existant. Ceci est similaire à travailler avec plusieurs feuilles de calcul, chacune avec son propre nom, tout en partageant la même logique en un seul endroit.
+Étant donné la nature stratégique de l’application, elle sera centrée sur des études de cas. Cela signifie qu’il permettra de sauvegarder toutes les données pertinentes (entrée et sortie) dans un même ensemble ou cas. De cette façon, différentes expériences pourront être réalisé en copiant et en modifiant un cas existant. La gestion de cas est similaire à l'utilisation de plusieurs feuilles de calcul pour étudier plusieurs scénarios différents.
 
-La figure suivante montre un ensemble hypothétique de cas déjà enregistrés. Elle représente les interactions possibles entre les cas. Le cas 1 a été publié pour le mois de mars. Au cours du mois, il a reçu quelques modifications, ce qui a entraîné les cas 2 et 3. Enfin, le cas 3 a été re-publié pour le mois de mars. Plus tard, le cas 4 a été créé et modifié sans être publié dans le cas 5. Le cas 5 a été publié en avril.
+La figure suivante montre un exemple de cas déjà enregistrés. Elle représente les interactions possibles entre les cas pendant une période de quelques mois.
+
+1. Le cas 1 a été publié pour le mois de mars.
+2. Au cours du mois, il a reçu quelques modifications, ce qui a engendré les cas 2 et 3.
+3. Enfin, le cas 3 a été re-publié pour le mois de mars.
+4. Plus tard, le cas 4 a été créé et modifié sans être publié.
+5. Finalement, Le cas 5 a été crée à partir du cas 4 et publié en avril.
+
+-----
 
 ```{r, echo=FALSE, out.width='70%'}
 if (html_output){
@@ -257,7 +370,7 @@ if (html_output){
 }
 ```
 
-    Exemple montrant l'interaction entre les cas et la publication des cas.
+    Exemple montrant la création et publication de les cas.
 
 Les fonctionnalités disponibles seront les suivantes:
 
@@ -268,38 +381,37 @@ Les fonctionnalités disponibles seront les suivantes:
 * Publier un cas.
 * Exporter un cas.
 
-#### Contenu d'une cas
+-----
 
-Un cas consiste, au même temps, de toutes les informations nécessaires pour construire une planification et une planification réalisable construite à partir de cette information. 
+#### Contenu d'un cas
 
-Cette unité de stockage permet de s'intégrer facilement aux structures de données actuelles.
+Un «cas» est une unité de stockage qui permet de s’intégrer facilement aux structures de données actuelles. Il contient toutes les informations nécessaires pour construire une planification:
 
-Plus explicitement, un cas consiste en:
+* L’ensemble d’avions avec leurs caractéristiques et leurs informations historiques jusqu’à une certaine date.
+* L’ensemble de missions ou d’heures de vol à réaliser dans la période de planification.
+* Une pre-affectation d’aéronefs à des opérations pendant l’horizon de planification.
+* Les futurs calendriers de maintenance.
+* La configuration : la durée de maintenance, les heures de vol après une maintenance, etc.
+* Une planification (générée manuellement ou avec l'application).
 
-* L'ensemble d'avions avec leurs caractéristiques et leurs informations historiques jusqu'à une certaine date.
-* L'ensemble de missions ou d'heures de vol à faire dans la période de planification.
-* Une pre-affectation d'aéronefs à des opérations pendant l'horizon de planification.
-* Futurs calendriers de maintenance.
-* Configuration comme la durée de maintenance, les heures de vol après une maintenance, etc.
-* Une planification (généré manuellement ou avec l'Optimiseur).
+-----
 
 #### Comparaison des cas
 
-Cette fonctionnalité peut potentiellement avoir plusieurs utilisations en fonction des besoins finaux du client. Une option serait de visualiser les différences dans les données d'entrée pour deux cas. Une autre option consisterait à visualiser les différences dans la planification résultante pour les deux cas. Enfin, il pourrait être intéressant de comparer des KPI (Key Performance Indicators) spécifiques pour deux cas, afin de sélectionner le meilleur scénario.
+Cette fonctionnalité peut potentiellement avoir plusieurs utilisations en fonction des besoins finaux du client. Une option pourrait être de visualiser les différences dans les données d’entrée pour deux cas. Une autre option consisterait à visualiser les différences dans la planification résultante pour les deux cas. Enfin, il pourrait être intéressant de comparer des KPI (Key Performance Indicators) spécifiques pour deux cas, afin de sélectionner le meilleur scénario.
+
+-----
 
 #### Publications de cas
 
-Une situation courante dans la création de planifications est le fait que plusieurs cas différents peuvent exister mais il est toujours important d'identifier lequel est le cas 'actif'. Pour faire face à cela, un système de publication simple sera inclus dans l'application, où le «planificateur» (voir la section "Utilisateurs") peut identifier le cas qui devrait être partagé avec d'autres.
+Une situation courante dans la création de planifications est le fait que plusieurs cas différents peuvent exister mais il est toujours important d’identifier lequel est le cas ‘actif’. Pour faire face à cela, un système de publication simple sera inclus dans l’application, où le «planificateur» (voir la section “Utilisateurs”) peut identifier le cas qui devra être partagé avec les autres utilisateurs.
 
 ### Interface graphique utilisateur (GUI)
 
-Toute interaction de l'utilisateur avec l'application se fera via une application HTML.
+Toute interaction de l’utilisateur avec l’application se fera via une application HTML. En plus de montrer des données dans des tableaux interactifs, des alternatives graphiques spécifiques peuvent être incorporées pour rendre l’utilisation plus facile et plus efficace.
 
-En plus de montrer des données dans des tableaux interactifs, des alternatives graphiques spécifiques peuvent être incorporées pour rendre l'utilisation plus facile et plus efficace.
+Ici, un Gantt interactif est utilisé pour présenter et éventuellement modifier un plan de maintenance. Il est possible d’éditer les opérations de maintenance et l’affection aux missions (changer la taille ou la déplacer) en double-cliquant dessus et en faisant glisser. En outre, il est possible d’ajouter de nouvelles affectations en double-cliquant.
 
-Voici quelques exemples de fonctionnalités disponibles.
-
-Ici, un gantt interactif est utilisé pour présenter et éventuellement modifier un plan de maintenance. Il est possible d'éditer les opérations de maintenance et l’affection aux missions (changer la taille ou la déplacer) en double-cliquant dessus et en faisant glisser. En outre, il est possible d'ajouter de nouvelles affectations en double-cliquant.
 
 ```{r, echo=FALSE, out.width='70%'}
 
@@ -312,7 +424,9 @@ if (html_output){
 
     Exemple de Gantt interactif.
 
-Ici, un graphique interactif est utilisé pour présenter l'évolution du statut d'un seul avion au fil du temps. Il est possible de filtrer, faire zoom et exporter en tant qu'image.
+-----
+
+Ici, un graphique interactif est utilisé pour présenter l’évolution du statut d’un seul avion au fil du temps. Il est possible de filtrer, zoomer et exporter en tant qu’image.
 
 ```{r, echo=FALSE, out.width='90%'}
 
@@ -324,6 +438,8 @@ if (html_output){
 ```
 
     Exemple de graphique interactif.
+
+-----
 
 Ici, une table interactive est utilisée pour présenter certaines données. Il est possible d'éditer le contenu, de filtrer, de réorganiser les données, etc.
 
@@ -341,7 +457,7 @@ if (html_output){
 
 ### Intégration de données
 
-L'application inclura son propre stockage de données à travers d'une base de données. Toutes les informations utilisées par l'application seront stockées ici. En plus de ce système, l'application permettra plusieurs façons d'importer et d'exporter des données à partir de ce système.
+L’application inclura son propre stockage de données à travers une base de données. Toutes les informations utilisées par l’application seront stockées ici. En plus de ce système, l’application permettra plusieurs façons d’importer et d’exporter des données à partir de l'application.
 
 #### Importer des données
 
@@ -351,39 +467,31 @@ Un nouveau cas peut être créé à partir des options suivantes:
 * Un nouveau fichier modèle Excel à créer.
 * Les données historiques pourraient être lues par un autre système, si disponible.
 
+-----
+
 #### Exporter des données
 
 Les données dans un cas pourront être exportées de la manière suivante:
 
-* Dans le format d l'Excel actuel (ou un format similaire).
+* Dans le format Excel actuel (ou un format similaire).
 * Dans le nouveau template Excel qui sera créé.
-* Fichiers csv et / ou json si nécessaire.
-* Ces capacités d'exportation permettront également de partager des informations partielles avec d'autres acteurs dans des fichiers Excel ou plats.
+* Dans un fichier csv et / ou json si nécessaire.
+
+Ces capacités d’exportation permettront également de partager des informations partielles avec d’autres acteurs dans les formats mentionnés précédemment.
 
 ### Architecture et déploiement
 
-L'application sera déployée via une architecture client-serveur. De cette façon, il serait facile de partager l'application étant donné que cela nécessitera seulement l'installation d'un navigateur web moderne (Google Chrome).
+L’application sera déployée via une architecture client-serveur. De cette façon, il sera facile de partager l’application étant donné que cela nécessitera seulement l’installation d’un navigateur web moderne (Google Chrome).
 
-Le serveur devra être installé quelque part dans l'infrastructure du client.
+Le serveur devra être installé quelque part dans l’infrastructure du client.
 
-La configuration matérielle minimale requise pour le serveur est la suivante:
+Des logiciels supplémentaires pourraient être nécessaires en fonction des spécifications finales. Par exemple, si le modèle est trop gros pour les solveurs en logiciel libre, un solveur commercial pourrait être nécessaire.
 
-* Ubuntu Server 64 bits.
-* Noyaux> = 4
-* RAM> = 8 Go
-* Disque dur> = 500 Go
+En fonction de la future intégration, des flux de données supplémentaires seront inclus dans la conception. Le seul flux de données confirmé pour le moment se situe entre le fichier Excel existant et l’application.
 
-Les exigences logicielles minimales pour le serveur sont les suivants:
+La figure suivante présente un résumé de l’architecture à mettre en œuvre et des flux de données entre les composants. Les deux types d’utilisateurs vont communiquer avec l’application pour générer les plannings ou les voir. L’application a son propre moteur (modèle) pour générer des solutions et son propre stockage (base de données). Les technologies sont mentionnées sur chaque arc pour indiquer là où elles seront utilisées.
 
-* R + Shiny Server
-* python> = 3.6
-* PostgreSQL
-
-Des logiciels supplémentaires pourraient être nécessaires en fonction des spécifications finales. Par exemple, dans le cas où le modèle soit trop gros pour les solveurs de source libre, un solveur commercial pourrait être nécessaire.
-
-En fonction de la future intégration, des flux de données supplémentaires seront inclus dans la conception. Le seul flux de données connu se situe entre le fichier Excel existant et l'application.
-
-La figure suivante présente un résumé de l'architecture à mettre en œuvre et des flux de données entre les composants.
+-----
 
 ```{r, echo=FALSE, out.width='70%'}
 
@@ -395,55 +503,43 @@ if (html_output){
 }
 ```
 
-    Architecture proposée avec flux de données entre composants.
+    Architecture proposée avec flux de données.
 
-Les utilisateurs interagiront via les navigateurs Web avec le serveur. Pour charger de nouvelles données, ils peuvent charger un nouveau fichier Excel avec les données pertinentes ou éditer un cas existant via l'application.
+-----
+
+Les utilisateurs interagiront via les navigateurs Web avec le serveur. Pour charger de nouvelles données, ils pourront charger un nouveau fichier Excel avec les données pertinentes ou éditer un cas existant via l’application.
 
 Le serveur sera chargé de résoudre et de générer de nouvelles solutions de planification et de stocker toutes les informations pertinentes dans sa base de données.
 
-Les utilisateurs seront en mesure de récupérer visuellement les résultats. En outre, ils seront en mesure d'exporter les résultats en formats csv, Excel et json en fonction de leurs besoins.
+Les utilisateurs seront en mesure de visualiser les résultats. En outre, ils seront en mesure d’exporter les résultats en formats csv, Excel et json en fonction de leurs besoins.
+
+-----
 
 Cette architecture client-serveur offre plusieurs avantages:
 
-* Des graphiques puissants peuvent être incorporés via des bibliothèques javascript et HTML.
-* Il est plus facile à maintenir car une séparation claire des fonctionnalités est faite entre l'interface graphique, la logique d'utilisation et l'Optimiseur.
-* Aucune installation de logiciel additionnel à un navigateur Web moderne n'est requise.
-* Plusieurs utilisateurs peuvent être facilement incorporés.
-* L'intégration avec d'autres systèmes peut être effectuée avec des changements minimes à la structure existante.
-* Des ressources puissantes peuvent être allouées si nécessaire au niveau du serveur au lieu des devoir changer les ordinateurs des utilisateurs.
-* En plus de cela, il n'y a pas de logiciel tiers à acheter. Tous les composants sont open source. La seule exception possible pourrait être le solveur mathématique, en fonction de la taille du problème et les besoins de performance.
+* Des graphiques puissants pouvant être incorporés via des bibliothèques javascript et HTML.
+* Une facilité de maintenance liée à une séparation claire entre les fonctionnalités de l’interface graphique, de la logique d’utilisation et du modèle d'optimisation.
+* Un navigateur Web moderne comme seul besoin logiciel.
+* Facilité pour incorporer plusieurs utilisateurs.
+* L’intégration avec d’autres systèmes peut être effectuée avec des changements minimes à la structure existante.
+* Possibilité d'allouer des ressources supplémentaires au niveau du serveur au lieu de devoir changer les ordinateurs des utilisateurs.
+* Absence de logiciel tiers à acheter. Tous les composants sont open source. La seule exception possible pourrait être le solveur mathématique, en fonction de la taille du problème et des besoins en performance.
 
 ### Utilisateurs
 
 Deux rôles possibles sont identifiés pour les utilisateurs de cette application.
 
-Le premier s'appellera "planificateur". Cet utilisateur est en charge de créer (manuellement ou automatiquement) des plannings différents. Le second s'appellera "spectateur". Cet utilisateur pourra visualiser les résultats de la planification créée et stockée dans l'application. En fonction des besoins du client, plusieurs profils "spectateur" pourraient être créés afin de partager quelques parties des informations stockées avec chaque profil.
-
-## Équipe
-
-### Alain Haït
-
-### Olga Battaïa
-
-### Franco Peschiera
-
-Un ingénieur industriel, mathématicien de profession et programmeur par cœur.
-
-Franco a travaillé dans l'industrie de la recherche opérationnelle depuis près de 7 ans. Au cours de ce temps il a été le propriétaire et le directeur technique pour une startup espagnole (www.baobabsoluciones.es), en construisant des applications logicielles avec des modèles d'optimisation mathématique ou de simulation à l'intérieur pour plusieurs grandes entreprises espagnoles et internationales. Exemples de clients sont: Repsol et CLH (logistique pétrolière, marketing, ressources humaines), General Motors, LI Lilly et Air Liquide (planning de production), RATP, Alstom et ASM (logistique et transport) parmi plusieurs autres.
-
-Ces projets comportaient la liste suivante de tâches: la spécification des besoins du client, la construction d'un modèle mathématique ou de simulation, la programmation d'une interface utilisateur graphique, le déploiement et l'intégration avec les systèmes informatiques, la documentation et la formation des utilisateurs.
-
-Franco a commencé un doctorat à l'université ISAE-SUPAERO en octobre 2017 sur le sujet de la planification de la maintenance des avions militaires.
+Le premier s’appellera “planificateur”. Cet utilisateur est en charge de créer (manuellement ou automatiquement) des plannings différents. Le second s’appellera “spectateur”. Cet utilisateur pourra visualiser la planification créée et stockée dans l’application. En fonction des besoins du client, plusieurs profils “spectateur” pourraient être créés afin de partager certaines parties des informations stockées avec chaque profil.
 
 ## Planification
 
-Ici, les tâches requises avec leur ordre sont présentées. Le principal risque sur la planification actuelle est l'information incomplète sur:
+Ici, les tâches requises avec leur ordre sont présentées. Le principal risque sur la planification actuelle est l’information incomplète sur:
 
 * le problème spécifique à résoudre.
-* l'infrastructure informatique disponible du client.
-* la disponibilité des utilisateurs potentiels pour discuter des exemples de solutions et tester et évaluer les fonctionnalités faits.
+* l’infrastructure informatique disponible du client.
+* la disponibilité des utilisateurs potentiels pour discuter des exemples de solutions et tester et évaluer les fonctionnalités.
 
-On présente une proposition de planification basé en expériences précédents. La planification dépendra de la voie de communication finalement choisi et la disponibilité du client.
+On présente une proposition de planification basée sur les expériences précédentes. La planification dépendra de la voie de communication finalement choisie et de la disponibilité du client.
 
 ### Phase 1: exigences
 
@@ -453,8 +549,8 @@ Les conditions requises pour cette phase sont: *Aucun*.
 
 Le livrable de cette phase sera:
 
-* un document avec une description accordé sur les exigences minimales pour le prototype et
-* un document d'exigences additionnelles à préciser ultérieurement.
+* un document avec une description validée par le client des exigences minimales du prototype
+* un document d’exigences additionnelles à préciser ultérieurement.
 
 La durée de cette phase est estimée à: *3 semaines*.
 
@@ -464,32 +560,31 @@ Dans cette phase, une première version du prototype sera construite et déploy�
 
 Les conditions requises pour cette phase sont:
 
-* la liste avec des exigences minimales.
-* une alternative de déploiement pour partager l'application avec les utilisateurs.
+* une liste d'exigences minimales.
+* une possibilité de déploiement pour partager l’application avec les utilisateurs.
 
 Le livrable de cette phase sera:
-
 * une application prototype que les utilisateurs peuvent utiliser et tester.
-* exemples de solutions pour les utilisateurs à analyser.
+* des exemples de solutions à analyser par les utilisateurs.
 
 La durée de cette phase est estimée à: *5 semaines*.
 
 ### Phase 3: deuxième itération
 
-Dans cette phase, une version finale du prototype sera construite et déployée. En fonction de niveau d'implication du client, le types de changements à réaliser et l'urgence, cette phase pourrait être coupé en deux phases de la moitié de durée.
+Dans cette phase, une version finale du prototype sera construite et déployée. En fonction du niveau d’implication du client, du types de changements à réaliser et de l’urgence, cette phase pourrait être coupée en deux sous phases avec des livrables distincts.
 
 Les conditions requises pour cette phase sont:
 
-* une liste avec les changements à faire à la première version basée sur les commentaires des utilisateurs.
-* une liste avec des fonctionnalités supplémentaires à ajouter.
+* une liste des changements à réaliser sur la première version basée sur les commentaires des utilisateurs.
+* une liste de fonctionnalités supplémentaires à ajouter.
 
 Le livrable de cette phase sera:
 
-* une nouvelle version de l'application que les utilisateurs pourront utiliser.
+* une nouvelle version de l’application que les utilisateurs pourront utiliser.
 * la documentation technique.
-* la Guide de l'utilisateur.
+* la Guide de l’utilisateur.
 
-La durée de cette phase est estimée à: *5 semaines*.
+La durée de cette phase est estimée à: *5 semaines* .
 
 ### Profils et engagement
 
@@ -499,7 +594,7 @@ Il y aura trois profils dans ce projet:
 * Profil 2: Développeur Senior spécialisé en RO.
 * Profil 3: Chef de projet spécialise en RO.
 
-Dans le tableau ci-dessous sont les engagements hebdomadaires estimés de profils:
+Dans le tableau ci-dessous sont les engagements hebdomadaires estimés des profils:
 
 | Phase | Durée | Profil 1 | Profil 2 | Profil 3
 |-------|----------|----------|----------|---------|
@@ -509,42 +604,42 @@ Dans le tableau ci-dessous sont les engagements hebdomadaires estimés de profil
 
 ### Estimation économique
 
-Basé en la définition de profils et les engagements déjà présente, le montant correspondant au projet de développement du prototype est de 55.600€.
+Basé sur la définition de profils et des engagements déjà présentés, le montant correspondant au projet de développement du prototype est de 55.600€.
 
 ## Technologies et techniques
 
 * **Modélisation mathématique**: pour générer des planifications.
-    * **Solveur mathématique**: pour générer les planifications. Cela pourrait être CBC, GUROBI ou CPLEX en fonction de besoins du modèle.
-* **Python**: pour la modélisation, l'heuristique et l'intégration de données.
+    * **Solveur mathématique**: pour générer les planifications. Cela pourrait être CBC, GUROBI ou CPLEX en fonction des besoins du modèle.
+* **Python**: pour la modélisation, l’heuristique et l’intégration de données.
 * **R**: pour les statistiques, possibles prévisions et la visualisation des données.
 * **PostgreSQL**: pour stocker des données.
 * **HTML5**: pour les rapports, et les visualisations.
 
 ### Modélisation mathématique
 
-La modélisation mathématique est une technique qui fait partie de la branche de la recherche opérationnelle en mathématiques. Il permet la construction d'un ensemble d'équations pour représenter une situation spécifique bien définie et il permet l'utilisation de logiciels de avancés pour rechercher et trouver la meilleure solution qui respecte ces équations. Ces logiciels (modélisateurs et solveurs) sont disponibles à la fois en version commerciale et open source (gratuite).
+La modélisation mathématique est une technique qui permet la construction d’un ensemble d’équations pour représenter une situation spécifique bien définie et communique avec les logiciels avancés pour rechercher et trouver la meilleure solution qui respecte ces équations. Ces logiciels (modélisateurs et solveurs) sont disponibles à la fois en version commerciale et libre (gratuite).
 
-Les avantages de l'utilisation de cette technique par rapport à d'autres alternatives sont qu'elle peut prouver l'optimalité d'une solution, elle peut facilement incorporer plusieurs objectifs et il est possible de fixer facilement certaines décisions déjà prises, rendant possible l'utilisation interactive du modèle par l'utilisateur. Avec peu de modifications, le modèle peut aussi être réutilisé pour prendre en compte différentes situations qui ne soient si différentes de la situation originelle.
+Les avantages de l’utilisation de cette technique par rapport à d’autres alternatives sont qu’elle peut prouver l’optimalité d’une solution, qu'elle peut facilement incorporer plusieurs objectifs et qu'il est possible de fixer facilement certaines décisions déjà prises, rendant possible l’utilisation interactive du modèle par l’utilisateur. Avec peu de modifications, le modèle peut aussi être réutilisé pour prendre en compte différentes situations similaires à la situation originelle.
 
-D'autres fonctionnalités incluent également des limites de temps et d'autres conditions d'arrêt plus complexes.
+D’autres fonctionnalités incluent également des limites de temps et d’autres conditions d’arrêt plus complexes.
 
 ### Python
 
-Python permet le prototypage rapide ainsi qu'une bonne syntaxe de code. Il offre une extrêmement large ensemble des bibliothèques et, en particulier, il inclut les meilleures API pour les solveurs commerciaux et non commerciaux pour les problèmes d'optimisation.
+Python permet le prototypage rapide ainsi qu’une bonne syntaxe de code. Il offre un extrêmement large ensemble de bibliothèques et, en particulier, il inclut les meilleures API pour les solveurs commerciaux et non commerciaux pour les problèmes d’optimisation.
 
-Il excelle également au développement de Web avec des bibliothèques très connus.
+Il excelle également au développement  Web avec des bibliothèques très connus.
 
 ### R
 
-R est l'état de l'art en matière de statistiques et de modélisation prévisionnelle. Il comprend plusieurs bibliothèques pour la manipulation des données, la visualisation et, en tant que langage de programmation, une bonne intégration avec d'autres langages et logiciels.
+R est l’état de l’art en matière de statistiques et de modélisation prévisionnelle. Il comprend plusieurs bibliothèques pour la manipulation des données, la visualisation et, en tant que langage de programmation, une bonne intégration avec d’autres langages et logiciels.
 
 Enfin, il offre une intégration particulièrement bonne avec les applications HTML via le module [Shiny](https://shiny.rstudio.com/gallery/), qui sera utilisée dans ce projet.
 
 ### PostgreSQL
 
-PostgreSQL est l'une des alternatives de base de données open-source les plus connues. Il comprend nombreuses fonctionnalités qui ne sont pas présentes dans d'autres moteurs de base de données (à savoir MySQL) tels que:
+PostgreSQL est l’une des alternatives de base de données open-source les plus connues. Il comprend nombreuses fonctionnalités qui ne sont pas présentes dans d’autres moteurs de base de données (à savoir MySQL) tels que:
 
-* NoSQL stockage.
+* stockage NoSQL.
 * Fonctions de fenêtre intégrées à R.
 
 ### HTML5
@@ -553,12 +648,14 @@ HTML 5 est le changement le plus récent au HTML qui intègre des fonctionnalit�
 
 Des exemples de ces bibliothèques sont: [leaflet](http://leafletjs.com/), [visjs](visjs.org), [d3js](https://d3js.org/) parmi beaucoup d'autres.
 
-## Avertissements
+## Remarques
+### Remarques
 
-1. La proposition présentée ci-dessus est destinée à une application complète livrée dans le cadre d'un projet complet au client.
-1. Le prototype à livrer n'inclura pas toutes les fonctionnalités mentionnées dans ce document mais montrera des exemples des fonctionnalités les plus importantes suite à une réunion avec les futurs utilisateurs et décideurs.
-1. L'intégration avec d'autres systèmes est hors de la portée de cette proposition car plus d'informations sont nécessaires concernant les systèmes existants pour pouvoir estimer la charge de travail.
-1. Il est supposé que le client fournira les exigences hardware ainsi que les droits d'accès et les autorisations pour installer tous les composants du logiciel. Alternativement, le logiciel pourrait être installé dans le cloud.
-1. Même si la programmation mathématique offre la capacité de prouver l'optimalité d'une solution, l'application ne garantit pas la trouver dans tous les cas. La qualité des solutions et le temps nécessaire pour les obtenir dépendront de nombreux facteurs; la taille de l'instance étant la principale.
+1. La proposition présentée ci-dessus est destinée à une application complète livrée dans le cadre d’un projet complet au client.
+2. Le prototype à livrer n’inclura pas toutes les fonctionnalités mentionnées dans ce document mais montrera des exemples des fonctionnalités les plus importantes suite à une réunion avec les futurs utilisateurs et décideurs.
+3. L’intégration avec d’autres systèmes n'est pas inclus dans le cadre de cette proposition car plus d’informations sont nécessaires concernant les systèmes existants pour pouvoir estimer la charge de travail.
+4. Il est supposé que le client fournira les exigences hardware ainsi que les droits d’accès et les autorisations pour installer tous les composants du logiciel. Alternativement, le logiciel pourrait être installé dans le cloud.
+5. Même si la programmation mathématique offre la capacité de prouver l’optimalité d’une solution, l’application ne garantit pas de la trouver dans tous les cas de figure. La qualité des solutions et le temps nécessaire pour les obtenir dépendront de nombreux facteurs; la taille de l’instance étant la principale.
 
-## Références
+## Bibliographie
+### Bibliographie
