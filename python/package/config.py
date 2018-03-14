@@ -19,8 +19,6 @@ class Config(object):
             , 'solver': "GUROBI"
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
-                # params.PATHS['experiments'] + '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/{}/'.
-                #     format(aux.get_timestamp())
         }
 
         # the following merges the two configurations (replace into):
@@ -79,7 +77,5 @@ class Config(object):
         with open(self.path + "results.log", 'w') as f:
             for item in logFile:
                 f.write("{}\n".format(item))
-            # f.writelines(["%s\n" % item for item in list])
-            # f.write(r'\n'.join(logFile))
         return result
 

@@ -120,6 +120,20 @@ def dictdict_to_dictup(dictdict):
     return dicts_to_tup({}, [], dictdict)
 
 
+def dict_list_reverse(dict_in):
+    """
+    :param dict_in: a dictionary with a list as a result
+    :return: a dictionary with the list elements as keys and
+    old keys as values.
+    """
+    new_keys = np.unique([val for l in dict_in.values() for val in l])
+    dict_out = {k: [] for k in new_keys}
+    for k, v in dict_in.items():
+        for el in v:
+            dict_out[el].append(k)
+    return dict_out
+
+
 def dict_to_tup(dict_in):
     """
     The last element of the returned tuple was the dict's value.

@@ -306,14 +306,14 @@ class Instance(object):
             pd.merge(capacites_join, num_capacites, on=["IdTask", "CAP"]) \
                 [["IdTask", "IdResource"]]
 
-        t_candiddates =\
+        t_candidates =\
             aux.tup_to_dict(
                 mission_aircraft.to_records(index=False).tolist(),
                 result_col=1
             )
         if task is not None:
-            return t_candiddates[task]
-        return t_candiddates
+            return t_candidates[task]
+        return t_candidates
 
     def get_cluster_candidates(self):
         c_candidates = {}

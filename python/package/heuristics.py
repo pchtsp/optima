@@ -13,6 +13,8 @@ class Greedy(test.Experiment):
 
     def __init__(self, instance, options=None):
 
+        if options is None:
+            options = {}
         solution = sol.Solution({'state': {}, 'task': {}})
         super().__init__(instance, solution)
 
@@ -55,10 +57,22 @@ class Greedy(test.Experiment):
             self.fill_mission(task)
 
     def fill_mission(self, task):
+        """
+        This function assigns all the necessary resources to a given task
+        It edits the solution object inside the experiment
+        :param task: a task code to satisfy
+        :return: nothing
+        """
         duration = self.instance.get_param('maint_duration')
         dtype = 'U7'
         # get task candidates: we copy the list.
-        candidates = self.instance.get_task_candidates(task)
+        task_resources = self.instance.get_task_candidates()
+        resource_num_tasks = \
+            aux.dict_to_lendict(
+                aux.dict_list_reverse(task_resources)
+            )
+        candidates = task_resources[task]
+        candidates.sort(key=lambda x: resource_num_tasks[x])
         # get task periods to satisfy:
         rem_resources = \
             aux.dicttup_to_dictdict(
@@ -99,6 +113,11 @@ class Greedy(test.Experiment):
 
         return
 
+    def fix_over_maintenances(self):
+        # sometimes the solution includes a 12 period maintenance
+        # this function should delete the first of the two periods.
+        return
+
     def find_assign_task(self, resource, start, end, task):
         next_maint = self.get_next_maintenance(resource, end)
         periods_to_assign = self.check_assign_task(resource, aux.get_months(start, end), task)
@@ -122,6 +141,13 @@ class Greedy(test.Experiment):
         return last_month
 
     def find_assign_maintenance(self, resource, maint_need):
+        """
+        Tries to find the soonest maintenance in the planning horizon
+        for a given resource.
+        :param resource: resource to find maintenance
+        :param maint_need: date when the resources needs the maintenance
+        :return:
+        """
         duration = self.instance.get_param('maint_duration')
         maint_start = self.get_soonest_maint(resource, maint_need)
         if maint_start is None:
@@ -169,6 +195,15 @@ class Greedy(test.Experiment):
         return True
 
     def check_assign_task(self, resource, periods, task):
+        """
+        Calculates the amount of periods it's possible to assign
+        a given task to a resource.
+        Based on the usage status of the resource.
+        :param resource: candidate to assign a task
+        :param periods: periods to try to assign the task
+        :param task: task to assign to resource
+        :return: subset of continous periods to assign to the resource
+        """
         consumption = self.instance.data['tasks'][task]['consumption']
         start = periods[0]
         end = periods[-1]
@@ -187,14 +222,40 @@ class Greedy(test.Experiment):
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]
 
+    def get_free_periods_maint(self):
+        """
+        finds the periods where maintenance capacity is not full
+        :return: list of periods (month)
+        """
+        num_in_maint = aux.fill_dict_with_default(self.solution.get_in_maintenance(),
+                                                  self.instance.get_periods())
+        return [p for p, num in num_in_maint.items() if
+                                 num < self.instance.get_param('maint_capacity')]
+
     def get_soonest_maint(self, resource, min_period, maint_duration=6):
-        free = [(1, period) for period in self.get_free_periods(resource) if period >= min_period]
+        """
+        Finds the soonest possible maintenance to assign to a resource.
+        :param resource: resource (code) to search for maintenance
+        :param min_period: period (month) starting period to search for date
+        :param maint_duration: duration in number periods of the maintenance
+        :return: period (month) or none
+        """
+        periods_to_search = \
+            np.intersect1d(self.get_free_periods_maint(),
+                           self.get_free_periods_resource(resource))
+        free = [(1, period) for period in periods_to_search if period >= min_period]
         for (id, st, end) in aux.tup_to_start_finish(free):
+            # the period needs to be as least the size of the maintenance
             if len(aux.get_months(st, end)) >= maint_duration:
                 return st
         return None
 
-    def get_free_periods(self, resource):
+    def get_free_periods_resource(self, resource):
+        """
+        Finds the list of periods (month) that the resouce is available.
+        :param resource: resource code
+        :return: periods (month)
+        """
         # resource = "A100"
         dtype = 'U7'
         union = \
@@ -212,7 +273,7 @@ class Greedy(test.Experiment):
         candidate_periods = \
             np.intersect1d(
             periods,
-            self.get_free_periods(resource)
+            self.get_free_periods_resource(resource)
         )
         if len(candidate_periods) == 0:
             return []

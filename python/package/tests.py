@@ -17,6 +17,7 @@ import package.logFiles as log
 # TODO: create period objects with proper date methods based on arrow
 # TODO: create listtuple and dictionary objects with proper methods
 
+# TODO: check fixed maintenances
 
 class Experiment(object):
     """
@@ -228,6 +229,18 @@ class Experiment(object):
             , 'rut_end': sum(v[end] for v in rut.values())
             , 'ret_end': sum(v[end] for v in ret.values())
         }
+
+    def export_solution(self, path, sheet_name='solution'):
+        # path = "../data/parametres_DGA_final_test.xlsm"
+        tasks = aux.dict_to_tup(self.solution.get_tasks())
+        hours = self.instance.get_tasks('consumption')
+        tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))
+                        for t in tasks]
+        statesMissions = aux.dict_to_tup(self.solution.get_state()) + tasks_edited
+        table = pd.DataFrame(statesMissions, columns=['resource', 'period', 'state'])
+        table = table.pivot(index='resource', columns='period', values='state')
+        table.to_excel(path, sheet_name=sheet_name)
+        return table
 
 
 def clean_experiments(path, clean=True, regex=""):
