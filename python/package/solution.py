@@ -3,9 +3,9 @@
 import package.aux as aux
 import pandas as pd
 import numpy as np
-import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri
+# import rpy2.robjects as ro
+# from rpy2.robjects.packages import importr
+# from rpy2.robjects import pandas2ri
 import plotly.figure_factory as ff
 import plotly
 
@@ -125,39 +125,39 @@ class Solution(object):
 
         return
 
-    def print_solution_r(self, path):
-        # TODO: this is almost correct but some names are not correctly written.
-        cols = ['group', 'start', 'content', 'end']
-        table = pd.DataFrame(self.get_schedule(),
-                             columns=cols
-                             )
-        table.end = table.end.apply(lambda x: aux.get_next_month(x))
-        table['status'] = table.content.str.replace(r"\d+", "")
-        colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
-
-        table['style'] = \
-            table.status.replace(colors). \
-                map("background-color:{0};border-color:{0}".format)
-
-        groups = pd.DataFrame({'id': table.group.unique(), 'content': table.group.unique()})
-        timevis = importr('timevis')
-        htmlwidgets = importr('htmlwidgets')
-        rdf = pandas2ri.py2ri(table)
-        rdfgroups = pandas2ri.py2ri(groups)
-
-        options = ro.ListVector({
-            "stack": False,
-            "editable": True,
-            "align": "center",
-            "orientation": "top",
-            # "snap": None,
-            "margin": 0
-        })
-
-        graph = timevis.timevis(rdf, groups=rdfgroups, options=options, width="100%")
-        htmlwidgets.saveWidget(graph, file=path, selfcontained=False)
-        print(graph)
-        return graph
+    # def print_solution_r(self, path):
+    #     # TODO: this is almost correct but some names are not correctly written.
+    #     cols = ['group', 'start', 'content', 'end']
+    #     table = pd.DataFrame(self.get_schedule(),
+    #                          columns=cols
+    #                          )
+    #     table.end = table.end.apply(lambda x: aux.get_next_month(x))
+    #     table['status'] = table.content.str.replace(r"\d+", "")
+    #     colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
+    #
+    #     table['style'] = \
+    #         table.status.replace(colors). \
+    #             map("background-color:{0};border-color:{0}".format)
+    #
+    #     groups = pd.DataFrame({'id': table.group.unique(), 'content': table.group.unique()})
+    #     timevis = importr('timevis')
+    #     htmlwidgets = importr('htmlwidgets')
+    #     rdf = pandas2ri.py2ri(table)
+    #     rdfgroups = pandas2ri.py2ri(groups)
+    #
+    #     options = ro.ListVector({
+    #         "stack": False,
+    #         "editable": True,
+    #         "align": "center",
+    #         "orientation": "top",
+    #         # "snap": None,
+    #         "margin": 0
+    #     })
+    #
+    #     graph = timevis.timevis(rdf, groups=rdfgroups, options=options, width="100%")
+    #     htmlwidgets.saveWidget(graph, file=path, selfcontained=False)
+    #     print(graph)
+    #     return graph
 
 
 if __name__ == "__main__":

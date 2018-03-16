@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import os
 import datetime
-import bokeh.plotting as bokehplot
+# import bokeh.plotting as bokehplot
 
 
 def get_months(start_month, end_month):
@@ -201,15 +201,15 @@ def get_timestamp(form="%Y%m%d%H%M"):
     return datetime.datetime.now().strftime(form)
 
 
-def graph_dict_time(dict_to_graph, path, **kwags):
-    keys = sorted(dict_to_graph.keys())
-    bokehplot.output_file(path)
-    p = bokehplot.figure(plot_width=400, plot_height=250, x_axis_type="datetime", **kwags)
-    x = pd.to_datetime(keys, format="%Y-%m")
-    y1 = [dict_to_graph[k] for k in keys]
-    p.step(x, y1, line_width=2, mode="before")
-    bokehplot.show(p)
-    return p
+# def graph_dict_time(dict_to_graph, path, **kwags):
+#     keys = sorted(dict_to_graph.keys())
+#     bokehplot.output_file(path)
+#     p = bokehplot.figure(plot_width=400, plot_height=250, x_axis_type="datetime", **kwags)
+#     x = pd.to_datetime(keys, format="%Y-%m")
+#     y1 = [dict_to_graph[k] for k in keys]
+#     p.step(x, y1, line_width=2, mode="before")
+#     bokehplot.show(p)
+#     return p
 
 
 def dict_to_lendict(dict_input):
