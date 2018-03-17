@@ -5,7 +5,6 @@ from desktop_app.gui import Ui_MainWindow
 import package.aux as aux
 import package.data_input as di
 import package.instance as inst
-import package.model as md
 import package.params as params
 import package.heuristics as heur
 import os

@@ -6,8 +6,8 @@ import numpy as np
 # import rpy2.robjects as ro
 # from rpy2.robjects.packages import importr
 # from rpy2.robjects import pandas2ri
-import plotly.figure_factory as ff
-import plotly
+# import plotly.figure_factory as ff
+# import plotly
 
 
 class Solution(object):
@@ -99,31 +99,31 @@ class Solution(object):
     def graph_unavailable(self, path, **kwags):
         return aux.graph_dict_time(self.get_unavailable(), path, **kwags)
 
-    def print_solution(self, path, max_tasks=None):
-        cols = ['group', 'start', 'content', 'end']
-        table = pd.DataFrame(self.get_schedule(),
-                             columns=cols
-                             )
-        table.end = table.end.apply(lambda x: aux.get_next_month(x))
-        table['status'] = table.content.str.replace(r"\d+", "")
-        colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
-        colors_content = table.set_index('content').status.replace(colors).to_dict()
-
-        table['style'] = \
-            table.status.replace(colors). \
-                map("background-color:{0};border-color:{0}".format)
-        table = table.sort_values("group").reset_index().rename(columns={'index': "id"})
-        cols2 = cols + ['style', 'id']
-        table[cols2] = table[cols2].astype(str)
-        table = table[['group', 'start', 'content', 'end']]
-        table.columns = ["Task", 'Start', 'Resource', 'Finish']
-        if max_tasks is not None:
-            # TODO: filter correctly tasks to show only the maximum number
-            table = table[table.Task.str.len() < 3].reset_index(drop=True)
-        fig = ff.create_gantt(table, colors=colors_content, index_col='Resource', show_colorbar=True, group_tasks=True)
-        plotly.offline.plot(fig, filename=path)
-
-        return
+    # def print_solution(self, path, max_tasks=None):
+    #     cols = ['group', 'start', 'content', 'end']
+    #     table = pd.DataFrame(self.get_schedule(),
+    #                          columns=cols
+    #                          )
+    #     table.end = table.end.apply(lambda x: aux.get_next_month(x))
+    #     table['status'] = table.content.str.replace(r"\d+", "")
+    #     colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
+    #     colors_content = table.set_index('content').status.replace(colors).to_dict()
+    #
+    #     table['style'] = \
+    #         table.status.replace(colors). \
+    #             map("background-color:{0};border-color:{0}".format)
+    #     table = table.sort_values("group").reset_index().rename(columns={'index': "id"})
+    #     cols2 = cols + ['style', 'id']
+    #     table[cols2] = table[cols2].astype(str)
+    #     table = table[['group', 'start', 'content', 'end']]
+    #     table.columns = ["Task", 'Start', 'Resource', 'Finish']
+    #     if max_tasks is not None:
+    #         # TODO: filter correctly tasks to show only the maximum number
+    #         table = table[table.Task.str.len() < 3].reset_index(drop=True)
+    #     fig = ff.create_gantt(table, colors=colors_content, index_col='Resource', show_colorbar=True, group_tasks=True)
+    #     plotly.offline.plot(fig, filename=path)
+    #
+    #     return
 
     # def print_solution_r(self, path):
     #     # TODO: this is almost correct but some names are not correctly written.

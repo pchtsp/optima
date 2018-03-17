@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 import re
-import unidecode
+# import unidecode
+import unicodedata
 import package.aux as aux
 import numpy as np
 import copy
@@ -15,7 +16,9 @@ def make_name(name):
     name = re.sub(pattern=r'\(', string=name, repl='_')
     name = re.sub("\s[a-z]", lambda m: m.group(0)[1].upper(), name)
     name = re.sub(pattern=r'[\s\n\):\+\?]', string=name, repl='')
-    return unidecode.unidecode(name)
+    s2 = unicodedata.normalize('NFD', name).encode('ascii', 'ignore')
+    return str(s2, 'utf-8')
+    # return unidecode.unidecode(name)
 
 
 def make_names(names):
@@ -23,9 +26,14 @@ def make_names(names):
 
 
 def generate_data_from_source(source=r'../data/raw/parametres_DGA_final.xlsm'):
+    if not os.path.exists(source):
+        print('Following path does not exist: {}'.format(source))
+        return None
     excel_file = pd.ExcelFile(source)
     sheets = excel_file.sheet_names
+    # print(sheets)
     excel_info = {make_name(sheet): excel_file.parse(sheet) for sheet in sheets}
+    # print(excel_info.keys())
 
     for sheet in excel_info:
         excel_info[sheet].columns = make_names(excel_info[sheet].columns)
@@ -48,6 +56,7 @@ def generate_data_from_csv(directory=r'../data/csv/'):
 def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
     # we import the data set.
     table = generate_data_from_source(source=source)
+    # print(table)
 
     params = table['Parametres']
 
