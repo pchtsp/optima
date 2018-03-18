@@ -1,6 +1,7 @@
 # /usr/bin/python3
+
 import os
-import package.aux as aux
+import package.auxiliar as aux
 import pulp as pl
 import tempfile
 from os import dup, dup2, close

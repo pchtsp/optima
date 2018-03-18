@@ -2,7 +2,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from desktop_app.gui import Ui_MainWindow
 
-import package.aux as aux
+import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.params as params

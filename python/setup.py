@@ -5,17 +5,6 @@ from cx_Freeze import setup, Executable
 
 includefiles = []
 # includefiles = [
-# 'package/aux.py'
-# ,'package/config.py'
-# ,'package/data_input.py'
-# ,'package/heuristics.py'
-# ,'package/instance.py'
-# ,'package/logFiles.py'
-# ,'package/model.py'
-# ,'package/params.py'
-# ,'package/solution.py'
-# ,'package/tests.py'
-# ,'desktop_app/gui.py'
 # ]
 excludes = []
 excludes = [

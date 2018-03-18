@@ -1,6 +1,6 @@
 from ggplot import *
 import pprint as pp
-import package.aux as aux
+import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
 import package.tests as exp

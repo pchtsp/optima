@@ -3,7 +3,7 @@ import package.instance as inst
 import package.tests as exp
 import package.solution as sol
 import pprint as pp
-import package.aux as aux
+import package.auxiliar as aux
 
 if __name__ == "__main__":
     path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"

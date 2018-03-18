@@ -1,5 +1,5 @@
 import pulp as pl
-import package.aux as aux
+import package.auxiliar as aux
 import package.data_input as di
 import package.config as conf
 import numpy as np

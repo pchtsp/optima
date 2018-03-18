@@ -1,7 +1,7 @@
 # /usr/bin/python3
 
 import numpy as np
-import package.aux as aux
+import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
 

@@ -224,6 +224,4 @@ if __name__ == "__main__":
     result = dicts_to_tup({}, [], content)
     tup = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
     tup_to_dict(tup, is_list=False)
-    # tup_to_dict
     pass
-    # pd.DataFrame(aux.dict_to_tup(tupdict)).groupby(level=0).apply(lambda df: df.xs(df.name).to_dict()).to_dict()

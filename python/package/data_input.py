@@ -3,7 +3,7 @@ import pandas as pd
 import re
 # import unidecode
 import unicodedata
-import package.aux as aux
+import package.auxiliar as aux
 import numpy as np
 import copy
 import json

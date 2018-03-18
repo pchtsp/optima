@@ -1,4 +1,4 @@
-import package.aux as aux
+import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.model as md

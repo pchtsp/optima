@@ -1,4 +1,4 @@
-import package.aux as aux
+import package.auxiliar as aux
 import pandas as pd
 import numpy as np
 import rpy2.robjects as ro

@@ -1,5 +1,5 @@
 # /usr/bin/python3
-import package.aux as aux
+import package.auxiliar as aux
 import numpy as np
 import pandas as pd
 import package.data_input as di
