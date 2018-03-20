@@ -22,7 +22,7 @@ output:
     # template: ./../../latex/templates/baobab.tex
     template: isae-report-template_pandoc.tex
     # top_level_division: part
-    keep_tex: true
+    # keep_tex: true
     pandoc_args: ["--top-level-division=part"]
   slidy_presentation:
     css: ./../../css/baobab_MH.css
