@@ -4,16 +4,12 @@ library(data.table)
 library(magrittr)
 
 graph_architecture <- function(){
-    # img_path <- "/home/pchtsp/Documents/projects/OPTIMA"
-    # img_path <- "./.."
     names_nodes = c('planner', 'viewer', 'serveur', 'base de données', 'modèle')
-    # images_name <- c('', 'serveur.png', 'database.png', 'model.png') %>% sprintf('%s/img/%s',img_path, .)
-    
+
     nodes <- data.table(
         label = names_nodes
     ) %>% 
         mutate(shape = "icon", id = row_number()
-               # image= images_name
                ,icon.code = c('f007', 'f007', 'f233', 'f1c0', 'f013')
                ,icon.color= c('orange', 'blue', rep("black", 3))
                ,icon.size = 80

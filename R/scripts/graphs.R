@@ -1,4 +1,5 @@
 source('scripts/params.R')
+source('scripts/import_results.R')
 
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
 print_solution(exp_directory, max_resources = 30)
