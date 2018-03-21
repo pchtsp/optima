@@ -40,10 +40,41 @@ collapse_states <- function(table){
         ungroup() %>% filter(state != "")
 }
 
+get_tasks <- function(exp_directory){
+    input_path = exp_directory %>% paste0('data_in.json')
+    if (!file.exists(input_path)){
+        return(data.frame())
+    }
+    input <- read_json(input_path)
+    input %>% 
+        extract2('tasks') %>% 
+        lapply(data.frame, stringsAsFactors = F) %>% 
+        lapply(select, -starts_with("capacit")) %>% 
+        bind_rows(.id="task")
+}
+
+get_parameters <- function(exp_directory){
+    input_path = exp_directory %>% paste0('data_in.json')
+    if (!file.exists(input_path)){
+        return(data.frame())
+    }
+    input <- read_json(input_path)
+    input %>% 
+        extract2('parameters') %>% 
+        data.frame(stringsAsFactors = F) %>% 
+        gather(name, value)
+}
+
 get_states <- function(exp_directory){
     solution_path = exp_directory %>% paste0('data_out.json')
     input_path = exp_directory %>% paste0('data_in.json')
     
+    if (!file.exists(solution_path)){
+        stop(sprintf('No file named %s', solution_path))
+    }
+    if (!file.exists(input_path)){
+        stop(sprintf('No file named %s', input_path))
+    }
     solution <- read_json(solution_path)
     input <- read_json(input_path)
     

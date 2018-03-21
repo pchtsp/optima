@@ -45,7 +45,10 @@ table_remaining <- function(exp_directory, aircraft_to_graph='A31'){
     
 graph_remaining <- function(exp_directory, aircraft_to_graph='A31'){
     data <- treat_data(exp_directory, aircraft_to_graph)
-    
+    graph_remaining_data(data)
+}
+
+graph_remaining_data <- function(data){
     p <- ggplot(data, aes(x= Mois, y= Temps, group='aircraft')) + 
         geom_line() + 
         facet_grid(type~ ., scales = "free_y") +
@@ -53,12 +56,14 @@ graph_remaining <- function(exp_directory, aircraft_to_graph='A31'){
         scale_x_datetime()
     
     ggplotly(p)
-    
 }
 
 graph_tie <- function(exp_directory, aircraft_to_graph='A31'){
     data <- treat_data(exp_directory, aircraft_to_graph)
-    
+    graph_tie_data(data)
+}
+
+graph_tie_data <- function(data){
     data_n <- data %>% spread(key = type, value=Temps)
     
     p <- ggplot(data_n, aes(x= `heures de vol`, y= `disponibilité (mois)`, group='aircraft')) + 
@@ -68,5 +73,3 @@ graph_tie <- function(exp_directory, aircraft_to_graph='A31'){
     ggplotly(p)
     
 }
-
-
