@@ -3,6 +3,7 @@ library(timevis)
 library(tidyverse)
 library(DT)
 library(lubridate)
+library(data.table)
 
 completed_experiments <- function(path){
     names <- path %>% list.files()
@@ -14,16 +15,6 @@ completed_experiments <- function(path){
     names[with_solution] %>% paste0(path, ., '/') %>% set_names(names[with_solution])
 }
 
-months_in_range <- function(dates){
-    date1= dates[1] %>% as_date() %>% round_date(unit="month")
-    date2= dates[2] %>% as_date() %>% round_date(unit="month")
-    seq(date1, by = "month", to=date2) %>% 
-        as.POSIXct(tz = Sys.timezone()) %>% 
-        round_date(unit="month") %>% 
-        data.table(Mois=.)
-}
-
-# Define server logic required to draw a histogram
 shinyServer(function(input, output, clientData, session) {
     dir_pre <- "../"
     # dir_pre <- "./"
@@ -38,7 +29,7 @@ shinyServer(function(input, output, clientData, session) {
     experiment1 <- experiments[default_exp]
     updateSelectInput(session = session, inputId = "selectExp", choices = experiments, selected = experiment1)
     
-    states <- reactive({get_states(input$selectExp)})
+    states <- reactive({get_states(input$selectExp, style_config= list(font_size='12px'))})
     missions <- reactive({get_tasks(input$selectExp)})
     parameters <- reactive({get_parameters(input$selectExp)})
 
@@ -49,6 +40,8 @@ shinyServer(function(input, output, clientData, session) {
         output$timevis1 <- renderTimevis(timevis_from_states(states(), height = 500))
     })
     
+
+        
     observe({
         id_selected <- input$timevis1_selected
         dates <- input$timevis1_window
@@ -62,10 +55,12 @@ shinyServer(function(input, output, clientData, session) {
             treat_data(experiment1, res) %>% 
             right_join(filter)
             # filter(Mois >= dates[1] & Mois <= dates[2])
-        if (input$option_graph == 'tie'){
-            output$plotly1 <- renderPlotly({graph_tie_data(data_input)})
-        } else {
+        # if (input$option_graph == 'tie'){
+        #     output$plotly1 <- renderPlotly({graph_tie_data(data_input)})
+        # } else {
             output$plotly1 <- renderPlotly({graph_remaining_data(data_input)})
-        }
+        # }
+
+            
     })
 })

@@ -10,6 +10,7 @@ library(Hmisc)
 library(RColorBrewer)
 library(htmlwidgets)
 library(jsonlite)
+library(zoo)
 
 collapse_states <- function(table){
     
@@ -65,7 +66,69 @@ get_parameters <- function(exp_directory){
         gather(name, value)
 }
 
-get_states <- function(exp_directory){
+dicts_to_df <-  function(data){
+    data %>% 
+        bind_rows(.id='x') %>% 
+        gather(key='y', value='z', -x) %>% 
+        filter(z %>% is.na %>% not)
+}
+
+get_ret <- function(exp_directory, time='used'){
+    solution_path = exp_directory %>% paste0('data_out.json')
+    input_path = exp_directory %>% paste0('data_in.json')
+    if (!file.exists(solution_path)){
+        stop(sprintf('No file named %s', solution_path))
+    }
+    if (!file.exists(input_path)){
+        stop(sprintf('No file named %s', input_path))
+    }
+    solution <- read_json(solution_path)
+    input <- read_json(input_path)
+    # input$resources[[1]] %>% names
+    initial <- sapply(input$resources, '[[', 'initial_used')
+    max_rem <- input$parameters[['max_used_time']]
+    previous_month <- input$parameters$start %>% paste0('-01') %>% as_date %>% subtract(ddays(1)) %>% floor_date('month') %>% format('%Y-%m')
+    month_table <- months_in_range(dates=c(previous_month, input$parameters$end) %>% paste0('-1'))
+    month_table_n <- 
+        month_table %>% rename(period=Mois) %>% mutate(period = period %>% format('%Y-%m')) %>% 
+        merge(data.table(resource=initial %>% names))
+    
+    consumption <- input$tasks %>% lapply('[[', 'consumption') %>% bind_rows() %>% gather(key='task', value='mod')
+    tasks <- solution$task %>% dicts_to_df %>% set_names(c('resource', 'period', 'task')) %>% inner_join(consumption)
+    maintenances <- solution$state %>% dicts_to_df %>% set_names(c('resource', 'period', 'state'))
+    result <- 
+        data.table(
+            resource= initial %>% names
+            ,remaining= initial %>% unlist
+            ,period= previous_month
+        ) %>% 
+        full_join(month_table_n) %>% 
+        left_join(maintenances) %>% 
+        left_join(tasks) %>% 
+        mutate(remaining = if_else(state %>% is.na %>% not, max_rem, remaining)) %>% 
+        mutate(mod = -as.numeric(mod)) %>% 
+        mutate(mod = if_else(mod %>% is.na, remaining, mod)) %>% 
+        mutate(mod = if_else(mod %>% is.na, 0, mod)) %>% 
+        mutate(maint_period = ifelse(remaining %>% is.na %>% not, period, NA)) %>% 
+        arrange(resource, period) %>% 
+        group_by(resource) %>% 
+        mutate(maint_period = zoo::na.locf(maint_period)) %>% 
+        group_by(resource, maint_period) %>% 
+        mutate(mod_c = cumsum(mod))
+        
+}
+
+months_in_range <- function(dates){
+    date1= dates[1] %>% as_date() %>% round_date(unit="month")
+    date2= dates[2] %>% as_date() %>% round_date(unit="month")
+    seq(date1, by = "month", to=date2) %>% 
+        as.POSIXct(tz = Sys.timezone()) %>% 
+        round_date(unit="month") %>% 
+        data.table(Mois=.)
+}
+
+get_states <- function(exp_directory, style_config=list()){
+    # browser()
     solution_path = exp_directory %>% paste0('data_out.json')
     input_path = exp_directory %>% paste0('data_in.json')
     
@@ -95,6 +158,12 @@ get_states <- function(exp_directory){
         gather(key = 'month', value = 'state', -UNIT) %>% 
         filter(state %>% is.na %>% not)
     
+    # def_style_config = list(font_size='15px')
+    font_size = style_config$font_size
+    if (font_size %>% is.null){
+        font_size <- '15px'
+    }
+
     states <- 
         solution %>% 
         extract2('state') %>% 
@@ -105,7 +174,7 @@ get_states <- function(exp_directory){
         collapse_states() %>% 
         inner_join(task_hours) %>% 
         mutate(id= c(1:nrow(.)),
-               style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
+               style= sprintf("background-color:%s;border-color:%s;font-size: %s", color, color, font_size),
                content = if_else(state=='M', 'M', sprintf('%s (%sh)', state, hours))
         ) %>% 
         select(id, start= month, end= post_month, content, group= UNIT, style)

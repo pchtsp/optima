@@ -2,6 +2,7 @@ library(shiny)
 library(shinydashboard)
 library(timevis)
 library(DT)
+library(plotly)
 
 dashboardPage(
     dashboardHeader(title = "OptiPlan Demo"),
@@ -11,13 +12,12 @@ dashboardPage(
             menuItem("Résultats", tabName = "results", icon = icon("th"))
         )
     ),
-    ## Body content
     dashboardBody(
         tabItems(
-            # First tab content
             tabItem(tabName = "input_data",
                     selectInput("selectExp", label = h3("Etude"), 
-                                choices = list()
+                                choices = list(),
+                                selectize = T
                                 ),
                     fluidRow(
                         column(width = 4, 
@@ -28,17 +28,21 @@ dashboardPage(
                                DT::dataTableOutput("missions"), offset = 2)
                     )
             ),
-            
-            # Second tab content
             tabItem(tabName = "results",
-                    h2("Planning"),
+                    # h2("Planning"),
                     timevisOutput('timevis1', height = 500, width="95%"),
-                    radioButtons(inputId='option_graph',
-                                 label='Type de graph',
-                                 choices=c('Cravatte'='tie', 'Evolution'='evolution')),
-                    h3(textOutput('resource')),
+                    # radioButtons(inputId='option_graph',
+                    #              label='Type de graph',
+                    #              choices=c('Cravatte'='tie', 'Evolution'='evolution')),
+                    h4(textOutput('resource')),
                     plotlyOutput('plotly1')
                     
+            ),
+            tabItem(tabName = "generation",
+                    h2("Résolution"),
+                    dateRangeInput('StartEnd', label = 'Start end', format = "yyy-mm", language='fr'),
+                    actionButton(inputId='solve', label='Résoudre'),
+                    textAreaInput('solve_log', 'Log')
             )
         )
     )
