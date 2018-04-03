@@ -82,8 +82,7 @@
 {\em A specific Flight and Maintenance Planning problem is presented. 
 In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular missions. 
 The quality of the solutions is measured via a bi-objective function that smooths both maintenance operations and aircraft unavailability among time periods. 
-An exact optimization approach is provided by a Mixed Integer Programming model.
-A real world dataset provided by the French Air Force is used to test the developed optimization approach.
+A real world dataset provided by the French Air Force is used to test an exact optimization approach based on a Mixed Integer Programming model.
 Mono-objective computations are solved to optimality for medium size instances, allowing to compute exactly the Pareto frontier of the bi-objective optimization problems.
 The tests show that these two objectives do not lead to the same optimal solution, but very good compromise solutions can be found thanks to the bi-objective optimization.
 }\\~\\
@@ -321,7 +320,7 @@ The tests show that these two objectives do not lead to the same optimal solutio
     \begin{align}
         & \text{Min}\; W_1 m_{max} + W_2 u_{max}
     \end{align}
-    where weights $W_1$ and $W_2$ are chosen by the decision maker. 
+    where weights $W_1$ and $W_2$ are chosen by the decision maker. $W_1$ penalizes the maximum number of aircraft in maintenance among all periods. $W_2$ penalizes the maximum number of unavailable aircraft among all periods.
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
@@ -566,7 +565,8 @@ The tests show that these two objectives do not lead to the same optimal solutio
   The use of these two objectives does not lead to the same optimal solution but very good compromise solutions can be found due to the bi-objective optimization.
   For larger instances, difficulties in finding optimal solutions occurred because of multiple symmetries and a poor quality of MIP generic primal heuristics.
 
-  The first perspective is to improve the resolution of large size instances. Heuristics could be implemented, but also mathematical programming can be improved with symmetry breaking or MIP reformulations. 
+  The first perspective is to improve the resolution of large size instances. Heuristics could be implemented, but also mathematical programming can be improved with symmetry breaking or MIP reformulations. A matheuristic method derived from the existing MIP formulation can also be used to improve the performance.
+
   For the bi-objective optimization for large size instances, more advanced bi-objective methods such as $\epsilon$-constraints or Two-Phases-Method should be investigated for the computation of larger Pareto frontiers.
   Lastly, additional constraints from the real world application can be incorporated in the model.
 
