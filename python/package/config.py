@@ -62,11 +62,18 @@ class Config(object):
                 'set timelimit {}'.format(self.timeLimit),
                 'set mip tolerances mipgap {}'.format(self.gap)]
 
+    def config_choco(self):
+        # CHOCO parameters https://github.com/chocoteam/choco-parsers/blob/master/MPS.md
+        return [('-tl', self.timeLimit * 1000),
+                ('-p', 1)]
+
     def solve_model(self, model):
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi()))
         if self.solver == "CPLEX":
             return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1))
+        if self.solver == "CHOCO":
+            return model.solve(pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0))
         with tempfile.TemporaryFile() as tmp_output:
             orig_std_out = dup(1)
             dup2(tmp_output.fileno(), 1)

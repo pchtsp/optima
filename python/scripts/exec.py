@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     # this is for testing purposes:
     num_start_period = 0
-    num_max_periods = 40
+    num_max_periods = 60
     model_data['parameters']['start'] = \
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
@@ -26,9 +26,9 @@ if __name__ == "__main__":
     # black_list = []
     white_list = []
     # white_list = ['O1', 'O5']
-    # black_list = ['O10', 'O8', 'O6']
+    black_list = ['O10', 'O8', 'O6']
     # black_list = ['O10', 'O8']
-    black_list = ['O8']  # this task has less candidates than what it asks.
+    # black_list = ['O8']  # this task has less candidates than what it asks.
     if len(black_list) > 0:
         model_data['tasks'] = \
             {k: v for k, v in model_data['tasks'].items() if k not in black_list}
@@ -47,11 +47,13 @@ if __name__ == "__main__":
     # instance.data['parameters']['maint_capacity'] /= 3
 
     options = {
-        'timeLimit': 3600
+        'timeLimit': 3600*5
         , 'gap': 0
-        , 'solver': "CPLEX"
+        , 'solver': "CHOCO"
         , 'path':
             os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
+        # , 'path_solver': params.PATHS['choco']
+        , 'integer': True
     }
 
     di.export_data(options['path'], instance.data, name="data_in", file_type='json')

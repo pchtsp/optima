@@ -12,30 +12,6 @@ import package.solution as sol
 # TODO: add minimum mission duration assignment
 # TODO: contraintes les posibilités des candidates: maximum X candidates par task ou par resource
 
-# def cluster_candidates(instance, options=None):
-#     l = instance.get_domains_sets()
-#     av = list(set(aux.tup_filter(l['avt'], [0, 1])))
-#     a_v = aux.tup_to_dict(av, result_col=0, is_list=True)
-#     candidate = pl.LpVariable.dicts("cand", av, 0, 1, pl.LpInteger)
-#
-#     model = pl.LpProblem("Candidates", pl.LpMinimize)
-#     for v, num in instance.get_tasks('num_resource').items():
-#         model += pl.lpSum(candidate[(a, v)] for a in a_v[v]) >= max(num + 4, num * 1.1)
-#
-#     # # objective function:
-#     # max_unavail = pl.LpVariable("max_unavail")
-#     model += pl.lpSum(candidate[tup] for tup in av)
-#
-#     # MODEL
-#
-#     # # OBJECTIVE:
-#     # model += max_unavail + max_maint * maint_weight
-#
-#     config = conf.Config(options)
-#     result = config.solve_model(model)
-#
-#     return {}
-
 
 def solve_model(instance, options=None):
     l = instance.get_domains_sets()
@@ -46,14 +22,14 @@ def solve_model(instance, options=None):
     requirement = instance.get_tasks('num_resource')
     ret_init = instance.get_initial_state("elapsed")
     rut_init = instance.get_initial_state("used")
-    ret_obj = sum(ret_init[a] for a in l['resources'])
-    rut_obj = sum(rut_init[a] for a in l['resources'])
-    num_resource_working = instance.get_total_period_needs()
+    # ret_obj = sum(ret_init[a] for a in l['resources'])
+    # rut_obj = sum(rut_init[a] for a in l['resources'])
+    # num_resource_working = instance.get_total_period_needs()
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
     num_resource_maint_cluster = aux.dict_to_lendict(instance.get_fixed_maintenances_cluster())
-    instance.get_total_fixed_maintenances()
-    maint_weight = instance.get_param("maint_weight")
-    unavail_weight = instance.get_param("unavail_weight")
+    # instance.get_total_fixed_maintenances()
+    # maint_weight = instance.get_param("maint_weight")
+    # unavail_weight = instance.get_param("unavail_weight")
     maint_capacity = instance.get_param('maint_capacity')
     max_elapsed = instance.get_param('max_elapsed_time')
     max_usage = instance.get_param('max_used_time')
@@ -73,19 +49,24 @@ def solve_model(instance, options=None):
         ) for (k, t) in c_slack
     }
 
+    # Sometimes we want to force variables to be integer.
+    var_type = pl.LpContinuous
+    if options.get('integer', False):
+        var_type = pl.LpInteger
+
     # VARIABLES:
     # binary:
-    task = pl.LpVariable.dicts("task", l['avt'], 0, 1, pl.LpInteger)
-    start = pl.LpVariable.dicts("start", l['at_start'], 0, 1, pl.LpInteger)
+    task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
+    start = pl.LpVariable.dicts(name="start", indexs=l['at_start'], lowBound=0, upBound=1, cat=pl.LpInteger)
 
     # numeric:
-    ret = pl.LpVariable.dicts("ret", l['at0'], 0, ub['ret'], pl.LpContinuous)
-    rut = pl.LpVariable.dicts("rut", l['at0'], 0, ub['rut'], pl.LpContinuous)
+    ret = pl.LpVariable.dicts(name="ret", indexs=l['at0'], lowBound=0, upBound=ub['ret'], cat=var_type)
+    rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
     # objective function:
-    num_maint = pl.LpVariable("num_maint")
-    ret_obj_var = pl.LpVariable("ret_obj_var")
-    rut_obj_var = pl.LpVariable("rut_obj_var")
+    num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
+    ret_obj_var = pl.LpVariable(name="ret_obj_var", lowBound=0, upBound=ub['ret_end'], cat=var_type)
+    rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -162,6 +143,8 @@ def solve_model(instance, options=None):
 
     # SOLVING
     config = conf.Config(options)
+    # model.writeMPS(filename='MFMP_3.mps')
+    # return None
     result = config.solve_model(model)
 
     if result != 1:

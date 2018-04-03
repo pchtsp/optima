@@ -108,11 +108,29 @@ class Experiment(object):
         return {k: hours[v] for k, v in self.solution.get_tasks().items()}
 
     def set_remainingtime(self, resource, period, time, value):
+        """
+        :param resource:
+        :param period:
+        :param time: ret or rut
+        :param value: remaining time
+        :return: True
+        This procedure *updates* the remaining time in the aux property of the solution.
+        """
         self.expand_resource_period(self.solution.data['aux'][time], resource, period)
         self.solution.data['aux'][time][resource][period] = value
         return True
 
     def update_time_usage(self, resource, periods, previous_value=None, time='rut'):
+        """
+        :param resource: a resource to update
+        :param periods: a list of consecutive periods to update. ordered.
+        :param previous_value: optional value for the remaining time before the first period
+        :param time: rut or ret depending if it's usage time or elapsed time
+        :return: True
+        This procedure *updates* the time of each period using set_remainingtime.
+        It assumes all periods do not have a maintenance.
+        So the periods should be filled with a task or nothing.
+        """
         if previous_value is None:
             previous_value = self.solution.data['aux'][time][resource]\
                 [aux.get_prev_month(periods[0])]
@@ -131,6 +149,12 @@ class Experiment(object):
         return self.instance.data['tasks'].get(task, {}).get('consumption', 0)
 
     def get_non_maintenance_periods(self):
+        """
+        :return: a dictionary with the following structure:
+        resource: [(start_period1, end_period1), (start_period2, end_period2), ..., (start_periodN, end_periodN)]
+        two consecutive periods being separated by a maintenance operation.
+        It's built using the information of the maintenance operations.
+        """
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
         maintenances = aux.tup_to_dict(self.solution.get_maintenance_periods(), result_col=[1, 2])
         nonmaintenances = []
@@ -162,14 +186,14 @@ class Experiment(object):
         initial = self.instance.get_resources(label)
 
         label = 'max_' + self.label_rt(time) + '_time'
-        max_rut = self.instance.get_param(label)
+        max_rem = self.instance.get_param(label)
         for resource in initial:
-            self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rut))
+            self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rem))
 
         maintenances = self.solution.get_maintenance_periods()
         for resource, start, end in maintenances:
             for period in aux.get_months(start, end):
-                self.set_remainingtime(resource, period, time, max_rut)
+                self.set_remainingtime(resource, period, time, max_rem)
 
         non_maintenances = self.get_non_maintenance_periods()
         for resource, start, end in non_maintenances:

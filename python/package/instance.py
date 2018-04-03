@@ -4,6 +4,7 @@ import numpy as np
 import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
+import math
 
 
 class Instance(object):
@@ -62,11 +63,19 @@ class Instance(object):
         max_elapsed_time = param_data['max_elapsed_time']  # me. in periods
         max_used_time = param_data['max_used_time']  # mu. in hours of usage
         consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
+        num_resources = len(self.get_resources())
+        num_periods = len(self.get_periods())
+        max_num_maint = math.floor(num_resources*num_periods/param_data['maint_duration'])
+        ret_total = max_elapsed_time*num_resources
+        rut_total = max_used_time*num_resources
 
         return {
             'ret': max_elapsed_time,
             'rut': max_used_time,
-            'used': max(consumption.values())
+            'used': max(consumption.values()),
+            'num_maint': max_num_maint,
+            'ret_end': ret_total,
+            'rut_end': rut_total
         }
 
     def get_domains_sets(self):
@@ -333,6 +342,29 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
+    # def cluster_candidates(instance, options=None):
+    #     l = instance.get_domains_sets()
+    #     av = list(set(aux.tup_filter(l['avt'], [0, 1])))
+    #     a_v = aux.tup_to_dict(av, result_col=0, is_list=True)
+    #     candidate = pl.LpVariable.dicts("cand", av, 0, 1, pl.LpInteger)
+    #
+    #     model = pl.LpProblem("Candidates", pl.LpMinimize)
+    #     for v, num in instance.get_tasks('num_resource').items():
+    #         model += pl.lpSum(candidate[(a, v)] for a in a_v[v]) >= max(num + 4, num * 1.1)
+    #
+    #     # # objective function:
+    #     # max_unavail = pl.LpVariable("max_unavail")
+    #     model += pl.lpSum(candidate[tup] for tup in av)
+    #
+    #     # MODEL
+    #
+    #     # # OBJECTIVE:
+    #     # model += max_unavail + max_maint * maint_weight
+    #
+    #     config = conf.Config(options)
+    #     result = config.solve_model(model)
+    #
+    #     return {}
 
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
