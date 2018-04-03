@@ -16,21 +16,21 @@ collapse_states <- function(table){
     
     # we complete missing months
     months <- table$month
-    resources <- table %>% extract2('UNIT')
+    resources <- table %>% extract2('resource')
     min_date <- months %>% min %>% paste0('-01') %>% as.Date()
     max_date <- months %>% max %>% paste0('-01') %>% as.Date()
     total_rows <- 
         seq(from= min_date, to=max_date, "months") %>% 
         as.character() %>% 
         str_sub(end='7') %>% 
-        CJ(month= ., UNIT=resources)
+        CJ(month= ., resource=resources)
     
     table %>% 
         full_join(total_rows) %>% 
         mutate(state = if_else(is.na(state), "", state),
                temp = state) %>% 
-        arrange(UNIT, month) %>% 
-        group_by(UNIT) %>%  
+        arrange(resource, month) %>% 
+        group_by(resource) %>%  
         mutate(prev_temp= temp %>% lag,
                first_row= row_number()==1,
                change = temp != prev_temp) %>% 
@@ -154,8 +154,8 @@ get_states <- function(exp_directory, style_config=list()){
     tasks <- 
         solution %>% 
         extract2('task') %>% 
-        bind_rows(.id = "UNIT") %>% 
-        gather(key = 'month', value = 'state', -UNIT) %>% 
+        bind_rows(.id = "resource") %>% 
+        gather(key = 'month', value = 'state', -resource) %>% 
         filter(state %>% is.na %>% not)
     
     # def_style_config = list(font_size='15px')
@@ -167,8 +167,8 @@ get_states <- function(exp_directory, style_config=list()){
     states <- 
         solution %>% 
         extract2('state') %>% 
-        bind_rows(.id = "UNIT") %>% 
-        gather(key = 'month', value = 'state', -UNIT) %>% 
+        bind_rows(.id = "resource") %>% 
+        gather(key = 'month', value = 'state', -resource) %>% 
         filter(state %>% is.na %>% not) %>% 
         bind_rows(tasks) %>% 
         collapse_states() %>% 
@@ -177,7 +177,7 @@ get_states <- function(exp_directory, style_config=list()){
                style= sprintf("background-color:%s;border-color:%s;font-size: %s", color, color, font_size),
                content = if_else(state=='M', 'M', sprintf('%s (%sh)', state, hours))
         ) %>% 
-        select(id, start= month, end= post_month, content, group= UNIT, style)
+        rename(start= month, end= post_month, group= resource)
     states
 }
 

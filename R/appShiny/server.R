@@ -39,8 +39,6 @@ shinyServer(function(input, output, clientData, session) {
     observe({
         output$timevis1 <- renderTimevis(timevis_from_states(states(), height = 500))
     })
-    
-
         
     observe({
         id_selected <- input$timevis1_selected
