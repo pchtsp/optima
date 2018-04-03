@@ -4,7 +4,8 @@ author: "Franco Peschiera"
 # date: "`r format(Sys.time(), "%Y-%m-%d")`"
 output:
   slidy_presentation:
-    css: ./../../css/baobab.css
+    css: ./../../css/baobab_slidy.css
+    # css: ./../../css/baobab.css
     incremental: yes
   beamer_presentation:
     incremental: yes
@@ -15,17 +16,14 @@ bibliography: MFMP.bib
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 setwd("../")
-source('scripts/params.R')
-source('scripts/import_results.R')
-source('diagrams/cases.R')
-source("diagrams/architecture.R")
-source("diagrams/functionalities.R")
-source('diagrams/exampleDT.R')
-source('diagrams/gantt_tasks.R')
+source('functions/params.R')
+source('functions/import_results.R')
+source('functions/exampleDT.R')
+source('functions/gantt_tasks.R')
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
 exp_directory2 = PATHS[['experiments']] %>% paste0('201802061201/')
 gantt <- print_solution(exp_directory, max_resources = 10, width="100%", height="500px")
-gantt_tasks <- print_tasks(exp_directory2, width="100%", height="200px", max_tasks = 5)
+# gantt_tasks <- print_tasks(exp_directory2, width="100%", height="200px", max_tasks = 5)
 graphs_rem <- graph_remaining(exp_directory)
 table_rem <- table_remaining(exp_directory)
 html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html')
@@ -56,7 +54,7 @@ html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html
 
 ```{r, echo=FALSE, out.width='90%'}
 if (html_output){
-    gantt_tasks
+    gantt
 } else {
     knitr::include_graphics('../../img/tasks_gantt.png')
 }
@@ -66,21 +64,12 @@ if (html_output){
 
 # Exemple (2)
 
-<!-- <style> -->
-<!--   .col2 { -->
-<!--     columns: 2 200px;         /* number of columns and width in pixels*/ -->
-<!--     -webkit-columns: 2 200px; /* chrome, safari */ -->
-<!--     -moz-columns: 2 200px;    /* firefox */ -->
-<!--   } -->
-<!-- </style> -->
-
-<!-- <div class="col2"> -->
 <!-- ![Maintenances](./../../img/maintenances.png) -->
 ```{r, echo=FALSE, out.width='70%'}
 
 if (html_output){
-    graph_architecture()
-    
+    # graph_architecture()
+    knitr::include_graphics('../../img/maintenances.png')
 } else {
     knitr::include_graphics('../../img/maintenances.png')
 }
@@ -91,8 +80,8 @@ if (html_output){
 ```{r, echo=FALSE, out.width='70%'}
 
 if (html_output){
-    graph_architecture()
-    
+    # graph_architecture()
+    knitr::include_graphics('../../img/unavailable.png')
 } else {
     knitr::include_graphics('../../img/unavailable.png')
 }
