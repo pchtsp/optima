@@ -39,8 +39,8 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 setwd("../")
-source('scripts/params.R')
-source('scripts/import_results.R')
+source('functions/params.R')
+source('functions/import_results.R')
 source('diagrams/cases.R')
 source("diagrams/architecture.R")
 source("diagrams/functionalities.R")

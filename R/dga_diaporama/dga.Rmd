@@ -3,10 +3,10 @@ title: "Plannification de maintenances des aéronefs militaires"
 author: "Franco Peschiera"
 # date: "`r format(Sys.time(), "%Y-%m-%d")`"
 output:
-  beamer_presentation:
-    incremental: yes
   slidy_presentation:
     css: ./../../css/baobab.css
+    incremental: yes
+  beamer_presentation:
     incremental: yes
 nocite: '@*'
 bibliography: MFMP.bib
@@ -14,11 +14,25 @@ bibliography: MFMP.bib
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+setwd("../")
+source('scripts/params.R')
+source('scripts/import_results.R')
+source('diagrams/cases.R')
+source("diagrams/architecture.R")
+source("diagrams/functionalities.R")
+source('diagrams/exampleDT.R')
+source('diagrams/gantt_tasks.R')
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+exp_directory2 = PATHS[['experiments']] %>% paste0('201802061201/')
+gantt <- print_solution(exp_directory, max_resources = 10, width="100%", height="500px")
+gantt_tasks <- print_tasks(exp_directory2, width="100%", height="200px", max_tasks = 5)
+graphs_rem <- graph_remaining(exp_directory)
+table_rem <- table_remaining(exp_directory)
+html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html')
 ```
 
 # Qui suis-je
 
-* Péruvien et français.
 * Ingénieur Industriel de l'Universidad Politecnica de Madrid.
 * Passionné par les mathématiques appliqués et l'informatique.
 * Fondé et travaillé dans une entreprise de conseil en optimisation et recherche opérationnelle à Madrid pendant les 7 derniers années.
@@ -36,13 +50,18 @@ knitr::opts_chunk$set(echo = FALSE)
 
 * Fait partie de la recherche opérationnelle: mathématiques dédiées à résoudre des problèmes complexes de l'industrie.
 * Un problème d'affectation des missions et planification des maintenances des aéronefs militaires.
-* Résolu par techniques comme PLNE, méta-heuristiques ou heuristiques.
+* Résolu par techniques comme PLNE, méta-heuristiques ou heuristiques. Ou une combinaison des trois.
 
 # Exemple
 
-![Maintenances](./../../img/calendar.png)
+```{r, echo=FALSE, out.width='90%'}
+if (html_output){
+    gantt_tasks
+} else {
+    knitr::include_graphics('../../img/tasks_gantt.png')
+}
+```
 ```{r echo=FALSE}
-#htmltools::includeHTML("./../../img/calendar.html")
 ```
 
 # Exemple (2)
@@ -56,15 +75,28 @@ knitr::opts_chunk$set(echo = FALSE)
 <!-- </style> -->
 
 <!-- <div class="col2"> -->
-![Maintenances](./../../img/maintenances.png)
+<!-- ![Maintenances](./../../img/maintenances.png) -->
+```{r, echo=FALSE, out.width='70%'}
+
+if (html_output){
+    graph_architecture()
+    
+} else {
+    knitr::include_graphics('../../img/maintenances.png')
+}
+```
 
 # Exemple (3)
-![Affectations](./../../img/unavailable.png)
-```{r echo=FALSE}
-# htmltools::includeHTML("./../../img/maintenances.html")
-# htmltools::includeHTML("./../../img/unavailable.html")
+<!-- ![Affectations](./../../img/unavailable.png) -->
+```{r, echo=FALSE, out.width='70%'}
+
+if (html_output){
+    graph_architecture()
+    
+} else {
+    knitr::include_graphics('../../img/unavailable.png')
+}
 ```
-<!-- </div> -->
 
 
 # A quoi ça sert
@@ -77,7 +109,7 @@ knitr::opts_chunk$set(echo = FALSE)
 
 * Ces types de problèmes sont difficiles à résoudre.
 * Domaine scientifique: l'optimisation combinatoire.
-* Pour trouver des bonnes solutions aux problèmes il faut souvent chercher la structure du problème, sa complexité et ses similitudes / differences avec d'autres problèmes.
+* Pour trouver des bonnes solutions aux problèmes il faut souvent chercher la structure du problème, sa complexité et ses similitudes / différences avec d'autres problèmes.
 
 <!-- # Etat de l'art -->
 
