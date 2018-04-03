@@ -5,6 +5,7 @@ FP-edited
 *.sol
 *.xml
 *.lp
+*.mps
 
 ###################
 # R
