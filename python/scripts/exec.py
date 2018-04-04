@@ -4,64 +4,59 @@ import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.model as md
-import package.params as params
-
-# import package.model as md
-# import multiprocessing as multi
-# import datetime
-
+import importlib
+import argparse
 
 if __name__ == "__main__":
 
-    input_file = params.PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
-    model_data = di.get_model_data(input_file)
-    historic_data = di.generate_solution_from_source()
+    parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
+    parser.add_argument('-c', dest='file', default="package.params",
+                        help='config file (default: package.params)')
+
+    args = parser.parse_args()
+    # if not os.path.exists(args.file):
+    #     raise FileNotFoundError("{} was not found".format(args.file))
+
+    print('Using config file in {}'.format(args.file))
+    params = importlib.import_module(args.file)
+    # import package.params as params
+
+    model_data = di.get_model_data(params.PATHS['input'])
+    historic_data = di.generate_solution_from_source(params.PATHS['hist'])
     model_data = di.combine_data_states(model_data, historic_data)
 
-    # this is for testing purposes:
-    num_start_period = 0
-    num_max_periods = 60
+    num_start_period = params.OPTIONS.get('start_pos', 0)
+    default_months = \
+        aux.get_months(
+            model_data['parameters']['start'],
+            model_data['parameters']['end']
+        )
+    num_max_periods = params.OPTIONS.get('end_pos', default_months)
+
     model_data['parameters']['start'] = \
         aux.shift_month(model_data['parameters']['start'], num_start_period)
     model_data['parameters']['end'] = \
         aux.shift_month(model_data['parameters']['start'], num_max_periods)
-    # black_list = []
-    white_list = []
-    # white_list = ['O1', 'O5']
-    black_list = ['O10', 'O8', 'O6']
-    # black_list = ['O10', 'O8']
-    # black_list = ['O8']  # this task has less candidates than what it asks.
+
+    white_list = params.OPTIONS.get('white_list', [])
+    black_list = params.OPTIONS.get('black_list', [])
+
     if len(black_list) > 0:
         model_data['tasks'] = \
             {k: v for k, v in model_data['tasks'].items() if k not in black_list}
     if len(white_list) > 0:
         model_data['tasks'] = \
             {k: v for k, v in model_data['tasks'].items() if k in white_list}
-    # this was for testing purposes
 
     instance = inst.Instance(model_data)
-    # num_res = instance.get_tasks('num_resource')
-    # candidates = aux.dict_filter(instance.get_task_candidates(), white_list)
-    # candidates = [c for k, l in candidates.items() for c in l[:num_res[k]+15]]
-    # candidates = list(np.unique(candidates))
-    # # candidates = list(candidates[:len(candidates)//3])
-    # instance.data['resources'] = aux.dict_filter(instance.data['resources'], candidates)
-    # instance.data['parameters']['maint_capacity'] /= 3
 
-    options = {
-        'timeLimit': 3600*5
-        , 'gap': 0
-        , 'solver': "CHOCO"
-        , 'path':
-            os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
-        # , 'path_solver': params.PATHS['choco']
-        , 'integer': True
-    }
+    options = params.OPTIONS
+    output_path = options['path']
 
-    di.export_data(options['path'], instance.data, name="data_in", file_type='json')
-    di.export_data(options['path'], options, name="options", file_type='json')
+    di.export_data(output_path, instance.data, name="data_in", file_type='json')
+    di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
     solution = md.solve_model(instance, options)
     if solution is not None:
-        di.export_data(options['path'], solution.data, name="data_out", file_type='json')
+        di.export_data(output_path, solution.data, name="data_out", file_type='json')
