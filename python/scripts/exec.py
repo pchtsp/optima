@@ -1,9 +1,11 @@
+import os, sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.model as md
 import package.params as params
-import os
+
 # import package.model as md
 # import multiprocessing as multi
 # import datetime
