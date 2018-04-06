@@ -1,13 +1,20 @@
 ---
 title: "Plannification de maintenances des aéronefs militaires"
 author: "Franco Peschiera"
-# date: "`r format(Sys.time(), "%Y-%m-%d")`"
+date: "17 avril, 2018"
 output:
+  beamer_presentation:
+    theme: "Berlin"
+    # toc: true
+    slide_level: 1
+    incremental: yes
+    fig_height: 4
+    # footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    includes:
+        in_header: header.tex
   slidy_presentation:
     css: ./../../css/baobab_slidy.css
     # css: ./../../css/baobab.css
-    incremental: yes
-  beamer_presentation:
     incremental: yes
 nocite: '@*'
 bibliography: MFMP.bib
@@ -56,7 +63,7 @@ html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html
 if (html_output){
     gantt
 } else {
-    knitr::include_graphics('../../img/tasks_gantt.png')
+    knitr::include_graphics('../../img/calendar2.png')
 }
 ```
 ```{r echo=FALSE}
