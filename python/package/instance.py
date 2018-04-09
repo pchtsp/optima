@@ -167,6 +167,7 @@ class Instance(object):
         ,'t1_at2'           :  t1_at2
         ,'at1_t2'           :  at1_t2
         ,'t2_at1'           :  t2_at1
+        ,'at_free'          :  at_free
         }
 
     def get_initial_state(self, time_type):

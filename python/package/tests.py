@@ -89,6 +89,8 @@ class Experiment(object):
 
         return task_under_assigned
 
+    # TODO: check fixed maintenance
+
     def check_resource_in_candidates(self):
         # task_data = self.instance.get_tasks()
         task_solution = self.solution.get_tasks()

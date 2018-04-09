@@ -7,6 +7,8 @@ click==6.7
 cx-Freeze==5.1.1
 cycler==0.10.0
 decorator==4.1.2
+docloud==1.0.277
+docplex==2.5.92
 et-xmlfile==1.0.1
 Flask==0.12.2
 ggplot==0.11.5

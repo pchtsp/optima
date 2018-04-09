@@ -1,10 +1,6 @@
 import pulp as pl
 import package.auxiliar as aux
-import package.data_input as di
 import package.config as conf
-import numpy as np
-import package.tests as test
-import package.instance as inst
 import package.solution as sol
 
 

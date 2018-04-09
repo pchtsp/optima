@@ -20,7 +20,7 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 OPTIONS = {
     'timeLimit': 200
     , 'gap': 0
-    , 'solver': "CPLEX"
+    , 'solver': "CPO"
     , 'integer': False
     , 'black_list': ['O8']
     , 'start_pos': 0
