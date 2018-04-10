@@ -18,13 +18,13 @@ PATHS['input'] = PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
 PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
 OPTIONS = {
-    'timeLimit': 200
+    'timeLimit': 600
     , 'gap': 0
     , 'solver': "CPO"
     , 'integer': False
-    , 'black_list': ['O8']
+    , 'black_list': ['O8', 'O10', 'O6']
     , 'start_pos': 0
-    , 'end_pos': 10
+    , 'end_pos': 40
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")

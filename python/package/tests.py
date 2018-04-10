@@ -63,7 +63,8 @@ class Experiment(object):
             ,'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
             ,'resources':   self.check_task_num_resources
-            ,'usage':       self.check_resource_consumption
+            ,'usage':       self.check_resource_consumption('rut')
+            ,'calendar':    self.check_resource_consumption('ret')
             ,'capacity':    self.check_maintenance_capacity
         }
         result = {k: v() for k, v in func_list.items()}
@@ -204,10 +205,10 @@ class Experiment(object):
 
         return self.solution.data['aux'][time]
 
-    def check_resource_consumption(self):
-        rut = self.set_remaining_usage_time()
-        rut_tup = aux.dictdict_to_dictup(rut)
-        return {k: v for k, v in rut_tup.items() if v < 0}
+    def check_resource_consumption(self, time='rut'):
+        rt = self.set_remaining_usage_time(time)
+        rt_tup = aux.dictdict_to_dictup(rt)
+        return {k: v for k, v in rt_tup.items() if v < 0}
 
     def check_resource_state(self):
         task_solution = self.solution.get_tasks()

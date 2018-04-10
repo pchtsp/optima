@@ -14,7 +14,7 @@ def solve_model(instance, options=None):
     last_period = instance.get_param('end')
     first_period = instance.get_param('start')
     # last_period_lessM = aux.shift_month(last_period, -instance.get_param('maint_duration'))
-    consumption = instance.get_tasks('consumption')
+    consumption = {k: round(v) for k, v in instance.get_tasks('consumption').items()}
     requirement = instance.get_tasks('num_resource')
     ret_init = instance.get_initial_state("elapsed")
     rut_init = instance.get_initial_state("used")
@@ -63,33 +63,37 @@ def solve_model(instance, options=None):
     # integer:
     state_at = [(a, pe_i[t]) for a, t in l['at_avail']]
     start_at = [(a, pe_i[t]) for a, t in l['at_start']]
-    state = model.integer_var_dict(keys=state_at, name="state", domain=list(st.keys()))
-    # task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
-    start = model.binary_var_dict(name="start", keys=start_at)
-
     rt_at0 = [(a, pe_i[t]) for a, t in l['at0']]
+
+    state = {}
+    for (a, t) in state_at:
+        domain = [st_i[st] for st in l['v_at'][a, pe[t]] + ['M', 'D']]
+        state[a, t] = model.integer_var(name="state", domain=domain)
+    start = model.binary_var_dict(name="start", keys=start_at)
+    # consum = model.integer_var_dict(name="consum", keys=st.keys())
+
     # numeric:
     ret = model.integer_var_dict(name="ret", min=0, max=ub['ret'], keys=rt_at0)
     rut = model.integer_var_dict(name="rut", min=0, max=ub['rut'], keys=rt_at0)
-    # ret = pl.LpVariable.dicts(name="ret", indexs=l['at0'], lowBound=0, upBound=ub['ret'], cat=var_type)
-    # rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
     # objective function:
     num_maint = model.integer_var(name="num_maint", min=0, max=ub['num_maint'])
     ret_obj_var = model.integer_var(name="ret_obj_var", min=0, max=ub['ret_end'])
     rut_obj_var = model.integer_var(name="rut_obj_var", min=0, max=ub['rut_end'])
-    # ret_obj_var = pl.LpVariable(name="ret_obj_var", lowBound=0, upBound=ub['ret_end'], cat=var_type)
-    # rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
     # OBJECTIVE:
     model.minimize(num_maint * max_elapsed * 2 -
                    ret_obj_var -
                    rut_obj_var * max_elapsed / max_usage)
 
-    # TODO: planned maintenances. Not sure if I need to take them into account
     # TODO: Model with interval variables; we would use interval.start_of
     # TODO: Model with step_at for hours and months
     # CONSTRAINTS:
+
+    # # consum initialize:
+    # for st1 in st.keys():
+    #     model.add(consum[st1] == round(consumption.get(st[st1], 0)))
+
     # num resources:
     for (v, t), a_s in l['a_vt'].items():
         model.add(sum(state[a, pe_i[t]] == st_i[v] for a in a_s) == requirement[v])
@@ -136,7 +140,7 @@ def solve_model(instance, options=None):
         # rut
         model.add(
             model.if_then(state_ != st_i['M'],
-                          rut_ == (rut[at_prev_pe] - round(consumption.get(state_, 0)))
+                          rut_ == (rut[at_prev_pe] - consumption.get(state_, 0))
                           )
         )
         model.add(
@@ -175,8 +179,8 @@ def solve_model(instance, options=None):
         #          num_resource_maint[t] <= maint_capacity
 
     # calculate the rem and ret:
-    model.add(sum(ret[(a, last_period_pe)] for a in l['resources']) == ret_obj_var)
-    model.add(sum(rut[(a, last_period_pe)] for a in l['resources']) == rut_obj_var)
+    model.add(sum(ret[a, last_period_pe] for a in l['resources']) == ret_obj_var)
+    model.add(sum(rut[a, last_period_pe] for a in l['resources']) == rut_obj_var)
 
     # SOLVING
     result = model.solve(TimeLimit=options.get('timeLimit', 300))
