@@ -3,7 +3,6 @@ import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
 
-
 ######################################################
 # TODO: add minimum mission duration assignment
 # TODO: contraintes les posibilités des candidates: maximum X candidates par task ou par resource
@@ -32,10 +31,16 @@ def solve_model(instance, options=None):
     max_usage = instance.get_param('max_used_time')
     min_percent = 0.10
     min_value = 1
-    si = {k: v for k, v in enumerate(instance.get_tasks().keys())}
-    si[len(si)] = 'M'
-    si[len(si)] = 'D'  # doing nothing
-    si_inv = {v: k for k, v in si.items()}
+    st = {k: v for k, v in enumerate(instance.get_tasks().keys())}
+    st[len(st)] = 'M'
+    st[len(st)] = 'D'  # doing nothing
+    st_i = {v: k for k, v in st.items()}
+
+    pe = {k+1: v for k, v in enumerate(instance.get_periods())}
+    period_0_pe = 0
+    pe[period_0_pe] = l['period_0']
+    pe_i = {v: k for k, v in pe.items()}
+    last_period_pe = pe_i[last_period]
 
     c_needs = instance.get_cluster_needs()
     c_candidates = instance.get_cluster_candidates()
@@ -49,26 +54,30 @@ def solve_model(instance, options=None):
             min_value)
         ) for (k, t) in c_slack
     }
+    fixed_state = {tup: st_i['M'] for tup in l['at_maint']}
 
     # MODEL
     model = doc.CpoModel()
 
     # VARIABLES:
     # integer:
-    state = model.integer_var_dict(keys=l['at_free'], name="state", domain=list(si.keys()))
+    state_at = [(a, pe_i[t]) for a, t in l['at_avail']]
+    start_at = [(a, pe_i[t]) for a, t in l['at_start']]
+    state = model.integer_var_dict(keys=state_at, name="state", domain=list(st.keys()))
     # task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
-    # start = pl.LpVariable.dicts(name="start", indexs=l['at_start'], lowBound=0, upBound=1, cat=pl.LpInteger)
+    start = model.binary_var_dict(name="start", keys=start_at)
 
+    rt_at0 = [(a, pe_i[t]) for a, t in l['at0']]
     # numeric:
-    ret = model.integer_var_dict(name="ret", min=0, max=round(ub['ret']), keys=l['at0'])
-    rut = model.integer_var_dict(name="rut", min=0, max=round(ub['rut']), keys=l['at0'])
+    ret = model.integer_var_dict(name="ret", min=0, max=ub['ret'], keys=rt_at0)
+    rut = model.integer_var_dict(name="rut", min=0, max=ub['rut'], keys=rt_at0)
     # ret = pl.LpVariable.dicts(name="ret", indexs=l['at0'], lowBound=0, upBound=ub['ret'], cat=var_type)
     # rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
     # objective function:
     num_maint = model.integer_var(name="num_maint", min=0, max=ub['num_maint'])
-    ret_obj_var = model.integer_var(name="ret_obj_var", min=0, max=round(ub['ret_end']))
-    rut_obj_var = model.integer_var(name="rut_obj_var", min=0, max=round(ub['rut_end']))
+    ret_obj_var = model.integer_var(name="ret_obj_var", min=0, max=ub['ret_end'])
+    rut_obj_var = model.integer_var(name="rut_obj_var", min=0, max=ub['rut_end'])
     # ret_obj_var = pl.LpVariable(name="ret_obj_var", lowBound=0, upBound=ub['ret_end'], cat=var_type)
     # rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
@@ -77,51 +86,75 @@ def solve_model(instance, options=None):
                    ret_obj_var -
                    rut_obj_var * max_elapsed / max_usage)
 
-    # TODO: planned maintenances.
-    # TODO: maintenance lasts 6 periods
-    # TODO: model start of maintenance in a separate variable
+    # TODO: planned maintenances. Not sure if I need to take them into account
+    # TODO: Model with interval variables; we would use interval.start_of
+    # TODO: Model with step_at for hours and months
     # CONSTRAINTS:
     # num resources:
     for (v, t), a_s in l['a_vt'].items():
-        model.add(sum(state[a, t] == si_inv[v] for a in a_s) == requirement[v])
+        model.add(sum(state[a, pe_i[t]] == st_i[v] for a in a_s) == requirement[v])
         # model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
+
+    for a, t in l['at_start']:
+        # start
+        # we start a maintenance if we have a maintenance assignment and we didn't before.
+        at_prev = a, l["previous"][t]
+        at_prev_pe = a, pe_i[l["previous"][t]]
+        at_pe = a, pe_i[t]
+
+        if t == first_period or at_prev in fixed_state:
+            model.add(start[at_pe] == (state[at_pe] == st_i['M']))
+        else:
+            model.add(start[at_pe] ==
+                      ((state[at_pe] == st_i['M']) & (state[at_prev_pe] != st_i['M']))
+                      )
+
+        # if we start a maintenance=> we have the following states as maintenances too
+        model.add(
+            model.if_then(start[at_pe] == 1,
+                          model.all([state[a, pe_i[t2]] == st_i['M'] for t2 in l['t2_at1'][a, t]])
+                          )
+        )
 
     # remaining used time calculations:
     # remaining elapsed time calculations:
-    for (a, t) in l['at_free']:
-        if t == first_period:
-            continue
+    for (a, t) in l['at']:
+        # at_prev = a, l["previous"][t]
+        at_prev_pe = a, pe_i[l["previous"][t]]
+        at_pe = a, pe_i[t]
+        state_ = state.get(at_pe, st_i['D'])
+        ret_ = ret[at_pe]
+        rut_ = rut[at_pe]
+
         # ret
         model.add(
-            model.if_then((state[a, t] != si_inv['M']) | (state[a, l["previous"][t]] == si_inv['M']),
-                          ret[a, t] == ret[a, l["previous"][t]] - 1)
+            model.if_then(state_ != st_i['M'], ret_ == (ret[at_prev_pe] - 1))
         )
         model.add(
-            model.if_then((state[a, t] == si_inv['M']) & (state[a, l["previous"][t]] != si_inv['M']),
-                          ret[a, t] == ub['ret'])
+            model.if_then(state_ == st_i['M'], ret_ == ub['ret'])
         )
         # rut
         model.add(
-            model.if_then(state[a, t] != si_inv['M'],
-                          rut[a, t] == rut[(a, l["previous"][t])] - consumption.get(state[a, t], 0))
+            model.if_then(state_ != st_i['M'],
+                          rut_ == (rut[at_prev_pe] - round(consumption.get(state_, 0)))
+                          )
         )
         model.add(
-            model.if_then(state[a, t] == si_inv['M'], ret[a, t] == ub['rut'])
+            model.if_then(state_ == st_i['M'], rut_ == ub['rut'])
         )
-
 
     # the start period is given by parameters:
     for a in l['resources']:
-        model.add(rut[(a, l['period_0'])] == round(rut_init[a]))
-        model.add(ret[(a, l['period_0'])] == round(ret_init[a]))
+        model.add(rut[(a, period_0_pe)] == round(rut_init[a]))
+        model.add(ret[(a, period_0_pe)] == round(ret_init[a]))
 
     # minimum availability per cluster and period
     for k, t in c_needs:
         model.add(
-            sum(state[(a, t)] == si_inv['M'] for a in c_candidates[k] if (a, t) in l['at_free']) +
+            sum(state[a, pe_i[t]] == st_i['M'] for a in c_candidates[k] if (a, t) in l['at_avail']) +
             c_needs[(k, t)] +
             c_min[(k, t)] +
-            num_resource_maint_cluster.get((k, t), 0) \
+            num_resource_maint_cluster.get((k, t), 0)
             <= c_num_candidates[k]
         )
         # maintenances decided by the model to candidates +
@@ -130,18 +163,20 @@ def solve_model(instance, options=None):
         # <= resources already in maintenance
 
     # count the number of maintenances:
-    model.add(num_maint == sum(state[(a, t)] == si_inv['M'] for (a, t) in l['at_free']))
+    model.add(num_maint == sum(state[a, pe_i[t]] == st_i['M'] for (a, t) in l['at_avail']))
 
     # max number of maintenances:
     for t in l['periods']:
-        model.add(sum(state[(a, t)] == si_inv['M'] for a in l['resources']
-                      if (a, t) in l['at_free']) <= maint_capacity)
+        model.add(
+            sum(state[a, pe_i[t]] == st_i['M'] for a in l['resources']
+                if (a, t) in l['at_avail']) + num_resource_maint[t] <= maint_capacity
+        )
         # model += pl.lpSum(start[(a, _t)] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
         #          num_resource_maint[t] <= maint_capacity
 
     # calculate the rem and ret:
-    model.add(sum(ret[(a, last_period)] for a in l['resources']) == ret_obj_var)
-    model.add(sum(rut[(a, last_period)] for a in l['resources']) == rut_obj_var)
+    model.add(sum(ret[(a, last_period_pe)] for a in l['resources']) == ret_obj_var)
+    model.add(sum(rut[(a, last_period_pe)] for a in l['resources']) == rut_obj_var)
 
     # SOLVING
     result = model.solve(TimeLimit=options.get('timeLimit', 300))
@@ -150,14 +185,11 @@ def solve_model(instance, options=None):
         print("Model resulted in non-feasible status")
         return None
 
-    _start = {(a, t): 1 for (a, t), v in state.items()
-              if result[v] == si_inv['M'] and
-              (t == first_period or
-              result[state[a, l['previous'][t]]] != si_inv['M'])
-              }
-    _task = {k: si[result[v]] for k, v in state.items() if si[result[v]] in instance.get_tasks()}
-    _rut = {t: result[rut[t]] for t in rut}
-    _ret = {t: result[ret[t]] for t in ret}
+    _start = {(a, pe[t]): 1 for (a, t), v in start.items() if result[v] > 0.5}
+    _task = {(a, pe[t]): st[result[v]] for (a, t), v in state.items()
+             if st[result[v]] in instance.get_tasks()}
+    _rut = {(a, pe[t]): result[v] for (a, t), v in rut.items()}
+    _ret = {(a, pe[t]): result[v] for (a, t), v in ret.items()}
 
     _state = {tup: 'M' for tup in l['planned_maint']}
     _state.update({(a, t2): 'M' for (a, t) in _start for t2 in l['t2_at1'][a, t]})

@@ -65,17 +65,17 @@ class Instance(object):
         consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
         num_resources = len(self.get_resources())
         num_periods = len(self.get_periods())
-        max_num_maint = math.floor(num_resources*num_periods/param_data['maint_duration'])
+        max_num_maint = num_resources*num_periods/param_data['maint_duration']
         ret_total = max_elapsed_time*num_resources
         rut_total = max_used_time*num_resources
 
         return {
-            'ret': max_elapsed_time,
-            'rut': max_used_time,
-            'used': max(consumption.values()),
-            'num_maint': max_num_maint,
-            'ret_end': ret_total,
-            'rut_end': rut_total
+            'ret': math.floor(max_elapsed_time),
+            'rut': math.floor(max_used_time),
+            'used': math.ceil(max(consumption.values())),
+            'num_maint': math.floor(max_num_maint),
+            'ret_end': math.ceil(ret_total),
+            'rut_end': math.ceil(rut_total)
         }
 
     def get_domains_sets(self):
@@ -167,7 +167,7 @@ class Instance(object):
         ,'t1_at2'           :  t1_at2
         ,'at1_t2'           :  at1_t2
         ,'t2_at1'           :  t2_at1
-        ,'at_free'          :  at_free
+        ,'at_avail'         : list(at_free + at_mission)
         }
 
     def get_initial_state(self, time_type):
