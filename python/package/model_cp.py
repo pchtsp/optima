@@ -35,6 +35,7 @@ def solve_model(instance, options=None):
     st[len(st)] = 'M'
     st[len(st)] = 'D'  # doing nothing
     st_i = {v: k for k, v in st.items()}
+    consumption_si = [consumption.get(v, 0) for k, v in sorted(st.items(), key=lambda x: x[0])]
 
     pe = {k+1: v for k, v in enumerate(instance.get_periods())}
     period_0_pe = 0
@@ -70,7 +71,6 @@ def solve_model(instance, options=None):
         domain = [st_i[st] for st in l['v_at'][a, pe[t]] + ['M', 'D']]
         state[a, t] = model.integer_var(name="state", domain=domain)
     start = model.binary_var_dict(name="start", keys=start_at)
-    # consum = model.integer_var_dict(name="consum", keys=st.keys())
 
     # numeric:
     ret = model.integer_var_dict(name="ret", min=0, max=ub['ret'], keys=rt_at0)
@@ -90,14 +90,9 @@ def solve_model(instance, options=None):
     # TODO: Model with step_at for hours and months
     # CONSTRAINTS:
 
-    # # consum initialize:
-    # for st1 in st.keys():
-    #     model.add(consum[st1] == round(consumption.get(st[st1], 0)))
-
     # num resources:
     for (v, t), a_s in l['a_vt'].items():
         model.add(sum(state[a, pe_i[t]] == st_i[v] for a in a_s) == requirement[v])
-        # model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
 
     for a, t in l['at_start']:
         # start
@@ -140,7 +135,7 @@ def solve_model(instance, options=None):
         # rut
         model.add(
             model.if_then(state_ != st_i['M'],
-                          rut_ == (rut[at_prev_pe] - consumption.get(state_, 0))
+                          rut_ == (rut[at_prev_pe] - model.element(consumption_si, state_))
                           )
         )
         model.add(
@@ -175,8 +170,6 @@ def solve_model(instance, options=None):
             sum(state[a, pe_i[t]] == st_i['M'] for a in l['resources']
                 if (a, t) in l['at_avail']) + num_resource_maint[t] <= maint_capacity
         )
-        # model += pl.lpSum(start[(a, _t)] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
-        #          num_resource_maint[t] <= maint_capacity
 
     # calculate the rem and ret:
     model.add(sum(ret[a, last_period_pe] for a in l['resources']) == ret_obj_var)
