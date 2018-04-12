@@ -1,0 +1,219 @@
+%========================================================
+% File:         claio_paper.tex, template for CLAIO 2015 conference paper
+% Based on:     CLAIO 2014 paper template
+%========================================================
+\documentclass[letterpaper,11pt]{article}
+
+% added by Roger
+% \usepackage{psfig,epsfig}
+\usepackage{layout}
+% added by J. Vera
+\usepackage[pdftex]{graphics}  % In case you want to use PDFTeX
+\usepackage{graphicx}
+\renewcommand{\baselinestretch}{1.0}
+\usepackage{amsmath}
+\usepackage[latin1]{inputenc}
+\usepackage[frenchb,english]{babel}
+%
+%       Text dimensions.
+%       PLEASE, DO NOT CHANGE THE TEXT DIMENSIONS.
+%
+\setlength{\textwidth}{6.5in}
+\setlength{\textheight}{8.5in}
+\setlength{\oddsidemargin}{0.0in}
+\setlength{\evensidemargin}{0.0in}
+\setlength{\topmargin}{0.0in}
+\setlength{\headsep}{0.1in}
+\setlength{\headheight}{0.4in}
+
+\pagestyle{empty}
+
+%
+%  Title definition
+%
+\title{\bf MIP formulation for the optimization of maintenance planning on French military aircraft operations}
+
+\author{%
+ISAE-SUPAERO, Université de Toulouse, France\\%
+Franco Peschiera\\%
+\textit{franco.peschiera@isae-supaero}\\[3mm]
+Nicolas Dupin\\%
+\textit{nicolas.dupin@isae-supaero}\\[3mm]
+Olga Battaïa\\%
+\textit{olga.battaia@isae-supaero}\\[3mm]
+Alain Haït\\%
+\textit{alain.hait@isae-supaero}
+}
+
+\date{ }
+
+%
+%  Document starts here
+%
+\begin{document}
+
+\maketitle
+
+\thispagestyle{empty}
+
+\begin{abstract}
+
+{\em A specific Flight and Maintenance Planning problem is presented. 
+In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular missions. 
+The quality of the solutions is measured via a bi-objective function that smooths both maintenance operations and aircraft unavailability among time periods. 
+A real world dataset provided by the French Air Force is used to test an exact optimization approach based on a Mixed Integer Programming model.
+}
+\vspace{2em}
+
+\noindent\textit{Keywords:}
+optimization;
+Flight and Maintenance Planning;
+aircraft maintenance;
+Mixed Integer Programming.
+
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+    Flight and Maintenance Planning (FMP) problems are raised in civilian or military operational applications. 
+    They schedule maintenances of aircraft taking into account the implications of maintenance immobilizations for the demand in flight hours, for a conjoint optimization among maintenance dates and flight hours.
+
+    The specific FMP of this paper comes from the French Air Force's operations. It has two specificities regarding the classical FMP considered in the literature.
+    On one hand, the fleet of aircraft is heterogeneous, with different standards, capacities and retrofits.
+    On the other hand, there is a will to align two objectives: the smoothing of the maintenance operations and the minimization of the global unavailability of aircraft to be able to add new missions.
+
+    This case of the FMP has been already studied in literature in \cite{Cho2011,Chastellux2017,Kozanidis2008,Verhoeff2015,Seif2018}.
+
+    This paper investigates how to solve such new optimization problem, and how to take good compromise decisions if these objectives are antagonistic.
+
+\section{Problem Description}
+\label{sec:model}
+% TODO: make this compatible with parameters.
+
+    The problem consists in assigning military aircraft to a given set of missions while scheduling the maintenance operations over a time horizon.
+    In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $I_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
+
+    Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time. A resource cannot be used for a task $j$ if its remaining usage time is less than usage $h_j$ required by task $j$. A maintenance operation assigns to the resource exactly $H$ units of remaining usage time. The remaining usage time not used before the maintenance operation is lost. 
+
+    A maintenance operation takes exactly $m$ periods and cannot be interrupted: during this time the resource cannot be assigned to any task. Some resources can be in maintenance at the beginning of the planning horizon, $n_t$ is used for the number of aircraft in such planned maintenance per period $t$ and defined only for the first $m-1$ time periods. In the next section, we present a new mathematical model for this problem.
+
+\section{Solution Method}
+\label{sec:method}
+
+  \subsection{Sets}
+
+    \begin{tabular}{p{5mm}p{165mm}}
+
+        $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
+        $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
+        $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
+        $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
+        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. \\
+    \end{tabular}
+
+  \subsection{Parameters}
+
+    \begin{tabular}{p{8mm}p{162mm}}
+        $H_j$             & amount of resource time required by task $j$. \\
+        $R_j$             & number of resources required by task $j$. \\
+        $M$               & maintenance duration in number of periods. \\
+        $E$               & remaining elapsed time after a maintenance. \\
+        $H$               & remaining usage time after a maintenance. \\
+        $W_1$             & weight of the first objective in the objective function. \\
+        $W_2$             & weight of the second objective in the objective function. \\
+        $N_t$             & number of resources in already-planned maintenances in period $t$ at the beginning of the planning horizon.\\
+        $D_t$             & number of resources to be assigned in total in period $t$. \\
+        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
+        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
+        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
+        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. \\
+    \end{tabular}
+
+  \subsection{Variables}
+
+     The following decision variables define a solution.
+    
+    \begin{tabular}{p{8mm}p{162mm}}
+        $a_{jti}$   &  =1 if task $j \in J$ in period $t \in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
+        $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+        $ret_{it}$  &  remaining elapsed time (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+        $u_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
+        $m_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
+    \end{tabular}
+    
+
+    Note that  $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning horizon for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning horizon is used to initialize $rut_{i0}$. 
+
+  \subsection{Constraints}
+
+    The objective is to minimize the total number of maintenances done and while preserving the aircraft ready at the end of the planning period.
+
+    \begin{align}
+        & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+    \end{align}
+  
+    \begin{align}
+        % maximum capacity1:
+        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
+          & t \in \mathcal{T} \label{eq:capacity1}\\             
+       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
+        &t \in \mathcal{T} \label{eq:avalaibility1}\\                
+        & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+                & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
+        & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+    \end{align}
+
+    Maintenance capacity is controlled by (\ref{eq:capacity1}). The number of unavailable resources is defined by (\ref{eq:avalaibility1}). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task or maintenance operation at the same period.  
+    \begin{align}
+        % remaining used time
+         & rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+                & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+        & rut_{i0} = Rut^{Init}_i
+               & i \in \mathcal{I} \label{eq:rut_initial}\\
+        & rut_{it} \geq H m_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
+        & rut_{it} \in [0,H]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\
+        & ret_{it} \leq ret_{it-1} - 1 + E m_{it}
+                & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
+        & ret_{i0} = Ret^{Init}_i
+                & i \in \mathcal{I} \label{eq:ret_initial}\\
+        & ret_{it} \geq E m_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
+        & ret_{it} \in [0,E]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
+        & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
+              & t = |\mathcal{T}| \label{eq:min_ret}\\
+        & \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
+              & t = |\mathcal{T}| \label{eq:min_rut}
+    \end{align}
+        % These constraints calculate the balances of hours for each resource.
+    The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
+    Similarly, the remaining elapsed time is defined by (\ref{eq:ret_upper})-(\ref{eq:ret_initial}) and its limits by (\ref{eq:ret_lower})-(\ref{eq:me}). 
+    Finally, constraints \ref{eq:min_ret} and \ref{eq:min_rut} guarantee that resources have, globally, the same amount of remaining used and elapsed times at the beginning and at the end of the planning horizon.
+
+%
+%   Conclusions
+%
+\section{Conclusions}
+\label{sec:conclusions}
+
+  This paper proposed a new MIP formulation to address a specific FMP with an heterogeneous fleet of aircraft.
+  Two objective functions were chosen to address the French Air Force requirements.
+  The first one was to smooth maintenance operations and the second one was to increase aircraft availability.
+  The characteristics of MIP convergence were analyzed on real-world instances.
+  Mono-objective problem instances were solved to optimality for medium size instances. For larger instances, difficulties in finding optimal solutions occurred because of multiple symmetries and a poor quality of MIP generic primal heuristics.
+
+  The first perspective is to improve the resolution of large size instances. Heuristics could be implemented, but also mathematical programming can be improved with symmetry breaking or MIP reformulations. A matheuristic method derived from the existing MIP formulation can also be used to improve the performance.
+
+  Lastly, additional constraints from the real world application can be incorporated in the model.
+
+%
+%   References
+%
+\bibliographystyle{plain}
+\bibliography{./../biblio/MFMP}
+\end{document}
