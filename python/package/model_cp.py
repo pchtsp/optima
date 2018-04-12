@@ -13,31 +13,29 @@ def solve_model(instance, options=None):
     ub = instance.get_bounds()
     last_period = instance.get_param('end')
     first_period = instance.get_param('start')
-    # last_period_lessM = aux.shift_month(last_period, -instance.get_param('maint_duration'))
     consumption = {k: round(v) for k, v in instance.get_tasks('consumption').items()}
     requirement = instance.get_tasks('num_resource')
     ret_init = instance.get_initial_state("elapsed")
     rut_init = instance.get_initial_state("used")
-    # ret_obj = sum(ret_init[a] for a in l['resources'])
-    # rut_obj = sum(rut_init[a] for a in l['resources'])
-    # num_resource_working = instance.get_total_period_needs()
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
     num_resource_maint_cluster = aux.dict_to_lendict(instance.get_fixed_maintenances_cluster())
-    # instance.get_total_fixed_maintenances()
-    # maint_weight = instance.get_param("maint_weight")
-    # unavail_weight = instance.get_param("unavail_weight")
     maint_capacity = instance.get_param('maint_capacity')
     max_elapsed = instance.get_param('max_elapsed_time')
     max_usage = instance.get_param('max_used_time')
     min_percent = 0.10
     min_value = 1
-    st = {k: v for k, v in enumerate(instance.get_tasks().keys())}
+    st = {k: v for k, v in enumerate(l['tasks'])}
+    st_tasks = list(st.keys())
     st[len(st)] = 'M'
     st[len(st)] = 'D'  # doing nothing
     st_i = {v: k for k, v in st.items()}
-    consumption_si = [consumption.get(v, 0) for k, v in sorted(st.items(), key=lambda x: x[0])]
+    states_eq_sorted = sorted(st.items(), key=lambda x: x[0])
+    consumption_si = [consumption.get(v, 0) for k, v in states_eq_sorted]
+    requirement_si = [requirement.get(v, 0) for k, v in states_eq_sorted]
 
-    pe = {k+1: v for k, v in enumerate(instance.get_periods())}
+        # {st_i[k]: v for k, v in requirement.items()}
+
+    pe = {k+1: v for k, v in enumerate(l['periods'])}
     period_0_pe = 0
     pe[period_0_pe] = l['period_0']
     pe_i = {v: k for k, v in pe.items()}
@@ -88,11 +86,24 @@ def solve_model(instance, options=None):
 
     # TODO: Model with interval variables; we would use interval.start_of
     # TODO: Model with step_at for hours and months
+    # cash = step_at(0, 0)
+    # for p in Houses:
+    #     cash += mdl4.step_at(60 * p, 30000)
+    # for h in Houses:
+    #     for i, t in enumerate(TaskNames):
+    #         cash -= mdl4.step_at_start(itvs[h, t], 200 * Duration[i])
     # CONSTRAINTS:
 
     # num resources:
-    for (v, t), a_s in l['a_vt'].items():
-        model.add(sum(state[a, pe_i[t]] == st_i[v] for a in a_s) == requirement[v])
+
+    for t in l['periods']:
+        active_tasks = [st_i[v] for v in l['tasks'] if (v, t) in l['vt']]
+        model.distribute(counts=requirement_si,
+                         exprs=list(state.values()),
+                         values=active_tasks)
+
+    # for (v, t), a_s in l['a_vt'].items():
+    #     model.add(sum(state[a, pe_i[t]] == st_i[v] for a in a_s) == requirement[v])
 
     for a, t in l['at_start']:
         # start
