@@ -27,6 +27,7 @@ def solve_model(instance, options=None):
     # maint_weight = instance.get_param("maint_weight")
     # unavail_weight = instance.get_param("unavail_weight")
     maint_capacity = instance.get_param('maint_capacity')
+    maint_duration = instance.get_param('maint_duration')
     max_elapsed = instance.get_param('max_elapsed_time')
     max_usage = instance.get_param('max_used_time')
     min_percent = 0.10
@@ -72,6 +73,10 @@ def solve_model(instance, options=None):
              ret_obj_var - \
              rut_obj_var * max_elapsed / max_usage
 
+    # To try Kozanidis objective function:
+    # we sum the rut for all periods (we take out the periods under maintenance)
+    # model += - sum(rut[tup] for tup in rut) + num_maint * max_usage * maint_duration
+
     # CONSTRAINTS:
 
     # num resources:
@@ -79,22 +84,24 @@ def solve_model(instance, options=None):
         model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
     # max one task per period or no-task state:
     # TODO: it is possible that there are no possible tasks but maintenances (domains)
-    for (a, t) in l['v_at']:
-        if len(l['v_at'][(a, t)]) + len(l['t1_at2'][(a, t)]) > 0:
-            model += pl.lpSum(task[(a, v, t)] for v in l['v_at'][(a, t)]) + \
-                     pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][(a, t)] if (a, _t) in l['at_start']) + \
-                     ((a, t) in l['at_maint']) <= 1
+    for at in l['v_at']:
+        a, t = at
+        if len(l['v_at'][at]) + len(l['t1_at2'][at]) > 0:
+            model += pl.lpSum(task[(a, v, t)] for v in l['v_at'][at]) + \
+                     pl.lpSum(start[(a, _t)] for _t in l['t1_at2'][at] if (a, _t) in l['at_start']) + \
+                     (at in l['at_maint']) <= 1
 
     # remaining used time calculations:
     # remaining elapsed time calculations:
-    for (a, t) in l['at']:
-        model += rut[(a, t)] <= rut[(a, l["previous"][t])] - \
-                                pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'].get((a, t), [])) + \
-                                ub['rut'] * start.get((a, t), 0)
-        model += ret[(a, t)] <= ret[(a, l["previous"][t])] - 1 + \
-                                ub['ret'] * start.get((a, t), 0)
-        model += rut[(a, t)] >= ub['rut'] * start.get((a, t), 0)
-        model += ret[(a, t)] >= ub['ret'] * start.get((a, t), 0)
+    for at in l['at']:
+        a, t = at
+        model += rut[at] <= rut[(a, l["previous"][t])] - \
+                                pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'].get(at, [])) + \
+                                ub['rut'] * start.get(at, 0)
+        model += ret[at] <= ret[(a, l["previous"][t])] - 1 + \
+                                ub['ret'] * start.get(at, 0)
+        model += rut[at] >= ub['rut'] * start.get(at, 0)
+        model += ret[at] >= ub['ret'] * start.get(at, 0)
 
     # the start period is given by parameters:
     for a in l['resources']:

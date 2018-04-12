@@ -63,8 +63,8 @@ class Experiment(object):
             ,'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
             ,'resources':   self.check_task_num_resources
-            ,'usage':       self.check_resource_consumption('rut')
-            ,'calendar':    self.check_resource_consumption('ret')
+            ,'usage':       self.check_usage_consumption
+            ,'elapsed':    self.check_elapsed_consumption
             ,'capacity':    self.check_maintenance_capacity
         }
         result = {k: v() for k, v in func_list.items()}
@@ -205,6 +205,12 @@ class Experiment(object):
 
         return self.solution.data['aux'][time]
 
+    def check_usage_consumption(self):
+        return self.check_resource_consumption(time='rut')
+
+    def check_elapsed_consumption(self):
+        return self.check_resource_consumption(time='ret')
+
     def check_resource_consumption(self, time='rut'):
         rt = self.set_remaining_usage_time(time)
         rt_tup = aux.dictdict_to_dictup(rt)
@@ -274,7 +280,8 @@ def clean_experiments(path, clean=True, regex=""):
     """
     loads and cleans all experiments that are incomplete
     :param path: path to experiments
-    :param clean: if set to false it only does not delete them
+    :param clean: if set to false it only shows the files instead of deleting them
+    :param regex: optional regex filter
     :return: deleted experiments
     """
     exps_paths = [os.path.join(path, f) for f in os.listdir(path)
@@ -284,8 +291,6 @@ def clean_experiments(path, clean=True, regex=""):
     to_delete = []
     for e in exps_paths:
         exp = Experiment.from_dir(e, format="json")
-        if exp is None:
-            exp = Experiment.from_dir(e, format="pickle")
         to_delete.append(exp is None)
     exps_to_delete = np.array(exps_paths)[to_delete]
     if clean:
@@ -332,72 +337,4 @@ def list_experiments(path):
 
 
 if __name__ == "__main__":
-    path_abs = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/"
-    path_states = path_abs + "201712190002/"
-    path_nostates = path_abs + "201712182321/"
-
-    sol_states = Experiment.from_dir(path_states)
-    sol_nostates = Experiment.from_dir(path_nostates)
-
-    t = aux.tup_to_dict(aux.dict_to_tup(sol_nostates.solution.get_tasks()),
-                    result_col= [0], is_list=True, indeces=[2, 1]).items()
-    # {k: len(v) for k, v in t}
-    sol_nostates.instance.get_tasks('num_resource')
-
-    path = path_abs + "201801091412/"
-    sol_states = Experiment.from_dir(path)
-    check = sol_states.check_solution()
-    # check['resources']
-
-
-    rut_old = sol_states.solution.data["aux"]['rut']
-    sol_states.set_remaining_usage_time()
-    rut_new = sol_states.solution.data['aux']['rut']
-    pd.DataFrame.from_dict(rut_new, orient='index').reset_index().melt(id_vars='index').\
-        sort_values(['index', 'variable']).to_csv('/home/pchtsp/Downloads/TEMP_new.csv', index=False)
-    pd.DataFrame.from_dict(rut_old, orient='index').reset_index().melt(id_vars='index').\
-        sort_values(['index','variable']).apply('round').to_csv('/home/pchtsp/Downloads/TEMP_old.csv', index=False)
-
-    # sol_nostates.check_solution()
-    # sol_states.check_solution()
-
-    # exp = Experiment(inst.Instance(model_data), sol.Solution(solution))
-    # exp = Experiment.from_dir(path)
-    # results = exp.check_solution()
-
-    # [k for (k, v) in sol_nostates.check_solution().items() if len(v) > 0]
-    # [k for (k, v) in sol_states.check_solution().items() if len(v) > 0]
-
-    print(sol_states.get_objective_function())
-    print(sol_nostates.get_objective_function())
-    sol_nostates.check_task_num_resources()
-
-    # sol_states.solution.get_state()[('A2', '2017-03')]
-    l = sol_states.instance.get_domains_sets()
-    # l['v_at']
-    checks = sol_states.check_solution()
-
-    sol_nostates.check_solution()
-    # sol_states.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
-    sol_nostates.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
-    #
-    # [k for (k, v) in results["duration"].items() if v < 6]
-    # results["usage"]
-    #
-    #
-    # consum = exp.get_consumption()
-    # aux.dicttup_to_dictdict(exp.get_remaining_usage_time())['A46']
-    # aux.dicttup_to_dictdict(consum)["A46"]
-    #
-    # results["resources"]
-    #
-    # aux.dicttup_to_dictdict(exp.solution.get_task_num_resources())['O10']['2017-09']
-    # exp.instance.get_tasks("num_resource")
-
-    path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments"
-    exps = clean_experiments(path)
-    # len(exps)
-
-    # sol.Solution(solution).get_schedule()
-    # check.check_resource_consumption()
-    # check.check_resource_state()
+    pass
