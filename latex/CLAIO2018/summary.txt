@@ -1,0 +1,10 @@
+A specific Flight and Maintenance Planning problem is addressed. In this problem, preventive maintenance operations are scheduled for military aircraft along with the assignment of regular, pre-scheduled, missions.
+The quality of the solutions is measured via a bi-objective function that smooths both maintenance operations and aircraft unavailability among time periods. 
+A real world dataset provided by the French Air Force is used to test an exact optimization approach based on a Mixed Integer Programming model.
+
+Mono-objective computations are solved to optimality for medium size instances, allowing to compute exactly the Pareto frontier of the bi-objective optimization problems.
+For larger instances, difficulties in finding optimal solutions occurred because of multiple symmetries and a poor quality of MIP generic primal heuristics.
+
+Further work in braking the symmetries includes changing the objective function to a smoother one (i.e. one that doesn't use $max$), restricting aircraft-to-missions candidates via some clustering algorithm or assigning specific priorities to the assignment of each resource.
+To improve the resolution of large size instances, different alternatives are envisioned: tighter MIP formulations,  matheuristics based on these formulations and a constraint programming model.
+
