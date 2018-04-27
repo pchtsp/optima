@@ -1,0 +1,350 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+%opening
+\title{Variants on the Flight and Maintenance Planning problem}
+\author{}
+
+\setlength{\topmargin}{-2.1cm}
+\setlength{\textwidth}{15.8cm}
+\setlength{\textheight}{26.3cm}
+\setlength{\oddsidemargin}{-0.1cm}
+\setlength{\evensidemargin}{-0.1cm}
+
+\def\II{{\mathcal{I}}}
+\def\TT{{\mathcal{T}}}
+\def\KK{{\mathcal{K}}}
+
+\usepackage{graphicx}
+\usepackage{amssymb}
+
+\begin{document}
+
+\maketitle
+
+\section{Crew scheduling variant}
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item fixed maintenance duration.
+     \item fixed duration between maintenances.
+     \item homogeneous fleet.
+     \item objective: minimize the number of aircraft.
+    \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \begin{tabular}{ll}
+    $t\in \mathcal{T} = [\![1, m]\!]$ & Planning horizon periods. \\
+    $i \in \mathcal{P} = [\![1, n]\!]$ & Working pattern.\\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+        $D_{off}$ & Number of consecutive non-working days. \\
+        $D_{on}$ & Number of consecutive working days. \\
+        $\mathcal{A}_{it}$ & Pattern $i$ covers period $t$ (circulant matrix built from $D_{on}$ and $D_{off}$).\\
+        $b_{t}$ & Need of resources at period $t$. \\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    Example of A for $D_{on}=4$ and $D_{off}=2$
+
+    $$
+    \begin{bmatrix}
+        1 & 0 & 0 & \dots  & A_{i1} \\
+        1 & 1 & 0 & \dots  & A_{i2} \\
+        1 & 1 & 1 & \dots  & A_{i3} \\
+        1 & 1 & 1 & \dots  & A_{i4} \\
+        0 & 1 & 1 & \dots  & A_{i5} \\
+        0 & 0 & 1 & \dots  & A_{i6} \\
+        1 & 0 & 0 & \dots  & A_{i6} \\
+        \vdots & \vdots & \vdots & \ddots & \vdots \\
+        A_{1t} & A_{2t} & A_{3t} & \dots  & A_{nm}
+    \end{bmatrix}
+    $$
+
+    \subsection{Variables}
+
+    \begin{itemize}
+     \item $x_i$: number of patterns of type $i$ to be included in the solution.
+    \end{itemize}
+
+    \subsection{Model}
+
+    \begin{align}
+        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i
+    \end{align}
+
+    \begin{align}
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq d_j & t \in \mathcal{T} \\
+        & x_{i} \geq 0,\; integer \\
+    \end{align}
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Set covering variant}
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item only 1 aircraft needed per month.
+     \item objective: minimize the number of aircraft.
+    \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \begin{tabular}{ll}
+    $t\in \mathcal{T} = [\![1, m]\!]$ & Planning horizon periods. \\
+    $i \in \mathcal{P} = [\![1, n]\!]$ & Working pattern.\\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+        $\mathcal{A}_{it}$ & Pattern $i$ covers period $t$.\\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    \subsection{Variables}
+
+    \begin{itemize}
+     \item $x_i$: is pattern $i$ in the solution or not.
+    \end{itemize}
+
+    \subsection{Model}
+
+    \begin{align}
+        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i
+    \end{align}
+
+    \begin{align}
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \\
+        & x_{i} \geq 0,\; binary \\
+    \end{align}
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Scheduling variant}
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item durée de maintenance définie
+     \item fenêtres de temps pour commencer les maintenances
+     \item objectif: lisser les maintenances dans les fenêtres de temps prédéfinies
+    \end{itemize}
+
+
+    \subsection{Notations}
+
+    \noindent{
+    \begin{tabular}{ll}
+        $t\in \TT = [\![1, T]\!]$ & Discrétisation temporelle de l'horizon de planigfication. \\
+        $i \in \II = [\![1, I]\!]$ & Ensemble des avions.\\
+        $k \in \KK_i = [\![1, K_i]\!]$ & Ensemble des maintenances à planifier successivement.\\ 
+    \end{tabular}
+    }
+
+    \vskip 0.3cm
+
+    \textbf{Paramètres}
+
+
+    \begin{tabular}{ll}
+        $\mathbf{Da}_{i,k}$ & Durée nominale de la maintenance $k$ de l'avion $i$.\\
+        $\mathbf{l}_{i}$ & Durée mininale du cycle de vol de l'avion $i$.\\
+        $\mathbf{{To}}_{i,k}$ & Pas de temps le plus tôt pour commencer la maintenance $k$ de l'avion $i$.\\
+        $\mathbf{{Ta}}_{i,k}$ & Pas de temps le plus tard pour terminer la maintenance $k$ de l'avion $i$.\\
+    \end{tabular}
+
+    % \caption{Definition and notations the challenge ROADEF}\label{contraintesROADEF}
+    % \end{table}
+
+    \subsection{Définition des variables}
+
+    \begin{itemize}
+     \item $d_{i,k,t}\in \{0,1\}$; variables binaires pour indiquer les dates d'arrêts, "step varaibles" 
+    $d_{i,k,t}=1$ si l'arrêt du cycle $k$ du réacteur nucléaire $i$ a été commencé avant la semaine $t$.
+    $d_{i,k,t}-d_{i,k,t- {\mathbf{Da}_{i,k}}} \in \{0,1\}$ vaut $1$ uniquement pendant a maintenance $(i,k)$.
+
+
+     \item $m,M\geqslant 0$: variables continues pour linéariser la fonction objectif
+    \end{itemize}
+
+
+    \subsection{Formulation PLNE}
+
+
+    \begin{eqnarray}
+    \displaystyle \min_{d,m,M} & M-m
+     & \\
+    \forall i , k, t, & d_{i,k,t-1}\leqslant d_{i,k,t} & \label{PANprecedence}\\
+    \forall i , k, & d_{i,k,\mathbf{To}_{i,k}-1}\leqslant 0 & \label{PANtw0} \\
+    \forall i , k, & d_{i,k,\mathbf{Ta}_{i,k}}\geqslant 1 & \label{PANtw1}\\
+    \forall i , k, t, & d_{i,k,t}\leqslant d_{i,k-1,t-l_i-\mathbf{Da}_{i,k}} & \label{PANprecedence2}\\
+    \forall t, & \displaystyle \sum_{i,k} d_{i,k,t}-d_{i,k,t- {\mathbf{Da}_{i,k}}} \leqslant M & \label{maxMaint}\\
+    \forall t, & \displaystyle \sum_{i,k} d_{i,k,t}-d_{i,k,t- {\mathbf{Da}_{i,k}}} \geqslant m & \label{minMaint}\\
+    & d \in \{0,1\}^N, m,M \geqslant 0
+    \end{eqnarray}
+
+    (\ref{PANprecedence}): contrainte induite par la définition ``step variables".
+
+    (\ref{PANtw0}), (\ref{PANtw1}): contraintes de fenêtres de temps (écrit explicitement, ou sinon définir uniquement les variables $d_{i,k,t}$
+    dans les fenêtres de temps)
+
+    (\ref{PANprecedence2}): durée minimale d'un cycle de vol $l\geqslant 0$, contrainte de succession des cycles.
+
+    (\ref{maxMaint}), (\ref{minMaint}): contraites pour linéariser les $\min$ et $\max$ de la focntion objectif de lissage
+
+    \subsection{Questions ouvertes}
+
+    \begin{itemize}
+    %\item Avec $l=0$ , y a t'il un problème de référence proche ? Ordonnancement, lissage de charge ?
+    \item Avec $l=0$ , y a t'il un problème de référence proche ? Ordonnancement, lissage de charge ?
+    \item Est-ce un problème NP-complet? Peut on le prouver ?
+     \item Cas particulier $\mathbf{Ta}_{i,k}-\mathbf{To}_{i,k}=1$? (pour lissage local)
+     \item Autres fonctions objectifs?
+     \item version robuste avec aléas de prolongation de durée de maintenance?
+    \end{itemize}
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Crew scheduling: smooth maintenances}
+
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item fixed maintenance duration.
+     \item range to start each maintenance.
+     \item min distance between maintenances.
+     \item objective: minimize the max number of maintenances.
+    \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \begin{tabular}{ll}
+    $t\in \mathcal{T} = [\![1, m]\!]$ & Planning horizon periods. \\
+    $i \in \mathcal{P} = [\![1, n]\!]$ & Working pattern.\\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+        $\mathcal{A}_{it}$ & Pattern $i$ has a maintenance in $t$.\\
+    \end{tabular}
+
+    \vskip 0.3cm
+
+    Here, A needs to be created taking into account:
+    1. The range of start of maintenances.
+    2. The fixed duration of maintenances.
+    3. The minimal distance between maintenances.
+
+    \subsection{Variables}
+
+    \begin{itemize}
+     \item $x_i$: number of patterns of type $i$ to be included in the solution.
+     \item $M$: maximum number of maintenance among all periods.
+    \end{itemize}
+
+    \subsection{Model}
+
+    \begin{align}
+        & \text{Min}\; M
+    \end{align}
+
+    \begin{align}
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \leq M & t \in \mathcal{T} \\
+        & x_{i} \geq 0,\; integer \\
+    \end{align}
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Scheduling variant 2}
+
+    As modelled in Rieck2012.
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item fixed maintenance duration.
+     \item min distance between maintenances that.
+     \item each maintenance uses an amount of resource.
+     \item objective: minimize the max number of maintenances.
+    \end{itemize}
+
+      \subsection{Notations}
+
+    \noindent{
+    \begin{tabular}{ll}
+        $i \in \mathcal{V} = [\![1, n]\!]$ & Set of maintenance operations.\\
+        $(i, j) \in \mathcal{A} = [\![1, v]\!]$ & Set of consecutive (i, j) maintenance operations.\\
+        $i = 0$ & Artificial starting node.\\
+        $i = n+1$ & Artificial ending node.\\
+    \end{tabular}
+    }
+
+    \vskip 0.3cm
+
+    The set $\mathcal{A}$ we will construct it by deciding in advance the maintenances $i$ that share the same aircraft.
+
+    \subsection{Parameters}
+
+
+    \begin{tabular}{ll}
+        $p_{i}$ & Duration of maintenance $k$ of resource $i$.\\
+        ${\delta}_{ij}$ & Minimum duration between two maintenances $i$ and $j$.\\
+        $\mathbf{d}$ & Last period on the horizon.\\
+        $r_{i}$ & Resources taken by maintenance $i$.\\
+        % $\mathbf{{To}}_{i,k}$ & Minimum starting period for maintenance $k$ of resource $i$.\\
+        % $\mathbf{{Ta}}_{i,k}$ & Maximum starting period for maintenance $k$ of resource $i$.\\
+    \end{tabular}
+
+    \subsection{Variables}
+
+    \begin{itemize}
+     \item $S_i$: the start of maintenance operation $i$.
+    \end{itemize}
+
+    \subsection{Model}
+
+    $f(S)$ needs to be defined still. But includes a way to smooth the use of resoures by the activities.
+
+    \begin{align}
+        f(S)
+    \end{align}
+
+    \begin{align}
+        & S_j - S_i \geq \delta_{ij} & (i, j) \in \mathcal{A} \\
+        & S_0 = 0 & \\
+        & S_{n+1} = \mathbf{d}  \\
+        & S_{i} \geq 0, i \in \mathcal{V} \\
+    \end{align}
+
+\end{document}
+
+
+
