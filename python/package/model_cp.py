@@ -81,7 +81,7 @@ def solve_model(instance, options=None):
                                            optional=True)
     # numeric:
     # ret = model.integer_var_dict(name="ret", min=0, max=ub['ret'], keys=rt_at0)
-    # rut = model.integer_var_dict(name="rut", min=0, max=ub['rut'], keys=rt_at0)
+    rut = model.integer_var_dict(name="rut", min=0, max=ub['rut'], keys=rt_at0)
 
     # objective function:
     num_maint = model.integer_var(name="num_maint", min=0, max=ub['num_maint'])
@@ -100,10 +100,15 @@ def solve_model(instance, options=None):
 
     for t in l['periods']:
         active_tasks = [st_i[v] for v in l['tasks'] if (v, t) in l['vt']]
+        active_tasks = [st_i[v] for v in l['tasks']]
         active_states = [state[a, pe_i[t]] for a in l['resources'] if (a, pe_i[t]) in state]
-        model.distribute(counts=requirement_si,
-                         exprs=active_states,
-                         values=active_tasks)
+        for task in active_tasks:
+            model.add(
+                model.sum([(st == task) for st in active_states]) >= requirement_si[task]
+            )
+        # model.distribute(counts=requirement_si,
+        #                  exprs=active_states,
+        #                  values=active_tasks)
 
     # TODO: state function for maintenance??
     # if some maintenance is active: we're in M state.
@@ -128,28 +133,30 @@ def solve_model(instance, options=None):
                 model.presence_of(maintenances[a, m])
             )
 
-    rut = {}
-    ret = {}
+    # rut = {}
+    # ret = {}
     # the start period is given by parameters:
     for a in l['resources']:
-        rut[a] = model.step_at(period_0_pe, round(rut_init[a]))
-        ret[a] = model.step_at(period_0_pe, round(ret_init[a]))
-        model.always_in(rut[a], (period_0_pe, last_period_pe), 0, ub['rut'])
-        model.always_in(ret[a], (period_0_pe, last_period_pe), 0, ub['ret'])
-        # model.add(rut[a] <= ub['rut'])
-        # model.add(ret[a] <= ub['ret'])
+        model.add(rut[a, period_0_pe] == round(rut_init[a]))
+        # model.add(ret[a, period_0_pe] == round(ret_init[a]))
+        # rut[a] = model.step_at(period_0_pe, round(rut_init[a]))
+        # ret[a] = model.step_at(period_0_pe, round(ret_init[a]))
+    #     model.always_in(rut[a], (period_0_pe, last_period_pe), 0, ub['rut'])
+    #     model.always_in(ret[a], (period_0_pe, last_period_pe), 0, ub['ret'])
+    #     model.add(rut[a] <= ub['rut'])
+    #     model.add(ret[a] <= ub['ret'])
 
     # when starting the maintenance => set it to max
     # since we cannot set it, we add between 0 and max
     # (while knowing that it can never be more than tha maximum)
-    for (a, m) in maintenances:
-        rut[a] += model.step_at_start(maintenances[a, m], (0, ub['rut']))
-        ret[a] += model.step_at_start(maintenances[a, m], (0, ub['ret']))
+    # for (a, m) in maintenances:
+    #     rut[a] += model.step_at_start(maintenances[a, m], (0, ub['rut']))
+    #     ret[a] += model.step_at_start(maintenances[a, m], (0, ub['ret']))
 
     # we decrees consumption for each moment in time:
-    for (a, t) in state:
-        # rut[a] -= model.step_at(t, 10)
-        rut[a] -= model.step_at(t, model.element(consumption_si, state[a, t]))
+    # for (a, t) in state:
+    #     # rut[a] -= model.step_at(t, 10)
+    #     rut[a] -= model.step_at(t, model.element(consumption_si, state[a, t]))
 
     # # if no state possible: no maintenance is possible:
     # for (a, t) in l['at_maint']:
@@ -157,8 +164,8 @@ def solve_model(instance, options=None):
     #         model.add(~model.presence_of(maintenances[a, m]))
 
     # we decrees 1 for each moment in time, regardless of what we do:
-    for (a, t) in l['at']:
-        ret[a] -= model.step_at(t, 1)
+    # for (a, t) in l['at']:
+    #     ret[a] -= model.step_at(t, 1)
 
     # cash = step_at(0, 0)
     # for p in Houses:
@@ -169,30 +176,35 @@ def solve_model(instance, options=None):
 
     # remaining used time calculations:
     # remaining elapsed time calculations:
-    # for (a, t) in l['at']:
-    #     # at_prev = a, l["previous"][t]
-    #     at_prev_pe = a, pe_i[l["previous"][t]]
-    #     at_pe = a, pe_i[t]
-    #     state_ = state.get(at_pe, st_i['D'])
-    #     ret_ = ret[at_pe]
-    #     rut_ = rut[at_pe]
-    #
-    #     # ret
-    #     model.add(
-    #         model.if_then(state_ != st_i['M'], ret_ == (ret[at_prev_pe] - 1))
-    #     )
-    #     model.add(
-    #         model.if_then(state_ == st_i['M'], ret_ == ub['ret'])
-    #     )
-    #     # rut
-    #     model.add(
-    #         model.if_then(state_ != st_i['M'],
-    #                       rut_ == (rut[at_prev_pe] - model.element(consumption_si, state_))
-    #                       )
-    #     )
-    #     model.add(
-    #         model.if_then(state_ == st_i['M'], rut_ == ub['rut'])
-    #     )
+    for (a, t) in l['at']:
+        # at_prev = a, l["previous"][t]
+        at_prev_pe = a, pe_i[l["previous"][t]]
+        at_pe = a, pe_i[t]
+        state_ = state.get(at_pe, st_i['D'])
+        # ret_ = ret[at_pe]
+        rut_ = rut[at_pe]
+        # # ret
+        # model.add(
+        #     model.if_then(state_ != st_i['M'], ret_ == (ret[at_prev_pe] - 1))
+        # )
+        # rut
+        model.add(
+            model.if_then(state_ != st_i['M'],
+                          rut_ == (rut[at_prev_pe] - model.element(consumption_si, state_))
+                          )
+        )
+
+    for (a, t) in l['at']:
+        at_pe = a, pe_i[t]
+        # ret_ = ret[at_pe]
+        rut_ = rut[at_pe]
+        for m in iter_maints:
+            # model.add(
+            #     model.if_then(pe_i[t] == model.end_of(maintenances[a, m]), ret_ == ub['ret'])
+            # )
+            model.add(
+                model.if_then(pe_i[t] == model.end_of(maintenances[a, m]), rut_ == ub['rut'])
+            )
 
     # minimum availability per cluster and period
     for k, t in c_needs:
