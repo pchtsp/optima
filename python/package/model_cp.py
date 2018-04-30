@@ -72,6 +72,7 @@ def solve_model(instance, options=None):
     state = {}
     for (a, t) in state_at:
         domain = [st_i[st] for st in l['v_at'][a, pe[t]] + ['M', 'D']]
+        # domain = [*st.keys()]  # TODO: temp
         state[a, t] = model.integer_var(name="state", domain=domain)
     # start = model.binary_var_dict(name="start", keys=start_at)
 
@@ -100,11 +101,11 @@ def solve_model(instance, options=None):
 
     for t in l['periods']:
         active_tasks = [st_i[v] for v in l['tasks'] if (v, t) in l['vt']]
-        active_tasks = [st_i[v] for v in l['tasks']]
+        # active_tasks = [st_i[v] for v in l['tasks']]  # TODO: temp
         active_states = [state[a, pe_i[t]] for a in l['resources'] if (a, pe_i[t]) in state]
         for task in active_tasks:
             model.add(
-                model.sum([(st == task) for st in active_states]) >= requirement_si[task]
+                model.count(active_states, task) == requirement_si[task]
             )
         # model.distribute(counts=requirement_si,
         #                  exprs=active_states,
@@ -208,8 +209,10 @@ def solve_model(instance, options=None):
 
     # minimum availability per cluster and period
     for k, t in c_needs:
+        _states = [state[a, pe_i[t]] for a in c_candidates[k] if (a, t) in l['at_avail']]
         model.add(
-            sum(state[a, pe_i[t]] == st_i['M'] for a in c_candidates[k] if (a, t) in l['at_avail']) +
+            model.count(_states , st_i['M']) +
+            # sum(state[a, pe_i[t]] == st_i['M'] for a in _states) +
             c_needs[(k, t)] +
             c_min[(k, t)] +
             num_resource_maint_cluster.get((k, t), 0)
@@ -221,14 +224,22 @@ def solve_model(instance, options=None):
         # <= resources already in maintenance
 
     # count the number of maintenances:
-    model.add(num_maint == sum(state[a, pe_i[t]] == st_i['M'] for (a, t) in l['at_avail']))
+    _states = [state[a, pe_i[t]] for (a, t) in l['at_avail']]
+    model.add(
+        num_maint == model.count(_states, st_i['M'])
+    )
 
     # max number of maintenances:
     for t in l['periods']:
+        _states = [state[a, pe_i[t]] for a in l['resources'] if (a, t) in l['at_avail']]
         model.add(
-            sum(state[a, pe_i[t]] == st_i['M'] for a in l['resources']
-                if (a, t) in l['at_avail']) + num_resource_maint[t] <= maint_capacity
+            model.count(_states, st_i['M']) + num_resource_maint[t] <= maint_capacity
         )
+    _maintenances = [maintenances[tup] for tup in interval_am]
+    sf_a = model.search_phase(vars=_maintenances,
+                       varchooser=model.select_smallest(model.domain_size()),
+                       valuechooser=model.select_smallest(model.value()))
+    model.set_search_phases([sf_a])
 
     # SOLVING
     result = model.solve(TimeLimit=options.get('timeLimit', 300), add_log_to_solution=True)
