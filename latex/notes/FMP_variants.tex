@@ -18,12 +18,18 @@
 
 \usepackage{graphicx}
 \usepackage{amssymb}
+\usepackage{chngcntr}
+
+\counterwithin*{equation}{section}
+\counterwithin*{equation}{subsection}
 
 \begin{document}
 
 \maketitle
 
 \section{Crew scheduling variant}
+
+    As presented in \cite{Brunner2013}.
 
     \subsection{Hypothesis}
 
@@ -81,13 +87,15 @@
     \subsection{Model}
 
     \begin{align}
-        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i
+        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i \label{numPatterns}
     \end{align}
 
     \begin{align}
-        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq d_j & t \in \mathcal{T} \\
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq d_j & t \in \mathcal{T} \label{demand} \\
         & x_{i} \geq 0,\; integer \\
     \end{align}
+
+    (\ref{numPatterns}) minimizes the number of workers. (\ref{demand}) defines the need to have at least a given number of workers at any given time.  
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -129,13 +137,15 @@
     \subsection{Model}
 
     \begin{align}
-        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i
+        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i \label{numPatterns}
     \end{align}
 
     \begin{align}
-        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \\
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \label{demand} \\
         & x_{i} \geq 0,\; binary \\
     \end{align}
+
+    (\ref{numPatterns}) minimizes the number of workers. (\ref{demand}) defines the need to have at least one worker working at any given time.  
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -258,15 +268,18 @@
     \vskip 0.3cm
 
     Here, A needs to be created taking into account:
-    1. The range of start of maintenances.
-    2. The fixed duration of maintenances.
-    3. The minimal distance between maintenances.
+
+    \begin{enumerate}
+        \item The range of start of maintenances.
+        \item The fixed duration of maintenances.
+        \item The minimal distance between maintenances.
+    \end{enumerate}
 
     \subsection{Variables}
 
     \begin{itemize}
-     \item $x_i$: number of patterns of type $i$ to be included in the solution.
-     \item $M$: maximum number of maintenance among all periods.
+        \item $x_i$: number of patterns of type $i$ to be included in the solution.
+        \item $M$: maximum number of maintenance among all periods.
     \end{itemize}
 
     \subsection{Model}
@@ -276,32 +289,39 @@
     \end{align}
 
     \begin{align}
-        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \leq M & t \in \mathcal{T} \\
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \leq M & t \in \mathcal{T} \label{numMaint} \\
         & x_{i} \geq 0,\; integer \\
     \end{align}
+
+        (\ref{numMaint}) defines the $M$ variable as the maximum number of maintenances at any period of time.
+
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Scheduling variant 2}
 
-    As modelled in Rieck2012.
+    As modelled in \cite{Rieck2012} and \cite{Neumann2000}.
 
     \subsection{Hypothesis}
 
     \begin{itemize}
      \item fixed maintenance duration.
-     \item min distance between maintenances that.
-     \item each maintenance uses an amount of resource.
+     \item min and max durations between maintenances that belong to the same aircraft.
+     \item each maintenance uses an amount of resource. In this case 1.
      \item objective: minimize the max number of maintenances.
+     \item There are two artificial activities representing the start and end of the horizon.
     \end{itemize}
 
-      \subsection{Notations}
+    \subsection{Notations}
+
+    \textbf{Sets}
 
     \noindent{
     \begin{tabular}{ll}
         $i \in \mathcal{V} = [\![1, n]\!]$ & Set of maintenance operations.\\
-        $(i, j) \in \mathcal{A} = [\![1, v]\!]$ & Set of consecutive (i, j) maintenance operations.\\
+        $(i, j) \in \mathcal{E} = [\![1, v]\!]$ & Set of consecutive (i, j) maintenance operations, i.e. consecutive maintenances belonging to the same aircraft.\\
+        $k \in \mathcal{R}$ & Types of resources that maintenance can take. We only have one type.\\
         $i = 0$ & Artificial starting node.\\
         $i = n+1$ & Artificial ending node.\\
     \end{tabular}
@@ -313,36 +333,59 @@
 
     \subsection{Parameters}
 
-
     \begin{tabular}{ll}
-        $p_{i}$ & Duration of maintenance $k$ of resource $i$.\\
-        ${\delta}_{ij}$ & Minimum duration between two maintenances $i$ and $j$.\\
+        $p_i$ & Duration of maintenance $i$.\\
         $\mathbf{d}$ & Last period on the horizon.\\
-        $r_{i}$ & Resources taken by maintenance $i$.\\
+        $r_{ik}$ & Resources of type $k$ taken by maintenance $i$. In this case it's always 1 per maintenance.\\
+        $d^{max}_{ij}$ & Maximum duration between two maintenances $i$ and $j$.\\
+        $d^{min}_{ij}$ & Minimum duration between two maintenances $i$ and $j$.\\
+        ${\delta}_{ij}$ & Precedence duration arcs between two maintenances $i$ and $j$ based on $d^{max}$ and $d^{min}$.\\
+        $R_k$ & total maintenance capacity at each period for resource $k$.\\
+        $c_k$ & cost per unit of investment on resource $k$.
         % $\mathbf{{To}}_{i,k}$ & Minimum starting period for maintenance $k$ of resource $i$.\\
         % $\mathbf{{Ta}}_{i,k}$ & Maximum starting period for maintenance $k$ of resource $i$.\\
     \end{tabular}
 
     \subsection{Variables}
 
-    \begin{itemize}
-     \item $S_i$: the start of maintenance operation $i$.
-    \end{itemize}
+    \begin{tabular}{ll}
+        $S_i$ & the start of maintenance operation $i$.\\
+        $\mathcal{A}(S^{\mathcal{C}}, t)$ & set of maintenance operations active at moment $t$.\\
+    \end{tabular}
 
     \subsection{Model}
 
-    $f(S)$ needs to be defined still. But includes a way to smooth the use of resoures by the activities.
+    The following formulation is taken from \cite{Neumann2000}.
 
     \begin{align}
-        f(S)
+        \min f(\mathbf{R}(S)) = \sum_{k \in \mathcal{R}} c_k \max_{t \in \mathcal{T}} r_k(S^{\mathcal{C}}, t)
     \end{align}
 
     \begin{align}
-        & S_j - S_i \geq \delta_{ij} & (i, j) \in \mathcal{A} \\
-        & S_0 = 0 & \\
-        & S_{n+1} = \mathbf{d}  \\
-        & S_{i} \geq 0, i \in \mathcal{V} \\
+        & S_j - S_i \geq \delta_{ij} & (i, j) \in \mathcal{E}  \label{precedence}\\
+        & S_0 = 0 &  \label{firstjob}\\
+        & S_{n+1} \leq \mathbf{d}   \label{lastjob}\\
+        & S_{i} \in \mathbb{Z}_{\geq 0} & i \in \mathcal{V}  \label{integervars}\\
+        & r_k(S^{\mathcal{C}}, t) = \sum_{i \in \mathcal{A}(S^{\mathcal{C}}, t)} r_{ik}  \label{consumptiondef}\\
+        & r_k(S^{\mathcal{C}}, t) \leq R_k \label{consumptionmax}\\
     \end{align}
+
+    (\ref{precedence}) constraints define the relative minimum and maximum starting times of tasks.
+    (\ref{firstjob}) and (\ref{lastjob}) constraints define the fictitious start and end jobs.
+    (\ref{integervars}) define the range for the starting time variables: integer positive.
+    (\ref{consumptiondef}) defines the used quantity for each type of resource depending on the starting times and durations and (\ref{consumptionmax}) defines the maximum amount of resources of each type that can be used at any given time.
+
+
+% As it has been shown by Bartusch et al. (1988),
+% the feasible region S (without the integrality
+% constraints S i 2 Z, i 2 V ) of R   is generally dis-
+% connected and represents the union of (convex)
+% polytopes whose number grows exponentially in n.
+% The decision problem whether or not S 6 ;
+
+% \bibliographystyle{dcu}
+\bibliographystyle{alpha}
+\bibliography{./../biblio/Scheduling,./../biblio/NRP}
 
 \end{document}
 
