@@ -53,8 +53,15 @@ class Greedy(test.Experiment):
         # tasks = self.instance.get_tasks()
         check_candidates = self.instance.check_enough_candidates()
         tasks_sorted = sorted(check_candidates.items(), key=lambda x: x[1][1])
+        # mission by mission: we find candidates and assign them
         for task, content in tasks_sorted:
             self.fill_mission(task)
+        # at the end, there can be resources that need maintenance because of ret.
+        needs = [k for k, v in self.check_elapsed_consumption().items() if v == -1]
+        for res, period in needs:
+            print('resource {} needs a maintenance in {}'.format(res, period))
+            self.find_assign_maintenance(res, aux.shift_month(period, -1))
+        return self.solution
 
     def fill_mission(self, task):
         """
@@ -80,8 +87,6 @@ class Greedy(test.Experiment):
             )[task]
 
         while len(rem_resources) > 0 and len(candidates) > 0:
-            # delete periods that have 0 rem_resources to assign
-            rem_resources = {p: v for p, v in rem_resources.items() if v > 0}
             candidate = candidates[0]
             # get free periods for candidate
             periods_task = \
@@ -92,13 +97,19 @@ class Greedy(test.Experiment):
                 candidates.pop(0)
                 continue
             maint_need = ''
+            # for each period of consecutive months
             for start, end in periods_task:
+                # here we do all the checks to see if we can assign tasks
+                # and how many periods we can assign it to.
                 last_month = self.find_assign_task(candidate, start, end, task)
                 for period in aux.get_months(start, last_month):
                     # we assign all found periods
                     rem_resources[period] -= 1
+                    # delete periods that have 0 rem_resources to assign
+                    if rem_resources[period] == 0:
+                        rem_resources.pop(period)
                 if maint_need == '' and last_month < end:
-                    # we register the first need of maintenance:
+                    # we register (only) the first need of maintenance:
                     maint_need = aux.shift_month(last_month, -duration+1)
             if maint_need == '':
                 # if the resource has no need for maintenance yet, we don't attempt one
@@ -108,7 +119,7 @@ class Greedy(test.Experiment):
             # find soonest period to start maintenance:
             result = self.find_assign_maintenance(candidate, maint_need)
             if not result:
-                # the maintenance failed: we pop the candidate.
+                # the maintenance failed: we pop the candidate because it is most probably useless.
                 candidates.pop(0)
 
         return
@@ -119,7 +130,6 @@ class Greedy(test.Experiment):
         return
 
     def find_assign_task(self, resource, start, end, task):
-        next_maint = self.get_next_maintenance(resource, end)
         periods_to_assign = self.check_assign_task(resource, aux.get_months(start, end), task)
         for period in periods_to_assign:
             self.expand_resource_period(self.solution.data['task'], resource, period)
@@ -133,11 +143,15 @@ class Greedy(test.Experiment):
             # this means we did not have problems.
             # if not, a maintenance is needed after that period.
             last_month = periods_to_assign[-1]
+        # here, the updating of ret and rut is done.
+        # It is done until the next maintenance or the end
+        next_maint = self.get_next_maintenance(resource, end)
         if next_maint is None:
             periods_to_update = aux.get_months(start, self.instance.get_param('end'))
         else:
             periods_to_update = aux.get_months(start, next_maint)
         self.update_time_usage(resource, periods=periods_to_update, time='rut')
+        # self.update_time_usage(resource, periods=periods_to_update, time='ret')
         return last_month
 
     def find_assign_maintenance(self, resource, maint_need):
@@ -148,6 +162,7 @@ class Greedy(test.Experiment):
         :param maint_need: date when the resources needs the maintenance
         :return:
         """
+        horizon_end = self.instance.get_param('end')
         duration = self.instance.get_param('maint_duration')
         maint_start = self.get_soonest_maint(resource, maint_need)
         if maint_start is None:
@@ -157,7 +172,7 @@ class Greedy(test.Experiment):
             if self.options['print']:
                 print("resource {} has no candidate periods for maintenance".format(resource))
             return False
-        maint_end = aux.shift_month(maint_start, duration - 1)
+        maint_end = min(aux.shift_month(maint_start, duration - 1), horizon_end)
         periods_maint = aux.get_months(maint_start, maint_end)
         periods_to_update = periods_maint
         next_maint = self.get_next_maintenance(resource, maint_start)
@@ -180,7 +195,7 @@ class Greedy(test.Experiment):
         start_update_rt = aux.get_next_month(maint_end)
         end_update_rt = self.get_next_maintenance(resource, start_update_rt)
         if end_update_rt is None:
-            end_update_rt = self.instance.get_param('end')
+            end_update_rt = horizon_end
         for period in periods_maint:
             self.set_maint(resource, period)
         self.update_time_maint(resource, periods_to_update, time='ret')
@@ -240,13 +255,15 @@ class Greedy(test.Experiment):
         :param maint_duration: duration in number periods of the maintenance
         :return: period (month) or none
         """
+        horizon_end = self.instance.get_param('end')
         periods_to_search = \
             np.intersect1d(self.get_free_periods_maint(),
                            self.get_free_periods_resource(resource))
         free = [(1, period) for period in periods_to_search if period >= min_period]
         for (id, st, end) in aux.tup_to_start_finish(free):
             # the period needs to be as least the size of the maintenance
-            if len(aux.get_months(st, end)) >= maint_duration:
+            # alternative: the end is the end of the horizon.
+            if end == horizon_end or len(aux.get_months(st, end)) >= maint_duration:
                 return st
         return None
 
@@ -316,6 +333,11 @@ class Greedy(test.Experiment):
         return None
 
     def get_status(self, candidate):
+        """
+        This function is great for debugging
+        :param candidate: a resource
+        :return: dataframe with everything that's going on with the resource
+        """
         rut = pd.DataFrame.from_dict(self.solution.data['aux']['rut'].get(candidate, {}), orient='index')
         ret = pd.DataFrame.from_dict(self.solution.data['aux']['ret'].get(candidate, {}), orient='index')
         state = pd.DataFrame.from_dict(self.solution.data['state'].get(candidate, {}), orient='index')

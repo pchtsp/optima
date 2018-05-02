@@ -7,6 +7,7 @@ import package.model as md
 import package.model_cp as md_cp
 import importlib
 import argparse
+import package.heuristics as heur
 
 if __name__ == "__main__":
 
@@ -58,8 +59,12 @@ if __name__ == "__main__":
     di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
-    if options.get('solver', 'CPLEX') == 'CPO':
+    solver = options.get('solver', 'CPLEX')
+    if solver == 'CPO':
         solution = md_cp.solve_model(instance, options)
+    elif solver == 'HEUR':
+        heur_obj = heur.Greedy(instance)
+        solution = heur_obj.solve()
     else:
         solution = md.solve_model(instance, options)
     if solution is not None:
