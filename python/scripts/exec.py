@@ -43,13 +43,13 @@ if __name__ == "__main__":
     white_list = params.OPTIONS.get('white_list', [])
     black_list = params.OPTIONS.get('black_list', [])
 
+    tasks = model_data['tasks']
     if len(black_list) > 0:
-        model_data['tasks'] = \
-            {k: v for k, v in model_data['tasks'].items() if k not in black_list}
+        tasks = {k: v for k, v in model_data['tasks'].items() if k not in black_list}
     if len(white_list) > 0:
-        model_data['tasks'] = \
-            {k: v for k, v in model_data['tasks'].items() if k in white_list}
+        tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
 
+    model_data['tasks'] = tasks
     instance = inst.Instance(model_data)
 
     options = params.OPTIONS

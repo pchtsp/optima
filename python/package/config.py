@@ -69,7 +69,7 @@ class Config(object):
 
     def solve_model(self, model):
         if self.solver == "GUROBI":
-            return model.solve(pl.GUROBI_CMD(options=self.config_gurobi()))
+            return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
         if self.solver == "CPLEX":
             return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1))
         if self.solver == "CHOCO":
