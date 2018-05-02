@@ -1,4 +1,6 @@
 import package.tests as exp
+import package.params as pm
+import pprint as pp
 
-path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments"
-exps = exp.clean_experiments(path, regex=r'^201', clean=False)
+exps = exp.clean_experiments(pm.PATHS['experiments'], regex=r'^201804', clean=False)
+pp.pprint(exps)
