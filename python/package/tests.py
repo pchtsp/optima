@@ -223,7 +223,7 @@ class Experiment(object):
         task_solution_k = np.fromiter(task_solution.keys(),
                                       dtype=[('A', '<U6'), ('T', 'U7')])
         state_solution_k = np.fromiter(state_solution.keys(),
-                                      dtype=[('A', '<U6'), ('T', 'U7')])
+                                       dtype=[('A', '<U6'), ('T', 'U7')])
         duplicated_states = \
             np.intersect1d(task_solution_k, state_solution_k)
 
@@ -292,7 +292,7 @@ def clean_experiments(path, clean=True, regex=""):
     for e in exps_paths:
         exp = Experiment.from_dir(e, format="json")
         to_delete.append(exp is None)
-    exps_to_delete = np.array(exps_paths)[to_delete]
+    exps_to_delete = sorted(np.array(exps_paths)[to_delete])
     if clean:
         for ed in exps_to_delete:
             shutil.rmtree(ed)
