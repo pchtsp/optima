@@ -50,7 +50,12 @@ class Greedy(test.Experiment):
         self.options = {**def_options, **options}
 
     def solve(self):
-        # tasks = self.instance.get_tasks()
+        # 1. Choose a mission.
+        # 2. Choose candidates for that mission.
+        # 3. Start assigning candidates to the mission's months.
+            # Here the selection order could be interesting
+            #  Assign maintenances when needed to each aircraft.
+        # 4. When finished with the mission, repeat with another mission.
         check_candidates = self.instance.check_enough_candidates()
         tasks_sorted = sorted(check_candidates.items(), key=lambda x: x[1][1])
         # mission by mission: we find candidates and assign them
@@ -176,20 +181,21 @@ class Greedy(test.Experiment):
         periods_maint = aux.get_months(maint_start, maint_end)
         periods_to_update = periods_maint
         next_maint = self.get_next_maintenance(resource, maint_start)
+        last_maint_prev = self.get_next_maintenance(resource, maint_start, previous=True)
+        if last_maint_prev is not None and last_maint_prev >= maint_need:
+            if self.options['print']:
+                print("resource {} has already a maintenance {} after the need {}.".
+                      format(resource, last_maint_prev, maint_need))
+            return False
         if next_maint is not None:
-            if maint_start > next_maint:
-                if self.options['print']:
-                    print("resource {} has already a maintenance at {}".format(resource, next_maint))
-                return False
-            else:
-                # we need to take out the old one, that happens *after* the new.
-                # and choose carefully the periods to update.
-                if self.options['print']:
-                    print("resource {} could swap maintenances: {} to {}".format(resource, next_maint, maint_start))
-                # return False
-                old_maint_end = aux.shift_month(next_maint, duration - 1)
-                for period in aux.get_months(next_maint, old_maint_end):
-                    self.del_maint(resource, period)
+            # we need to take out the old one, that happens *after* the new.
+            # and choose carefully the periods to update.
+            # TODO: this swap is not checking everything: sometimes make infeasible choices
+            if self.options['print']:
+                print("resource {} could swap maintenances: {} to {}".format(resource, next_maint, maint_start))
+            old_maint_end = aux.shift_month(next_maint, duration - 1)
+            for period in aux.get_months(next_maint, old_maint_end):
+                self.del_maint(resource, period)
         if self.options['print']:
             print("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
         start_update_rt = aux.get_next_month(maint_end)
@@ -323,46 +329,20 @@ class Greedy(test.Experiment):
         result = aux.tup_to_start_finish(periods)
         return [(k[1], k[2]) for k in result]
 
-    def get_next_maintenance(self, resource, min_start):
+    def get_next_maintenance(self, resource, min_start, previous=False):
         start_end = self.get_maintenance_periods_resource(resource)
         if len(start_end) > 1:
             start_end.sort(key=lambda x: x[0])
+        prev_st = None
         for st, end in start_end:
             if st >= min_start:
+                if previous:
+                    return prev_st
                 return st
+            prev_st = st
+        if previous:
+            return prev_st
         return None
-
-    def get_status(self, candidate):
-        """
-        This function is great for debugging
-        :param candidate: a resource
-        :return: dataframe with everything that's going on with the resource
-        """
-        rut = pd.DataFrame.from_dict(self.solution.data['aux']['rut'].get(candidate, {}), orient='index')
-        ret = pd.DataFrame.from_dict(self.solution.data['aux']['ret'].get(candidate, {}), orient='index')
-        state = pd.DataFrame.from_dict(self.solution.data['state'].get(candidate, {}), orient='index')
-        task = pd.DataFrame.from_dict(self.solution.data['task'].get(candidate, {}), orient='index')
-        args = {'left_index': True, 'right_index': True, 'how': 'left'}
-        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).sort_index()
-        # table.columns = ['rut', 'ret', 'state', 'task']
-        return table
-
-
-# def heuristic(instance, options):
-#     # 1. Choose a mission.
-#     # 2. Choose candidates for that mission.
-#     # 3. Start assigning candidates to the mission's months.
-#         # Here the selection order could be interesting
-#         #  Assign maintenances when needed to each aircraft.
-#     # 4. When finished with the mission, repeat with another mission.
-#
-#     # MAIN VARS:
-#     solution = sol.Solution({'state': {}, 'task': {}})
-#     heur = Greedy(instance, solution)
-#     heur.instance.get_tasks()
-#     heur.fill_mission('O10')
-#
-#     return False
 
 
 if __name__ == "__main__":
