@@ -314,7 +314,7 @@ def clean_experiments(path, clean=True, regex=""):
     return exps_to_delete
 
 
-def exp_get_info(path):
+def exp_get_info(path, get_log_info=True):
     exp = Experiment.from_dir(path, format="json")
     if exp is None:
         exp = Experiment.from_dir(path, format="pickle")
@@ -326,7 +326,7 @@ def exp_get_info(path):
         return None
     log_path = os.path.join(path, "results.log")
     log_info = {}
-    if os.path.exists(log_path):
+    if os.path.exists(log_path) and get_log_info:
         if options['solver'] == 'CPLEX':
             log_results = log.LogFile(log_path)
             log_info = log_results.get_log_info_cplex()
@@ -338,12 +338,17 @@ def exp_get_info(path):
     return {**parameters, **options, **log_info, **inst_info}
 
 
-def list_experiments(path):
-    exps_paths = [os.path.join(path, f) for f in os.listdir(path) if os.path.isdir(os.path.join(path, f))]
+def list_experiments(path, exp_list=None, get_log_info=True):
+    if exp_list is None:
+        exps_paths = [os.path.join(path, f) for f in os.listdir(path)
+                      if os.path.isdir(os.path.join(path, f))]
+    else:
+        exps_paths = [os.path.join(path, f) for f in exp_list
+                      if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
         # print(e)
-        info = exp_get_info(e)
+        info = exp_get_info(e, get_log_info)
         if info is None:
             continue
         directory = os.path.basename(e)

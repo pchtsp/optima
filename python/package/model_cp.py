@@ -470,7 +470,7 @@ def solve_model2(instance, options=None):
     _maintenances = [*start.values()]
     sf_a = model.search_phase(vars=_maintenances,
                               varchooser=model.select_smallest(model.domain_size()),
-                              valuechooser=model.select_smallest(model.value()))
+                              valuechooser=model.select_largest(model.value()))
     _states = [*task.values()]
     sf_b = model.search_phase(vars=_states,
                               varchooser=model.select_smallest(model.domain_size()),

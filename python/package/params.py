@@ -20,12 +20,13 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 OPTIONS = {
     'timeLimit': 3600*3  # seconds
     , 'gap': 0
-    , 'solver': "HEUR"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
-    , 'integer': False
-    , 'black_list': ['O8', 'O10', 'O6']
+    , 'solver': "CPO"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'print': True
+    , 'integer': True
+    , 'black_list': ['O8', 'O10']
     , 'white_list': []
     , 'start_pos': 0
-    , 'end_pos': 40
+    , 'end_pos': 50
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
@@ -34,6 +35,6 @@ OPTIONS = {
 
 # white_list = ['O1', 'O5']
 # black_list = []
-# black_list = ['O10', 'O8']
+# black_list = ['O10', 'O8', 'O6']
 # black_list = ['O8']  # this task has less candidates than what it asks.
 

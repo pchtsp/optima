@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # solving part:
     solver = options.get('solver', 'CPLEX')
     if solver == 'CPO':
-        solution = md_cp.solve_model(instance, options)
+        solution = md_cp.solve_model2(instance, options)
     elif solver == 'HEUR':
         heur_obj = heur.Greedy(instance)
         solution = heur_obj.solve()

@@ -1,8 +1,8 @@
 source('functions/params.R')
 source('functions/import_results.R')
 
-exp_directory = PATHS[['experiments']] %>% paste0('201805020942/')
-print_solution(exp_directory, max_resources = 100)
+exp_directory = PATHS[['experiments']] %>% paste0('201805031113/')
+print_solution(exp_directory)
 
 
     

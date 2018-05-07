@@ -30,13 +30,15 @@ def test2():
 
 
 def test4():
-    e = '201805022304'
+    e = '201805031113'
     experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
     # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
     checks = experiment.check_solution()
     checks.keys()
-    pp.pprint(checks['duration'])
+    pp.pprint(checks['resources'])
+    # pp.pprint(checks['duration'])
     pp.pprint(checks['elapsed'])
+    pp.pprint(checks['usage'])
     pp.pprint(experiment.get_kpis())
 
     pass

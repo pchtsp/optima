@@ -80,8 +80,8 @@ def remaining_graph():
     plot.save(path_img + 'initial_used.png')
 
 
-def get_results_table(path_abs, exp_list=None):
-    exps = exp.list_experiments(path_abs)
+def get_results_table(path_abs, exp_list=None, **kwargs):
+    exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
     table = pd.DataFrame.from_dict(exps, orient="index")
     # table = table[np.all((table.model == 'no_states',
     #                       table.gap == 0,
@@ -368,6 +368,16 @@ def maintenances_graph(maint=True):
     # scale_x_date(labels="%Y-%m-%d")
 
 
+def CPO_vs_CHOCO():
+    cols_rename = {
+        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
+                   'gap_out': 'gap (\%)', 'bound_out': 'bound'
+                   }
+    cplex_results = get_results_table(path_abs, exp_list=['201805031435'])
+    # gurobi_results = get_results_table(path_abs + 'GUROBI/')
+
+
+
 def gurobi_vs_cplex():
     cols_rename = {
         'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
@@ -533,7 +543,6 @@ if __name__ == "__main__":
     # multiobjective_table()
     # pp.pprint(pareto_p2)
     # multiobjective_table()
-    table = get_results_table(path_abs)
-    # print(table.ref)
-    # table = 1
+    # table = get_results_table(path_abs)
+    CPO_vs_CHOCO()
     pass
