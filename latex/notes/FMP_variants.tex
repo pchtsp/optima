@@ -29,7 +29,7 @@
 
 \section{Crew scheduling variant}
 
-    As presented in \cite{Brunner2013}.
+    As presented in \cite{Brunner2013}. There, they prove the complexity by comparing the crew scheduling problem with the circulant problem. Below I do the same with our problem.
 
     \subsection{Hypothesis}
 
@@ -92,7 +92,7 @@
 
     \begin{align}
         & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq d_j & t \in \mathcal{T} \label{demand} \\
-        & x_{i} \geq 0,\; integer \\
+        & x_{i} \geq 0,\, x_{i} \in \mathbb{Z} \\
     \end{align}
 
     (\ref{numPatterns}) minimizes the number of workers. (\ref{demand}) defines the need to have at least a given number of workers at any given time.  
@@ -142,7 +142,7 @@
 
     \begin{align}
         & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \label{demand} \\
-        & x_{i} \geq 0,\; binary \\
+        & x_{i} \in \{0, 1\} \\
     \end{align}
 
     (\ref{numPatterns}) minimizes the number of workers. (\ref{demand}) defines the need to have at least one worker working at any given time.  
@@ -237,7 +237,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Crew scheduling: smooth maintenances}
-
 
     \subsection{Hypothesis}
 
