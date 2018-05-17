@@ -163,21 +163,23 @@ def tup_to_start_finish(tup_list, pp=1):
     """
     Takes a calendar tuple list of the form: (id, month) and
     returns a tuple list of the form (id, start_month, end_month)
-    :param tup_list:
+    :param tup_list: [(id, month), (id, month)]
     :param pp: the position in the tuple where the period is
     :return:
     """
     # TODO: new to make this more efficient. Only one loop with a while.
     # And make it possible to do it with a simple list of dates
+    # If I sort for id and then period... I can do it in nlog(n) i guess
     res_start_finish = []
+    tup_list_set = set(tup_list)
     for tup in tup_list:
-        if next_tup(tup, pp, -1) in tup_list:
+        if next_tup(tup, pp, -1) in tup_list_set:
             continue
         stop = False
         next_tuple = tup
         while not stop:
             next_tuple = next_tup(next_tuple, pp)
-            stop = next_tuple not in tup_list
+            stop = next_tuple not in tup_list_set
         res_start_finish.append(tuple(list(tup) + [shift_month(next_tuple[pp], -1)]))
 
     return res_start_finish

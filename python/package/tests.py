@@ -256,11 +256,13 @@ class Experiment(object):
         rut = self.set_remaining_usage_time(time='rut')
         ret = self.set_remaining_usage_time(time='ret')
         end = self.instance.get_param('end')
+        starts = self.solution.get_maintenance_periods()
         return {
             'unavail': max(self.solution.get_unavailable().values())
             , 'maint': max(self.solution.get_in_maintenance().values())
             , 'rut_end': sum(v[end] for v in rut.values())
             , 'ret_end': sum(v[end] for v in ret.values())
+            , 'maintenances': len(starts)
         }
 
     def export_solution(self, path, sheet_name='solution'):
@@ -347,12 +349,29 @@ def list_experiments(path, exp_list=None, get_log_info=True):
                       if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
-        # print(e)
         info = exp_get_info(e, get_log_info)
         if info is None:
             continue
         directory = os.path.basename(e)
         experiments[directory] = info
+    return experiments
+
+
+def list_options(path, exp_list=None):
+    if exp_list is None:
+        exps_paths = [os.path.join(path, f) for f in os.listdir(path)
+                      if os.path.isdir(os.path.join(path, f))]
+    else:
+        exps_paths = [os.path.join(path, f) for f in exp_list
+                      if os.path.isdir(os.path.join(path, f))]
+    experiments = {}
+    for e in exps_paths:
+        options_path = os.path.join(e, "options.json")
+        options = di.load_data(options_path)
+        if not options:
+            continue
+        directory = os.path.basename(e)
+        experiments[directory] = options
     return experiments
 
 

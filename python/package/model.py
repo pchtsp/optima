@@ -69,9 +69,17 @@ def solve_model(instance, options=None):
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
     # OBJECTIVE:
-    model += num_maint * max_elapsed * 2 - \
-             ret_obj_var - \
-             rut_obj_var * max_elapsed / max_usage
+    if options.get('integer', False):
+        objective = pl.LpVariable(name="objective", cat=var_type)
+        model += objective
+        model += objective >=\
+                 num_maint * max_elapsed * 2 * max_usage - \
+                 ret_obj_var * max_usage - \
+                 rut_obj_var * max_elapsed
+    else:
+        model += num_maint * max_elapsed * 2 - \
+                 ret_obj_var - \
+                 rut_obj_var * max_elapsed / max_usage
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)

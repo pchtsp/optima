@@ -9,19 +9,8 @@ import importlib
 import argparse
 import package.heuristics as heur
 
-if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
-    parser.add_argument('-c', dest='file', default="package.params",
-                        help='config file (default: package.params)')
-
-    args = parser.parse_args()
-    # if not os.path.exists(args.file):
-    #     raise FileNotFoundError("{} was not found".format(args.file))
-
-    print('Using config file in {}'.format(args.file))
-    params = importlib.import_module(args.file)
-    # import package.params as params
+def config_and_solve(params):
 
     model_data = di.get_model_data(params.PATHS['input'])
     historic_data = di.generate_solution_from_source(params.PATHS['hist'])
@@ -69,3 +58,19 @@ if __name__ == "__main__":
         solution = md.solve_model(instance, options)
     if solution is not None:
         di.export_data(output_path, solution.data, name="data_out", file_type='json')
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
+    parser.add_argument('-c', dest='file', default="package.params",
+                        help='config file (default: package.params)')
+
+    args = parser.parse_args()
+    # if not os.path.exists(args.file):
+    #     raise FileNotFoundError("{} was not found".format(args.file))
+
+    print('Using config file in {}'.format(args.file))
+    params = importlib.import_module(args.file)
+    # import package.params as params
+    config_and_solve(params)
