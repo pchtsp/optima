@@ -40,12 +40,20 @@
      \item objective: minimize the number of aircraft.
     \end{itemize}
 
+    \subsection{Reductions}
+
+    \begin{itemize}
+        \item The missions consume 0 hours of aircraft.
+        \item The minimum time between maintenances is equal to the maximum.
+        \item All missions can use any aircraft.
+    \end{itemize}
+
     \subsection{Notations}
 
     \textbf{Sets}
 
     \begin{tabular}{ll}
-    $t\in \mathcal{T} = [\![1, m]\!]$ & Planning horizon periods. \\
+    $t \in \mathcal{T} = [\![1, m]\!]$ & Planning horizon periods. \\
     $i \in \mathcal{P} = [\![1, n]\!]$ & Working pattern.\\
     \end{tabular}
 
@@ -54,8 +62,8 @@
     \subsection{Parameters}
 
     \begin{tabular}{ll}
-        $D_{off}$ & Number of consecutive non-working days. \\
-        $D_{on}$ & Number of consecutive working days. \\
+        $D^{off}$ & Number of consecutive non-working days. \\
+        $D^{on}$ & Number of consecutive working days. \\
         $\mathcal{A}_{it}$ & Pattern $i$ covers period $t$ (circulant matrix built from $D_{on}$ and $D_{off}$).\\
         $b_{t}$ & Need of resources at period $t$. \\
     \end{tabular}
@@ -308,8 +316,24 @@
      \item fixed maintenance duration.
      \item min and max durations between maintenances that belong to the same aircraft.
      \item each maintenance uses an amount of resource. In this case 1.
+     \item there is a maintenance capacity to respect at every period.
      \item objective: minimize the max number of maintenances.
      \item There are two artificial activities representing the start and end of the horizon.
+    \end{itemize}
+
+    \subsection{Reductions}
+
+    \begin{itemize}
+        \item The missions consume 0 hours of aircraft.
+        \item The missions require 0 aircraft at each period.
+    \end{itemize}
+
+    \subsection{Limitations}
+
+    \begin{itemize}
+        \item Resource usage is always 1.
+        \item There is only one type of resource.
+        \item All durations are the same.
     \end{itemize}
 
     \subsection{Notations}
@@ -333,9 +357,9 @@
     \subsection{Parameters}
 
     \begin{tabular}{ll}
-        $p_i$ & Duration of maintenance $i$.\\
+        $p_i$ & Duration of maintenance $i$. In this case it's always p=6.\\
         $\mathbf{d}$ & Last period on the horizon.\\
-        $r_{ik}$ & Resources of type $k$ taken by maintenance $i$. In this case it's always 1 per maintenance.\\
+        $r_{ik}$ & Resources of type $k$ taken by maintenance $i$. In this case it's always 1.\\
         $d^{max}_{ij}$ & Maximum duration between two maintenances $i$ and $j$.\\
         $d^{min}_{ij}$ & Minimum duration between two maintenances $i$ and $j$.\\
         ${\delta}_{ij}$ & Precedence duration arcs between two maintenances $i$ and $j$ based on $d^{max}$ and $d^{min}$.\\
@@ -374,13 +398,32 @@
     (\ref{integervars}) define the range for the starting time variables: integer positive.
     (\ref{consumptiondef}) defines the used quantity for each type of resource depending on the starting times and durations and (\ref{consumptionmax}) defines the maximum amount of resources of each type that can be used at any given time.
 
+    \subsection{Possible prove}
 
-% As it has been shown by Bartusch et al. (1988),
-% the feasible region S (without the integrality
-% constraints S i 2 Z, i 2 V ) of R   is generally dis-
-% connected and represents the union of (convex)
-% polytopes whose number grows exponentially in n.
-% The decision problem whether or not S 6 ;
+    \cite{Blazewicz1983} proved that the following problem is NP-Hard:
+
+    $$P2 | res111, chain, p_j = 1 / C_{max}$$ is NP-hard via the 3 partition problem.
+
+    This problem is, from what I understand, the following:
+
+    \begin{itemize}
+        \item The number of machines is 2.
+        \item There is only one type of resource.
+        \item The resource size is 1.
+        \item The consumption of the resource by each job is upper bounded by 1.
+        \item The duration of each job is 1.
+        \item There is a chain precedence between jobs: a job can have at most one predecessor and one successor.
+    \end{itemize}
+
+    Here they use the machine and resource concept. This could be understood as there being TWO resource types. Not sure how to really come around this. Is the same, for example, as doing the following:
+
+    $$P| res1R1, chain, p_j = 1 / C_{max}$$ Where I have an unlimited number of machines and a quantity R of available resource?
+
+    Although they minimize the maximum completion time, the decision problem 'is there a planning that uses X number of resources and finishes before period Y' is the same as ours. When we pass to the optimization problem we just choose the number of resources instead of the time.
+
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % \bibliographystyle{dcu}
 \bibliographystyle{alpha}
