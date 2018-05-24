@@ -1,0 +1,13 @@
+from  ; to                           ; link                   
+get_candidates  ; next_candidate     ;                        
+next_candidate  ; get_periods        ;            
+get_periods     ; assign_task        ;            
+assign_task     ; update_ret/rut1    ;                    
+update_ret/rut1 ; need_maint?        ;            
+need_maint?     ; get_periods        ;  no          
+need_maint?     ; when?              ;  yes  
+when?           ; assign_asap        ;            
+assign_asap    ; success?            ;        
+success?        ; next_candidate     ;  no                  
+success?        ; update_ret/rut2    ;  yes                  
+update_ret/rut2 ; get_periods        ;            

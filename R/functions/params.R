@@ -9,4 +9,5 @@ PATHS = list(
     ,experiments = path_results %>% paste0("experiments/")
     ,img = path_root %>% paste0("OPTIMA/img/")
     ,latex = path_root %>% paste0("OPTIMA/latex/")
+    ,r_project = path_root %>% paste0("OPTIMA/R/")
 )

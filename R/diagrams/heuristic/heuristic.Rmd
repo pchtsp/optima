@@ -1,0 +1,76 @@
+---
+title: "heuristic1"
+author: "Franco Peschiera"
+date: "January 9, 2018"
+output:
+    html_document:
+        # css: ./../../css/baobab.css
+---
+
+```{r setup, include=FALSE}
+source("heuristic.R")
+source("../../functions/params.R")
+
+knitr::opts_chunk$set(echo = FALSE)
+path <- paste0(PATHS['r_project'], 'diagrams/heuristic/')
+```
+
+## Basic idea
+
+The algorithm consists on a greedy logic to fill, one mission at a time, with aircraft until the needed amount is reached. It tries to use each aircraft as much as possible until it reaches its maximum flight time. When this happens: the aircraft is granted a maintenance, if possible and as soon as possible. When the aircraft has all its slots full or can't be assigned a maintenance and needs one, the algorithm continues with the next aircraft.
+
+## Pseudocode
+
+With the candidate and the task we do the following:
+
+    for every task:
+        1. calculate candidates.
+        for each candidate until we run out of candidates or we satisfy task's needs:
+            1. find available periods.
+            Until we run out of periods:
+                1. we check if we can assign it (checking remaining time and elapsed time). 
+                    * If we can't: we tag the aircraft as "in need of a maintenance'.
+                    * if we can: we assign the task.
+                2. After assigning a task: we update the remaining and elapsed times for the aircraft.
+            1. If we tagged the aircraft as in need of maintenances: we update.
+
+For assigning maintenances is more or less similar:
+
+    1. we check if we can reserve 6 continous months of maintenance.
+        * if we can: we do it (and continue assigining tasks to the aircraft).
+        * if we cannot: we go to the next candidate.
+    2. After assigning a maintenance: we update the remaining and elapsed times for the aircraft.
+
+## Some graphs
+
+### Main loop
+
+```{r, echo=FALSE}
+graph_solve(paste0(path, 'heur_solve.csv'), height=500)
+```
+
+This loop just goes over each task and tries to fill each one. Particularly important is the order in which we choose to assign the tasks.
+
+### Fill mission
+
+```{r, echo=FALSE}
+graph_fill_mission(paste0(path, 'heur_fill_mission.csv'), height=700)
+```
+
+This is the most important loop. It gets a task as input.
+It iterates over the candidates, finding available periods to assign the task.
+It assigns all possible periods to the task.
+At the end, it updates the remaining used and elapsed times.
+If it finds a period where the candidate cannot get a task because of flight hours or calendar, it marks the candidate as "in need of maintenance" and tries to assign a maintenance in the correct spot or as soon as possible.
+
+### Assign maintenance
+
+```{r, echo=FALSE}
+graph_find_assign_maintenance(paste0(path, 'heur_maints.csv'), height=700)
+```
+
+This loop takes as input a resource and a period in need of maintenance. With this information, it tries to find the soonest possible period to get the maintenance. Sometimes it doesn't exist, sometimes it is too late. In this case it exits.
+
+If not, it could be the case that there is a maintenance already scheduled around this dates. In this case, it tries to advance (move) the maintenance in order to do it sooner. If it fails the swap, then it does not assign any maintenance.
+
+Finally, if it's possible it assign the maintenance and updates the remaining used and elapsed times for the periods of the maintenance and the following ones.
