@@ -84,7 +84,6 @@ get_ret <- function(exp_directory, time='used'){
     }
     solution <- read_json(solution_path)
     input <- read_json(input_path)
-    # input$resources[[1]] %>% names
     initial <- sapply(input$resources, '[[', 'initial_used')
     max_rem <- input$parameters[['max_used_time']]
     previous_month <- input$parameters$start %>% paste0('-01') %>% as_date %>% subtract(ddays(1)) %>% floor_date('month') %>% format('%Y-%m')
@@ -207,7 +206,7 @@ print_solution <- function(exp_directory, max_resources=NULL, ...){
 
     states <- get_states(exp_directory)
     
-    timevis_from_states(states, max_resources=NULL, ...)
+    timevis_from_states(states, max_resources=max_resources, ...)
 }
 
 if (FALSE){

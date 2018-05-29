@@ -44,8 +44,8 @@ source('functions/import_results.R')
 source('diagrams/cases.R')
 source("diagrams/architecture.R")
 source("diagrams/functionalities.R")
-source('diagrams/exampleDT.R')
-source('diagrams/gantt_tasks.R')
+source('functions/exampleDT.R')
+source('functions/gantt_tasks.R')
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
 exp_directory2 = PATHS[['experiments']] %>% paste0('201802061201/')
 gantt <- print_solution(exp_directory, max_resources = 10, width="100%", height="500px")
@@ -231,9 +231,9 @@ Il existe également des opérations de maintenance spéciales qui améliorent l
 
 Conformément à la règle du temps écoulé, même si un aéronef n’est pas utilisé, il doit encore subir une opération de maintenance après un certain temps. Afin d’éviter ce problème, l’aéronef peut être mis dans un état de stockage.
 
-Un aéronef dans cet état doit être gardé pendant un temps minimum de $sm$ périodes. Dans cet état, il ne peut pas recevoir de maintenance ou être affecté à une mission.
+Un aéronef dans cet état doit être gardé pendant un temps minimum de $sm$ périodes. Dans cet état, il ne peut pas recevoir de maintenance ou être affecté à une mission.
 
-Chaque avion a une certaine limite de temps de stockage. Cette limite est mesurée en nombre de périodes $sc$. Pour qu’un aéronef restaure sa limite de stockage à son maximum $S$, il doit recevoir une opération de maintenance spécifique.
+Chaque avion a une certaine limite de temps de stockage. Cette limite est mesurée en nombre de périodes $sc$. Pour qu’un aéronef restaure sa limite de stockage à son maximum $S$, il doit recevoir une opération de maintenance spécifique.
 
 ### États possibles
 
@@ -296,7 +296,7 @@ Chaque mois, toutes les missions doivent avoir un nombre exact d’avions affect
 
 #### RQ003: besoins de maintenance
 
-Chaque avion doit toujours avoir suffisamment de “temps d’utilisation restant” pour pouvoir effectuer les missions requises. Afin de récupérer des heures de vol (environ 1200 heures), une opération de maintenance est nécessaire. Après un certain temps, les aéronefs ont besoin d’un entretien même s’ils n’ont pas atteint leur limite d’heures de vol. Ce temps est d’environ 5 ans.
+Chaque avion doit toujours avoir suffisamment de “temps d’utilisation restant” pour pouvoir effectuer les missions requises. Afin de récupérer des heures de vol (environ 1200 heures), une opération de maintenance est nécessaire. Après un certain temps, les aéronefs ont besoin d’un entretien même s’ils n’ont pas atteint leur limite d’heures de vol. Ce temps est d’environ 5 ans.
 
 -----
 

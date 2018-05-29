@@ -1,17 +1,24 @@
 ---
-title: "heuristic1"
-author: "Franco Peschiera"
+title: "Greeedy heuristic"
 date: "January 9, 2018"
 output:
     html_document:
-        # css: ./../../css/baobab.css
+        toc: yes
+        css: ./../../../css/baobab_docs.css
 ---
 
 ```{r setup, include=FALSE}
 source("heuristic.R")
-source("../../functions/params.R")
+functions_dir <- '../../functions/'
+
+source(paste0(functions_dir, "params.R"))
+source(paste0(functions_dir, 'import_results.R'))
+
+exp_directory = PATHS[['experiments']] %>% paste0('201805241334/')
 
 knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
 path <- paste0(PATHS['r_project'], 'diagrams/heuristic/')
 ```
 
@@ -21,31 +28,34 @@ The algorithm consists on a greedy logic to fill, one mission at a time, with ai
 
 ## Pseudocode
 
-With the candidate and the task we do the following:
-
     for every task:
-        1. calculate candidates.
-        for each candidate until we run out of candidates or we satisfy task's needs:
-            1. find available periods.
-            Until we run out of periods:
-                1. we check if we can assign it (checking remaining time and elapsed time). 
-                    * If we can't: we tag the aircraft as "in need of a maintenance'.
-                    * if we can: we assign the task.
-                2. After assigning a task: we update the remaining and elapsed times for the aircraft.
-            1. If we tagged the aircraft as in need of maintenances: we update.
+        Calculate candidates.
+        Repeat:
+            Sort candidates.
+            Get first candidate
+            Find available periods.
+            Repeat:
+                Get first period.
+                Can we assign task?
+                    no: we tag it "in need of maintenance'.
+                    yes: we assign the task.
+                After assigning a task: we update the counters.
+            If we tagged the aircraft as in need of maintenances: 
+                Execute maintenance assignment
 
 For assigning maintenances is more or less similar:
 
-    1. we check if we can reserve 6 continous months of maintenance.
-        * if we can: we do it (and continue assigining tasks to the aircraft).
-        * if we cannot: we go to the next candidate.
-    2. After assigning a maintenance: we update the remaining and elapsed times for the aircraft.
+    good candidate slot maintenance?
+        yes: we give maintenance in slot.
+        no: we go to the next candidate.
+    if maintenance was assigned:
+        Update the remaining and elapsed times for the aircraft.
 
 ## Some graphs
 
 ### Main loop
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 graph_solve(paste0(path, 'heur_solve.csv'), height=500)
 ```
 
@@ -53,7 +63,7 @@ This loop just goes over each task and tries to fill each one. Particularly impo
 
 ### Fill mission
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 graph_fill_mission(paste0(path, 'heur_fill_mission.csv'), height=700)
 ```
 
@@ -74,3 +84,10 @@ This loop takes as input a resource and a period in need of maintenance. With th
 If not, it could be the case that there is a maintenance already scheduled around this dates. In this case, it tries to advance (move) the maintenance in order to do it sooner. If it fails the swap, then it does not assign any maintenance.
 
 Finally, if it's possible it assign the maintenance and updates the remaining used and elapsed times for the periods of the maintenance and the following ones.
+
+## Example planning
+
+```{r, echo=FALSE}
+print_solution(exp_directory)
+```
+

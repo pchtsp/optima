@@ -6,7 +6,7 @@ exists_after_need_before_soonest?   ; exit                                  ; ye
 exists_after_need_before_soonest?   ; exist_after_soonest?                  ; no
 exist_after_soonest?                ; try_swap                              ; yes
 exist_after_soonest?                ; assign_maint                          ; no
-try_swap                            ; del_after_soonet                      ; success
+try_swap                            ; del_after_soonest                     ; success
 try_swap                            ; exit                                  ; failure
 del_after_soonest                   ; assign_maint                          ;            
 assign_maint                        ; update_ret/rut                        ;            

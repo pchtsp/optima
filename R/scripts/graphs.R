@@ -1,11 +1,10 @@
 source('functions/params.R')
 source('functions/import_results.R')
 
-exp_directory = PATHS[['experiments']] %>% paste0('201805031113/')
+exp_directory = PATHS[['experiments']] %>% paste0('201805241334/')
 print_solution(exp_directory)
 
-
-    
+ 
 #       id   start     end   content group                                         style
 #    <int>   <chr>   <chr>    <fctr> <chr>                                         <chr>
 #  1     1 2015-01 2016-01      <NA>  D601               background-color:;border-color:
