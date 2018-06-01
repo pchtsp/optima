@@ -48,6 +48,12 @@
         \item All missions can use any aircraft.
     \end{itemize}
 
+    \subsection{Limitations}
+
+    \begin{itemize}
+        \item There is not starting period.
+    \end{itemize}
+
     \subsection{Notations}
 
     \textbf{Sets}
@@ -319,20 +325,22 @@
      \item there is a maintenance capacity to respect at every period.
      \item objective: minimize the max number of maintenances.
      \item There are two artificial activities representing the start and end of the horizon.
+     \item maintenance operations consume also resources of the missions.
     \end{itemize}
 
     \subsection{Reductions}
 
     \begin{itemize}
         \item The missions consume 0 hours of aircraft.
-        \item The missions require 0 aircraft at each period.
+        %\item The missions require 0 aircraft at each period.
+        \item Each aircraft can only be used for one mission.
     \end{itemize}
 
     \subsection{Limitations}
 
     \begin{itemize}
         \item Resource usage is always 1.
-        \item There is only one type of resource.
+        %\item There is only one type of resource.
         \item All durations are the same.
     \end{itemize}
 
