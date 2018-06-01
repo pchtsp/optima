@@ -20,6 +20,7 @@ class Config(object):
             , 'solver': "GUROBI"
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
+            , 'memory': 25000
         }
 
         # the following merges the two configurations (replace into):
@@ -29,6 +30,7 @@ class Config(object):
         self.path = options['path']
         self.timeLimit = options['timeLimit']
         self.solver = options['solver']
+        self.memory = options['memory']
 
     def config_cbc(self):
         if not os.path.exists(self.path):
@@ -60,7 +62,9 @@ class Config(object):
         log_path = self.path + 'results.log'
         return ['set logfile {}'.format(log_path),
                 'set timelimit {}'.format(self.timeLimit),
-                'set mip tolerances mipgap {}'.format(self.gap)]
+                'set mip tolerances mipgap {}'.format(self.gap),
+                'set mip limits treememory {}'.format(self.memory),
+                ]
 
     def config_choco(self):
         # CHOCO parameters https://github.com/chocoteam/choco-parsers/blob/master/MPS.md

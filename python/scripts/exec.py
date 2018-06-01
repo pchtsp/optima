@@ -52,8 +52,8 @@ def config_and_solve(params):
     if solver == 'CPO':
         solution = md_cp.solve_model2(instance, options)
     elif solver == 'HEUR':
-        heur_obj = heur.Greedy(instance)
-        solution = heur_obj.solve()
+        heur_obj = heur.GreedyByMission(instance)
+        solution = heur_obj.solve(options)
     else:
         solution = md.solve_model(instance, options)
     if solution is not None:

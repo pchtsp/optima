@@ -88,6 +88,9 @@ class Solution(object):
         # fixed maintenances should be included in the states already
         return aux.fill_dict_with_default(in_maint, self.get_periods())
 
+    def get_number_maintenances(self, resource):
+        return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
+
     def graph_maintenances(self, path, **kwags):
         """
         uses bokeh

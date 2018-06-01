@@ -13,6 +13,7 @@ import package.logFiles as log
 import re
 import package.heuristics as heur
 from package.params import PATHS
+import package.superdict as sd
 
 path_root = PATHS['root']
 path_abs = PATHS['experiments']
@@ -368,12 +369,45 @@ def maintenances_graph(maint=True):
     # scale_x_date(labels="%Y-%m-%d")
 
 
-def CPO_vs_CHOCO():
-    cols_rename = {
-        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
-                   'gap_out': 'gap (\%)', 'bound_out': 'bound'
-                   }
-    cplex_results = get_results_table(path_abs, exp_list=['201805031435'])
+def solvers_comp():
+
+
+    # exps = sd.SuperDict(exps)
+    # solver = exps.get_property('solver')
+    # solver.clean('CPO')
+    # exps_list = [k for k, v in solver.items()]
+    options_e = exp.list_options(path_abs)
+    for e, v in options_e.items():
+        if 'end_pos' not in v:
+            continue
+        v['tasks'] = 12 - len(v.get('black_list', []))
+        v['periods'] = v['end_pos'] - v['start_pos'] + 1
+
+    exps_list = [e for e in options_e if e > '201804']
+    exps_solved = exp.list_experiments(path_abs, get_log_info=False, exp_list=exps_list)
+
+    experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in exps_solved}
+    kpis_info = {e: {'maintenances': len(v.solution.get_maintenance_periods())}
+                 for e, v in experiments.items()}
+    checks = {e: {'infeasible': sum(len(vv) for vv in v.check_solution().values())}
+              for e, v in experiments.items()}
+    default_dict = {'maintenances': 9999, 'infeasible': 9999}
+    dict_join = {e: {**exps_solved.get(e, default_dict),
+                     **kpis_info.get(e, default_dict),
+                     **checks.get(e, default_dict),
+                     **options_e[e],
+                     } for e in exps_list}
+
+    table = pd.DataFrame.from_dict(dict_join, orient="index")
+    table_filt = table[['tasks', 'periods', 'solver', 'infeasible', 'maintenances']]. \
+        sort_values(['solver', 'tasks', 'periods', 'maintenances']).\
+        drop_duplicates(subset=['tasks', 'periods', 'solver'])
+    # sort_values(['maintenances'], ascending=True).\
+    unstacked = table_filt.set_index(['tasks', 'periods', 'solver'])['maintenances'].unstack('solver')
+    print(unstacked.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+
+    # results = get_results_table(path_abs, get_log_info=False)
+
     # gurobi_results = get_results_table(path_abs + 'GUROBI/')
 
 
@@ -454,7 +488,7 @@ def compare_heur_model():
     exps = {k: exp.Experiment.from_dir(v) for k, v in paths.items()}
     heurs = {}
     for k, v in exps.items():
-        heur_obj = heur.Greedy(v.instance, options={'print': False})
+        heur_obj = heur.GreedyByMission(v.instance, options={'print': False})
         heur_obj.solve()
         heurs[k] = heur_obj
 
@@ -544,5 +578,5 @@ if __name__ == "__main__":
     # pp.pprint(pareto_p2)
     # multiobjective_table()
     # table = get_results_table(path_abs)
-    CPO_vs_CHOCO()
+    solvers_comp()
     pass

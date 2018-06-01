@@ -20,13 +20,14 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 OPTIONS = {
     'timeLimit': 3600*3  # seconds
     , 'gap': 0
-    , 'solver': "CPO"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'solver': "HEUR"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'memory': 15000
     , 'print': True
-    , 'integer': True
-    , 'black_list': ['O8', 'O10']
+    , 'integer': False
+    , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start_pos': 0
-    , 'end_pos': 50
+    , 'end_pos': 40
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
