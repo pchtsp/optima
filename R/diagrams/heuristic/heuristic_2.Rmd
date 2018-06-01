@@ -1,0 +1,39 @@
+rut = remaining usage time = remaining flight hours.
+ret = remaining elapsed time = remaining periods.
+
+------
+
+**The base logic** (probably similar to what's in the students' PIE code):
+
+Sort *periods* from lowest to greatest.
+For each period:
+    Get *tasks* that need at least one aircraft in that period.
+    Sort *tasks* according to the number of candidates they have.
+    For each task in *tasks*:
+        Get available *candidates* that can do the task.
+        Sort *candidates* according to 'tie methodology' (largest $rut / ret$ first).
+        For each candidate:
+            Try to assign candidate to task in period.
+                If possible: update the candidate's rut and task remaining needs.
+                If not possible: give a maintenance to the candidate.
+            if no more remaining needs => go to the next task.
+
+**The additional logic** (that should be executed at the end of the each period loop):
+
+We simulate the next X (10?) periods only by using ret to generate maintenances (since we're using the 'tie methodology', this could be "good enough").
+
+if this simulation:
+
+* shows periods with too many maintenances: 
+    * we try to advance some of those maintenances to the present. 
+    * (How many?) The number of maintenances to advance may depend on how many maintenances we can actually do and how many months we can move the maintenances.
+* shows periods with non-availabilities for missions: 
+    * we try to advance some maintenances in that period from an aircraft with the same capabilities to the present. 
+    * (How many?) This can be the same logic than the one before.
+
+Other comments on these 'moves':
+
+* We should first try to advance the aircraft that have the least ret.
+* We need to check that the changed periods continue to be feasible.
+* The changed periods are the ones at each extreme of the maintenance and the number will be two times the size of the move.
+

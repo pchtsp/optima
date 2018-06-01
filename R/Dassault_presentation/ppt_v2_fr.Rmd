@@ -1,0 +1,226 @@
+---
+title: "Planification de maintenances des aéronefs militaires"
+author: |
+    | Franco Peschiera, Alain Haït, Olga Battaïa
+institute: "ISAE SUPAERO"
+date: "June 06, 2018"
+output: 
+  beamer_presentation:
+    theme: "Berlin"
+    toc: true
+    slide_level: 2
+    incremental: yes
+    fig_height: 4
+    keep_tex: true
+    # footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    # includes:
+    #     in_header: header.tex
+  slidy_presentation:
+    css: ./../../css/baobab_slidy.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    slide_level: 2
+    toc: true
+nocite: '@*'
+bibliography: MFMP.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("../")
+source('functions/params.R')
+source('functions/import_results.R')
+source('diagrams/thesis_gantt.R')
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+gantt <- print_solution(exp_directory, max_resources = 30)
+gantt_th <- gantt_thesis()
+show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
+```
+
+# Introduction
+
+## Planification Thèse
+<!-- |Phase  | Libellé                        | Mois     | -->
+<!-- |-------|--------| --------| -->
+<!-- |1      | État de l’art FMP              | 1 – 8    | -->
+<!-- |       | Travaux antérieurs             | 1 – 8    | -->
+<!-- |2      | Nouveaux modèles mathématiques | 9 – 16   | -->
+<!-- |3      | Incertitude                    | 17 – 24  | -->
+<!-- |4      | Cas d’étude Armée de l’Air     | 25 – 30  | -->
+<!-- |5      | Prototype logiciel             | 25 – 30  | -->
+<!-- |6      | Mémoire de thèse               | 31 – 36  | -->
+
+```{r, echo=FALSE, out.width='100%'}
+
+if (show_gantt){
+    # htmltools::HTML('<div style="font-size: 20px;width:100%">')
+    gantt_th
+    # htmltools::HTML("</div>")
+} else {
+    knitr::include_graphics('./../../img/gantt_thesis.png')
+}
+
+```
+
+# Problème
+
+## Avions
+
+Une flotte hétérogène d'avions avec les caractéristiques suivantes:
+
+* Temps écoulé restant.
+* Des heures de vol restant.
+* Fonctionnalités.
+
+## Missions
+
+Un ensemble de missions à réaliser, chaque une avec:
+
+* Dates de début et fin.
+* Un besoin mensuelle d'avions.
+* Une consommation d'heures par avion-mois affecté.
+* Des fonctionnalités requise.
+
+## Maintenances
+
+Chaque maintenance suit les règles suivantes:
+
+* La *durée est de 6 mois* consécutifs.
+* Le nombre maximal *d'heures de vol* entre deux maintenances est *1000h*.
+* Le nombre maximal de *mois calendrier* entre deux maintenances est *60 mois*.
+
+## États possibles
+
+En résumé, voici les états logiques possibles d'un aéronef:
+
+- En mission.
+- En maintenance.
+- En stockage.
+- Disponible.
+
+## Objectifs
+
+* Maximiser la disponibilité.
+* Minimiser le coût (réduisant le nombre de maintenances).
+
+## Problème (exemple)
+
+
+```{r, echo=FALSE, out.width='100%'}
+
+if (show_gantt){
+    # htmltools::HTML('<div style="font-size: 20px;width:100%">')
+    gantt
+    # htmltools::HTML("</div>")
+} else {
+    knitr::include_graphics('./../../img/calendar.png')
+}
+
+```
+
+## Contraintes /  Règles / Objectifs
+
+* RQ001: heures de missions
+* RQ002: aéronefs assignés
+* RQ003: besoins de maintenance
+* RQ004: durée de maintenance
+* RQ005: disponibilité
+* RQ006: capacité de maintenance
+* RQ007: état final
+* RQ008: stockage
+
+# État de l'art
+
+## État de l'art (1)
+
+* FMP: Flight and Maintenance Planning problem.
+* En @Cho2011, avions de l'Armée de l'air états-unienne ont été affectés à des opérations quotidiens pour minimiser le nombre maximal de maintenances.
+* En @Kozanidis2008, des heures de vol et des maintenances ont été affectées aux avions de la flotte grecque.
+* En @Verhoeff2015, différents objectifs ont été essayé pour les affectations d'heures de vol et maintenances.
+
+## État de l'art (2)
+
+Les travaux précédents:
+
+* ont étudié de flottes homogènes: nous avons de flottes hétérogènes.
+* n'ont pas le mêmes contraintes (stockages, 60 périodes entre maintenances) ou les mêmes objectifs (maximiser disponibilité).
+* n'affectent pas les avions aux missions.
+
+# Modèle
+## Modèle: fonction objectif
+
+<div class="incremental">
+
+\begin{align}
+    & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+\end{align}
+
+\pause
+
+Minimiser le nombre maximal de maintenances et le nombre maximal de non-disponibilités.
+
+\begin{align}
+    &\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
+    &t \in \mathcal{T} \\
+    &\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max}
+    &t \in \mathcal{T}
+\end{align}
+
+</div>
+
+## Modèle: contraintes principales
+
+Besoins des missions et incompatibilités entre les missions et les maintenances.
+
+\begin{align}
+&\sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+&j \in \mathcal{J}, t \in \mathcal{T}_j\\
+&\sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1
+& t \in \mathcal{T}, i \in \mathcal{I}
+\end{align}
+
+## Modèle: contraintes de flux
+
+Calcule d'heures de vol restantes pour chaque avion:
+
+\begin{align}
+& rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
+& rut_{i0} = Rut^{Init}_i
+        & i \in \mathcal{I}\\
+& rut_{it} \geq H m_{it}
+        & t \in \mathcal{T}, i \in \mathcal{I}\\
+& rut_{it} \in [0,H]
+        & t \in \mathcal{T}, i \in \mathcal{I} \\
+& \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
+        & t = |\mathcal{T}|
+\end{align}
+
+# Résultats
+
+## Expériences
+
+Des instances ont déjà été testés:
+
+| id | $\|\mathcal{J}\|$ |$\|\mathcal{T}\|$ |  assign |  objective  |  time (s) |   bound |
+|-----|------------------|------------------|---------| ------------| -----------| --------|
+| I_0 |                9 |               11 |     310 |        62.0 |        0.7 |    62.0 |
+| I_1 |                9 |               21 |     650 |        63.0 |       68.7 |    63.0 |
+| I_2 |                9 |               31 |     990 |        63.0 |     3600.1 |    62.0 |
+| I_3 |                9 |               41 |    1249 |        64.0 |     3603.9 |    61.7 |
+| I_4 |               10 |               11 |     530 |        82.0 |        0.9 |    82.0 |
+| I_5 |               10 |               21 |    1070 |        83.0 |      144.0 |    83.0 |
+| I_6 |               10 |               31 |    1610 |        83.0 |     3600.1 |    82.0 |
+| I_7 |               10 |               41 |    2069 |        84.0 |     3609.1 |    81.8 |
+| I_8 |               11 |               11 |    1080 |       139.0 |      530.6 |   139.0 |
+| I_9 |               11 |               21 |    2120 |       149.0 |     3600.0 |   139.9 |
+
+# Prochains pas
+## Prochains pas
+
+* **L'amélioration du modèle mathématique**: casser les symétries, reformuler les objectifs.
+* **Solutions techniques alternatives**: essayer d'autres méthodes de résolution.
+* **Continuer le dialogue avec les utilisateurs**: ajouter des nouvelles contraintes, valider les résultats.
+
+# Références
+## Références / Questions?
+

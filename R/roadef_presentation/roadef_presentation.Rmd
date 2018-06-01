@@ -28,8 +28,8 @@ bibliography: MFMP.bib
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 setwd("../")
-source('scripts/params.R')
-source('scripts/import_results.R')
+source('functions/params.R')
+source('functions/import_results.R')
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
 gantt <- print_solution(exp_directory, max_resources = 30)
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
