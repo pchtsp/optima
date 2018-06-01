@@ -74,7 +74,7 @@ class MainWindow_EXCEC():
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
         }
         instance = inst.Instance(self.input_data)
-        heur_obj = heur.Greedy(instance)
+        heur_obj = heur.GreedyByMission(instance)
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
         heur_obj.solve()
