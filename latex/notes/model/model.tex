@@ -1,0 +1,188 @@
+\documentclass[a4paper,onecolumn,fleqn]{article}
+\textwidth 17cm \textheight 247mm
+\topmargin -4mm
+\hoffset -9mm \voffset -14mm
+%\setlength{\topmargin}{-0.8truecm}
+\setlength{\oddsidemargin}{0.3cm}
+\setlength{\evensidemargin}{0.3cm}
+\setlength{\columnsep}{8mm}
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{-2.0ex}
+\setlength{\mathindent}{0mm}
+\flushbottom
+
+
+\usepackage{epsfig}
+%\usepackage{timesnew}
+% \usepackage{harvard}
+\usepackage[]{natbib}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\usepackage[latin1]{inputenc}
+\usepackage{aeguill}
+\usepackage[frenchb,english]{babel}
+\usepackage{caption}
+
+
+\setlength{\parskip}{2ex} \pagestyle{myheadings}
+\markright{\hspace*{3.8cm} \textit{MOSIM18 - June 27-29, 2018 - Toulouse - France}}
+
+\renewcommand{\thepage}{}
+\renewcommand{\refname}{REFERENCES}
+
+
+
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {1\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\itshape\bfseries}}
+\makeatother
+
+
+\begin{document}
+
+\section{Optimization model}
+  \label{sec:model}
+
+  \subsection{Sets}
+
+    \begin{tabular}{p{5mm}p{170mm}}
+        % $\mathcal{I}$     &  resources. \\
+        % $\mathcal{T}$     &  time periods inside planning horizon. \\
+        % $\mathcal{J}$     &  tasks. \\
+        $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
+        $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
+        $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
+        $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
+        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. \\
+        $\mathcal{T}^{st}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - S+1\}},  ..., {t}$\}. \\
+        $\mathcal{T}^{m}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - Ret^{m}+1\}},  ..., {t}$\}. \\
+        $\mathcal{T}^{M}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - Ret^{M}+1\}},  ..., \max{\{1, t - Ret^{m}+1\}}$\}. \\
+    \end{tabular}
+
+  \subsection{Parameters}
+
+    \begin{tabular}{p{8mm}p{167mm}}
+        $H_j$             & amount of resource time required by task $j$. \\
+        $R_j$             & number of resources required by task $j$. \\
+        % $MT$              & minimum number of periods a resource can be assigned to a task. \\
+        % $aut_i$           & maximal absolute usage time for resource $i$. \\
+        % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
+        $M$               & maintenance duration in number of periods. \\
+        $E$               & remaining elapsed time after a maintenance. \\
+        $H$               & remaining usage time after a maintenance. \\
+        $S$               & Storage duration in number of periods. \\
+        $W_1$             & weight of the first objective in the objective function. \\
+        $W_2$             & weight of the second objective in the objective function. \\
+        $N_t$             & number of resources in already-planned maintenances in period $t$ at the beginning of the planning horizon.\\
+        $D_t$             & number of resources to be assigned in total in period $t$. \\
+        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
+        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
+        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
+        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. \\
+        $Ret^{M}$         & maximum number of periods between two consecutif maintenances. \\
+        $Ret^{m}$         & minimum number of periods between two consecutif maintenances. \\
+    \end{tabular}
+
+  \subsection{Variables}
+
+     The following decision variables define a solution.
+    
+    \begin{tabular}{p{8mm}p{167mm}}
+        $a_{jti}$   &  =1 if task $j \in J$ in period $t \in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
+        $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $s_{it}$    &  =1 if resource $i \in I$ starts a storage operation in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+        $ret_{it}$  &  remaining elapsed time (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+        $u_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
+        $m_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
+    \end{tabular}
+    
+    Note that  $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning horizon for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning horizon is used to initialize $rut_{i0}$. 
+
+  \subsection{Constraints}
+
+    The objective is to simultaneously minimize the maximum number of maintenances and the maximum number of unavailable aircraft. 
+
+    \begin{align}
+        & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+    \end{align}
+    where weights $W_1$ and $W_2$ are chosen by the decision maker. $W_1$ penalizes the maximum number of aircraft in maintenance among all periods. $W_2$ penalizes the maximum number of unavailable aircraft among all periods.
+    The following constraints are used in the model:       
+    \begin{align}
+        % maximum capacity1:
+        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
+          & t \in \mathcal{T} \label{eq:capacity1}\\
+               % maximum capacity2:                
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} \leq m_{max}
+        % & t =m, ..., |\mathcal{T}|  \label{eq:capacity2}\\
+               %avail
+       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
+        &t \in \mathcal{T} \label{eq:avalaibility1}\\
+               % maximum capacity2:                
+        %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} + D_t\leq u_{max} 
+        % & t =m, ..., |\mathcal{T}|  \label{eq:avalaibility2}\\
+        & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+                & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
+        % & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \sum_{t' \in \mathcal{T}^{st}_t} s_{it'} \leq 1 
+        & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+    \end{align}
+
+    Maintenance capacity is controlled by (\ref{eq:capacity1}). The number of unavailable resources is defined by (\ref{eq:avalaibility1}). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task, a maintenance operation or a storage operation at the same period.  
+    \begin{align}
+        % remaining used time
+         & rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+        & rut_{i0} = Rut^{Init}_i
+               & i \in \mathcal{I} \label{eq:rut_initial}\\
+        & rut_{it} \geq H m_{it}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
+        & rut_{it} \in [0,H]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\               
+        % & ret_{it} \leq ret_{it-1} - 1 + \sum_{t' \in \mathcal{T}^{st}_t} s_{it'} + E m_{it}
+        %         & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
+        % & ret_{i0} = Ret^{Init}_i
+        %         & i \in \mathcal{I} \label{eq:ret_initial}\\
+        % & ret_{it} \geq E m_{it}
+        %         & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
+        % & ret_{it} \in [0,E]
+        %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
+        % & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
+        %       & t = |\mathcal{T}| \label{eq:min_ret}\\
+        & \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
+              & t = |\mathcal{T}| \label{eq:min_rut} \\
+        & m_{it'} + m_{it} \leq 1
+          & t, \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
+        & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \leq  m_{it}
+          & t, \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}\\ 
+    \end{align}
+
+    % \begin{align}
+    % & m_{it'} + m_{it} \leq 1
+    %   & t, \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_better}\\ 
+    % & \sum_{t' \in \mathcal{T}^{M}_t - \mathcal{T}^{m}_t} m_{it'} \leq  m_{it}
+    %   & t, \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_better}\\ 
+    % \end{align}
+
+                
+
+        % These constraints calculate the balances of hours for each resource.
+    The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
+    The remaining elapsed time is defined by (\ref{eq:ret_min})-(\ref{eq:ret_max}).
+
+    Finally, constraints \ref{eq:min_rut} guarantee that resources have, globally, the same amount of remaining used and elapsed times at the beginning and at the end of the planning horizon.
+
+
+\end{document}

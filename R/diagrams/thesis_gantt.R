@@ -8,18 +8,19 @@ gantt_thesis <- function(...){
     
     data <- 
         data.table(
-            Phase=c(1, 1, 2, 3, 4, 5, 6)
+            Phase=c(1, 1, 2, 3, 4, 5, 6, 7)
             ,Libelle=c('État de l’art FMP','Travaux antérieurs','Nouveaux modèles',
-                       'Incertitude','Cas d’étude','Prototype logiciel','Mémoire de thèse')
-            ,month_start=c(1, 1, 9, 17, 25, 25, 31)
-            ,month_end= c(8, 8, 16, 24, 30, 30, 36)
+                       'Incertitude','Cas d’étude','Prototype logiciel','Mémoire de thèse',
+                       'Collaboration Dassault')
+            ,month_start=c(1, 1, 9, 17, 25, 25, 31, 9)
+            ,month_end= c(8, 8, 16, 24, 30, 30, 36, 30)
         ) %>% 
         mutate(start= start_month %m+% months(month_start-1),
                end= start_month %m+% months(month_end),
                group= Phase,
                id= c(1:nrow(.)),
                content = Libelle,
-               color = RColorBrewer::brewer.pal(5, "YlOrRd")[rep_len(1:5, n())],
+               color = RColorBrewer::brewer.pal(7, "YlOrRd")[rep_len(1:7, n())],
                style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
         )
     config <- list(

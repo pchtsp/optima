@@ -1,0 +1,237 @@
+---
+title: "OPTIMA: Preésentation du problème"
+author: "ISAE-SUPAERO, Université de Toulouse"
+date: "Juin 06, 2018"
+# nocite: '@*'
+output:
+  slidy_presentation:
+    css: ./../../css/baobab_slidy.css
+    footer: ISAE-SUPAERO, Université de Toulouse, France
+    # incremental: yes
+    # slide_level: 3
+    # pandoc_args: ["--slide-level=3"]
+    # toc: yes
+  beamer_presentation:
+    pandoc_args: ["--slide-level=3", "--top-level-division=part"]
+    # fig_height: 4
+    # includes:
+    #   in_header: header.tex
+    # incremental: yes
+    # slide_level: 3
+    theme: Madrid
+    # toc: yes
+  pdf_document:
+    toc: yes
+    # toc_depth: 2
+    # template: ./../../latex/templates/baobab.tex
+    template: isae-report-template_pandoc.tex
+    # top_level_division: part
+    # keep_tex: true
+    pandoc_args: ["--top-level-division=part"]
+  html_document:
+    css: ./../../css/baobab_docs.css
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("../")
+source('functions/params.R')
+source('functions/import_results.R')
+source('diagrams/cases.R')
+source("diagrams/architecture.R")
+source("diagrams/functionalities.R")
+source('functions/exampleDT.R')
+source('functions/gantt_tasks.R')
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+exp_directory2 = PATHS[['experiments']] %>% paste0('201802061201/')
+
+states <- get_states(exp_directory) %>% mutate(content = str_extract(content, "^M|(O\\d)"))
+gantt <- timevis_from_states(states, max_resources=10, width="100%", height="500px")
+gantt_tasks <- print_tasks(exp_directory2, width="100%", height="200px", max_tasks = 5)
+graphs_rem <- graph_remaining(exp_directory)
+table_rem <- table_remaining(exp_directory)
+html_output <- knitr::opts_knit$get("rmarkdown.pandoc.to") %in% c("slidy", 'html')
+```
+
+### Problème
+
+On dispose d’une flotte d’avions de différents types, avec des fonctionnalités particulières et avec un état d’opération spécifique donné par certains indicateurs temporels d’usage.
+
+En même temps, il existe un besoin opérationnel généré par les différentes missions que la flotte doit être capable de remplir. Ce besoin peut être formulé comme un nombre de missions à satisfaire ou un budget d’heures de vol a atteindre à chaque période.
+
+Finalement, il existe des contraintes opérationnelles du au fait que les avions ont besoin de maintenances régulières pour être conservés en bon état et  garantir la capacité future de la flotte.
+
+Le problème consiste donc à affecter des avions aux missions prédéfinies et à programmer des opérations de maintenance préventive pour ces mêmes avions de façon à avoir la plus grand quantité d’avions disponibles en lissant et réduisant les opérations de maintenance le plus possible dans le temps, sans impacter la capacité présente ou future de la flotte.
+
+-----
+
+```{r, echo=FALSE, out.width='100%'}
+if (html_output){
+    gantt
+}
+```
+
+### Avions
+
+Il y a un ensemble $i \in \mathcal{I}$ d’avions disponibles qui peuvent être affectés aux missions. Chaque avion ne peut être affecté qu’à une seule mission au cours d’une période donnée. Ces avions souffrent d’usure et nécessitent des opérations de maintenance régulières tout au long de leur durée de vie. Le besoin de maintenance est calculé sur la base de deux indicateurs:
+
+* Le temps écoulé restant ($ret_{it}$): durée (mesurée en périodes) après laquelle l'aéronef ne peut plus être utilisé et doit subir une opération de maintenance. Sa valeur est calculée pour chaque avion $i$ et chaque période de temps $t$. 
+* Le temps d’utilisation restant ($rut_{it}$): durée d’utilisation d’un avion $i$ avant d’avoir besoin d'une opération de maintenance à une période donnée $t$.
+
+De plus, après une certaines durée ou temps d’utilisation ($aet_i$ or $aut_i$), l’aéronef devient obsolète. Il n’y a aucun moyen d’inverser ce processus.
+
+À toute période donnée, y compris au début de l’horizon de planification, chaque aéronef a un statut spécifique donné par le temps d’utilisation restant et le temps écoulé restant.
+
+### Missions
+
+Dans ce document, nous présentons la formulation la plus générale possible, où les missions sont affectés aux avions pour un ou plusieurs mois.
+
+Il y a un ensemble fixe de $j \in \mathcal{J}$ missions à accomplir sur un horizon de temps divisé en $t \in \mathcal{T}$ périodes discrètes. Pour leur exécution, ces missions nécessitent l’attribution d’un nombre spécifique d’aéronefs $R_j$ à chaque période active (c’est-à-dire entre le début et la fin de la mission). Les périodes de début et de fin de chaque mission sont connues.
+
+Au cours de chaque période, les missions consomment une quantité de temps égale à $H_j$ heures de chacun des avions qui lui sont affectés.
+
+Chaque mission nécessite un et un seul type d’aéronef qui, de plus, doit satisfaire à des exigences de mission supplémentaires.
+
+### Maintenances
+
+Les opérations de maintenance sont le processus par lequel les aéronefs qui ont atteint une limite dans certains indicateurs peuvent revenir à un état où ils peuvent à nouveau être utilisés en mission.
+
+Chaque opération de maintenance a une durée fixe de $M$ périodes.
+
+Après une opération de maintenance, un aéronef restaure le temps écoulé restant et le temps d’utilisation restant à leurs valeurs maximales respectives $E$ (~ 60 mois) et $H$ (~ 1200 heures).
+
+Il existe également des opérations de maintenance spéciales qui améliorent les capacités de l’avion (ils améliorent leur capacité à être affectés à de nouvelles missions). Ces opérations seront décidées par l’utilisateur et fixées dans l’application afin qu’elles puissent être prises en compte lors de l’attribution du reste des opérations de maintenance.
+
+### Stockages
+
+Conformément à la règle du temps écoulé, même si un aéronef n’est pas utilisé, il doit encore subir une opération de maintenance après un certain temps. Afin d’éviter ce problème, l’aéronef peut être mis dans un état de stockage.
+
+Un aéronef dans cet état doit être gardé pendant un temps minimum de $sm$ périodes. Dans cet état, il ne peut pas recevoir de maintenance ou être affecté à une mission.
+
+Chaque avion a une certaine limite de temps de stockage. Cette limite est mesurée en nombre de périodes $sc$. Pour qu’un aéronef restaure sa limite de stockage à son maximum $S$, il doit recevoir une opération de maintenance spécifique.
+
+### États possibles
+
+En résumé, voici les états logiques possibles d'un aéronef:
+
+- en mission
+- en maintenance
+- en stockage
+- disponible
+
+### Temps
+
+Lors de la planification des missions et des opérations de maintenance, il est important de prendre en compte l’état initial et final de chaque aéronef. Cet état initial peut être une maintenance ou une mission assignée. Si un aéronef est déjà en maintenance, il doit continuer dans cet état pendant le reste de sa durée de maintenance. Les missions affectés doivent être prises en compte de la même manière.
+
+Pour les opérations de maintenance planifiées dont l’heure de début est proche du début de l’horizon de planification, elles doivent également être considérées comme fixes.
+
+Les temps (écoulé et d’utilisation) restants sont assignés à chaque aéronef au début de l’horizon de planification.
+
+Enfin, l’état de chaque aéronef à la fin de l’horizon de planification, ses temps restant (écoulé, utilisé), doivent être défini et pris en compte.
+
+### Objectifs
+
+Deux objectifs principaux ont été considérés  bien que d’autres pourraient potentiellement être ajoutés.
+
+Étant donné que le déclenchement de nouvelles missions et la durée des opérations de maintenance sont en partie imprévisible dans la vie réelle, un objectif fondamental est de maximiser la robustesse de la planification en ayant la plus grande quantité d’avions disponibles à chaque période de l’horizon de planification.
+
+Compte tenu de la capacité limitée pour réaliser des opérations de maintenance et de leurs coûts, un autre objectif consiste à lisser le nombre d’avions en maintenance sur l’horizon de planification. Les opérations de maintenance doivent également être contrôlées afin de ne pas dépasser la capacité maximale.
+
+### Optimiseur
+
+Le modèle conçu pour générer de nouvelles solutions sera conforme aux exigences décrites ci-dessous.
+
+#### RQ001: heures de missions
+
+Chaque mois, toutes les missions doivent être satisfaites grâce à l’affectation de suffisamment d’heures de vol à chaque avion.
+
+#### RQ002: aéronefs assignés
+
+Chaque mois, toutes les missions doivent avoir un nombre exact d’avions affectés.
+
+#### RQ003: besoins de maintenance
+
+Chaque avion doit toujours avoir suffisamment de “temps d’utilisation restant” pour pouvoir effectuer les missions requises. Afin de récupérer des heures de vol (environ 1200 heures), une opération de maintenance est nécessaire. Après un certain temps, les aéronefs ont besoin d’un entretien même s’ils n’ont pas atteint leur limite d’heures de vol. Ce temps est d’environ 5 ans.
+
+-----
+
+#### RQ004: durée de maintenance
+
+Les opérations de maintenance prennent environ 5 mois et une fois qu’un avion a commencé l’opération de maintenance, il doit la terminer. Il ne peut pas être affectés aux missions pendant la durée de l'opération.
+
+#### RQ005: disponibilité
+
+Chaque mois, il est important d’avoir le plus grand nombre possible d’avions disponibles prêts à s’engager dans une nouvelle mission.
+
+#### RQ006: capacité de maintenance
+
+Les opérations de maintenance à planifier pour tous les avions doivent être effectuées de la manière la plus lissée possible, en évitant d'avoir des mois spécifiques avec une grande quantité d’opérations de maintenance.
+
+En d’autres termes, il est important d’avoir le moins d’avions possible en maintenance chaque mois.
+
+-----
+
+#### RQ007: état final
+
+À la fin de l’horizon de planification, chaque avion doit être dans le meilleur état possible. Cela implique qu’en moyenne, les avions doivent avoir si possible un budget important d’heures de vol et de mois restants.
+
+#### RQ008: stockage
+
+Le stockage peut être décidé par le modèle afin d’éviter la détérioration de l’aéronef. Le nombre minimal de périodes de stockage d’un avion est de 6 mois et, dans cet état, l’avion n’est pas disponible ni pour recevoir une maintenance ni pour réaliser une mission.
+
+-----
+
+#### RQ009: fixation des parties de la planification
+
+Il existe plusieurs raisons pour lesquelles l’utilisateur peut avoir besoin de fixer une partie d’une planification précédente. Par exemple, certaines opérations de maintenance sont déjà décidées et doivent avoir lieu à l’avenir à des dates spécifiques. Certains avions sont déjà en mission ou en maintenance et doivent y rester. En outre, le stockage peut être déjà décidé ou en cours.
+
+Une autre raison de la fixation des opérations de maintenance pourrait être une opération d’amélioration planifiée sur un aéronef. Ce type d’opérations de maintenance est décidé plusieurs mois à l’avance pour certains avions sélectionnés.
+
+Ces assignations fixes seront communiquées au modèle d'optimisation afin qu’il ne les change pas.
+
+
+-----
+
+#### RQ010: configuration
+
+Des possibles options sont, par défaut, les suivantes:
+
+* **Temps maximum**: dans le cas où une solution est nécessaire rapidement sans prouver l’optimalité.
+* **Gap maximum**: afin d’autoriser une distance maximale entre la meilleure solution obtenue et la meilleure solution hypothétique possible. Cette distance peut être une différence proportionnelle ou une différence absolue.
+* **Premier et dernier mois à planifier**: afin de définir l’horizon de planification.
+* **Poids des objectifs**: pour optimiser les différents objectifs et privilégier un objectif ou un autre.
+* **Paramètres de maintenance**: durée de maintenance (en mois), temps d’utilisation maximal, temps écoulé maximal et autres paramètres liés à la maintenance.
+
+### Techniques de résolution
+
+La **modélisation mathématique** est une technique qui permet la construction d’un ensemble d’équations pour représenter une situation spécifique bien définie et communique avec les logiciels avancés pour rechercher et trouver la meilleure solution qui respecte ces équations. Ces logiciels (modélisateurs et solveurs) sont disponibles à la fois en version commerciale et libre (gratuite).
+
+D'autres techniques aussi disponibles sont la **programation par contraintes** et les **heuristiques**.
+
+### Python
+
+Python permet le prototypage rapide ainsi qu’une bonne syntaxe de code. Il offre un extrêmement large ensemble de bibliothèques et, en particulier, il inclut les meilleures API pour les solveurs commerciaux et non commerciaux pour les problèmes d’optimisation.
+
+Il excelle également au développement  Web avec des bibliothèques très connus.
+
+### R
+
+R est l’état de l’art en matière de statistiques et de modélisation prévisionnelle. Il comprend plusieurs bibliothèques pour la manipulation des données, la visualisation et, en tant que langage de programmation, une bonne intégration avec d’autres langages et logiciels.
+
+Enfin, il offre une intégration particulièrement bonne avec les applications HTML via le module [Shiny](https://shiny.rstudio.com/gallery/), qui sera utilisée dans ce projet.
+
+### PostgreSQL
+
+PostgreSQL est l’une des alternatives de base de données open-source les plus connues. Il comprend nombreuses fonctionnalités qui ne sont pas présentes dans d’autres moteurs de base de données (à savoir MySQL) tels que:
+
+* stockage NoSQL.
+* Fonctions de fenêtre intégrées à R.
+
+### HTML5
+
+HTML 5 est le changement le plus récent au HTML qui intègre des fonctionnalités graphiques. Cette norme a permis une multitude de bibliothèques à source ouverte qui offrent des graphiques interactifs très puissants qui sont facilement incorporés dans les pages Web.
+
+Des exemples de ces bibliothèques sont: [leaflet](http://leafletjs.com/), [visjs](visjs.org), [d3js](https://d3js.org/) parmi beaucoup d'autres.

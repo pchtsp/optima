@@ -433,6 +433,57 @@
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\section{Three partition problem}
+
+
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item assigned maintenances at regular intervals of M.
+     \item We need to assign tasks in between maintenances.
+     \item Each task assignment needs M/3 consecutif periods.
+     \item Each task assignment has an flight hours consumption.
+    \end{itemize}
+
+    \subsection{Reductions}
+
+    \begin{itemize}
+        \item Missions have a fixed duration.
+        \item Maintenances are evenly spaced.
+        %\item The missions require 0 aircraft at each period.
+        % \item Each aircraft can only be used for one mission.
+    \end{itemize}
+
+    % \subsection{Limitations}
+
+    % \begin{itemize}
+    %     \item Resource usage is always 1.
+    %     %\item There is only one type of resource.
+    %     \item All durations are the same.
+    % \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \noindent{
+    \begin{tabular}{ll}
+        $i \in \II = [\![1, I]\!]$ & Set of aircraft.\\
+        $k \in \KK_i = [\![1, K_i]\!]$ & Set of maintenances for aircraft $i$.\\ 
+        $j \in J$ & Set of missions.\\ 
+        % $i \in \mathcal{V} = [\![1, n]\!]$ & Set of maintenance operations.\\
+        % $k \in \mathcal{R}$ & Types of resources that maintenance can take. We only have one type.\\
+        % $i = 0$ & Artificial starting node.\\
+        % $i = n+1$ & Artificial ending node.\\
+    \end{tabular}
+    }
+
+    This doesn't make sense because the tasks are already defined. We cannot chose when it executes.
+
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \bibliographystyle{dcu}
 \bibliographystyle{alpha}
 \bibliography{./../biblio/Scheduling,./../biblio/NRP}

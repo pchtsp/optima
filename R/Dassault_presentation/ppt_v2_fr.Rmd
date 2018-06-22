@@ -66,32 +66,32 @@ if (show_gantt){
 
 ## Avions
 
-Une flotte hétérogène d'avions avec les caractéristiques suivantes:
+Une flotte hétérogène d'avions, dont chacun a les caractéristiques suivantes :
 
-* Temps écoulé restant.
-* Des heures de vol restant.
+* Butée calendrier.
+* Butée horaire.
 * Fonctionnalités.
 
 ## Missions
 
-Un ensemble de missions à réaliser, chaque une avec:
+Un ensemble de missions à réaliser, chacune avec :
 
 * Dates de début et fin.
-* Un besoin mensuelle d'avions.
-* Une consommation d'heures par avion-mois affecté.
-* Des fonctionnalités requise.
+* Un nombre nécessaire d'avions par mois.
+* Une consommation d'heures par avion et par mois.
+* Des fonctionnalités requises.
 
 ## Maintenances
 
-Chaque maintenance suit les règles suivantes:
+Chaque maintenance suit les règles suivantes :
 
 * La *durée est de 6 mois* consécutifs.
-* Le nombre maximal *d'heures de vol* entre deux maintenances est *1000h*.
-* Le nombre maximal de *mois calendrier* entre deux maintenances est *60 mois*.
+* Le nombre maximal d'heures de vol entre deux maintenances est *1000h*.
+* Le nombre maximal de mois entre deux maintenances est *60 mois*.
 
 ## États possibles
 
-En résumé, voici les états logiques possibles d'un aéronef:
+En résumé, voici les états logiques possibles d'un aéronef :
 
 - En mission.
 - En maintenance.
@@ -101,7 +101,7 @@ En résumé, voici les états logiques possibles d'un aéronef:
 ## Objectifs
 
 * Maximiser la disponibilité.
-* Minimiser le coût (réduisant le nombre de maintenances).
+* Minimiser le coût (en réduisant le nombre de maintenances).
 
 ## Problème (exemple)
 
@@ -120,30 +120,31 @@ if (show_gantt){
 
 ## Contraintes /  Règles / Objectifs
 
-* RQ001: heures de missions
-* RQ002: aéronefs assignés
-* RQ003: besoins de maintenance
-* RQ004: durée de maintenance
-* RQ005: disponibilité
-* RQ006: capacité de maintenance
-* RQ007: état final
-* RQ008: stockage
+* RQ001: heures de missions.
+* RQ002: aéronefs affectés.
+* RQ003: besoins de maintenance.
+* RQ004: durée de maintenance.
+* RQ005: disponibilité.
+* RQ006: capacité de maintenance.
+* RQ007: état final.
+* RQ008: stockage.
 
 # État de l'art
 
 ## État de l'art (1)
 
-* FMP: Flight and Maintenance Planning problem.
-* En @Cho2011, avions de l'Armée de l'air états-unienne ont été affectés à des opérations quotidiens pour minimiser le nombre maximal de maintenances.
-* En @Kozanidis2008, des heures de vol et des maintenances ont été affectées aux avions de la flotte grecque.
-* En @Verhoeff2015, différents objectifs ont été essayé pour les affectations d'heures de vol et maintenances.
+> FMP: Flight and Maintenance Planning problem.
+
+* Minimisation du nombre maximal de maintenances. Affectations quotidiennes. États-Unis, @Cho2011.
+* Maximisation de disponibilité de vol. Affectations mensuelles Grèce, @Kozanidis2008.
+* Minimisation du nombre maximal de maintenances. Affectations mensuelles. Pays-Bas. @Verhoeff2015.
 
 ## État de l'art (2)
 
 Les travaux précédents:
 
-* ont étudié de flottes homogènes: nous avons de flottes hétérogènes.
-* n'ont pas le mêmes contraintes (stockages, 60 périodes entre maintenances) ou les mêmes objectifs (maximiser disponibilité).
+* ont étudié de flottes homogènes: nous avons une flotte hétérogène.
+* n'ont ni le mêmes contraintes ni les mêmes objectifs.
 * n'affectent pas les avions aux missions.
 
 # Modèle
@@ -181,7 +182,7 @@ Besoins des missions et incompatibilités entre les missions et les maintenances
 
 ## Modèle: contraintes de flux
 
-Calcule d'heures de vol restantes pour chaque avion:
+Calcul des heures de vol restantes pour chaque avion:
 
 \begin{align}
 & rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
@@ -199,7 +200,7 @@ Calcule d'heures de vol restantes pour chaque avion:
 
 ## Expériences
 
-Des instances ont déjà été testés:
+Des instances ont déjà été testées:
 
 | id | $\|\mathcal{J}\|$ |$\|\mathcal{T}\|$ |  assign |  objective  |  time (s) |   bound |
 |-----|------------------|------------------|---------| ------------| -----------| --------|
@@ -214,12 +215,12 @@ Des instances ont déjà été testés:
 | I_8 |               11 |               11 |    1080 |       139.0 |      530.6 |   139.0 |
 | I_9 |               11 |               21 |    2120 |       149.0 |     3600.0 |   139.9 |
 
-# Prochains pas
-## Prochains pas
+# Perspectives
+## Perspectives
 
 * **L'amélioration du modèle mathématique**: casser les symétries, reformuler les objectifs.
 * **Solutions techniques alternatives**: essayer d'autres méthodes de résolution.
-* **Continuer le dialogue avec les utilisateurs**: ajouter des nouvelles contraintes, valider les résultats.
+* **Continuer le dialogue avec les utilisateurs**: ajouter de nouvelles contraintes, valider les résultats.
 
 # Références
 ## Références / Questions?
