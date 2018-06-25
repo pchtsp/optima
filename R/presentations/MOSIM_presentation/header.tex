@@ -1,0 +1,7 @@
+% \usepackage[font=Helv,timeinterval=60]{tdclock}
+% \setbeamertemplate{headline}{\initclock\tiny{\tdyear-\tdmonth-\tdday\quad\tdhours:\tdminutes}}
+\newcommand*\oldmacro{}%
+\let\oldmacro\insertshorttitle%
+\renewcommand*\insertshorttitle{%
+   \oldmacro\hfill%
+   \insertframenumber\,/\,\inserttotalframenumber}
