@@ -92,7 +92,7 @@ if (show_gantt){
 
 ## State of the art (2)
 
-* The present model deals with an heterogeneus fleet, with different standards and capacities.
+* The present model deals with an heterogeneous fleet, with different standards and capacities.
 * Multiple objectives have been incorporated in order to satisfy the French Air Force's specific needs.
 * This model also features several improvements in the MIP modelling that permit greater instance sizes.
 
@@ -282,16 +282,22 @@ knitr::include_graphics("../img/multiobjective.png" %>% paste0(path_to_R_dir, .)
 
 ## Multi-objective (2)
 
-* Analysis for all instances: not many pareto optimal points available (between two and four).
+* Analysis for all instances: not many Pareto optimal points available (between two and four).
 * The objectives are quite aligned one with the other.
 
-# Next steps
+# Current and next steps
+
+## Current steps
+
+* **Linent objectives**: minimized total number of maintenances with a hard maximum on total maintenances per month.
+* **Multiple solvers**: GUROBI, CPLEX, CBC, CPO, CHOCO.
+
 ## Next steps
 
 * **Try different objective formulations**: availability - maintenability - future state.
-* **Try more linent objectives**: relax the `max` in the objective.
 * **Break symmetries**: clustering candidates, fixing end availabilities.
 * **Add more constraints**: minimal duration of assignments, storage of aircraft.
+* **Compare solvers exhaustively**: to determine when each one can be advantageous.
 
 # References
 ## References / Questions?
