@@ -1,7 +1,7 @@
 library(magrittr)
 
 path_root = '/home/pchtsp/Documents/projects/'
-path_results = path_root %>% paste0("OPTIMA_documents/results/")
+path_results = '/home/pchtsp/Dropbox/OPTIMA_results/'
 
 PATHS = list(
     root= path_root

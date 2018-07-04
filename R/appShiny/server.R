@@ -16,6 +16,7 @@ completed_experiments <- function(path){
 }
 
 shinyServer(function(input, output, clientData, session) {
+    # browser()
     dir_pre <- "../"
     # dir_pre <- "./"
     sources <-
@@ -41,6 +42,7 @@ shinyServer(function(input, output, clientData, session) {
     })
         
     observe({
+        # browser()
         id_selected <- input$timevis1_selected
         dates <- input$timevis1_window
         if (id_selected %>% is.null | dates %>% is.null) return()

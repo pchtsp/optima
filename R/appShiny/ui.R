@@ -9,7 +9,9 @@ dashboardPage(
     dashboardSidebar(
         sidebarMenu(
             menuItem("Données d'entreé", tabName = "input_data", icon = icon("dashboard")),
-            menuItem("Résultats", tabName = "results", icon = icon("th"))
+            menuItem("Résultats", tabName = "results", icon = icon("th")),
+            menuItem("Planning", tabName = "generation", icon = icon("th")),
+            menuItem("Modèle", tabName = "modelee")
         )
     ),
     dashboardBody(
@@ -43,7 +45,9 @@ dashboardPage(
                     dateRangeInput('StartEnd', label = 'Start end', format = "yyy-mm", language='fr'),
                     actionButton(inputId='solve', label='Résoudre'),
                     textAreaInput('solve_log', 'Log')
-            )
+            ),
+            tabItem(tabName = "modelee", 
+                    includeHTML("./../presentations/journee_disc/model.html"))
         )
     )
 )
