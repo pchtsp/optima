@@ -1,0 +1,51 @@
+##  Modèle mathématique
+
+\begin{align}
+    & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+\end{align}
+
+Le modèle inclus les contraintes suivantes:
+
+\begin{align}
+    % maximum capacity1:
+    & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
+      & t \in \mathcal{T} \label{eq:capacity1}\\
+           % maximum capacity2:                
+    %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} \leq m_{max}
+    % & t =m, ..., |\mathcal{T}|  \label{eq:capacity2}\\
+           %avail
+   & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
+    &t \in \mathcal{T} \label{eq:avalaibility1}\\
+           % maximum capacity2:                
+    %        & \sum_{t' = t - m+1}^{t} \,\, \sum_{i \in \mathcal{I}} m_{it'} + D_t\leq u_{max} 
+    % & t =m, ..., |\mathcal{T}|  \label{eq:avalaibility2}\\
+    & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+            & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
+    & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+            & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+\end{align}
+
+La contrainte (\ref{eq:taskres}) garantie que le nombre d'avions affectés mensuellement à chaque mission doit être égal au besoin en avions de cette mission. La contrainte (\ref{eq:state}) garantit qu'un avion qui est affecté à une mission ne peut pas être en maintenance ou affecté à une autre mission en même temps.
+
+\begin{align}
+    % remaining used time
+     & rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+    & rut_{i0} = Rut^{Init}_i
+           & i \in \mathcal{I} \label{eq:rut_initial}\\
+    & rut_{it} \geq H m_{it}
+            & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
+    & rut_{it} \in [0,H]
+            & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\
+    & ret_{it} \leq ret_{it-1} - 1 + E m_{it}
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
+    & ret_{i0} = Ret^{Init}_i
+            & i \in \mathcal{I} \label{eq:ret_initial}\\
+    & ret_{it} \geq E m_{it}
+            & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
+    & ret_{it} \in [0,E]
+            & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
+    & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
+          & t = |\mathcal{T}| \label{eq:min_ret}\\
+    & \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
+          & t = |\mathcal{T}| \label{eq:min_rut}
+\end{align}
