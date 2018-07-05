@@ -6,6 +6,7 @@ library(ggplot2)
 library(plotly)
 
 treat_data <- function(exp_directory, aircraft_to_graph){
+    # browser()
     solution_path = exp_directory %>% paste0('data_out.json')
     
     solution <- read_json(solution_path)

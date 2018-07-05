@@ -1,0 +1,30 @@
+---
+title: "Optimisation des maintenances et des missions des aéronefs militaires"
+author: "Franco Peschiera"
+date: "Juillet 06, 2018"
+output:
+  slidy_presentation:
+    css: ./../../../css/baobab_slidy.css
+---
+
+## Présentation
+
+* **Date de début et de fin de thèse**: 16/10/2017 - 16/11/2020
+* **Ecole Doctorale**: Aéronautique et Astronautique
+* **Encadrants**: Alain Haït, Olga Battaïa, Nicolas Dupin.
+* **Publications 1re auteur**: ROADEF (France), MOSIM (France), CLAIO (Pérou)
+* **Communications**: ROADEF (France), OPTIPLAN (défi DGA), MOSIM (France)
+* **Financement**: ISAE + DGA
+
+## Principaux travaux faits
+
+* Spécification du problème.
+* État de l'art.
+* Formalisation du modèle.
+* Expérimentation.
+
+## Axes de recherche prévus pour 2018/2019
+
+* Complexité du problème.
+* Comparaison entre différentes méthodes de résolution.
+* Incertitudes.

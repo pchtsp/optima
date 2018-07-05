@@ -10,7 +10,7 @@ if [ -n "`mount | grep $TEMP_MOUNT`" ]; then
     echo "Already mounted"
 else
     echo "Not mounted: attempting to mount..."
-    sudo mount "$DEST" "$TEMP_MOUNT" -o user="$IBOX_USER",password="$IBOX_PASS",vers=1.0
+    sudo mount "$DEST" "$TEMP_MOUNT" -o username="$IBOX_USER",password="$IBOX_PASS",domain="$IBOX_DOMAIN",vers=1.0
 fi
 
 if [ -n "`mount | grep $TEMP_MOUNT`" ]; then

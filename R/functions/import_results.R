@@ -118,6 +118,7 @@ get_ret <- function(exp_directory, time='used'){
 }
 
 months_in_range <- function(dates){
+    # browser()
     date1= dates[1] %>% as_date() %>% round_date(unit="month")
     date2= dates[2] %>% as_date() %>% round_date(unit="month")
     seq(date1, by = "month", to=date2) %>% 
