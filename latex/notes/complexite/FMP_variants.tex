@@ -15,6 +15,7 @@
 \def\II{{\mathcal{I}}}
 \def\TT{{\mathcal{T}}}
 \def\KK{{\mathcal{K}}}
+\def\JJ{{\mathcal{J}}}
 
 \usepackage{graphicx}
 \usepackage{amssymb}
@@ -406,7 +407,7 @@
     (\ref{integervars}) define the range for the starting time variables: integer positive.
     (\ref{consumptiondef}) defines the used quantity for each type of resource depending on the starting times and durations and (\ref{consumptionmax}) defines the maximum amount of resources of each type that can be used at any given time.
 
-    \subsection{Possible prove}
+    \subsection{Possible proof}
 
     \cite{Blazewicz1983} proved that the following problem is NP-Hard:
 
@@ -436,14 +437,13 @@
 \section{Three partition problem}
 
 
-
     \subsection{Hypothesis}
 
     \begin{itemize}
      \item assigned maintenances at regular intervals of M.
      \item We need to assign tasks in between maintenances.
      \item Each task assignment needs M/3 consecutif periods.
-     \item Each task assignment has an flight hours consumption.
+     \item Each task assignment has a flight hours consumption.
     \end{itemize}
 
     \subsection{Reductions}
@@ -451,9 +451,86 @@
     \begin{itemize}
         \item Missions have a fixed duration.
         \item Maintenances are evenly spaced.
-        %\item The missions require 0 aircraft at each period.
+        \item All maintenances start at the same time. Maybe only one maintenance per Aircraft.
+        % \item The missions require 0 aircraft at each period.
         % \item Each aircraft can only be used for one mission.
     \end{itemize}
+
+    \subsection{Limitations}
+
+    \begin{itemize}
+        \item The time at which each task is done matters.
+        %\item There is only one type of resource.
+        % \item All durations are the same.
+    \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \noindent{
+    \begin{tabular}{ll}
+        $i \in \II = [\![1, I]\!]$ & Set of aircraft.\\
+        % $k \in \KK_i = [\![1, K_i]\!]$ & Set of maintenances for aircraft $i$.\\ 
+        $j \in J$ & Set of missions.\\ 
+        % $i \in \mathcal{V} = [\![1, n]\!]$ & Set of maintenance operations.\\
+        % $k \in \mathcal{R}$ & Types of resources that maintenance can take. We only have one type.\\
+        % $i = 0$ & Artificial starting node.\\
+        % $i = n+1$ & Artificial ending node.\\
+    \end{tabular}
+    }
+
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+    	$h_j$ & Flight hour consumption for each mission.\\
+    	$M$ & Duration of maintenances.\\
+    	$H$ & Flight hours given by maintenance.\\
+        % $p_i$ & Duration of maintenance $i$. In this case it's always p=6.\\
+        % $\mathbf{d}$ & Last period on the horizon.\\
+        % $r_{ik}$ & Resources of type $k$ taken by maintenance $i$. In this case it's always 1.\\
+        % $d^{max}_{ij}$ & Maximum duration between two maintenances $i$ and $j$.\\
+        % $d^{min}_{ij}$ & Minimum duration between two maintenances $i$ and $j$.\\
+        % ${\delta}_{ij}$ & Precedence duration arcs between two maintenances $i$ and $j$ based on $d^{max}$ and $d^{min}$.\\
+        % $R_k$ & total maintenance capacity at each period for resource $k$.\\
+        % $c_k$ & cost per unit of investment on resource $k$.
+        % $\mathbf{{To}}_{i,k}$ & Minimum starting period for maintenance $k$ of resource $i$.\\
+        % $\mathbf{{Ta}}_{i,k}$ & Maximum starting period for maintenance $k$ of resource $i$.\\
+    \end{tabular}
+
+    In theory, with this configuration we have a Three Partition problem. The problem lies that each task has a fixed time. They're not tasks, they're demand. 		
+
+    % This doesn't make sense because the tasks are already defined. We cannot chose when it executes.
+
+    % I'll continue with the idea nonetheless.
+    % Imagine we preassign the aircraft a group of tasks. We need to decide at which moment we want to assign the tasks in the predefined maintenances.
+    % In this way, we need to come up with an assignment of tasks for each cycle that has a total of 1000 flight hours.
+
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Three partition problem v2}
+
+    Inspired by \cite{Caprara2003}.
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+     \item all maintenances are already decided for all aircraft and they will happen in month 4.
+     \item all aircraft come from receiving a maintenance so are full in availability and flight hours.
+     \item each maintenance gives C flight hours.
+     \item objective: comply with all the missions in time and arrive with 0 flight hours to the maintenance.
+     \item each mission lasts for 3 months, needs 1 aircraft each month.
+     \item There is no minimal assignment duration for missions.
+    \end{itemize}
+
+    % \subsection{Reductions}
+
+    % \begin{itemize}
+    %     \item The missions consume 0 hours of aircraft.
+    %     %\item The missions require 0 aircraft at each period.
+    %     \item Each aircraft can only be used for one mission.
+    % \end{itemize}
 
     % \subsection{Limitations}
 
@@ -469,24 +546,88 @@
 
     \noindent{
     \begin{tabular}{ll}
-        $i \in \II = [\![1, I]\!]$ & Set of aircraft.\\
-        $k \in \KK_i = [\![1, K_i]\!]$ & Set of maintenances for aircraft $i$.\\ 
-        $j \in J$ & Set of missions.\\ 
-        % $i \in \mathcal{V} = [\![1, n]\!]$ & Set of maintenance operations.\\
-        % $k \in \mathcal{R}$ & Types of resources that maintenance can take. We only have one type.\\
-        % $i = 0$ & Artificial starting node.\\
-        % $i = n+1$ & Artificial ending node.\\
+        $i \in \II = [\![1, M]\!]$ & Set of aircraft fleets. Each fleet has 3 aircraft.\\
+        $j \in \mathcal{J} = [\![1, 3M]\!]$ & Set of missions.\\
+        $t \in \TT = [\![1, 3]\!]$ & Set of periods.\\
+        $p \in \mathcal{P} = [\![1, 3]\!]$ & Set of aircraft per fleet.\\
+        $A_{ip}$ & Aircraft number $p$ of fleet $i$. \\
     \end{tabular}
     }
 
-    This doesn't make sense because the tasks are already defined. We cannot chose when it executes.
+    \vskip 0.3cm
 
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+        $M$ & Number of fleets.\\
+        $3M$ & Number of aircraft and missions.\\
+        $D$ & Months between maintenances. Fixed to three.\\
+        $h_j$ & Flight hour consumption for each mission.\\
+        $C$ & Flight hours given by maintenance.\\
+    \end{tabular}
+
+    \subsection{Variables}
+
+    \begin{tabular}{ll}
+        $F_{ij}$ & Mission $j$ is done by fleet $i$. Binary. \\
+        $a_{ipjt}$ & Mission $j$ is done by aircraft number $p$ from fleet $i$ in period $t$ (auxiliary). Binary. \\
+    \end{tabular}
+
+    \subsection{Model}
+
+    It's a satisfaction problem where we want to use exactly all the available hours to do missions. We could also calculate the "waste hours just before the maintenance" and then it could be a minimisation problem.
+
+    \begin{align}
+        & \sum_{t \in \mathcal{T}, j \in \mathcal{J}} a_{ipjt} \times h_j = C & (i \in \mathcal{I}, p \in \mathcal{P}) \label{hours}\\
+        & \sum_{i \in \mathcal{I}, p \in \mathcal{P}} a_{ipjt} = 1 & (j \in \mathcal{J}, t \in \mathcal{T}) \label{demand-TPP}\\
+        & F_{ij} \leq \sum_{p \in \mathcal{P}, t \in \mathcal{T}} a_{ipjt} & (i \in \mathcal{I}, j \in \mathcal{J}) \label{auxiliary1}\\
+        & F_{ij} \geq a_{ipjt} & (i \in \mathcal{I}, p \in \mathcal{P}, t \in \mathcal{T}, j \in \mathcal{J}) \label{auxiliary2}\\
+        & \sum_{i \in \mathcal{I}} F_{ij} = 1 &  (j \in \mathcal{J}) \label{auxiliary3}\\
+        & F_ij, a_{ipjt} \geq 0,\, F_{ij}, a_{ipjt} \in \mathbb{B}
+    \end{align}
+
+    (\ref{hours}) constraints force the number of hours each aircraft uses to be exactly the number of available hours.
+    (\ref{demand-TPP}) constraints force the solution to have exactly 1 aircraft assigned to each mission at each period.
+    (\ref{auxiliary1}) and (\ref{auxiliary2}) constraints tie the fleet assignment with the single aircraft assignment.
+    (\ref{auxiliary3}) controls that each mission is only assigned to one fleet.
+
+    \subsection{Possible proof}
+
+    Each fleet is assigned three missions. These missions need to sum the available amount of flight hours (C).
+    Because we need to satisfy the assignment of aircraft each month, each aircraft belonging to the fleet will have a different combination of the three missions (three permutations in a cycle: ABC, CBA, BCA).
+
+    For example if the missions with flight hours (60, 30, 10) are assigned to fleet 1 and the missions with flight hours (50, 40, 10) are assigned to fleet "3M". In this case C=100. One could have the following solution:
+
+    $$
+    \begin{bmatrix}
+        A_{11} & 60 & 30 & 10 \\
+        A_{12} & 10 & 60 & 30 \\
+        A_{13} & 30 & 10 & 60 \\\hline
+        \vdots & \vdots & \vdots & \vdots \\\hline
+        A_{n1} & H_i & H_j & H_k \\
+        A_{n2} & H_k & H_i & H_j \\
+        A_{n3} & H_j & H_k & H_i \\\hline
+        \vdots & \vdots & \vdots & \vdots \\\hline
+        A_{3M1} & 50 & 40 & 10  \\
+        A_{3M2} & 10 & 50 & 40  \\
+        A_{3M3} & 40 & 10 & 50  \\\hline
+    \end{bmatrix}
+    $$
+
+    We need to comply with having at least one aircraft assigned to each mission per month. Since we have 3M aircraft, we can do this exactly by assigning all slots.
+
+    The solution to this problem should give a solution to the Three Partition Problem. It would just suffice to take the three missions assigned to each fleet (the order is irrelevant) and use this as a solution of M groups (corresponding to M fleets). In other words, the contents of the variable $F_{ij}$.
+
+    It's true that in the original problem we do not have the concept of fleet... but maybe we can reformulate the definitions to make it even easier.
+
+    I think we could get the fleet part out if we would guarantee that each aircraft has an "alldifferent" assignment of three missions. This would guarantee that the solution of the problem would still be equivalent to the fleet one.
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % \bibliographystyle{dcu}
 \bibliographystyle{alpha}
-\bibliography{./../biblio/Scheduling,./../biblio/NRP}
+\bibliography{./../../biblio/Scheduling,./../../biblio/NRP}
 
 \end{document}
 
