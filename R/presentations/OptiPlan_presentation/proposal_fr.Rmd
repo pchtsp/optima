@@ -38,7 +38,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-setwd("../")
+setwd("./../")
 source('functions/params.R')
 source('functions/import_results.R')
 source('diagrams/cases.R')

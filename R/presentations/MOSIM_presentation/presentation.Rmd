@@ -32,8 +32,8 @@ path_to_R_dir <- "./../../"
 setwd(path_to_R_dir)
 source('functions/params.R')
 source('functions/import_results.R')
-# exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
-# gantt <- print_solution(exp_directory, max_resources = 30)
+exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+gantt <- print_solution(exp_directory, max_resources = 30)
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
 ```
 

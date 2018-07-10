@@ -6,6 +6,7 @@ library(lubridate)
 library(data.table)
 
 completed_experiments <- function(path){
+    # browser()
     names <- path %>% list.files()
     with_solution <- path %>% 
         list.files(full.names = T) %>% 
