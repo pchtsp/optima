@@ -28,6 +28,29 @@
 
 \maketitle
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Problem presentation}
+
+    The problem consists in assigning military aircraft to a given set of missions while scheduling the maintenance operations over a time horizon.
+
+    In order to generalize the formulation, from now on aircraft will be named "resources" and missions will be named "tasks". A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. Similarly, all the tasks to be realized in period $t$ are known and defined by set $J_t \subset \mathcal{J}$. Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period. Set $a_{j} \subset \mathcal{I}$ lists the resources that can be assigned to each task and set $O_i \subset \mathcal{J}$ consists of tasks for which resource $i$ can be used. The number of resources in use for each period $d_t$ is also known.
+
+    Each resource can only be assigned to a single task in any given period. These resources suffer from wear and tear and require regular maintenance operations during their lifetime. The need for maintenance is calculated based on two indicators.
+
+    The first one is called "remaining elapsed time" (or $ret_{it}$). It expresses the amount of time (measured in time periods) after which the resource cannot be used any more and has to undergo a maintenance operation. Its value is calculated for each resource $i$ and each time period $t$. In a similar way, "remaining usage time" (or $rut_{it}$) is used to measure the amount of time that the resource $i$ can be used before needing a maintenance operation at any given period $t$.
+
+    Each maintenance operation has a fix duration of $M$ periods and cannot be interrupted: during this time the resource cannot be assigned to any task. After a maintenance operation, a resource restores its remaining elapsed time and remaining usage time to their maximum values $E$ and $H$ respectively.
+
+    Some resources can be in maintenance at the beginning of the planning horizon, $n_t$ is used for the number of aircraft in such planned maintenance per period $t$ and defined only for the first $m-1$ time periods.
+
+    Given that the creation of new tasks and the duration of maintenance are considered stochastic in real-life, one basic goal is to maximize the robustness of the planning by having the greatest amount of available resources at every period of the planning horizon. 
+
+    Given the limited amount of maintenance capacity and its cost, another goal is to smooth as much as possible the number of resources under maintenance over the planning horizon.
+
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Crew scheduling variant}
 
     As presented in \cite{Brunner2013}. There, they prove the complexity by comparing the crew scheduling problem with the circulant problem. Below I do the same with our problem.
@@ -152,15 +175,15 @@
     \subsection{Model}
 
     \begin{align}
-        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i \label{numPatterns}
+        & \text{Min}\; \sum_{i \in \mathcal{P}} x_i \label{numPatterns2}
     \end{align}
 
     \begin{align}
-        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \label{demand} \\
+        & \sum_{i \in \mathcal{P}} A_{it}x_{i} \geq 1 & t \in \mathcal{T} \label{demand2} \\
         & x_{i} \in \{0, 1\} \\
     \end{align}
 
-    (\ref{numPatterns}) minimizes the number of workers. (\ref{demand}) defines the need to have at least one worker working at any given time.  
+    (\ref{numPatterns2}) minimizes the number of workers. (\ref{demand2}) defines the need to have at least one worker working at any given time.  
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -624,6 +647,118 @@
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{3 Dimensional matching}
+
+Here I want to prove that... I need three dimensions. Resource-months, Mission-months and cycles.
+
+I want to decide if a task-month is assigned to a resource-month inside the cycle.
+
+Possibilities are constrained by saying.
+Every misision-month needs to be covered.
+Every resource-month needs to be covered.
+
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{other notes}
+
+If I take the shifts models that were polynomial... given that they become hard when adding limits on the number of shifts per planning horizon and if I have flight hours that vary between "shifts"; this means that I can traduce the flight hours in this... maybe? see: 2.4.3 from \cite{Smet2015}.
+
+
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Crew scheduling variant 2}
+
+    Based on an existing problem formulated in \cite{Smet2015} and proved in \cite{Brunner2013}.
+
+
+    \subsection{Base problem}
+
+    The problem is described in \cite{Smet2015}, almost verbatim, as the following:
+
+    The objective of the problem discussed by \cite{Brunner2013} is to minimize the size of the workforce. Apart from coverage requirements, expressed as a minimum ($b_{k}$), there are three other constraints. The first constraint limits the number of days worked to a maximum value ($\overline{D}^{work}$). The second and third constraints define a range on the number of consecutive days worked ($\underline{D}^{on} - \overline{D}^{on}$) and days-off ($\underline{D}^{off} - \overline{D}^{off}$), respectively.
+
+    \subsection{Reduction}
+
+    Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
+
+    For each period $k$ from the original problem, we create a period $t \in \mathcal{T}$. We can use the elements in these two sets indistinctly.
+    For each period $k$ with demand $b_{k}$, we create a task $j$ with $T_j = \{t\}$ that requires $r_{j} = b_{t}| t \in T_j$ resources. This implies that $|J_t| = 1$ and $d_t = b_{t}$
+    For each worker $i$ we have a corresponding resource $i$.
+    Since all resources can cover the demand, we assume $O_i = \{j \in \mathcal{J}\}$ and $a_{j} = \{i \in \mathcal{I}\}$.
+    All resources start the planning horizon have just exited a maintenance in the previous period. This implies $n_t = 0$.
+    The duration of the maintenance will be equal to $M = \overline{D}^{off} = \underline{D}^{off}$. This is assumption is valid because the original proof was done with fixed values instead of ranges.
+    The maximum remaining elapsed time after a maintenance is equal to $E = \overline{D}^{off}$. The minimum elapsed time before a maintenance is equal to $e=\underline{D}^{off}$.
+    The usage time for each resource by any task will be $h_j = 0$ and the remaining usage time after a maintenance is $H = 0$. The minimum number of maintenances for each resource will be given by $\lceil(|\mathcal{T}| - \overline{D}^{work}) / M \rceil$.
+
+    The model notation follows closely the \cite{Smet2015} 2.6.1 example.
+
+    \subsection{Hypothesis}
+
+    \begin{itemize}
+         \item objective: minimize the number of aircraft to maximize availability.
+    \end{itemize}
+
+    \subsection{Notations}
+
+    \textbf{Sets}
+
+    \begin{tabular}{ll}
+        $t \in \mathcal{T}$ & Planning horizon periods. \\
+        $i \in \mathcal{I}$ & Resources. \\
+        $j \in \mathcal{J}$ & tasks. 
+    \end{tabular}
+
+    \subsection{Parameters}
+
+    \begin{tabular}{ll}
+        $m$ & Minimum number of maintenances per resource in planning horizon. \\
+        $M$ & Duration of maintenance. \\
+        $E$ & Maximum elapsed time before assigning a maintenance. \\
+        $e$ & Minimum elapsed time before assigning a maintenance. \\
+        $r_{j}$ & Need of resources for task $j$. \\
+    \end{tabular}
+
+    (here we could, in theory just copy the same model than we had in MOSIM).
+
+    \vskip 0.3cm
+
+    % \subsection{Variables}
+
+    % \begin{itemize}
+    %     \item $x_{it}$: resource $i$ is working on period $t$.
+    %     \item $y_{i}$: resource $i$ is working on at least one period.
+    % \end{itemize}
+
+    % \subsection{Model}
+
+    % \begin{align}
+    %     & \text{Min}\; \sum_{i \in \mathcal{I}} y_{i} \label{min_num_resources}
+    % \end{align}
+
+    % \begin{align}
+    %     & \sum_{i \in \mathcal{I}} x_{it} \geq b_t & t \in \mathcal{T} \label{demand3} \\
+    %     & \sum_{t \in \mathcal{T}} x_{it} \leq \overline{D}^{work} & i \in \mathcal{I} \label{max_work} \\
+    %     & \sum_{t' = t}^{\overline{D}^{on}+t-1} x_{it'} \leq \overline{D}^{on} & i \in \mathcal{I}, t \in \mathcal{T} \label{max_work_days} \\
+    %     & \sum_{t' = t}^{\underline{D}^{on}+t-1} x_{it'} \geq \underline{D}^{on} (x_{it} - x_{it-1}) & i \in \mathcal{I}, t \in \mathcal{T} \label{min_work_days} \\
+    %     & \sum_{t' = t}^{D^{off}+t-1} (1 - x_{it'}) \leq D^{off} & i \in \mathcal{I}, t \in \mathcal{T} \label{max_no_work_days} \\
+    %     & \sum_{t' = t}^{D^{off}+t-1} (1 - x_{it'}) \geq D^{off} (- x_{it} + x_{it-1}) & i \in \mathcal{I}, t \in \mathcal{T} \label{min_no_work_days} \\
+    %     & y_{i} \geq x_{it} & i \in \mathcal{I}, t \in \mathcal{T} \label{num_resources} \\
+    %     & x_{it}, y_{i} \in \{0, 1\} & i \in \mathcal{I}, t \in \mathcal{T} \label{binary}
+    % \end{align}
+
+    % Constraints (\ref{demand3}) guarantee the necessary number of workers is available to work. 
+    % Constraints ((\ref{max_work}) checks that the total number of working days for each worker is less than the upper limit.
+    % Constraints (\ref{max_work_days} - \ref{min_work_days}) control the resources meet the range of working days. Constraints (\ref{max_no_work_days} - \ref{min_no_work_days}) control the resources meet the fixed number of non-working days.
+    % Finally constraints (\ref{num_resources}) quantify the number of necessary workers in the planning to be minimized in (\ref{min_num_resources}).
+
+\clearpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 % \bibliographystyle{dcu}
 \bibliographystyle{alpha}
