@@ -94,6 +94,7 @@ if (show_gantt){
 
 * The present model deals with an heterogeneous fleet, with different standards and capacities.
 * Multiple objectives have been incorporated in order to satisfy the French Air Force's specific needs.
+* Asignments to missions are done instead of assignments of flight hours.
 * This model also features several improvements in the MIP modelling that permit greater instance sizes.
 
 # Model
@@ -220,20 +221,6 @@ Time usage of an aircraft depending on the assignment to a task.
   <!-- </div>  -->
   <!-- <div style="position: absolute; left: 0; top: 0;background-color:white;width:100%"> -->
   
-## Model: flow constraints
-
-Elapsed times are treated in the same way but consumption is expressed in time periods.
-\begin{align}
-& ret_{it} \leq ret_{it-1} + E m_{it} - 1 & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
-& ret_{i0} = Ret^{Init}_i
-        & i \in \mathcal{I}\\
-& ret_{it} \geq E m_{it}
-        & t \in \mathcal{T}, i \in \mathcal{I}\\
-& ret_{it} \in [0,E]
-        & t \in \mathcal{T}, i \in \mathcal{I} \\
-& \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
-        & t = |\mathcal{T}|
-\end{align}
 
 
 # Results
@@ -294,10 +281,10 @@ knitr::include_graphics("../img/multiobjective.png" %>% paste0(path_to_R_dir, .)
 
 ## Next steps
 
-* **Try different objective formulations**: availability - maintenability - future state.
+* **Add useful cuts**: for example limiting maintenance possibilities.
 * **Break symmetries**: clustering candidates, fixing end availabilities.
 * **Add more constraints**: minimal duration of assignments, storage of aircraft.
-* **Compare solvers exhaustively**: to determine when each one can be advantageous.
+* **Add robustness**: duration of maintenances, new /different missions, unavailable aircraft.
 
 # References
 ## References / Questions?
