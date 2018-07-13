@@ -833,63 +833,76 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     Here is the description of \cite{Smet2015}:
 
-    Let $J = {1, ..., n}$ be the set of tasks to be assigned and $E = {1, ..., m}$ the set of employees. Each task $j \in J$ has a duration $u_j$ , a start time $s_j$ and a finish time $f_j$ = $s_j + u_j$ . Each employee e has a set of tasks $J_e \in J$ that he/she can perform. Similarly, for each task $j$, a set $E_j \in E$ exists, which contains all employees that can perform task $j$. Both $T_e$ and $E_j$ are defined based on qualifications, time windows of tasks and availabilities of employees.
+    Let $P = {1, ..., n}$ be the set of tasks to be assigned and $E = {1, ..., m}$ the set of employees. Each task $p \in P$ has a duration $u_p$ , a start time $s_p$ and a finish time $f_p$ = $s_p + u_p$ . Each employee $e$ has a set of tasks $P_e \in P$ that he/she can perform. Similarly, for each task $p$, a set $E_p \in E$ exists, which contains all employees that can perform task $p$. Both $T_e$ and $E_p$ are defined based on qualifications, time windows of tasks and availabilities of employees.
+
+    The reference problem has the following characteristics.
+
+    $\mathcal{P}_{ref}$:
+
+    \begin{tabular}{ll}
+        $\mathcal{E}$       & Employees. \\
+        $\mathcal{P}$       & tasks.  \\
+        $u_p$     			&  Duration of task $p$. \\
+        $s_p$     			&  Starting times $p$. \\
+        $f_p$     			&  finish time of task $p$. \\
+        $S_e$     &  Set of tasks an employee $e$ can perform. \\
+        $E_p$ &  Set of employees that can perform task $p$. \\
+    \end{tabular}
 
     \subsection{Reduction}
 
     Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
 
-    For each employee $e \in E$, we create an analogous resource $i \in I$ which we will use indistinctly. 
+    % For each employee $e \in E$, we create an analogous resource $i \in I$ which we will use indistinctly. 
 
-    For each task $j \in J$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time can $D_t = |\mathcal{J}_t|$ can be calculated. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = J_i$ and $\mathcal{I}_j = E_j$.
+    % For each task $j \in J$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time can $D_t = |\mathcal{J}_t|$ can be calculated. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = J_i$ and $\mathcal{I}_j = E_j$.
 
-    The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$.
-    For maintenances, we can just take them out of the equation completely. For this we just need to put: $E_{min} = E = M = N_t = 0$ and $Ret^{Init}_{i} = |\mathcal{T}| + 1$.
+    % The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$.
+    % For maintenances, we can just take them out of the equation completely. For this we just need to put: $E_{min} = E = M = N_t = 0$ and $Ret^{Init}_{i} = |\mathcal{T}| + 1$.
 
-    \subsection{Notations}
+    % An instance of our problem is the following:
+
+    % \subsection{Notations}
+
+    The FMP problem has the following characteristics.
+
+    $\mathcal{P}_{FMP}$:
+
+    \vskip 0.3cm
 
     \textbf{Sets}
 
-    \begin{tabular}{ll}
-        $\mathcal{T}$       & Planning horizon periods. \\
-        $\mathcal{I}$       & Resources. \\
-        $\mathcal{J}$       & tasks.  \\
-        $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
-        $\mathcal{J}_t$     &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
-        $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
-        $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. \\
+    \begin{tabular}{l|l|l}
+    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+        $\mathcal{T}$    &  Planning horizon. & $\{\min_p({s_p}) ... \max_p({f_p})\}$ \\
+        $\mathcal{I}$    &  Resources. & $ \mathcal{E}$ \\
+        $\mathcal{J}$    &  Tasks.  & $ P$ \\
+        $\mathcal{T}_j$  &  time periods in which task $j$ is active. & $t \in \{s_p ... f_p\}$ \\
+        $\mathcal{J}_t$  &  tasks to be realized in period $t$. & $j | t \in \{s_p ... f_p\}$ \\
+        $\mathcal{I}_j$  &  resources that can be assigned to task $j$. & $E_p$\\
+        $\mathcal{O}_i$  &  tasks for which resource $i$ can be used. & $P_i$ \\
+        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control de maintenance starts. & $\{\}$ \\
     \end{tabular}
 
-    \subsection{Parameters}
+    \vskip 0.3cm
 
-    \begin{tabular}{ll}
-        $M_{min}$        & Minimum number of maintenances per resource in planning horizon. \\
-        $M$              & Duration of maintenance. \\
-        $E$              & Maximum elapsed time before assigning a maintenance. \\
-        $E_{min}$        & Minimum elapsed time before assigning a maintenance. \\
-        $R_{j}$          & Need of resources for task $j$. \\
-        $H$              & remaining usage time after a maintenance. \\
-        $D_t$            & number of resources to be assigned in total in period $t$. \\
-        $A^min_j$        & minimum number of consecutive periods to assign any resource to task $j$. \\
-        $Ret^{Init}_{i}$ & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
+    \textbf{Parameters}
+
+    \begin{tabular}{l|l|l}
+    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+        $D_t$            & number of resources to be assigned in total in period $t$ & $|\mathcal{J}_t|$\\
+        $A^{min}_j$      & minimum number of consecutive periods for task $j$. & $u_p$ \\
+        $Ret^{Init}_{i}$ & remaining elapsed time for resource $i$ at the start. & $|\mathcal{T}| + 1$ \\
+        $R_{j}$          & Need of resources for task $j$ & $1$ \\
+        $H_j$             & amount of resource time required by task $j$. & $ 0$ \\
+        $M$               & maintenance duration in number of periods. & $ 0$ \\
+        $E$               & remaining elapsed time after a maintenance. & $ 0$ \\
+        $H$               & remaining usage time after a maintenance.& $ 0$ \\
+        $N_t$             & number of resources in already-planned maintenances in period $t$ at the start. & $0$ \\
+        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0$ \\
+        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0$\\
+        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0$ \\
     \end{tabular}
-
-
-     \subsection{Variables}
-        
-        \begin{tabular}{ll}
-            $at^{init}_{it}$    &  =1 if resource $i \in I$ starts a mission assignment in period $t \in \mathcal{T}$, 0 otherwise. \\
-        \end{tabular}
-
-    \subsection{Model}
-
-    The model would need to have constraints of minimum assignment. For this, we would have to implement a new variable for missions that would be similar to the one in maintenances (a 'start' of mission assignment) and then tie this new variable to the regular assignments.
-
-        \begin{align}
-            &  at^{init}_{it} \geq at_{it}
-                & i \in \mathcal{I} \label{eq:min_maintenace2}\\
-        \end{align}
 
 
 
