@@ -677,18 +677,20 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     \subsection{Base problem}
 
-    The problem is described in \cite{Smet2015}, almost verbatim, as the following:
+    The problem is described in \cite{Smet2015}, almost verbatim, as follows:
 
     The objective of the problem discussed by \cite{Brunner2013} is to minimize the size of the workforce. Apart from coverage requirements, expressed as a minimum ($b_{k}$), there are three other constraints. The first constraint limits the number of days worked to a maximum value ($\overline{D}^{work}$). The second and third constraints define a range on the number of consecutive days worked ($\underline{D}^{on} - \overline{D}^{on}$) and days-off ($\underline{D}^{off} - \overline{D}^{off}$), respectively.
 
-    $\mathcal{P}_{ref}$:
+    \vskip 0.3cm
+
+    $i \in \mathcal{P}_{ref}$:
 
     \begin{tabular}{ll}
         $\mathcal{E}$          & Employees. \\
         $\mathcal{K}$          & Planning horizon. \\
-        $\overline{D}^{work}$  & Maximum number of working days at the of the planning horizon. \\
-        $\underline{D}^{on}$   & Minimum number of consecutive working days for each employee. \\
-        $\overline{D}^{on}$    & Maximum number of consecutive working days for each employee. \\
+        $\overline{D}^{work}$  & Maximum number of working days at the of the planning horizon.    \\
+        $\underline{D}^{on}$   & Minimum number of consecutive working days for each employee.     \\
+        $\overline{D}^{on}$    & Maximum number of consecutive working days for each employee.     \\
         $\underline{D}^{off}$  & Minimum number of consecutive non working days for each employee. \\
         $\overline{D}^{off}$   & Maximum number of consecutive non working days for each employee. \\
         $b_k$                  & Minimum number of workers to be assigned in period $k$. \\
@@ -696,58 +698,72 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     \subsection{Reduction}
 
-    Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
+    Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. Tables (\ref{tab:sets_crew} - \ref{tab:parameters_crew}) summarize this reduction.
 
-        \begin{tabular}{l|l|l}
-        \textbf{FMP}        &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
-        $\mathcal{T}$       &  Planning horizon. & $ \mathcal{K} $ \\
-        $\mathcal{I}$       &  Resources. & $ \mathcal{E} $ \\
-        $\mathcal{J}$       &  Tasks.  & $ \{1 .. |\mathcal{K}|\} $ \\
-        $\mathcal{T}_j$     &  time periods in which task $j$ is active. & $ t | t = j $ \\
-        $\mathcal{J}_t$     &  tasks to be realized in period $t$. & $ j | j = t $ \\
-        $\mathcal{I}_j$     &  resources that can be assigned to task $j$. & $ \mathcal{I} $\\
-        $\mathcal{O}_i$     &  tasks for which resource $i$ can be used. & $ \mathcal{J} $ \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control de maintenance starts. & $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ \\
-    \end{tabular}
+    For each period $k$ from the original problem, we create a period $t \in \mathcal{T}$ and a task $j \in \mathcal{J}$. Slightly abusing the notation, we can use the elements in these three sets indistinctly. Each task $j$ has $T_j = \{j=t\}$ that requires $R_{j} = b_{j=k}$ resources. This implies that $J_t = \{j=t\}$, $|J_t|=1$ and $D_t = b_{t=k}$.
+
+    For each worker $e$ we have a corresponding resource $i$.
+    Since all resources can cover the demand, we assume $O_i = \{j \in \mathcal{J}\}$.
+    All resources start have just exited a maintenance in the previous period to the start of the planning horizon. There's no previously planned maintenances, so $N_t = 0$.
+    The duration of the maintenance will be equal to $M = \underline{D}^{off}$.
+
+    The maximum remaining elapsed time between two maintenances is equal to $E = \overline{D}^{on}$. The minimum elapsed time between two maintenances is equal to $E^{min}=\underline{D}^{on}$.
+    The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$. The minimum number of maintenance months for each resource will be given by $MM_{min}=|\mathcal{T}| - \overline{D}^{work}$ and the maximum time a resource can stay in need of a maintenance before receiving it is $U^{max} = \overline{D}^{off} - \underline{D}^{off}$.
+    
+    \vskip 0.3cm
+
+    $I(i \in \mathcal{P}_{FMP})$:
+
+    \begin{table}
+        \begin{tabular}{l|l|p{40mm}}
+            \textbf{FMP}        &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
+            $\mathcal{T}$       &  planning horizon. & $ \mathcal{K} $ \\
+            $\mathcal{I}$       &  resources. & $ \mathcal{E} $ \\
+            $\mathcal{J}$       &  tasks.  & $ \mathcal{K} $ \\
+            $\mathcal{T}_j$     &  time periods in which task $j=t$ is active. & $ j $ \\
+            $\mathcal{J}_t$     &  tasks to be realized in period $t=j$. & $ t $ \\
+            $\mathcal{I}_j$     &  resources that can be assigned to task $j$. & $ \mathcal{I} $\\
+            $\mathcal{O}_i$     &  tasks for which resource $i$ can be used. & $ \mathcal{J} $ \\
+            $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control the maintenance starts. & $\{ \max{\{1, t - M+1\}}, $ $ ..., {t}\}$ \\
+        \end{tabular}
+         \caption{Crew Scheduling sets translation}
+        \label{tab:sets_crew}
+    \end{table}
+
 
     \vskip 0.3cm
 
-    \textbf{Parameters}
+    % \textbf{Parameters}
 
-    \begin{tabular}{l|l|l}
-        \textbf{FMP}      &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
-        $D_t$             & number of resources to be assigned in total in period $t$ & $ b_k $ \\
-        $A^{min}_j$       & minimum number of consecutive periods for task $j$. & $ 1 $ \\
-        $R_{j}$           & Need of resources for task $j$ & $ b_k $ \\
-        $H_j$             & amount of resource time required by task $j$. & $ 0 $ \\
-        $M$               & maintenance duration in number of periods. & $ \underline{D}^{off} $ \\
-        $E$               & remaining elapsed time after a maintenance. & $ \overline{D}^{on} $ \\
-        $E^{min}$         & minimum elapsed time before a maintenance. & $ \underline{D}^{on} $ \\
-        $H$               & remaining usage time after a maintenance. & $ 0 $ \\
-        $N_t$             & number of resources in already-planned maintenances in period $t$ at the start. & $ 0 $ \\
-        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start. & $ TODO $ \\
-        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0 $ \\
-        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0 $\\
-        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0 $ \\
-    \end{tabular}
+    \begin{table}
+        \begin{tabular}{l|l|l}
+            \textbf{FMP}      &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
+            $D_t$             & number of resources to be assigned in total in period $t=k$ & $ b_t $ \\
+            $A^{min}_j$       & minimum number of consecutive periods for task $j$. & $ 1 $ \\
+            $R_j$             & need of resources for task $j=t=k$ & $ b_j $ \\
+            $H_j$             & amount of resource time required by task $j$. & $ 0 $ \\
+            $M$               & maintenance duration in number of periods. & $ \underline{D}^{off} $ \\
+            $E$               & remaining elapsed time after a maintenance. & $ \overline{D}^{on} $ \\
+            $E^{min}$         & minimum elapsed time before a maintenance. & $ \underline{D}^{on} $ \\
+            $H$               & remaining usage time after a maintenance. & $ 0 $ \\
+            $N_t$             & number of resources in planned maintenances in period $t$ at the start. & $ 0 $ \\
+            $Ret^{Init}_i$      & remaining elapsed time for resource $i$ at the start of the planning horizon. & $ \overline{D}^{on} $ \\
+            $Rut^{Init}_i$      & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0 $ \\
+            $Ret^{Init}_{sum}$  & sum of remaining elapsed times at the start of the planning horizon. & $ 0 $\\
+            $Rut^{Init}_{sum}$  & sum of remaining elapsed time at the start of the planning horizon. & $ 0 $ \\
+            $MM^{min}$          & minimum number of total maintenance months for each resource. & $ |\mathcal{T}| - \overline{D}^{work} $ \\
+            $U^{max}$          & maximum unavailable months for a resource in need of maintenance. & $ \overline{D}^{off} - \underline{D}^{off} $ \\
+        \end{tabular}
+         \caption{Crew Scheduling parameters translation}
+        \label{tab:parameters_crew}
+    \end{table}
 
+$Q_{ref}$: For an instance $i \in \mathcal{P}_{ref}$: $\exists$ a solution with the number of resources $\leq k$?
 
-    % For each period $k$ from the original problem, we create a period $t \in \mathcal{T}$. We can use the elements in these two sets indistinctly.
-    % For each period $k$ with demand $b_{k}$, we create a task $j$ with $T_j = \{t\}$ that requires $R_{j} = b_{t}| t \in T_j$ resources. This implies that $J_t = \{j\}| t \in T_j$, $|J_t|=1$ and $D_t = b_{t}$.
+$Q_{FMP}$: For an instance $I(i \in \mathcal{P}_{ref})$: $\exists$ a solution with the number of resources $\leq k$?
 
-    % For each worker $i$ we have a corresponding resource $i$.
-    % Since all resources can cover the demand, we assume $O_i = \{j \in \mathcal{J}\}$.
-    % All resources start the planning horizon have just exited a maintenance in the previous period. This implies $N_t = 0$.
-    % The duration of the maintenance will be equal to $M = \overline{D}^{off} = \underline{D}^{off}$. This assumption is valid because the original proof was done with fixed values instead of ranges.
+In this particular case, just finding a feasible solution to the Flight and Maintenance Planning Problem is equivalent as solving the Crew Scheduling Problem.
 
-    % The maximum remaining elapsed time after a maintenance is equal to $E = \overline{D}^{off}$. The minimum elapsed time before a maintenance is equal to $e=\underline{D}^{off}$.
-    % The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$. The minimum number of maintenances for each resource will be given by $M_{min}=\lceil(|\mathcal{T}| - \overline{D}^{work}) / M \rceil$. (Alternatively, the limit could be measured as a minimum number of maintenance months $M_{min}=|\mathcal{T}| - \overline{D}^{work}$).
-
-    % \subsection{Hypothesis}
-
-    % \begin{itemize}
-    %      \item objective: minimize the number of aircraft to maximize availability.
-    % \end{itemize}
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -770,22 +786,23 @@ If I take the shifts models that were polynomial... given that they become hard 
     $i \in \mathcal{P}_{ref}$:
 
     \begin{tabular}{ll}
-        $\mathcal{E}$       & Employees. \\
+        $\mathcal{E}$       & employees. \\
         $\mathcal{P}$       & tasks.  \\
-        $u_p$     			&  Duration of task $p$. \\
-        $s_p$     			&  Starting times $p$. \\
-        $f_p$     			&  finish time of task $p$. \\
-        $S_e$     &  Set of tasks an employee $e$ can perform. \\
-        $E_p$ &  Set of employees that can perform task $p$. \\
+        $u_p$     			& duration of task $p$. \\
+        $s_p$     			& starting times $p$. \\
+        $f_p$     			& finish time of task $p$. \\
+        $S_e$               & set of tasks an employee $e$ can perform. \\
+        $E_p$               & set of employees that can perform task $p$. \\
     \end{tabular}
 
     \subsection{Reduction}
 
-    Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
+    Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. Tables (\ref{tab:sets_inter} - \ref{tab:parameters_inter}) summarize this reduction.
 
-    For each employee $e \in E$, we create an analogous resource $i \in I$ which we will use indistinctly. 
+    For each employee $e \in E$, we create an analogous resource $i \in I$. We will $e$ and $i$ indistinctly.
 
-    For each task $j \in J$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time can $D_t = |\mathcal{J}_t|$ can be calculated. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = J_i$ and $\mathcal{I}_j = E_j$.
+    For each task $p \in P$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. We will $p$ and $j$ indistinctly.
+    Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time will be $D_t = |\mathcal{J}_t|$. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = S_i$ and $\mathcal{I}_j = E_j$.
 
     The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$.
     For maintenances, we can just take them out of the equation completely. For this we just need to put: $E_{min} = E = M = N_t = 0$ and $Ret^{Init}_{i} = |\mathcal{T}| + 1$.
@@ -796,43 +813,55 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     \vskip 0.3cm
 
-    \textbf{Sets}
+    % \textbf{Sets}
 
-    \begin{tabular}{l|l|l}
-    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
-        $\mathcal{T}$    &  Planning horizon. & $\{\min_p({s_p}) ... \max_p({f_p})\}$ \\
-        $\mathcal{I}$    &  Resources. & $ \mathcal{E}$ \\
-        $\mathcal{J}$    &  Tasks.  & $ P$ \\
-        $\mathcal{T}_j$  &  time periods in which task $j=p$ is active. & $t \in \{s_p ... f_p\}$ \\
-        $\mathcal{J}_t$  &  tasks to be realized in period $t$. & $j | t \in \{s_p ... f_p\}$ \\
-        $\mathcal{I}_j$  &  resources that can be assigned to task $j=p$. & $E_p$\\
-        $\mathcal{O}_i$  &  tasks for which resource $i=e$ can be used. & $P_e$ \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control de maintenance starts. & $\{\}$ \\
-    \end{tabular}
+    \begin{table}
+        \begin{tabular}{l|l|l}
+        	\textbf{FMP}        &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
+            $\mathcal{T}$       &  planning horizon. & $\{\min_p({s_p}) ... \max_p({f_p})\}$ \\
+            $\mathcal{I}$       &  resources. & $ \mathcal{E}$ \\
+            $\mathcal{J}$       &  tasks.  & $ P$ \\
+            $\mathcal{T}_j$     &  time periods in which task $j=p$ is active. & $t \in \{s_j ... f_j\}$ \\
+            $\mathcal{J}_t$     &  tasks $j=p \in \mathcal{J}$ to be realized in period $t$. & $j | t \in \{s_j ... f_j\}$ \\
+            $\mathcal{I}_j$     &  resources that can be assigned to task $j=p$. & $E_j$\\
+            $\mathcal{O}_i$     &  tasks for which resource $i=e$ can be used. & $P_i$ \\
+            $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control the maintenance starts. & $\{\}$ \\
+        \end{tabular}
+        \caption{Interval scheduling set translation}
+        \label{tab:sets_inter}
+    \end{table}
+
 
     \vskip 0.3cm
 
-    \textbf{Parameters}
+    \begin{table}
+        \begin{tabular}{l|l|l}
+        	\textbf{FMP}      &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
+            $D_t$             & number of resources to be assigned in total in period $t$. & $ |\mathcal{J}_t| $\\
+            $A^{min}_j$       & minimum number of consecutive periods for task $j=p$. & $ u_p $ \\
+            $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start. & $ |\mathcal{T}| + 1 $ \\
+            $R_{j}$           & need of resources for task $j$ & $ 1 $ \\
+            $H_j$             & amount of resource time required by task $j$. & $ 0 $ \\
+            $M$               & maintenance duration in number of periods. & $ 0 $ \\
+            $E$               & remaining elapsed time after a maintenance. & $ 0 $ \\
+            $H$               & remaining usage time after a maintenance.& $ 0 $ \\
+            $N_t$             & number of resources in already-planned maintenances in period $t$. & $ 0 $ \\
+            $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0 $ \\
+            $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0 $\\
+            $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0 $ \\
+            $MM_{min}$        & minimum number of maintenance months for each resource. & $ 0 $ \\
+            $U^{max}$         & maximum number of unavailable months for aircraft that need maintenance. & $ 0 $ \\
+        \end{tabular}
+         \caption{Interval scheduling parameters translation}
+        \label{tab:parameters_inter}
+    \end{table}
 
-    \begin{tabular}{l|l|l}
-    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
-        $D_t$            & number of resources to be assigned in total in period $t$ & $|\mathcal{J}_t|$\\
-        $A^{min}_j$      & minimum number of consecutive periods for task $j=p$. & $u_p$ \\
-        $Ret^{Init}_{i}$ & remaining elapsed time for resource $i$ at the start. & $|\mathcal{T}| + 1$ \\
-        $R_{j}$          & Need of resources for task $j$ & $1$ \\
-        $H_j$             & amount of resource time required by task $j$. & $ 0$ \\
-        $M$               & maintenance duration in number of periods. & $ 0$ \\
-        $E$               & remaining elapsed time after a maintenance. & $ 0$ \\
-        $H$               & remaining usage time after a maintenance.& $ 0$ \\
-        $N_t$             & number of resources in already-planned maintenances in period $t$. & $0$ \\
-        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0$ \\
-        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0$\\
-        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0$ \\
-    \end{tabular}
 
-$Q_{ref}$: For an instance $i \in \mathcal{P}_{ref}$, $\exists$ a solution with the number of resources $\leq k$:
+$Q_{ref}$: For an instance $i \in \mathcal{P}_{ref}$: $\exists$ a solution with the number of resources $\leq k$?
 
-$Q_{FMP}$: For an instance $I(i \in \mathcal{P}_{ref})$, $\exists$ a solution with the number of available resources $\geq |I| - k$:
+$Q_{FMP}$: For an instance $I(i \in \mathcal{P}_{ref})$: $\exists$ a solution with the number of resources $\leq k$?
+
+In this particular case, just finding a feasible solution to the Flight and Maintenance Planning Problem is equivalent as solving the Fixed Interval Scheduling Problem.
 
 
 \clearpage
