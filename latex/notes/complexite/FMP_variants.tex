@@ -837,7 +837,7 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     The reference problem has the following characteristics.
 
-    $\mathcal{P}_{ref}$:
+    $i \in \mathcal{P}_{ref}$:
 
     \begin{tabular}{ll}
         $\mathcal{E}$       & Employees. \\
@@ -866,21 +866,21 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     The FMP problem has the following characteristics.
 
-    $\mathcal{P}_{FMP}$:
+    $I(i \in \mathcal{P}_{FMP})$:
 
     \vskip 0.3cm
 
     \textbf{Sets}
 
     \begin{tabular}{l|l|l}
-    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
         $\mathcal{T}$    &  Planning horizon. & $\{\min_p({s_p}) ... \max_p({f_p})\}$ \\
         $\mathcal{I}$    &  Resources. & $ \mathcal{E}$ \\
         $\mathcal{J}$    &  Tasks.  & $ P$ \\
-        $\mathcal{T}_j$  &  time periods in which task $j$ is active. & $t \in \{s_p ... f_p\}$ \\
+        $\mathcal{T}_j$  &  time periods in which task $j=p$ is active. & $t \in \{s_p ... f_p\}$ \\
         $\mathcal{J}_t$  &  tasks to be realized in period $t$. & $j | t \in \{s_p ... f_p\}$ \\
-        $\mathcal{I}_j$  &  resources that can be assigned to task $j$. & $E_p$\\
-        $\mathcal{O}_i$  &  tasks for which resource $i$ can be used. & $P_i$ \\
+        $\mathcal{I}_j$  &  resources that can be assigned to task $j=p$. & $E_p$\\
+        $\mathcal{O}_i$  &  tasks for which resource $i=e$ can be used. & $P_e$ \\
         $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control de maintenance starts. & $\{\}$ \\
     \end{tabular}
 
@@ -889,21 +889,24 @@ If I take the shifts models that were polynomial... given that they become hard 
     \textbf{Parameters}
 
     \begin{tabular}{l|l|l}
-    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+    	\textbf{FMP}    &  \textbf{Meaning} & \textbf{I(i)} \\ \hline
         $D_t$            & number of resources to be assigned in total in period $t$ & $|\mathcal{J}_t|$\\
-        $A^{min}_j$      & minimum number of consecutive periods for task $j$. & $u_p$ \\
+        $A^{min}_j$      & minimum number of consecutive periods for task $j=p$. & $u_p$ \\
         $Ret^{Init}_{i}$ & remaining elapsed time for resource $i$ at the start. & $|\mathcal{T}| + 1$ \\
         $R_{j}$          & Need of resources for task $j$ & $1$ \\
         $H_j$             & amount of resource time required by task $j$. & $ 0$ \\
         $M$               & maintenance duration in number of periods. & $ 0$ \\
         $E$               & remaining elapsed time after a maintenance. & $ 0$ \\
         $H$               & remaining usage time after a maintenance.& $ 0$ \\
-        $N_t$             & number of resources in already-planned maintenances in period $t$ at the start. & $0$ \\
+        $N_t$             & number of resources in already-planned maintenances in period $t$. & $0$ \\
         $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0$ \\
         $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0$\\
         $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0$ \\
     \end{tabular}
 
+$Q_{ref}$: For an instance $i \in \mathcal{P}_{ref}$, $\exists$ a solution with the number of resources $\leq k$:
+
+$Q_{FMP}$: For an instance $I(i \in \mathcal{P}_{ref})$, $\exists$ a solution with the number of available resources $\geq |I| - k$:
 
 
 \clearpage
