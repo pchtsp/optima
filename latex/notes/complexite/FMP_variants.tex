@@ -681,143 +681,73 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     The objective of the problem discussed by \cite{Brunner2013} is to minimize the size of the workforce. Apart from coverage requirements, expressed as a minimum ($b_{k}$), there are three other constraints. The first constraint limits the number of days worked to a maximum value ($\overline{D}^{work}$). The second and third constraints define a range on the number of consecutive days worked ($\underline{D}^{on} - \overline{D}^{on}$) and days-off ($\underline{D}^{off} - \overline{D}^{off}$), respectively.
 
+    $\mathcal{P}_{ref}$:
+
+    \begin{tabular}{ll}
+        $\mathcal{E}$          & Employees. \\
+        $\mathcal{K}$          & Planning horizon. \\
+        $\overline{D}^{work}$  & Maximum number of working days at the of the planning horizon. \\
+        $\underline{D}^{on}$   & Minimum number of consecutive working days for each employee. \\
+        $\overline{D}^{on}$    & Maximum number of consecutive working days for each employee. \\
+        $\underline{D}^{off}$  & Minimum number of consecutive non working days for each employee. \\
+        $\overline{D}^{off}$   & Maximum number of consecutive non working days for each employee. \\
+        $b_k$                  & Minimum number of workers to be assigned in period $k$. \\
+    \end{tabular}
+
     \subsection{Reduction}
 
     Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
 
-    For each period $k$ from the original problem, we create a period $t \in \mathcal{T}$. We can use the elements in these two sets indistinctly.
-    For each period $k$ with demand $b_{k}$, we create a task $j$ with $T_j = \{t\}$ that requires $R_{j} = b_{t}| t \in T_j$ resources. This implies that $J_t = \{j\}| t \in T_j$, $|J_t|=1$ and $D_t = b_{t}$.
+        \begin{tabular}{l|l|l}
+        \textbf{FMP}        &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+        $\mathcal{T}$       &  Planning horizon. & $ \mathcal{K} $ \\
+        $\mathcal{I}$       &  Resources. & $ \mathcal{E} $ \\
+        $\mathcal{J}$       &  Tasks.  & $ \{1 .. |\mathcal{K}|\} $ \\
+        $\mathcal{T}_j$     &  time periods in which task $j$ is active. & $ t | t = j $ \\
+        $\mathcal{J}_t$     &  tasks to be realized in period $t$. & $ j | j = t $ \\
+        $\mathcal{I}_j$     &  resources that can be assigned to task $j$. & $ \mathcal{I} $\\
+        $\mathcal{O}_i$     &  tasks for which resource $i$ can be used. & $ \mathcal{J} $ \\
+        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ that control de maintenance starts. & $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ \\
+    \end{tabular}
 
-    For each worker $i$ we have a corresponding resource $i$.
-    Since all resources can cover the demand, we assume $O_i = \{j \in \mathcal{J}\}$.
-    All resources start the planning horizon have just exited a maintenance in the previous period. This implies $N_t = 0$.
-    The duration of the maintenance will be equal to $M = \overline{D}^{off} = \underline{D}^{off}$. This assumption is valid because the original proof was done with fixed values instead of ranges.
+    \vskip 0.3cm
 
-    The maximum remaining elapsed time after a maintenance is equal to $E = \overline{D}^{off}$. The minimum elapsed time before a maintenance is equal to $e=\underline{D}^{off}$.
-    The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$. The minimum number of maintenances for each resource will be given by $M_{min}=\lceil(|\mathcal{T}| - \overline{D}^{work}) / M \rceil$. (Alternatively, the limit could be measured as a minimum number of maintenance months $M_{min}=|\mathcal{T}| - \overline{D}^{work}$).
+    \textbf{Parameters}
+
+    \begin{tabular}{l|l|l}
+        \textbf{FMP}      &  \textbf{Meaning} & \textbf{f(I)} \\ \hline
+        $D_t$             & number of resources to be assigned in total in period $t$ & $ b_k $ \\
+        $A^{min}_j$       & minimum number of consecutive periods for task $j$. & $ 1 $ \\
+        $R_{j}$           & Need of resources for task $j$ & $ b_k $ \\
+        $H_j$             & amount of resource time required by task $j$. & $ 0 $ \\
+        $M$               & maintenance duration in number of periods. & $ \underline{D}^{off} $ \\
+        $E$               & remaining elapsed time after a maintenance. & $ \overline{D}^{on} $ \\
+        $E^{min}$         & minimum elapsed time before a maintenance. & $ \underline{D}^{on} $ \\
+        $H$               & remaining usage time after a maintenance. & $ 0 $ \\
+        $N_t$             & number of resources in already-planned maintenances in period $t$ at the start. & $ 0 $ \\
+        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start. & $ TODO $ \\
+        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. & $ 0 $ \\
+        $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. & $ 0 $\\
+        $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. & $ 0 $ \\
+    \end{tabular}
+
+
+    % For each period $k$ from the original problem, we create a period $t \in \mathcal{T}$. We can use the elements in these two sets indistinctly.
+    % For each period $k$ with demand $b_{k}$, we create a task $j$ with $T_j = \{t\}$ that requires $R_{j} = b_{t}| t \in T_j$ resources. This implies that $J_t = \{j\}| t \in T_j$, $|J_t|=1$ and $D_t = b_{t}$.
+
+    % For each worker $i$ we have a corresponding resource $i$.
+    % Since all resources can cover the demand, we assume $O_i = \{j \in \mathcal{J}\}$.
+    % All resources start the planning horizon have just exited a maintenance in the previous period. This implies $N_t = 0$.
+    % The duration of the maintenance will be equal to $M = \overline{D}^{off} = \underline{D}^{off}$. This assumption is valid because the original proof was done with fixed values instead of ranges.
+
+    % The maximum remaining elapsed time after a maintenance is equal to $E = \overline{D}^{off}$. The minimum elapsed time before a maintenance is equal to $e=\underline{D}^{off}$.
+    % The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$. The minimum number of maintenances for each resource will be given by $M_{min}=\lceil(|\mathcal{T}| - \overline{D}^{work}) / M \rceil$. (Alternatively, the limit could be measured as a minimum number of maintenance months $M_{min}=|\mathcal{T}| - \overline{D}^{work}$).
 
     % \subsection{Hypothesis}
 
     % \begin{itemize}
     %      \item objective: minimize the number of aircraft to maximize availability.
     % \end{itemize}
-
-    \subsection{Notations}
-
-    \textbf{Sets}
-
-    \begin{tabular}{ll}
-        $\mathcal{T}$ & Planning horizon periods. \\
-        $\mathcal{I}$ & Resources. \\
-        $\mathcal{J}$ & tasks.  \\
-        $\mathcal{T}_j$ &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
-        $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
-        $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
-        $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. \\
-    \end{tabular}
-
-    \subsection{Parameters}
-
-    \begin{tabular}{ll}
-        $M_{min}$ & Minimum number of maintenances per resource in planning horizon. \\
-        $M$ & Duration of maintenance. \\
-        $E$ & Maximum elapsed time before assigning a maintenance. \\
-        $E_{min}$ & Minimum elapsed time before assigning a maintenance. \\
-        $R_{j}$ & Need of resources for task $j$. \\
-    \end{tabular}
-
-    % (here we could, in theory just copy the same model than we had in MOSIM).
-
-    \vskip 0.3cm
-
-     \subsection{Variables}
-
-        \begin{tabular}{ll}
-            $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
-            $ret_{it}$  &  remaining elapsed time (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
-        \end{tabular}
-
-    \subsection{Model}
-
-        The following modifications need to be done to the original problem described in MOSIM
-        
-
-        \begin{align}
-            & ret_{it} \in [E_{min},E] 
-                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
-            & \sum_{t \in \mathcal{T}} m_{it} \geq M_{min} 
-                & i \in \mathcal{I} \label{eq:min_maintenace}
-        \end{align}
-
-        Constraints (\ref{eq:me}), which already existed, now have a specific minimum value instead of just 0. Constraints (\ref{eq:min_maintenace}) are new. They put a minimum number of maintenances for each resource. This had been considered as a possible cut to the original problem and does not imply a big change to the solutions.
-
-        The alternative to constraints (\ref{eq:min_maintenace}), in case we want to control the months under maintenance and not the number of maintenance operations, are constraints (\ref{eq:min_maintenace2}).
-
-        \begin{align}
-            & \sum_{t \in \mathcal{T}} \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} \geq M_{min}
-                & i \in \mathcal{I} \label{eq:min_maintenace2}\\
-        \end{align}
-
-        
-
-        % \begin{align}
-        %     % maximum capacity1:
-        %     & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
-        %       & t \in \mathcal{T} \label{eq:capacity1}\\
-        %    %avail
-        %    & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
-        %     &t \in \mathcal{T} \label{eq:avalaibility1}\\
-        %    % maximum capacity2:                
-        %     & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
-        %             & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
-        %     & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
-        %             & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
-        % \end{align}
-
-
-        % \begin{align}
-        %     % remaining used time
-        %      & rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j \notag \\
-        %             && t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
-        %     & rut_{i0} = Rut^{Init}_i
-        %            & i \in \mathcal{I} \label{eq:rut_initial}\\
-        %     & rut_{it} \geq H m_{it}
-        %             & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
-        %     & rut_{it} \in [0,H]
-        %             & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} \\
-        %     & ret_{it} \leq ret_{it-1} - 1 + E m_{it}
-        %             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
-        %     & ret_{i0} = Ret^{Init}_i
-        %             & i \in \mathcal{I} \label{eq:ret_initial}\\
-        %     & ret_{it} \geq E m_{it}
-        %             & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
-        %     & ret_{it} \in [0,E]
-        %             & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
-        %     & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
-        %           & t = |\mathcal{T}| \label{eq:min_ret}\\
-        %     & \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
-        %           & t = |\mathcal{T}| \label{eq:min_rut}
-        % \end{align}
-    % \begin{align}
-    %     & \text{Min}\; \sum_{i \in \mathcal{I}} y_{i} \label{min_num_resources}
-    % \end{align}
-
-    % \begin{align}
-    %     & \sum_{i \in \mathcal{I}} x_{it} \geq b_t & t \in \mathcal{T} \label{demand3} \\
-    %     & \sum_{t \in \mathcal{T}} x_{it} \leq \overline{D}^{work} & i \in \mathcal{I} \label{max_work} \\
-    %     & \sum_{t' = t}^{\overline{D}^{on}+t-1} x_{it'} \leq \overline{D}^{on} & i \in \mathcal{I}, t \in \mathcal{T} \label{max_work_days} \\
-    %     & \sum_{t' = t}^{\underline{D}^{on}+t-1} x_{it'} \geq \underline{D}^{on} (x_{it} - x_{it-1}) & i \in \mathcal{I}, t \in \mathcal{T} \label{min_work_days} \\
-    %     & \sum_{t' = t}^{D^{off}+t-1} (1 - x_{it'}) \leq D^{off} & i \in \mathcal{I}, t \in \mathcal{T} \label{max_no_work_days} \\
-    %     & \sum_{t' = t}^{D^{off}+t-1} (1 - x_{it'}) \geq D^{off} (- x_{it} + x_{it-1}) & i \in \mathcal{I}, t \in \mathcal{T} \label{min_no_work_days} \\
-    %     & y_{i} \geq x_{it} & i \in \mathcal{I}, t \in \mathcal{T} \label{num_resources} \\
-    %     & x_{it}, y_{i} \in \{0, 1\} & i \in \mathcal{I}, t \in \mathcal{T} \label{binary}
-    % \end{align}
-
-    % Constraints (\ref{demand3}) guarantee the necessary number of workers is available to work. 
-    % Constraints ((\ref{max_work}) checks that the total number of working days for each worker is less than the upper limit.
-    % Constraints (\ref{max_work_days} - \ref{min_work_days}) control the resources meet the range of working days. Constraints (\ref{max_no_work_days} - \ref{min_no_work_days}) control the resources meet the fixed number of non-working days.
-    % Finally constraints (\ref{num_resources}) quantify the number of necessary workers in the planning to be minimized in (\ref{min_num_resources}).
 
 \clearpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -853,16 +783,12 @@ If I take the shifts models that were polynomial... given that they become hard 
 
     Now, a simplified description of our original problem is done so that it complies with the above one. For reference, see the original description of the problem at the beginning of this document. It's an adaption of the MOSIM description.
 
-    % For each employee $e \in E$, we create an analogous resource $i \in I$ which we will use indistinctly. 
+    For each employee $e \in E$, we create an analogous resource $i \in I$ which we will use indistinctly. 
 
-    % For each task $j \in J$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time can $D_t = |\mathcal{J}_t|$ can be calculated. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = J_i$ and $\mathcal{I}_j = E_j$.
+    For each task $j \in J$, we create a $j \in J$ task in our problem with duration and minimal assignment time equal to $A^{min}_j = u_j$. Start times and finish times define the moment when the task is active: $\mathcal{T}_j = t \in \{s_j ... f_j\}$. The need of resources for each task will be constant $R_{j} = 1$. The number of resources working at any given time can $D_t = |\mathcal{J}_t|$ can be calculated. The relationship between tasks and employees is also equivalent: $\mathcal{O}_i = J_i$ and $\mathcal{I}_j = E_j$.
 
-    % The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$.
-    % For maintenances, we can just take them out of the equation completely. For this we just need to put: $E_{min} = E = M = N_t = 0$ and $Ret^{Init}_{i} = |\mathcal{T}| + 1$.
-
-    % An instance of our problem is the following:
-
-    % \subsection{Notations}
+    The usage time for each resource by any task will be $H_j = 0$ and the remaining usage time after a maintenance is $H = 0$.
+    For maintenances, we can just take them out of the equation completely. For this we just need to put: $E_{min} = E = M = N_t = 0$ and $Ret^{Init}_{i} = |\mathcal{T}| + 1$.
 
     The FMP problem has the following characteristics.
 
