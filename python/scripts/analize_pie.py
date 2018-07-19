@@ -1,6 +1,6 @@
 import package.data_input as di
 import package.instance as inst
-import package.tests as exp
+import package.experiment as exp
 import package.solution as sol
 import pprint as pp
 import package.auxiliar as aux

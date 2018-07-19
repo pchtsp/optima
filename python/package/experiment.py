@@ -17,7 +17,7 @@ import package.logFiles as log
 # TODO: create period objects with proper date methods based on arrow
 # TODO: create listtuple and dictionary objects with proper methods
 
-# TODO: check fixed maintenances
+# TODO: check minimum assignment
 
 class Experiment(object):
     """
@@ -64,8 +64,9 @@ class Experiment(object):
             ,'state':       self.check_resource_state
             ,'resources':   self.check_task_num_resources
             ,'usage':       self.check_usage_consumption
-            ,'elapsed':    self.check_elapsed_consumption
+            ,'elapsed':     self.check_elapsed_consumption
             ,'capacity':    self.check_maintenance_capacity
+            ,'min_assign':  self.check_min_assignment
         }
         result = {k: v() for k, v in func_list.items()}
         return {k: v for k, v in result.items() if len(v) > 0}
@@ -235,15 +236,31 @@ class Experiment(object):
         last_period = self.instance.get_param('end')
         duration = self.instance.get_param('maint_duration')
 
-        maintenance_duration_incorrect = {}
+        incorrect = {}
         for (resource, start, finish) in maintenances:
             size_period = len(aux.get_months(start, finish))
             if size_period > duration:
-                maintenance_duration_incorrect[(resource, start)] = size_period
+                incorrect[(resource, start)] = size_period
             if size_period < duration and start != first_period and \
                             finish != last_period:
-                maintenance_duration_incorrect[(resource, start)] = size_period
-        return maintenance_duration_incorrect
+                incorrect[(resource, start)] = size_period
+        return incorrect
+
+    def check_min_assignment(self):
+        tasks_periods = self.solution.get_task_periods()
+        task_min_assign = self.instance.get_tasks('min_assign')
+        first_period = self.instance.get_param('start')
+        last_period = self.instance.get_param('end')
+
+        incorrect = {}
+        for (resource, start, task, finish) in tasks_periods:
+            # limits are not checked for min assignment
+            if start == first_period or finish == last_period:
+                continue
+            size_period = len(aux.get_months(start, finish))
+            if size_period < task_min_assign[task]:
+                incorrect[(resource, start)] = size_period
+        return incorrect
 
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")

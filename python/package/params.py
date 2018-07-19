@@ -2,7 +2,7 @@ import os
 import datetime as dt
 
 path_root = '/home/pchtsp/Documents/projects/'
-path_results = path_root + "OPTIMA_documents/results/"
+path_results = '/home/pchtsp/Dropbox/OPTIMA_results/'
 path_project = path_root + "OPTIMA/"
 
 PATHS = {
@@ -18,16 +18,16 @@ PATHS['input'] = PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
 PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
 OPTIONS = {
-    'timeLimit': 3600*3  # seconds
+    'timeLimit': 3600  # seconds
     , 'gap': 0
-    , 'solver': "HEUR"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
     , 'memory': 15000
     , 'print': True
     , 'integer': False
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start_pos': 0
-    , 'end_pos': 40
+    , 'end_pos': 60
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")

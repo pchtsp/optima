@@ -6,7 +6,7 @@ import copy
 # import package.model as md
 # import multiprocessing as multi
 # import datetime
-import package.tests as Exp
+import package.experiment as Exp
 
 
 if __name__ == "__main__":

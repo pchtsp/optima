@@ -135,8 +135,7 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
             , 'num_resource': tasks_data.nombreRequisA1.to_dict()[task]
             , 'type_resource': tasks_data['Type'].to_dict()[task]
             , 'matricule': tasks_data['MatriculeMission'].to_dict()[task]
-            # , 'candidates': mission_aircraft.groupby("IdMission")['IdAvion'].
-            #     apply(lambda x: x.tolist()).to_dict()[task]
+            , 'min_assign': tasks_data['MinAffectation'].to_dict()[task]
             , 'capacities': mission_capacities[task]
         } for task in av_tasks
     }

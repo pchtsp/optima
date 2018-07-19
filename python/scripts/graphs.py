@@ -6,7 +6,7 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
 # import pandas.rpy.common as com
 import palettable.colorbrewer as cbrewer
-import package.tests as tests
+import package.experiment as tests
 
 # import rpy2.robjects.lib.timevis as timevis
 # we start with some pickle

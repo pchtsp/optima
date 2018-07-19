@@ -1,9 +1,10 @@
-import package.tests as exp
+import package.experiment as exp
 import package.solution as sol
 import pprint as pp
 from package.params import PATHS
 import package.auxiliar as aux
 import pandas as pd
+import package.superdict as sd
 
 # '201801141334' vs '201802061201 vs '201802061434'
 
@@ -30,16 +31,29 @@ def test2():
 
 
 def test4():
-    e = '201805031113'
-    experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
-    # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
-    checks = experiment.check_solution()
-    checks.keys()
-    pp.pprint(checks['resources'])
-    # pp.pprint(checks['duration'])
-    pp.pprint(checks['elapsed'])
-    pp.pprint(checks['usage'])
-    pp.pprint(experiment.get_kpis())
+    case1 = '201805232311'
+    case2 = '201805232322'
+    case3 = '201805241036'
+    heuristiques = [case3]
+    path_abs = PATHS['experiments']
+    options_e = exp.list_options(path_abs)
+    heuristiques = [o for o, v in options_e.items() if v['solver'] == 'HEUR']
+    experiments_info = exp.list_experiments(path=path_abs, exp_list=heuristiques, get_log_info=False)
+    experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in heuristiques}
+    experiments = sd.SuperDict(experiments)
+    experiments = experiments.clean(default_value=None)
+    checks = {e: v.check_solution() for e, v in experiments.items()}
+    checks_len = {e: {'infeasible': sum(len(vv) for vv in v.values())}
+              for e, v in checks.items()}
+
+    dict_join = {e: {**experiments_info.get(e),
+                     **checks_len.get(e),
+                     **options_e[e],
+                     } for e in experiments}
+
+    pd.DataFrame.from_dict(dict_join, orient='index')\
+        [['infeasible', 'periods', 'tasks']]. \
+        sort_values(['tasks', 'periods'])
 
     pass
     # backup = copy.deepcopy(heur_obj.solution.data['aux']['ret'])

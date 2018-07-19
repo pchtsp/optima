@@ -42,15 +42,20 @@ class Instance(object):
                 result[category] = list(value.keys())
         return result
 
-    def get_category(self, category, param):
+    def get_category(self, category, param=None, default_dict=None):
+        assert category in self.data
+        data = self.data[category]
+        if default_dict is not None:
+            data = {k: {**default_dict, **v} for k, v in data.items()}
         if param is None:
-            return self.data[category]
-        if param in list(self.data[category].values())[0]:
-            return aux.get_property_from_dic(self.data[category], param)
+            return data
+        if param in list(data.values())[0]:
+            return aux.get_property_from_dic(data, param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):
-        return self.get_category('tasks', param)
+        default_tasks = {'min_assign': 1}
+        return self.get_category('tasks', param, default_tasks)
 
     def get_resources(self, param=None):
         return self.get_category('resources', param)
@@ -97,6 +102,7 @@ class Instance(object):
         tasks = list(task_data.keys())
         start_time = self.get_tasks('start')
         end_time = self.get_tasks('end')
+        min_assign = self.get_tasks('min_assign')
         candidates = self.get_task_candidates()
         # candidates = aux.get_property_from_dic(task_data, 'candidates')
 
@@ -120,8 +126,8 @@ class Instance(object):
 
         at = [(a, t) for a in resources for t in periods]
         at0 = [(a, period_0) for a in resources] + at
-        at_mission = []  # to be implemented
-        at_start = []  # to be implemented
+        at_mission = []  # to be implemented. Fixed mission assignments.
+        at_start = []  # to be implemented. Fixed maintenances starts
         at_maint = self.get_fixed_maintenances()
         at_free = [(a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission)]
         at_free_start = [(a, t) for (a, t) in at_free]
@@ -133,7 +139,10 @@ class Instance(object):
                if (a, t) in list(at_free + at_mission)]
         ast = [(a, s, t) for (a, t) in list(at_free + at_maint) for s in states]
         att = [(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
-               periods_pos[t1] <= periods_pos[t2] <= periods_pos[t1] + duration - 1]
+               periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration]
+        avtt = [(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
+                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
+                ]
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
@@ -141,6 +150,8 @@ class Instance(object):
         at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
         t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
         t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
+        t2_avt1 = aux.tup_to_dict(avtt, result_col=3, is_list=True)
+        t1_avt2 = aux.tup_to_dict(avtt, result_col=2, is_list=True)
 
         return {
          'periods'          :  periods
@@ -168,6 +179,9 @@ class Instance(object):
         ,'at1_t2'           :  at1_t2
         ,'t2_at1'           :  t2_at1
         ,'at_avail'         : list(at_free + at_mission)
+        ,'t2_avt1'          : t2_avt1
+        ,'t1_avt2'          : t1_avt2
+        ,'avtt'             : avtt
         }
 
     def get_initial_state(self, time_type):
@@ -195,9 +209,9 @@ class Instance(object):
         return rt_init
 
     def get_fixed_maintenances(self, dict_key=None):
-        previous_states = aux.get_property_from_dic(self.get_resources(), "states")
-        first_period = self.get_param()['start']
-        duration = self.get_param()['maint_duration']
+        previous_states = self.get_resources("states")
+        first_period = self.get_param('start')
+        duration = self.get_param('maint_duration')
 
         last_maint = {}
         planned_maint = []

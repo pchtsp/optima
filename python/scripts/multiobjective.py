@@ -2,7 +2,7 @@ import package.auxiliar as aux
 import package.data_input as di
 import package.model as md
 import package.instance as inst
-import package.tests as exp
+import package.experiment as exp
 import os
 
 path_root = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/"

@@ -50,6 +50,12 @@ class Solution(object):
         )
         return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
+    def get_task_periods(self):
+        result = aux.tup_to_start_finish(
+            aux.dict_to_tup(self.get_tasks())
+        )
+        return result
+
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
         return [(r, s) for (r, s, e) in maintenances]

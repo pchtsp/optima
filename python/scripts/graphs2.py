@@ -3,7 +3,7 @@ import pprint as pp
 import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
-import package.tests as exp
+import package.experiment as exp
 import os
 import numpy as np
 import random
