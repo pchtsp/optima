@@ -14,13 +14,28 @@ Code is organized as follows:
 * **package**: core code with models, data proessing and main logic.
 * **desktop_app**: PyQt gui for app.
 
+## Get the software
+
 Steps to set up development environment:
 
-* git clone https://openforge.isae.fr/git/optima
-* cd optima
-* virtualenv venv
-* `venv\Scripts\bin\activate` or `source venv/bin/activate`
-* pip install -r requirements
+Windows:
+
+    git clone git@github.com:pchtsp/ROADEF2018.git
+    cd ROADEF2018\python
+    python3 -m venv venv
+    venv\Scripts\activate
+    pip3 install --upgrade pip
+    pip3 install -r requirements.txt
+
+Ubuntu:
+
+    git clone git@github.com:pchtsp/ROADEF2018.git
+    cd ROADEF2018/python
+    python3 -m venv venv
+    source venv/bin/activate
+    pip3 install -r requirements.txt
+
+## Requirements
 
 Requirements:
 
@@ -40,9 +55,17 @@ Requirements:
     choco install python3 git r.project pip -y
     pip install virtualenv --user
 
-For installing requirements in Windows:
+## For installing requirements in Windows:
+
+I only had to install `numpy` and the build tools 2017.
 
 Check: https://stackoverflow.com/a/32064281
+
+Check: https://wiki.python.org/moin/WindowsCompilers
+
+https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
+
+https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.org%2Fmoin%2FWindowsCompilers
 
 * Build Tools 2017: http://landinghub.visualstudio.com/visual-cpp-build-tools
 * numpy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy
