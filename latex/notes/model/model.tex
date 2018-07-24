@@ -70,17 +70,16 @@
         $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
         $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$. \\
         % $\mathcal{T}^{st}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - S+1\}},  ..., {t}$\}. \\
-        $\mathcal{T}^{m}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - E^{m}+1\}},  ..., {t}\}$. \\
-        $\mathcal{T}^{M}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - E^{M}+1\}},  ..., \max{\{1, t - E^{m}+1\}}$\}. \\
+        $\mathcal{T}^{m}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + E^{m}-1\}}\}$. \\
+        $\mathcal{T}^{M}_t$ &  time periods $t' \leq |\mathcal{T}| - E^{M}$ such that $t' \in \{ t + E^{m}-1 , ...,  t + E^{M}-1 \}$. \\
+        $\mathcal{T}^{m_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Ret^{Init}_{i} - E^M + E^m \}}\}$. \\
+        $\mathcal{T}^{M_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Ret^{Init}_{i} - E^M + E^m \}} , ...,  Ret^{Init}_{i} \}$. \\
         $\mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$. \\
-        % $\mathcal{T}^{M}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - E^{M}+1\}},  ..., \max{\{1, t - E^{m}+1\}}$\}. \\
     \end{tabular}
 
   \subsection{Parameters}
 
   % TODO: previously assigned missions.
-  % TODO: previous ret.
-  % TODO: previous maintenaces.
 
     \begin{tabular}{p{8mm}p{167mm}}
         $H_j$             & amount of resource time required by task $j$. \\
@@ -102,7 +101,7 @@
         $AK_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
         $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
         $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
-        % $A_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
+        $A^{init}_{jti}$  & =1 if resource $i \in \mathcal{I}$ has task $j$ pre-assigned in period $t$. \\
         % $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
         % $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. \\
     \end{tabular}
@@ -122,7 +121,7 @@
         % $m_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
     \end{tabular}
     
-    Note that  $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning horizon for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning horizon is used to initialize $rut_{i0}$. 
+    Note that $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning horizon for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning horizon is used to initialize $rut_{i0}$. 
 
   \subsection{Constraints}
 
@@ -132,10 +131,10 @@
         & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H - \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|}
     \end{align}
     
-    where the first expression counts all the resource hours given via maintenances and the second expression measures the amount of remaining hours at all resources at the end of the planning horizon.
+    where the first expression counts all the usage hours given to resources via maintenances and the second expression measures the amount of remaining usage hours in the resources at the end of the planning horizon.
 
-    where we want to minimize the total number of resource hours given via maintenances and we want to maximize the final state measured in available hours of resources. These two objectives have the same units and can be easily compared and they ensure the resource hours are used in the most efficient way possible.
-    % where weights $W_1$ and $W_2$ are chosen by the decision maker. $W_1$ penalizes the maximum number of resources in maintenance among all periods. $W_2$ penalizes the maximum number of unavailable resources among all periods.
+    We want to minimize the total number of maintenances and we want to maximize the final state measured. These two objectives have the same units, can be easily compared and they ensure the resource hours are used in the most efficient way possible.
+
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
@@ -158,22 +157,22 @@
 
     \begin{align}
         % if start task => assign start
-        & a^s_{jti} \geq a_{jti} - a_{j(t-1)i} 
+        & a^s_{jti} \geq a_{jti} - a_{j(t-1)i} - A^{init}_{j(t-1)i}
                 & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start1} \\
       % # if we start a task, we need at least X periods of tasks assignments
         & a^s_{jt'i} \leq a_{jti}
         & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j, t' \in \mathcal{T}^{MT}_{jt} \label{eq:start2}
     \end{align}
 
-    Constraints (\ref{eq:start1}) controls the definition of starting a consecutive assignment: the variable activates if a resource $i$ is assigned a task $j$ in period $t$ and was not assigned this task in the previous period ($t-1$).
-    Constraints (\ref{eq:start2}) controls the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue in the following $t' \in \mathcal{T}^{MT}_{jt}$ periods.
+    Constraints (\ref{eq:start1}) control the definition of starting a consecutive assignment: the variable is active if a resource $i$ is assigned a task $j$ in period $t$ and was not assigned this same task in the previous period ($t-1$). The previous period can include the period before the start of the planning horizon ($A^{init}_{j(t-1)i}$ parameter).
+    Constraints (\ref{eq:start2}) control the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue for the following $t' \in \mathcal{T}^{MT}_{jt}$ periods.
 
     \begin{align}
        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} \leq AK_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster}
     \end{align}
 
-    Constraints (\ref{eq:avalaibility-cluster}) control a minimum availability for each cluster $k$ of resources. A cluster is defined by the most general group of resources that is required, exclusively, by at least one task.
+    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability for each cluster $k$ of resources. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task.
 
     \begin{align}
         % remaining used time
@@ -195,25 +194,23 @@
         % & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
         %       & t = |\mathcal{T}| \label{eq:min_ret}\\
         % & \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|} \geq Rut^{Init}_{sum}\\
-        & m_{it'} + m_{it} \leq 1
-          & t, \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
-        & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \leq  m_{it}
-          & t, \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}
     \end{align}
-
-    % \begin{align}
-    % & m_{it'} + m_{it} \leq 1
-    %   & t, \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_better}\\ 
-    % & \sum_{t' \in \mathcal{T}^{M}_t - \mathcal{T}^{m}_t} m_{it'} \leq  m_{it}
-    %   & t, \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_better}\\ 
-    % \end{align}
-
-                
 
         % These constraints calculate the balances of hours for each resource.
     The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
 
-    The minimum and maximum elapsed time are defined by (\ref{eq:ret_min}) and (\ref{eq:ret_max}) respectively. Constraints (\ref{eq:ret_min}) guarantee that if a maintenance is done in some period $t$, we know that it cannot be done in the following $t' \in \mathcal{T}^{m}_t$ periods. Constraints (\ref{eq:ret_max}) guarantee that, if we have a maintenance in period $t$, we have to start at least one maintenance among periods $t' \in \mathcal{T}^{M}_t}$. 
+    \begin{align}
+        & m_{it'} + m_{it} \leq 1
+          & t \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
+        & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \geq  m_{it}
+          & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}\\
+        & m_{it} = 0
+          & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:ret_min_init} \\
+        & \sum_{t \in \mathcal{T}^{M_{ini}}_i} m_{it} \geq  1 
+          & i \in \mathcal{I}\label{eq:ret_max_init}
+    \end{align}
+
+    The minimum and maximum elapsed time are defined by (\ref{eq:ret_min}) and (\ref{eq:ret_max}) respectively. Constraints (\ref{eq:ret_min}) guarantee that if a maintenance is done in some period $t$, we know that it cannot be done in the immediately consecutive $t' \in \mathcal{T}^{m}_t$ periods. Constraints (\ref{eq:ret_max}) guarantee that, if we have a maintenance in period $t$, we need to start at least one maintenance among periods $t' \in \mathcal{T}^{M}_t$. Constraints (\ref{eq:ret_min_init}) and (\ref{eq:ret_max_init}) control the minimum and maximum remaining elapsed time at the beginning of the planning period, respectively. They follow the same rules as the previous constraints for the particular case of the start of the planning horizon.
 
     % Finally, constraints \ref{eq:min_rut} guarantee that resources have, globally, the same amount of remaining used and elapsed times at the beginning and at the end of the planning horizon.
 
