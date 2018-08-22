@@ -5,6 +5,12 @@ author: |
 institute: "ISAE SUPAERO"
 date: "September 24, 2018"
 output: 
+  slidy_presentation:
+    css: ./../../../css/baobab_slidy.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    # slide_level: 2
+    # toc: true
   beamer_presentation:
     theme: "Berlin"
     toc: true
@@ -14,13 +20,6 @@ output:
     # footer: "ISAE-SUPAERO, Université de Toulouse, France"
     includes:
         in_header: header.tex
-  slidy_presentation:
-    css: ./../../css/baobab_MH.css
-    incremental: yes
-    footer: "ISAE-SUPAERO, Université de Toulouse, France"
-    slide_level: 2
-    toc: true
-nocite: '@*'
 bibliography: MFMP_NRP.bib
 editor_options: 
   chunk_output_type: console
@@ -32,9 +31,12 @@ path_to_R_dir <- "./../../"
 setwd(path_to_R_dir)
 source('functions/params.R')
 source('functions/import_results.R')
+source('diagrams/fixed_interval.R')
 exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
-gantt <- print_solution(exp_directory, max_resources = 30)
+gantt <- print_solution(exp_directory, max_resources = 15, width='100%')
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
+task_gantt <- tasks_gantt()
+task_employees <- tasks_employees()
 ```
 
 # Problem
@@ -49,9 +51,10 @@ Assign both missions and maintenance operations to a fleet of aircraft in order 
 ```{r, echo=FALSE, out.width='70%'}
 
 if (show_gantt){
-    htmltools::HTML('<div style="font-size: 20px;width:100%">')
+    # htmltools::HTML('<div style="font-size: 20px;width:100%">')
+    # htmltools::div(style="font-size: 20px;width:100%", gantt)
     gantt
-    htmltools::HTML("</div>")
+    # htmltools::HTML("</div>")
 } else {
     knitr::include_graphics('../img/calendar.png' %>% paste0(path_to_R_dir, .))
 }
@@ -66,12 +69,6 @@ if (show_gantt){
 * Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period.
 * Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time.
 * A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H$ units.
-
-<!-- ## Relevance and origin -->
-
-<!-- This thesis was started out of the need of the french Air Force to maximize the availability of their Mirage 2000 fleet while controlling cost and maintenance capacity. -->
-
-<!-- In fact, a similar subject has been presented as a challenge in a open competition: Défit Opti-plan. -->
 
 # State of the art
 
@@ -89,78 +86,29 @@ if (show_gantt){
 * Missions need to be assigned for a minimal duration.
 * This model also features several improvements in the MIP modelling that permit greater instance sizes.
 
-## Complexity analysis
+## Complexity analysis (1)
 
-Similar to the 'Fixed interval scheduling' problem.
+Similar to the 'Fixed interval scheduling' problem presented in @Smet2015.
 
 Let $P = {1, ..., n}$ be the set of tasks to be assigned and $E = {1, ..., m}$ the set of employees. Each task $p \in P$ has a duration $u_p$ , a start time $s_p$ and a finish time $f_p$ = $s_p + u_p$ . Each employee $e$ has a set of tasks $P_e \in P$ that he/she can perform. Similarly, for each task $p$, a set $E_p \in E$ exists, which contains all employees that can perform task $p$. Both $T_e$ and $E_p$ are defined based on qualifications, time windows of tasks and availabilities of employees.
 
-<!-- TODO: make a design. -->
+## Complexity analysis (2)
 
+```{r, echo=FALSE, out.width='50%'}
+
+if (show_gantt){
+    htmltools::div(class = "row",
+        htmltools::div(task_gantt, class = "col-md-6")
+        ,htmltools::div(task_employees, class = "col-md-6")
+        )
+} else {
+    knitr::include_graphics(c('../img/tasks-days.png', '../img/task-employees.png') %>% paste0(path_to_R_dir, .))
+    # knitr::include_graphics('../img/task-employees.png' %>% paste0(path_to_R_dir, .))
+}
+
+```
 
 # Model
-
-<!-- ## Model: sets -->
-
-<!-- |Set|Description| -->
-<!-- |-----|--------------------------------------------------------------------| -->
-<!-- |    $\mathcal{I}$       |  resources. | -->
-<!-- |    $\mathcal{T}$       |  time periods inside planning horizon. | -->
-<!-- |    $\mathcal{J}$       |  tasks. | -->
-<!-- |    $\mathcal{T}_j$     |  time periods $t \in \mathcal{T}$ in which task $j$ is active. | -->
-<!-- |    $\mathcal{J}_t$    |  tasks $j \in \mathcal{J}$ to be realized in period $t$. | -->
-<!-- |    $\mathcal{I}_j$     |  resources $i \in \mathcal{I}$ that can be assigned to task $j$. | -->
-<!-- |    $\mathcal{O}_i$     |  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. | -->
-<!-- |    $\mathcal{T}^{s}_t$ |  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}$\}. | -->
-
-<!-- ## Model: main parameters -->
-
-<!-- |Parameters|Description| -->
-<!-- |--------------|-------------------------------------------------| -->
-<!-- | $H_j$ |  amount of **resource time required** by task $j$. | -->
-<!-- | $R_j$ |  number of **resources required** by task $j$. | -->
-<!-- | $M$   |  **maintenance duration** in number of periods. | -->
-<!-- | $E$   |  remaining **elapsed time** after a maintenance. | -->
-<!-- | $H$   |  remaining **usage time** after a maintenance. | -->
-
-
-<!-- ## Model: more parameters -->
-
-<!-- |Parameters|Description| -->
-<!-- |--------------|----------------------------------------------------------------------| -->
-<!-- | $N_t$              | number of resources in already-planned maintenances in period $t$ at the beginning | of the planning ho |izon.| -->
-<!-- | $D_t$              | number of resources to be assigned in total in period $t$. | -->
-<!-- | $Rut^{Init}_{i}$   | remaining usage time for resource $i$ at the start of the planning horizon. | -->
-<!-- | $Ret^{Init}_{i}$   | remaining elapsed time for resource $i$ at the start of the planning horizon. | -->
-<!-- | $Ret^{Init}_{sum}$ | sum of remaining elapsed times at the start of the planning horizon. | -->
-<!-- | $Rut^{Init}_{sum}$ | sum of remaining elapsed time at the start of the planning horizon. | -->
-
-<!-- ## Model: variables -->
-
-<!-- | Variable   |  Description | -->
-<!-- |-----------|------------------------------------------------------- | -->
-<!-- | $a_{jti}$   |  =1 if **task** $j \in J$ in period $t \in \mathcal{T}_j$ **is realized with resource** $i \in \mathcal{I}_j$, 0 otherwise. | -->
-<!-- | $m_{it}$    |  =1 if resource $i \in I$ **starts a maintenance** operation in period $t \in \mathcal{T}$, 0 otherwise. | -->
-<!-- | $rut_{it}$  |  **remaining usage time** (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. | -->
-<!-- | $ret_{it}$  |  **remaining elapsed time** (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. | -->
-<!-- | $u_{max}$   |  maximal number (integer) of **unavailable resources** in any period. | -->
-<!-- | $m_{max}$   |  maximal number (integer) of **resources in maintenance** in any period. | -->
-
-<!-- ## Model: main constraints -->
-
-<!-- Requirements per task: -->
-<!-- ```{r out.width="250px", echo=FALSE} -->
-<!-- knitr::include_graphics("./../../img/tasks_gantt.png") -->
-<!-- ``` -->
-<!-- \pause -->
-
-<!-- Max maintenances: -->
-<!-- ```{r out.width="150px", echo=FALSE} -->
-<!-- knitr::include_graphics("./../../img/num-maintenances.png") -->
-<!-- ``` -->
-
-
-<!-- ## Model: main constraints -->
 
 ## Model: objective function
 
@@ -238,6 +186,7 @@ Time usage of an aircraft depending on the assignment to a task.
 * **Add robustness**: duration of maintenances, new /different missions, unavailable aircraft.
 
 # References
+
 ## References / Questions?
 
 <!-- \bibliographystyle{dcu} -->
