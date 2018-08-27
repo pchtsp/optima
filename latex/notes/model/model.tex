@@ -96,7 +96,7 @@
         % $S$               & Storage duration in number of periods. \\
         % $W_1$             & weight of the first objective in the objective function. \\
         % $W_2$             & weight of the second objective in the objective function. \\
-        % $N_t$             & number of resources in already-planned maintenances in period $t$ at the beginning of the planning horizon.\\
+        $N_t$             & number of resources in already-planned maintenances in period $t$.\\
         % $D_t$             & number of resources to be assigned in total in period $t$. \\
         $AK_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
         $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
@@ -112,7 +112,7 @@
     
     \begin{tabular}{p{8mm}p{167mm}}
         $a_{jti}$   &  =1 if task $j \in J$ in period $t \in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
-        $a^s_{jti}$ &  =1 if resource $i$ starts a new assignment to task $j$ in period $t$. If $a_{jti} = 1$ and $a_{j(t-i)} = 0$. \\  
+        $a^s_{jti}$ &  =1 if resource $i$ starts a new assignment to task $j$ in period $t$. If $a_{jti} = 1$ and $a_{j(t-1)i} = 0$. \\  
         $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
         % $s_{it}$    &  =1 if resource $i \in I$ starts a storage operation in period $t \in \mathcal{T}$, 0 otherwise. \\
         $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
@@ -138,9 +138,9 @@
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
-        % & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
-        %   & t \in \mathcal{T} \label{eq:capacity1}\\
-        & \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \leq M^{max} \label{eq:capacity1}\\
+        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq M^{max}
+          & t \in \mathcal{T} \label{eq:capacity1}\\
+        % & \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \leq M^{max} \label{eq:capacity1}\\
         % availability
        % & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
        %  &t \in \mathcal{T} \label{eq:avalaibility1}\\
@@ -210,7 +210,7 @@
           & i \in \mathcal{I}\label{eq:ret_max_init}
     \end{align}
 
-    The minimum and maximum elapsed time are defined by (\ref{eq:ret_min}) and (\ref{eq:ret_max}) respectively. Constraints (\ref{eq:ret_min}) guarantee that if a maintenance is done in some period $t$, we know that it cannot be done in the immediately consecutive $t' \in \mathcal{T}^{m}_t$ periods. Constraints (\ref{eq:ret_max}) guarantee that, if we have a maintenance in period $t$, we need to start at least one maintenance among periods $t' \in \mathcal{T}^{M}_t$. Constraints (\ref{eq:ret_min_init}) and (\ref{eq:ret_max_init}) control the minimum and maximum remaining elapsed time at the beginning of the planning period, respectively. They follow the same rules as the previous constraints for the particular case of the start of the planning horizon.
+    The minimum and maximum elapsed time are defined by (\ref{eq:ret_min}) and (\ref{eq:ret_max}) respectively. Constraints (\ref{eq:ret_min}) guarantee that if a maintenance is done in some period $t$, we know that another one cannot be done in the immediately consecutive $t' \in \mathcal{T}^{m}_t$ periods. Constraints (\ref{eq:ret_max}) guarantee that, if we have a maintenance in period $t$, we need to start at least one maintenance among periods $t' \in \mathcal{T}^{M}_t$. Constraints (\ref{eq:ret_min_init}) and (\ref{eq:ret_max_init}) control the minimum and maximum remaining elapsed time at the beginning of the planning period, respectively. They follow the same logic as constraints (\ref{eq:ret_min}) and (\ref{eq:ret_max}), respectively, for the particular case of the start of the planning horizon.
 
     % Finally, constraints \ref{eq:min_rut} guarantee that resources have, globally, the same amount of remaining used and elapsed times at the beginning and at the end of the planning horizon.
 
