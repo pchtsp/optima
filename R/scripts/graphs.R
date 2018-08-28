@@ -1,8 +1,28 @@
 source('functions/params.R')
 source('functions/import_results.R')
+source('functions/exampleDT.R')
 
 exp_directory = PATHS[['experiments']] %>% paste0('201805241334/')
 print_solution(exp_directory)
+
+
+PATHS[['experiments']] %>% paste0('201802061201/')
+
+res <- 'A20'
+
+data_input <- treat_data(experiment1, res)
+data_input_n <- 
+    data_input %>% 
+    rename(Periods=Mois, Time=Temps) %>% 
+    mutate(type = if_else(str_detect(type, '^dispo'), 'availability (periods)', type),
+           type = if_else(str_detect(type, '^heur'), 'flight hours (hours)', type))
+
+graph_remaining_data(data_input_n, x='Periods', y='Time')
+
+# data_states <- get_states(experiment1)
+# periods <- 
+# data_states %>% 
+#     group_by()
 
 
 #       id   start     end   content group                                         style
