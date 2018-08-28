@@ -21,7 +21,7 @@
 
 \usepackage[latin1]{inputenc}
 % \usepackage{aeguill}
-\usepackage[frenchb,english]{babel}
+\usepackage[english]{babel}
 \usepackage{caption}
 
 
@@ -67,8 +67,6 @@
 
   \subsection{Parameters}
 
-  % TODO: previously assigned missions.
-
     \begin{tabular}{p{8mm}p{167mm}}
         $H_j$             & amount of resource time required by task $j$. \\
         $R_j$             & number of resources required by task $j$. \\
@@ -85,8 +83,10 @@
         % $W_1$             & weight of the first objective in the objective function. \\
         % $W_2$             & weight of the second objective in the objective function. \\
         $N_t$             & number of resources in already-planned maintenances in period $t$.\\
+        $Nk_{kt}$         & number of resources in cluster $k$ in already-planned maintenances in period $t$.\\
         % $D_t$             & number of resources to be assigned in total in period $t$. \\
         $AK_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
+        $HK_{kt}$         & minimum number of total remaining usage time for cluster $k$ at period $t$.\\
         $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
         $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
         % $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
@@ -99,7 +99,7 @@
         $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
         $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
         $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
-        $\mathcal{I}_k$     &  resources $i \in \mathcal{I}$ that are included in cluster $k$. \\
+        $\mathcal{I}_k$     &  resources $i \in \mathcal{I}$ that are included in cluster $k$. One resource can belong to more than one cluster. \\
         $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
         $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$. \\
         % $\mathcal{T}^{st}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - S+1\}},  ..., {t}$\}. \\
@@ -108,7 +108,7 @@
         $\mathcal{T}^{m_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Ret^{Init}_{i} - E^M + E^m \}}\}$. \\
         $\mathcal{T}^{M_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Ret^{Init}_{i} - E^M + E^m \}} , ...,  Ret^{Init}_{i} \}$. \\
         $\mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$. \\
-        $\mathcal{A}^{init}_{jt}$  & resources $i \in \mathcal{I}$ that have task $j$ pre-assigned in period $t$. \\
+        $\mathcal{A}^{init}_{j}$  & resources $i \in \mathcal{I}$ that have task $j$ pre-assigned in the previous period to the start of the horizon. \\
     \end{tabular}
 
   \subsection{Variables}
@@ -162,8 +162,10 @@
 
     \begin{align}
         % if start task => assign start
-        & a^s_{jti} \geq a_{jti} - a_{j(t-1)i} - 1 \!1_{i \in \mathcal{A}^{init}_{j(t-1)}}
-                & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start1} \\
+        & a^s_{jti} \geq a_{jti} - a_{j(t-1)i}
+                & t =1, ..., \mathcal{T}, j \in \mathcal{J}_t, i \in \mathcal{I}_j \label{eq:start1} \\
+        & a^s_{j0i} \geq a_{j0i} - 1 \!1_{i \in \mathcal{A}^{init}_{j}}
+                & j \in \mathcal{J}_0, i \in \mathcal{I}_j \label{eq:start2} \\        
       % # if we start a task, we need at least X periods of tasks assignments
         % & a^s_{jt'i} \leq a_{jti}
         % & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j, t' \in \mathcal{T}^{MT}_{jt} \label{eq:start2} \\
@@ -172,25 +174,27 @@
         & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start3}
     \end{align}
 
-    TODO: explain constraint (\ref{eq:start3}).
+    Constraints (\ref{eq:start1}) control the definition of starting a consecutive assignment: the variable is active if a resource $i$ is assigned a task $j$ in period $t$ and was not assigned this same task in the previous period ($t-1$). Constraints (\ref{eq:start2}) are the particular case for the first period on the horizon where, the previous assignments are given.
 
-    Constraints (\ref{eq:start1}) control the definition of starting a consecutive assignment: the variable is active if a resource $i$ is assigned a task $j$ in period $t$ and was not assigned this same task in the previous period ($t-1$). The previous period can include the period before the start of the planning horizon ($\mathcal{A}^{init}_{j(t-1)}$ set).
-    Constraints (\ref{eq:start3}) control the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue for the following $t' \in \mathcal{T}^{MT}_{jt}$ periods.
+    Constraints (\ref{eq:start3}) control the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue for the following $t' \in \mathcal{T}^{MT}_{jt}$ periods. They are a stronger version of the constraint $ a^s_{jt'i} \leq a_{jti}$.
 
     \begin{align}
-       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} \leq AK_{kt}
-        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster}
+       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} + Nk_{kt} \leq AK_{kt}
+        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster} \\
+       & \sum_{i \in \mathcal{I}_k} rut_{it} \geq HK_{kt}
+        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-hours-cluster}
     \end{align}
 
-    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability for each cluster $k$ of resources. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task.
+    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability of resources for each cluster $k$. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task. Constraints (\ref{eq:avalaibility-hours-cluster}) guarantee that a minimum availability in terms of usage houres for each cluster $k$.
 
     \begin{align}
         % remaining used time
-         & rut_{it} \leq rut_{i(t-1)} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+         & rut_{it} \leq rut_{i(t-1)} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
         & rut_{i0} = Rut^{Init}_i
                & i \in \mathcal{I} \label{eq:rut_initial}\\
-        & rut_{it} \geq H m_{it}
-                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rut_lower}\\ 
+        & rut_{it} \geq H m_{it'}
+                & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\ 
         & rut_{it} \in [0,H]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}              
         % & ret_{it} \leq ret_{it-1} - 1 + \sum_{t' \in \mathcal{T}^{st}_t} s_{it'} + E m_{it}
