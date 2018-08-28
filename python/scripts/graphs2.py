@@ -320,7 +320,7 @@ def maintenances_graph(maint=True):
     ################################################
     # Maintenances graph
     ################################################
-    path = path_abs + '201801131817'
+    path = path_abs + '201802061201'
     experiment = exp.Experiment.from_dir(path)
     data = experiment.solution.get_in_maintenance()
     name = 'maintenances'
@@ -357,7 +357,7 @@ def maintenances_graph(maint=True):
         theme(axis_text=element_text(size=20)) +\
         scale_x_continuous(breaks=ticks, labels=labels, limits=limits) +\
         theme(axis_title_y=element_text('Number of {}'.format(name), size=20, vjust=0.15),
-              axis_title_x=element_text('Periods (months)', size=20, vjust=-0.05))
+              axis_title_x=element_text('Periods (months)', size=20, vjust=-0.02)) + theme_bw()
 
     # print(p)
     # geom_point() + \
