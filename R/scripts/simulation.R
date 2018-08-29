@@ -47,7 +47,15 @@ if (FALSE){
     states_hours_nn <- 
         states_hours_n %>% 
         mutate(hours = state %>% str_extract('^[\\d\\.]*') %>% as.numeric %>% round,
-               state = ifelse(is.na(hours), state, 'flight')) %>% 
+               hours = ifelse(hours %>% is.na, 0, hours),
+               state = ifelse(hours==1, 'stopped', state),
+               state = ifelse(state=='0', 'stopped', state),
+               state = ifelse(hours < 30 & hours > 1, 'train', state),
+               state = ifelse(hours >= 30, 'OPEX', state),
+               state = ifelse(state %>% str_detect('^V\\d+'), 'maint', state),
+               state = ifelse(state %>% str_detect('^[xX]$'), 'obsolete', state),
+               date = yearmonth %>% paste0('-01') %>% as.Date
+               ) %>% 
         filter(yearmonth >= '2018')
     
     hours_important <- 
@@ -66,11 +74,26 @@ if (FALSE){
         group_by(type, yearmonth) %>% 
         mutate(total = n()) %>% 
         group_by(type, yearmonth, total) %>% 
-        filter(hours >= 18 & hours <= 24) %>% 
+        filter(hours == 'train') %>% 
         summarise(count = n()) %>% 
-        mutate(date = yearmonth %>% paste0('-01') %>% as.Date,
-               perc = count / total * 100)
+        mutate(perc = count / total * 100)
         
     ggplot(data_train, aes(x= date, y=perc, colour= type)) + geom_line() + scale_x_date() + theme_minimal()
     
+    states_important <- 
+        states_hours_nn %>% 
+        group_by(state) %>% 
+        summarise(num=n()) %>% 
+        arrange(-num) %>% 
+        slice(1:9)
+    
+    data_states <- 
+        states_hours_nn %>% 
+        filter(type=='D') %>%
+        group_by(date, state) %>% 
+        semi_join(states_important) %>% 
+        summarise(total = n())
+    
+    ggplot(data_states, aes(x=date, y=total)) + geom_area(aes(fill=state)) + 
+        scale_fill_brewer(type='qual', palette=3) + theme_minimal()
 }
