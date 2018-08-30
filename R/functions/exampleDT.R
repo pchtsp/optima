@@ -4,6 +4,7 @@ library(data.table)
 library(magrittr)
 library(ggplot2)
 library(plotly)
+library(stringr)
 
 treat_data <- function(exp_directory, aircraft_to_graph){
     # browser()
@@ -49,8 +50,8 @@ graph_remaining <- function(exp_directory, aircraft_to_graph='A31'){
     graph_remaining_data(data)
 }
 
-graph_remaining_data <- function(data){
-    p <- ggplot(data, aes(x= Mois, y= Temps, group='aircraft')) + 
+graph_remaining_data <- function(data, x= 'Mois', y= 'Temps'){
+    p <- ggplot(data, aes_string(x= x, y= y, group='aircraft')) + 
         geom_line() + 
         facet_grid(type~ ., scales = "free_y") +
         theme_minimal() + 
@@ -72,5 +73,24 @@ graph_tie_data <- function(data){
         theme_minimal()
     
     ggplotly(p)
+    
+}
+
+if (FALSE) {
+    dir_pre <- "./"
+    sources <-
+        c("functions/import_results.R",
+          "functions/params.R") %>% paste0(dir_pre, .)
+    lapply(sources, source)
+    
+    experiments <- PATHS[['experiments']] %>% completed_experiments()
+    default_exp <- '201802061201'
+    experiment1 <- experiments[default_exp]
+    
+    res <- 'A20'
+    # browser()
+    data_input <- treat_data(experiment1, res)
+    graph_remaining_data(data_input)
+
     
 }

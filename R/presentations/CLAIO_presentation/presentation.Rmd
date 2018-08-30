@@ -51,10 +51,7 @@ Assign both missions and maintenance operations to a fleet of aircraft in order 
 ```{r, echo=FALSE, out.width='70%'}
 
 if (show_gantt){
-    # htmltools::HTML('<div style="font-size: 20px;width:100%">')
-    # htmltools::div(style="font-size: 20px;width:100%", gantt)
     gantt
-    # htmltools::HTML("</div>")
 } else {
     knitr::include_graphics('../img/calendar.png' %>% paste0(path_to_R_dir, .))
 }
@@ -102,7 +99,8 @@ if (show_gantt){
         ,htmltools::div(task_employees, class = "col-md-6")
         )
 } else {
-    knitr::include_graphics(c('../img/tasks-days.png', '../img/task-employees.png') %>% paste0(path_to_R_dir, .))
+    c('../img/tasks-days.png', '../img/task-employees.png') %>% paste0(path_to_R_dir, .) %>% 
+    knitr::include_graphics
     # knitr::include_graphics('../img/task-employees.png' %>% paste0(path_to_R_dir, .))
 }
 

@@ -5,17 +5,6 @@ library(DT)
 library(lubridate)
 library(data.table)
 
-completed_experiments <- function(path){
-    # browser()
-    names <- path %>% list.files()
-    with_solution <- path %>% 
-        list.files(full.names = T) %>% 
-        sapply(function(p){
-            c('data_in.json', 'data_out.json') %in% list.files(p) %>% all
-            })
-    names[with_solution] %>% paste0(path, ., '/') %>% set_names(names[with_solution])
-}
-
 shinyServer(function(input, output, clientData, session) {
     # browser()
     dir_pre <- "../"

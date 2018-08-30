@@ -10,7 +10,6 @@ library(Hmisc)
 library(RColorBrewer)
 library(htmlwidgets)
 library(jsonlite)
-library(zoo)
 
 collapse_states <- function(table){
     
@@ -209,6 +208,18 @@ print_solution <- function(exp_directory, max_resources=NULL, ...){
     
     timevis_from_states(states, max_resources=max_resources, ...)
 }
+
+completed_experiments <- function(path){
+    # browser()
+    names <- path %>% list.files()
+    with_solution <- path %>% 
+        list.files(full.names = T) %>% 
+        sapply(function(p){
+            c('data_in.json', 'data_out.json') %in% list.files(p) %>% all
+        })
+    names[with_solution] %>% paste0(path, ., '/') %>% set_names(names[with_solution])
+}
+
 
 if (FALSE){
     
