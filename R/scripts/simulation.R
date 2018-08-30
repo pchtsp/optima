@@ -77,8 +77,6 @@ if (FALSE){
         filter(hours == 'train') %>% 
         summarise(count = n()) %>% 
         mutate(perc = count / total * 100)
-        
-    ggplot(data_train, aes(x= date, y=perc, colour= type)) + geom_line() + scale_x_date() + theme_minimal()
     
     states_important <- 
         states_hours_nn %>% 
@@ -93,7 +91,23 @@ if (FALSE){
         group_by(date, state) %>% 
         semi_join(states_important) %>% 
         summarise(total = n())
+
+    data_maints <- 
+        states_hours_nn %>%
+        group_by(date, type, state) %>% 
+        summarise(subtotal = n()) %>% 
+        group_by(date, type) %>% 
+        mutate(total = sum(subtotal)) %>% 
+        filter(state != "obsolete") %>% 
+        mutate(total_c = sum(subtotal)) %>% 
+        mutate(perc = subtotal / total*100) %>% 
+        mutate(perc_c = subtotal / total_c*100) %>% 
+        filter(state=='maint')
+     
+    ggplot(data_train, aes(x= date, y=perc, colour= type)) + geom_line() + scale_x_date() + theme_minimal()
     
     ggplot(data_states, aes(x=date, y=total)) + geom_area(aes(fill=state)) + 
         scale_fill_brewer(type='qual', palette=3) + theme_minimal()
+    
+    ggplot(data_maints, aes(x= date, y=perc_c, colour= type)) + geom_line() + scale_x_date() + theme_minimal()
 }
