@@ -74,19 +74,19 @@
         % $aut_i$           & maximal absolute usage time for resource $i$. \\
         % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
         $M$               & maintenance duration in number of periods. \\
-        $M^{max}$         & maximum number of simultaneous maintenance operations. \\
+        $C^{max}$         & maximum number of simultaneous maintenance operations. \\
         % $E$               & remaining elapsed time after a maintenance. \\
         $E^{M}$         & maximum number of periods between two consecutive maintenances. \\
         $E^{m}$         & minimum number of periods between two consecutive maintenances. \\
-        $H$               & remaining usage time after a maintenance. \\
+        $H^{M}$               & remaining usage time after a maintenance. \\
         % $S$               & Storage duration in number of periods. \\
         % $W_1$             & weight of the first objective in the objective function. \\
         % $W_2$             & weight of the second objective in the objective function. \\
         $N_t$             & number of resources in already-planned maintenances in period $t$.\\
-        $Nk_{kt}$         & number of resources in cluster $k$ in already-planned maintenances in period $t$.\\
+        $N^{clust}_{kt}$         & number of resources in cluster $k$ in already-planned maintenances in period $t$.\\
         % $D_t$             & number of resources to be assigned in total in period $t$. \\
-        $AK_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
-        $HK_{kt}$         & minimum number of total remaining usage time for cluster $k$ at period $t$.\\
+        $A^{clust}_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
+        $H^{clust}_{kt}$         & minimum number of total remaining usage time for cluster $k$ at period $t$.\\
         $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
         $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
         % $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
@@ -133,7 +133,7 @@
     The objective is to minimize the total number of maintenances and, at the same time, maximize the end status of the resources.
 
     \begin{align}
-        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H - \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|}
+        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H^{M} - \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|}
     \end{align}
     
     where the first expression counts all the usage hours given to resources via maintenances and the second expression measures the amount of remaining usage hours in the resources at the end of the planning horizon.
@@ -143,9 +143,9 @@
     The following constraints are used in the model:       
     \begin{align}
         % maximum capacity1:
-        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq M^{max}
+        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq C^{max}
           & t \in \mathcal{T} \label{eq:capacity1}\\
-        % & \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \leq M^{max} \label{eq:capacity1}\\
+        % & \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \leq C^{max} \label{eq:capacity1}\\
         % availability
        % & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
        %  &t \in \mathcal{T} \label{eq:avalaibility1}\\
@@ -179,9 +179,9 @@
     Constraints (\ref{eq:start3}) control the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue for the following $t' \in \mathcal{T}^{MT}_{jt}$ periods. They are a stronger version of the constraint $ a^s_{jt'i} \leq a_{jti}$.
 
     \begin{align}
-       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} + Nk_{kt} \leq AK_{kt}
+       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} + N^{clust}_{kt} \leq A^{clust}_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster} \\
-       & \sum_{i \in \mathcal{I}_k} rut_{it} \geq HK_{kt}
+       & \sum_{i \in \mathcal{I}_k} rut_{it} \geq H^{clust}_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-hours-cluster}
     \end{align}
 
@@ -189,13 +189,13 @@
 
     \begin{align}
         % remaining used time
-         & rut_{it} \leq rut_{i(t-1)} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+         & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
         & rut_{i0} = Rut^{Init}_i
                & i \in \mathcal{I} \label{eq:rut_initial}\\
-        & rut_{it} \geq H m_{it'}
+        & rut_{it} \geq H^{M} m_{it'}
                 & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\ 
-        & rut_{it} \in [0,H]
+        & rut_{it} \in [0,H^{M}]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}              
         % & ret_{it} \leq ret_{it-1} - 1 + \sum_{t' \in \mathcal{T}^{st}_t} s_{it'} + E m_{it}
         %         & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
