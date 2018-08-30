@@ -1,0 +1,59 @@
+---
+title: "Simulations"
+date: "August 28, 2018"
+---
+
+## Scenario data modelling
+
+Values separated by commas imply there is a discrete option between one value and the other. Values separated by dashes imply an integer range between the two values. Unless specified, all values are generated using a uniformly random distribution for continuous values or a random sampling with replacement for integer values.
+
+### Sets
+
+|Parameter | Value | 
+|----|----|
+|Number of resources\*              | 10, 30, 50, 130, 150, 200|
+|Maintenance capacity\*             | 0.3 times number of resources |
+|Total number of special tasks\*    | 4, 6, 8                 |
+|Total number of regular tasks\*    | 1 per type              |
+|Number of periods\*                | 60, 90, 120, 180        |
+|Number of types                    | 1 - 7                   |
+|Number of standards per type       | 1 - 3                   |
+
+### Maintenances
+
+|Parameter | Value | 
+|----|----|
+|Time limit in periods    |  40, 60, 80             |
+|Flight hours limit       | 800, 1000, 1200         |
+|Maintenance duration     | 4, 6, 8                 |
+
+### Tasks
+
+Two types of tasks will be generated. The difference between the two being the nature of the configuration choice.
+
+|Parameter | Special | Regular |
+| ---- | ---- | ---- |
+|Minimum assignment (periods)   | 2, 3, 6              |    1               |        
+|Start (periods)                | 6 - 36               | horizon's start     | 
+|Duration (periods)             | 6 - 36               | horizon's duration  | 
+|Number of required resources   | 2 - 5                |  0.5, 1, 1.5 times present value  |        
+|Number of required hours       | 50, 60, 70, 80       | 23                 |
+|Compatibility                  | Total, type+standard | type               |
+
+### Fleet
+
+|Parameter | Value |
+|----|----|
+|Type                           | choice                     |
+|Standard                       | choice                     |
+|Initial state (elapsed periods)| 0 - time limit             |
+|Initial state (usage hours)    | 0 - flight hours limit     |
+
+\* These values are deterministic, they are fixed in advance for the scenario.
+
+## Instances and experimentation
+
+A scenario will consist on a single configuration of parameters. 
+An instance will consist on a randomly generated set of input data based on the configuration for a specific scenario.
+50 instances will be created for each scenario.
+
