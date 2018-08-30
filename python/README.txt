@@ -24,7 +24,7 @@ Windows:
     cd ROADEF2018\python
     python3 -m venv venv
     venv\Scripts\activate
-    pip3 install --upgrade pip
+    pip install numpy
     pip3 install -r requirements.txt
 
 Ubuntu:
