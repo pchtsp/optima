@@ -23,7 +23,8 @@ class Instance(object):
         self.data = model_data
 
     def get_param(self, param=None):
-        default_params = {'maint_weight': 1, 'unavail_weight': 1}
+        default_params = {'maint_weight': 1, 'unavail_weight': 1,
+                          'min_elapsed_time': 0, 'min_usage_period': 0}
         params = {**default_params, **self.data['parameters']}
         if param is not None:
             if param not in params:
