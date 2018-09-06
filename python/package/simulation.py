@@ -40,6 +40,7 @@ def empty_data():
                 'initial_used': 0
                 , 'initial_elapsed': 0
                 , 'code': ''
+                , 'type': ''
                 , 'capacities': []
                 , 'fixed_maintenances': []
                 , 'fixed_tasks': [()]
@@ -49,6 +50,7 @@ def empty_data():
 
 
 def create_dataset():
+    # TODO: clusters, capacities, types, etc.
     # TODO: the following params should be arguments:
     num_resources = 50
     num_parallel_tasks = 4
@@ -84,6 +86,9 @@ def create_dataset():
         , 'min_usage_period': min_flight_hours_period
     }
 
+    # Here we simulate the tasks along the planning horizon.
+    # we need to guarantee there are num_parallel_tasks active task
+    # at each time.
     task = 0
     t_start = {}
     t_end = {}
@@ -106,7 +111,7 @@ def create_dataset():
                 , 'consumption': rn.choice(t_required_hours)
                 , 'num_resource': rn.randint(*t_num_resource)
                 , 'type_resource': ''  # TODO: capacities
-                , 'matricule': ''
+                , 'matricule': ''  # this is aesthetic
                 , 'min_assign': rn.choice(t_min_assign)
                 , 'capacities': []  # TODO: capacities
             } for task in range(task)
@@ -128,14 +133,20 @@ def create_dataset():
     _res = [r for r in range(num_resources) if r not in res_in_maint]
     res_task_init = {}
     for j in starting_tasks:
+        # first we choose a number of resources equivalent to the number
+        # of resources needed by the task
         res_to_assign = \
             np.random.choice(_res,
-                             min(rn.randrange(d_tasks[j]['num_resource'] + 1), len(_res)),
+                             # min(rn.randrange(d_tasks[j]['num_resource'] + 1), len(_res)),
+                             min(d_tasks[j]['num_resource'], len(_res)),
                              replace=False)
+        # we take them out of the list of available resources:
         _res = [r for r in _res if r not in res_to_assign]
+        # now we decide when was the task was assigned:
+        min_assign = d_tasks[j]['min_assign']
         for r in res_to_assign:
-            res_task_init[r] = [(j, aux.shift_month(start_period, n - 1))
-                            for n in range(rn.randrange(d_tasks[j]['min_assign'])+1)
+            res_task_init[r] = [(j, aux.shift_month(start_period, n - min_assign))
+                            for n in range(rn.randrange(min_assign)*2+1)
                             ]
         if not _res:
             break
@@ -149,7 +160,8 @@ def create_dataset():
             , 'initial_elapsed':
                 rn.randrange(0, max_elapsed_periods)
                 if res not in res_in_maint else max_elapsed_periods
-            , 'code': ''
+            , 'code': ''  # this is aesthetic
+            , 'type': ''  # TODO: capacities
             , 'capacities': []  # TODO: capacities
             , 'fixed_maintenances': res_maint_init[res] if res in res_in_maint else []
             , 'fixed_tasks': res_task_init[res] if res in res_task_init else []
