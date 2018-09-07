@@ -52,9 +52,9 @@ On the other hand, every resource will, when not assigned a task and not in main
 
 In order to have credible tasks created, the following logic has been thought; assuming there are N tasks at any given moment:
 
-1. At the beginning we create N tasks with random durations and other data.
-2. Every time a task ends, we create a new task with random everything.
-3. We need to check that there's enough resources for all the needs generated at every step. Or not?
+1. At the beginning we create N tasks with random durations and their other corresponding parameters.
+2. Every time a task ends, we create a new task with, possibly, different parameters.
+3. Possible check: that there's enough resources for all the needs generated at every step.
 
 This guarantees that there is *always* N tasks active at any given time. The durations and characteristics however, change over time.
 
@@ -78,13 +78,13 @@ This guarantees that there is *always* N tasks active at any given time. The dur
 
 The initial state of the fleet will be simulated according to the following rule:
 
-* $N$ resources will be taken randomly from the set of resources $I$.
-* For these resources, the $N_i$ will be calculated.
+* $N$ resources will be taken randomly from the set of resources (we will call it set $I$).
+* For these resources, the $N_i$ will be calculated. This number will be generated randomly from $M$, the maintenance duration.
 
-For the rest $I - N$ resources:
+For the rest $I - N$ resources that are not in maintenance:
 
 * $Rut^{Init}_{i}$ and $Ret^{Init}_{i}$ will be calculated.
-* $A_j$ resources will be taken and assigned to task $j$ for 
+* $A_j$ resources will be taken and assigned to task $j$ with a random $At_j$ remaining assignment time. The number of resources will be randomly generated from $R_j$ and the remaining assignment time will be taken from $MT_j$.
 
 
 ### Task-resource compatibility
@@ -105,7 +105,7 @@ Regarding resources:
 
 ## Instances and experimentation
 
-A scenario will consist on a single configuration of the parameters marked with an asterisk.
+A scenario will consist on a single configuration of the parameters marked with an asterisk (\*).
 
 An instance will consist on a randomly generated set of input data based on the configuration for a specific scenario.
 50 instances will be created for each scenario. They will be tested for feasibility.
