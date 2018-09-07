@@ -7,6 +7,7 @@ import package.auxiliar as aux
 import random as rn
 import math
 import numpy as np
+import package.superdict as sd
 
 
 def empty_data():
@@ -42,8 +43,7 @@ def empty_data():
                 , 'code': ''
                 , 'type': ''
                 , 'capacities': []
-                , 'fixed_maintenances': []
-                , 'fixed_tasks': [()]
+                , 'states': {t: '' for t in range(0)}
             } for resource in range(1)
         }
     }
@@ -119,15 +119,17 @@ def create_dataset():
 
     # Here we simulate the initial state of resources.
     # First of all we decide which resources are in maintenance
-    # and the amount of periods they are still in maintenance
+    # and then the periods they have been under maintenance
     res_in_maint = np.random.choice(range(num_resources),
                                     math.ceil(num_resources*perc_in_maint),
                                     replace=False)
     res_maint_init = {
-        r: [aux.shift_month(start_period, n - 1)
-            for n in range(rn.randrange(maint_duration) + 1)]
+        r: {aux.shift_month(start_period, - n - 1): 'M'
+            for n in range(rn.randrange(maint_duration) + 1)}
         for r in res_in_maint
     }
+    res_maint_init = sd.SuperDict(res_maint_init).\
+        fill_with_default(range(num_resources), default={})
 
     # Secondly, for the remaining resources, we assign tasks
     _res = [r for r in range(num_resources) if r not in res_in_maint]
@@ -147,17 +149,18 @@ def create_dataset():
         for r in res_to_assign:
             # we assumed the resource could have had the task
             # for a time = double the minimum time
-            months_in_task = rn.randrange(min_assign)*2 + 1
+            months_in_task = rn.randrange(min_assign)*2
             # if the resource started less than min_assin ago,
             # we fix the task for the following periods
-            res_task_init[r] = [j, aux.get_prev_month(start_period)] +\
-                               [(j, aux.shift_month(start_period, n))
-                                for n in range(min_assign - months_in_task)
-                                if min_assign > months_in_task
-                                ]
+            res_task_init[r] = {
+                aux.shift_month(start_period, -n - 1): j
+                for n in range(months_in_task)
+            }
         if not _res:
             break
-
+    res_task_init = sd.SuperDict(res_task_init). \
+        fill_with_default(range(num_resources), default={})
+    # TODO: adapt states instead of using fixed_maintenances and fixed_tasks
     # We fill the states according to the initial values already calculated:
     data_input['resources'] = {
         res: {
@@ -170,9 +173,14 @@ def create_dataset():
             , 'code': ''  # this is aesthetic
             , 'type': ''  # TODO: capacities
             , 'capacities': []  # TODO: capacities
-            , 'fixed_maintenances': res_maint_init[res] if res in res_in_maint else []
-            , 'fixed_tasks': res_task_init[res] if res in res_task_init else []
+            , 'states': {**res_task_init[res], **res_maint_init[res]}
         } for res in range(num_resources)
     }
 
     return data_input
+
+
+if __name__ == "__main__":
+    import pprint as pp
+    create_dataset()
+    pass

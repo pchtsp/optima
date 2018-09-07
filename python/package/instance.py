@@ -86,7 +86,6 @@ class Instance(object):
 
     def get_domains_sets(self):
         states = ['M']
-        # dtype_at = [('V', '<U6'), ('D', 'U7')]
 
         param_data = self.get_param()
 
@@ -189,7 +188,6 @@ class Instance(object):
         , 'at_m_ini': 1
         , 't_a_M_ini': 1
         }
-
 
     def get_initial_state(self, time_type):
         if time_type not in ["elapsed", "used"]:
