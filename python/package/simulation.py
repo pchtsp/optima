@@ -142,12 +142,19 @@ def create_dataset():
                              replace=False)
         # we take them out of the list of available resources:
         _res = [r for r in _res if r not in res_to_assign]
-        # now we decide when was the task was assigned:
+        # now we decide when was the task assigned:
         min_assign = d_tasks[j]['min_assign']
         for r in res_to_assign:
-            res_task_init[r] = [(j, aux.shift_month(start_period, n - min_assign))
-                            for n in range(rn.randrange(min_assign)*2+1)
-                            ]
+            # we assumed the resource could have had the task
+            # for a time = double the minimum time
+            months_in_task = rn.randrange(min_assign)*2 + 1
+            # if the resource started less than min_assin ago,
+            # we fix the task for the following periods
+            res_task_init[r] = [j, aux.get_prev_month(start_period)] +\
+                               [(j, aux.shift_month(start_period, n))
+                                for n in range(min_assign - months_in_task)
+                                if min_assign > months_in_task
+                                ]
         if not _res:
             break
 
