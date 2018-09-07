@@ -12,33 +12,15 @@ def solve_model(instance, options=None):
     last_period = instance.get_param('end')
     consumption = instance.get_tasks('consumption')
     requirement = instance.get_tasks('num_resource')
-    ret_init = instance.get_initial_state("elapsed")
     rut_init = instance.get_initial_state("used")
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
-    num_resource_maint_cluster = aux.dict_to_lendict(instance.get_fixed_maintenances_cluster())
     maint_capacity = instance.get_param('maint_capacity')
     max_usage = instance.get_param('max_used_time')
+    cluster_data = instance.get_cluster_minimums()
+    c_candidates = instance.get_cluster_candidates()
 
     # TODO: fill this:
-    task_previous_res = {v: [] for v in l['tasks']}
     fixed_vars = [(a, v, t) for (a, v, t) in range(0)]
-    # TODO: fill this (up)
-
-    min_percent = 0.10
-    min_value = 1
-
-    c_needs = instance.get_cluster_needs()
-    c_candidates = instance.get_cluster_candidates()
-    c_num_candidates = aux.dict_to_lendict(c_candidates)
-    c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_resource_maint_cluster.get(tup, 0)
-               for tup in c_needs}
-    c_min = {(k, t): min(
-        c_slack[(k, t)],
-        max(
-            int(c_num_candidates[k] * min_percent),
-            min_value)
-        ) for (k, t) in c_slack
-    }
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -102,7 +84,9 @@ def solve_model(instance, options=None):
         if t > first_period:
             model += start_T[avt] >= task[avt] - task.get(avt_ant, 0)
         else:
-            model += start_T[avt] >= task[avt] - (a in task_previous_res[v])
+            # we check if we have the assignment in the previous period.
+            # this is stored in the fixed_vars set.
+            model += start_T[avt] >= task[avt] - (a, v, t) in fixed_vars
 
     # if we start a task in at least on earlier period, we need to assign a task
     for a, v, t1, t2 in l['avt']:
@@ -119,20 +103,16 @@ def solve_model(instance, options=None):
     # ##################################
 
     # minimum availability per cluster and period
-    # TODO: check this and add the minimum usage hours per cluster
-    for k, t in c_needs:
+    for k, t in cluster_data['num']:
         model += \
             pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
                      if (a, _t) in l['at_start']
-                     if a in c_candidates[k]) + \
-            c_needs[(k, t)] + \
-            c_min[(k, t)] + \
-            num_resource_maint_cluster.get((k, t), 0) \
-            <= c_num_candidates[k]
-        # maintenances decided by the model to candidates +
-        # assigned resources to tasks in cluster +
-        # minimum resources for cluster +
-        # <= resources already in maintenance
+                     if a in c_candidates[k]) <= cluster_data['num'][k, t]
+
+    # Each cluster has a minimum number of usage hours to have
+    # at each period.
+    for (k, t), hours in cluster_data['hours'].items():
+        model += pl.lpSum(rut[(a, t)] for a in c_candidates[k] if (a, t) in l['at']) >= hours[k]
 
     # ##################################
     # Usage time
@@ -150,24 +130,33 @@ def solve_model(instance, options=None):
     # calculate the rut:
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) == rut_obj_var
 
+    for a in l['resources']:
+        model += rut[(a, l['period_0'])] == rut_init[a]
     # ##################################
     # Maintenances
     # ##################################
 
-    # TODO: add ret constraints.
+    # we cannot do two maintenances too close one from the other:
+    for att in l['att_m']:
+        a, t1, t2 = att
+        model += start_M[a, t1] + start_M[a, t2] <= 1
 
-    # the start_M period is given by parameters:
-    for a in l['resources']:
-        model += rut[(a, l['period_0'])] == rut_init[a]
-        if ret_init[a] < len(l['periods']):
-            # if ret is low: we know we need a maintenance
-            model += pl.lpSum(start_M.get((a, t), 0) for pos, t in enumerate(l['periods'])
-                              if pos < ret_init[a]) >= 1
+    # we cannot do two maintenances too far apart one from the other:
+    # (we need to be sure that t2_list includes the whole horizon to enforce it)
+    for at, t2_list in l['t_at_M'].items():
+        a, t1 = at
+        model += pl.lpSum(start_M[a, t2] for t2 in t2_list) <= start_M[a, t1]
 
-    # This is a possible cut for the 60 period ret
-    # model += pl.lpSum(start_M.get((a, t2), 0) for t2 in l['periods']
-    #                   if t <= t2 <= aux.shift_month(t, 59) ) \
-    #          >= start_M.get((a, t), 0)
+    # if we have had a maintenance just before the planning horizon
+    # we cant't have one at the beginning:
+    # we can formulate this as constraining the combinations of maintenance variables.
+    # for at in l['at_m_ini']:
+    #     model += start_M[at] == 0
+
+    # if we need a maintenance inside the horizon, we enforce it
+    # (we need to be sure that t2_list includes the whole horizon to enforce it)
+    for a, t_list in l['t_a_M_ini'].items():
+        model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
 
     # count the number of maintenances:
     model += num_maint == pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at_start'])

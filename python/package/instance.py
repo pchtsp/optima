@@ -120,9 +120,9 @@ class Instance(object):
             at: all.                                                    => 'used'
                 at_mission: a mission is assigned (fixed)               => 'assign'
                 at_free: nothing is fixed                               => 'assign' and 'state'
-                    at_free_start: can start a maintenance              => 'start'
+                    at_free_start: can start a maintenance              => 'start_M'
                 at_maint: maintenance is assigned (fixed)               => 'state' 
-                    at_start: start of maintenance is assigned (fixed). => 'start'
+                    at_start: start of maintenance is assigned (fixed). => 'start_M'
         """
 
         at = [(a, t) for a in resources for t in periods]
@@ -183,7 +183,13 @@ class Instance(object):
         ,'t2_avt1'          : t2_avt1
         ,'t1_avt2'          : t1_avt2
         ,'avtt'             : avtt
+        # TODO: fill
+        , 'att_m': 1
+        , 't_at_M': 1
+        , 'at_m_ini': 1
+        , 't_a_M_ini': 1
         }
+
 
     def get_initial_state(self, time_type):
         if time_type not in ["elapsed", "used"]:
@@ -311,6 +317,29 @@ class Instance(object):
         for (task, period), value in task_needs.items():
             cluster_needs[(cluster[task], period)] += value
         return cluster_needs
+
+    def get_cluster_minimums(self, min_percent=0.1, min_value=1):
+        num_resource_maint_cluster = aux.dict_to_lendict(self.get_fixed_maintenances_cluster())
+        c_needs = self.get_cluster_needs()
+        c_candidates = self.get_cluster_candidates()
+        c_num_candidates = aux.dict_to_lendict(c_candidates)
+        c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_resource_maint_cluster.get(tup, 0)
+                   for tup in c_needs}
+        c_min = {(k, t): min(
+            c_slack[(k, t)],
+            max(
+                int(c_num_candidates[k] * min_percent),
+                min_value)
+            ) for (k, t) in c_slack
+        }
+
+        c_needs_num = {(k, t): c_num_candidates[k] - c_needs[k, t] - c_min[k, t] - num_resource_maint_cluster[k, t]
+                       for k, t in c_needs
+                       }
+        # TODO; fill
+        c_needs_hours = {(k, t): 0 for (k, t) in range(0)}
+
+        return {'num': c_needs_num, 'hours': c_needs_hours}
 
     def get_task_candidates(self, task=None):
         r_cap = self.get_resources('capacities')
