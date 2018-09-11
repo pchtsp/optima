@@ -8,29 +8,24 @@ import package.model_cp as md_cp
 import importlib
 import argparse
 import package.heuristics as heur
+import package.simulation as sim
 
 
 def config_and_solve(params):
 
-    model_data = di.get_model_data(params.PATHS['input'])
-    historic_data = di.generate_solution_from_source(params.PATHS['hist'])
-    model_data = di.combine_data_states(model_data, historic_data)
+    options = params.OPTIONS
+    if options.get('simulate', False):
+        model_data = sim.create_dataset(options)
+    else:
+        model_data = di.get_model_data(params.PATHS['input'])
+        historic_data = di.generate_solution_from_source(params.PATHS['hist'])
+        model_data = di.combine_data_states(model_data, historic_data)
+        model_data['parameters']['start'] = options['start']
+        model_data['parameters']['end'] = \
+            aux.shift_month(model_data['parameters']['start'], options['num_period'] - 1)
 
-    num_start_period = params.OPTIONS.get('start_pos', 0)
-    default_months = \
-        aux.get_months(
-            model_data['parameters']['start'],
-            model_data['parameters']['end']
-        )
-    num_max_periods = params.OPTIONS.get('end_pos', default_months)
-
-    model_data['parameters']['start'] = \
-        aux.shift_month(model_data['parameters']['start'], num_start_period)
-    model_data['parameters']['end'] = \
-        aux.shift_month(model_data['parameters']['start'], num_max_periods)
-
-    white_list = params.OPTIONS.get('white_list', [])
-    black_list = params.OPTIONS.get('black_list', [])
+    white_list = options.get('white_list', [])
+    black_list = options.get('black_list', [])
 
     tasks = model_data['tasks']
     if len(black_list) > 0:
@@ -41,7 +36,6 @@ def config_and_solve(params):
     model_data['tasks'] = tasks
     instance = inst.Instance(model_data)
 
-    options = params.OPTIONS
     output_path = options['path']
 
     di.export_data(output_path, instance.data, name="data_in", file_type='json')
