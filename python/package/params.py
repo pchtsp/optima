@@ -20,7 +20,7 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 OPTIONS = {
     'timeLimit': 3600  # seconds
     , 'gap': 0
-    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'solver': "GUROBI"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
     , 'memory': 15000
     , 'print': True
     , 'integer': False
@@ -35,9 +35,9 @@ OPTIONS = {
     , 'simulate': True
     , 'simulation': {
         'num_resources': 50
-        , 'num_parallel_tasks': 4
+        , 'num_parallel_tasks': 1
         , 'maint_duration': 4
-        , 'max_used_time': 800
+        , 'max_used_time': 1000
         , 'max_elapsed_time': 40
         , 'elapsed_time_size': 20
         , 'min_usage_period': 15

@@ -16,7 +16,7 @@ def solve_model(instance, options=None):
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
     maint_capacity = instance.get_param('maint_capacity')
     max_usage = instance.get_param('max_used_time')
-    cluster_data = instance.get_cluster_minimums()
+    cluster_data = instance.get_cluster_constraints()
     c_candidates = instance.get_cluster_candidates()
 
     # Sometimes we want to force variables to be integer.
@@ -70,7 +70,7 @@ def solve_model(instance, options=None):
     # ##################################
 
     # num resources:
-    for (v, t), a_list in l['a_vt'].itemes():
+    for (v, t), a_list in l['a_vt'].items():
         model += pl.lpSum(task[a, v, t] for a in a_list) == requirement[v]
 
     # definition of task start:
@@ -83,12 +83,14 @@ def solve_model(instance, options=None):
         else:
             # we check if we have the assignment in the previous period.
             # this is stored in the fixed_vars set.
-            model += start_T[avt] >= task[avt] - (a, t, v) in l['at_mission_m']
+            model += start_T[avt] >= task[avt] - (avt_ant in l['at_mission_m'])
 
-    # if we start a task in at least on earlier period, we need to assign a task
-    for a, v, t1, t2 in l['avt']:
+    # definition of task start (2):
+    # if we start a task in at least one earlier period, we need to assign a task
+    for (a, v, t2), t1_list in l['t1_avt2'].items():
         avt2 = a, v, t2
-        model += task[avt2] >= pl.lpSum(start_T[a, v, t1] for (t1) in l['t1_avt2'])
+        model += task.get(avt2, 0) >= \
+                 pl.lpSum(start_T.get((a, v, t1), 0) for t1 in t1_list)
 
     # at the beginning of the planning horizon, we may have fixed assignments of tasks.
     # we need to fix the corresponding variable.
@@ -100,16 +102,16 @@ def solve_model(instance, options=None):
     # ##################################
 
     # minimum availability per cluster and period
-    for k, t in cluster_data['num']:
+    for (k, t), num in cluster_data['num'].items():
         model += \
             pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
                      if (a, _t) in l['at_start']
-                     if a in c_candidates[k]) <= cluster_data['num'][k, t]
+                     if a in c_candidates[k]) <= num
 
     # Each cluster has a minimum number of usage hours to have
     # at each period.
     for (k, t), hours in cluster_data['hours'].items():
-        model += pl.lpSum(rut[(a, t)] for a in c_candidates[k] if (a, t) in l['at']) >= hours[k]
+        model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours
 
     # ##################################
     # Usage time
@@ -129,19 +131,20 @@ def solve_model(instance, options=None):
 
     for a in l['resources']:
         model += rut[(a, l['period_0'])] == rut_init[a]
+
     # ##################################
     # Maintenances
     # ##################################
 
-    # we cannot do two maintenances too close one from the other:
-    for att in l['att_m']:
-        a, t1, t2 = att
-        model += start_M[a, t1] + start_M[a, t2] <= 1
+    # # we cannot do two maintenances too close one from the other:
+    # for att in l['att_m']:
+    #     a, t1, t2 = att
+    #     model += start_M[a, t1] + start_M[a, t2] <= 1
 
     # we cannot do two maintenances too far apart one from the other:
     # (we need to be sure that t2_list includes the whole horizon to enforce it)
     for (a, t1), t2_list in l['t_at_M'].items():
-        model += pl.lpSum(start_M[a, t2] for t2 in t2_list) <= start_M[a, t1]
+        model += pl.lpSum(start_M[a, t2] for t2 in t2_list) >= start_M[a, t1]
 
     # if we have had a maintenance just before the planning horizon
     # we cant't have one at the beginning:
@@ -150,6 +153,7 @@ def solve_model(instance, options=None):
     # for at in l['at_m_ini']:
     #     model += start_M[at] == 0
 
+    # TODO: this constraint is not working properly.
     # if we need a maintenance inside the horizon, we enforce it
     for a, t_list in l['t_a_M_ini'].items():
         model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
@@ -162,6 +166,10 @@ def solve_model(instance, options=None):
         model += pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
                  num_resource_maint[t] <= maint_capacity
 
+    # ##################################
+    # SOLVING
+    # ##################################
+
     # SOLVING
     config = conf.Config(options)
     # model.writeMPS(filename='MFMP_3.mps')
@@ -169,8 +177,9 @@ def solve_model(instance, options=None):
     result = config.solve_model(model)
 
     if result != 1:
-        print("Model resulted in non-feasible status")
+        print("Model resulted in non-feasible status: {}".format(result))
         return None
+    print('model solved correctly')
 
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
     _start = {k: 1 for k in aux.vars_to_tups(start_M)}

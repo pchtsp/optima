@@ -134,13 +134,13 @@ class Instance(object):
                     at_start: start of maintenance is assigned (fixed). => 'start_M'
         """
 
-        at = [(a, t) for a in resources for t in periods]
-        at0 = [(a, period_0) for a in resources] + at
+        at = tl.TupList((a, t) for a in resources for t in periods)
+        at0 = tl.TupList([(a, period_0) for a in resources] + at)
         at_mission_m = self.get_fixed_tasks()
-        at_mission = [(a, t) for (a, s, t) in at_mission_m]  # Fixed mission assignments.
+        at_mission = tl.TupList((a, t) for (a, s, t) in at_mission_m)  # Fixed mission assignments.
         at_start = []  # Fixed maintenances starts
         at_maint = self.get_fixed_maintenances()  # Fixed maintenance assignments.
-        at_free = [(a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission)]
+        at_free = tl.TupList((a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission))
 
         # we update the possibilities of starting a maintenance
         # depending on the rule of minimal time between maintenance
@@ -152,41 +152,41 @@ class Instance(object):
                     ]
         at_m_ini_s = set(at_m_ini)
 
-        at_free_start = [i for i in at_free_start if i not in at_m_ini_s]
+        at_free_start = tl.TupList(i for i in at_free_start if i not in at_m_ini_s)
 
-        vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
-        avt = [(a, v, t) for a in resources for (v, t) in vt
+        vt = tl.TupList((v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v])
+        avt = tl.TupList([(a, v, t) for a in resources for (v, t) in vt
                if a in candidates[v]
                if (a, t) in at_free] + \
-              at_mission_m
-        ast = [(a, s, t) for (a, t) in list(at_free + at_maint) for s in states]
-        att = [(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
-               periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration]
-        avtt = [(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
+              at_mission_m)
+        ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
+        att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
+               periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
+        avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
-                ]
-        att_m = [(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                ])
+        att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_elapsed
-                 ]
-        att_M = [(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                 ])
+        att_M = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] + max_elapsed < len(periods)
                  if periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed
-                 ]
-        at_M_ini = [(a, t) for (a, t) in at_free_start
+                 ])
+        at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
                     if ret_init_adjusted[a] <= periods_pos[t] < ret_init[a]
-                    ]
+                    ])
 
-        a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
-        a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
-        v_at = aux.fill_dict_with_default(aux.tup_to_dict(avt, result_col=1, is_list=True), at, [])
-        at1_t2 = aux.tup_to_dict(att, result_col=[0,1], is_list=True)
-        t1_at2 = aux.fill_dict_with_default(aux.tup_to_dict(att, result_col=1, is_list=True), at, [])
-        t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
-        t2_avt1 = aux.tup_to_dict(avtt, result_col=3, is_list=True)
-        t1_avt2 = aux.tup_to_dict(avtt, result_col=2, is_list=True)
-        t_at_M = tl.TupList(att_M).to_dict(result_col=2, is_list=True)
-        t_a_M_ini = tl.TupList(at_M_ini).to_dict(result_col=1, is_list=True)
+        a_t = at.to_dict(result_col=0, is_list=True)
+        a_vt = avt.to_dict(result_col=0, is_list=True)
+        v_at = avt.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
+        at1_t2 = att.to_dict(result_col=[0,1], is_list=True)
+        t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
+        t2_at1 = att.to_dict(result_col=2, is_list=True)
+        t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
+        t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
+        t_at_M = att_M.to_dict(result_col=2, is_list=True)
+        t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
 
         return {
          'periods'          :  periods
@@ -203,7 +203,7 @@ class Instance(object):
         ,'avt'              :  avt
         ,'at'               :  at
         ,'at_maint'         :  at_maint
-        , 'at_mission_m'    : at_mission_m
+        ,'at_mission_m'    : at_mission_m
         ,'ast'              :  ast
         ,'at_start'         :  list(at_start + at_free_start)
         ,'at0'              :  at0
@@ -390,10 +390,10 @@ class Instance(object):
             cluster_needs[(cluster[task], period)] += value
         return cluster_needs
 
-    def get_cluster_minimums(self, min_percent=0.1, min_value=1):
+    def get_cluster_constraints(self, min_percent=0.1, min_value=1):
         # num_resource_maint_cluster = aux.dict_to_lendict(self.get_fixed_maintenances_cluster())
         c_needs = self.get_cluster_needs()
-        # c_candidates = self.get_cluster_candidates()
+        c_candidates = self.get_cluster_candidates()
         # c_num_candidates = aux.dict_to_lendict(c_candidates)
         # c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_resource_maint_cluster.get(tup, 0)
         #            for tup in c_needs}
@@ -410,7 +410,7 @@ class Instance(object):
         #                }
         # TODO: check all code and fill differently
         c_needs_hours = {kt: 0 for kt in c_needs}
-        c_needs_num = {kt: 0 for kt in c_needs}
+        c_needs_num = {kt: len(c_candidates[kt[0]]) for kt in c_needs}
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
 

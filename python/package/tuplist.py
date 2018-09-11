@@ -43,10 +43,10 @@ class TupList(list):
             indices = [col for col in range(len(self[0])) if col not in result_col]
         result = sd.SuperDict()
         for tup in self:
-            index = tuple(np.take(tup, indices))
+            index = tuple(tup[i] for i in indices)
             if len(index) == 1:
                 index = index[0]
-            content = tuple(np.take(tup, result_col))
+            content = tuple(tup[i] for i in result_col)
             if len(content) == 1:
                 content = content[0]
             if not is_list:

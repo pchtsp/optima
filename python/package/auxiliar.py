@@ -63,10 +63,10 @@ def tup_to_dict(tuplist, result_col=0, is_list=True, indeces=None):
         indeces = [col for col in range(len(tuplist[0])) if col not in result_col]
     result = {}
     for tup in tuplist:
-        index = tuple(np.take(tup, indeces))
+        index = tuple(tup[i] for i in indeces)
         if len(index) == 1:
             index = index[0]
-        content = tuple(np.take(tup, result_col))
+        content = tuple(tup[i] for i in result_col)
         if len(content) == 1:
             content = content[0]
         if not is_list:
