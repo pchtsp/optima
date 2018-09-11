@@ -7,6 +7,7 @@ import os
 import datetime
 # import bokeh.plotting as bokehplot
 
+# TODO: migrate all relevant methods to tuplist and superdict
 
 def get_months(start_month, end_month):
     """
@@ -163,11 +164,11 @@ def tup_to_start_finish(tup_list, pp=1):
     """
     Takes a calendar tuple list of the form: (id, month) and
     returns a tuple list of the form (id, start_month, end_month)
+    it works with a bigger tuple too.
     :param tup_list: [(id, month), (id, month)]
     :param pp: the position in the tuple where the period is
     :return:
     """
-    # TODO: new to make this more efficient. Only one loop with a while.
     # And make it possible to do it with a simple list of dates
     # If I sort for id and then period... I can do it in nlog(n) i guess
     res_start_finish = []

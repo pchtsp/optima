@@ -19,9 +19,6 @@ def solve_model(instance, options=None):
     cluster_data = instance.get_cluster_minimums()
     c_candidates = instance.get_cluster_candidates()
 
-    # TODO: fill this:
-    fixed_vars = [(a, v, t) for (a, v, t) in range(0)]
-
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
     if options.get('integer', False):
@@ -86,7 +83,7 @@ def solve_model(instance, options=None):
         else:
             # we check if we have the assignment in the previous period.
             # this is stored in the fixed_vars set.
-            model += start_T[avt] >= task[avt] - (a, v, t) in fixed_vars
+            model += start_T[avt] >= task[avt] - (a, t, v) in l['at_mission_m']
 
     # if we start a task in at least on earlier period, we need to assign a task
     for a, v, t1, t2 in l['avt']:
@@ -95,7 +92,7 @@ def solve_model(instance, options=None):
 
     # at the beginning of the planning horizon, we may have fixed assignments of tasks.
     # we need to fix the corresponding variable.
-    for avt in fixed_vars:
+    for avt in l['at_mission_m']:
         model += task[avt] == 1
 
     # ##################################
@@ -143,18 +140,17 @@ def solve_model(instance, options=None):
 
     # we cannot do two maintenances too far apart one from the other:
     # (we need to be sure that t2_list includes the whole horizon to enforce it)
-    for at, t2_list in l['t_at_M'].items():
-        a, t1 = at
+    for (a, t1), t2_list in l['t_at_M'].items():
         model += pl.lpSum(start_M[a, t2] for t2 in t2_list) <= start_M[a, t1]
 
     # if we have had a maintenance just before the planning horizon
     # we cant't have one at the beginning:
     # we can formulate this as constraining the combinations of maintenance variables.
+    # (already done)
     # for at in l['at_m_ini']:
     #     model += start_M[at] == 0
 
     # if we need a maintenance inside the horizon, we enforce it
-    # (we need to be sure that t2_list includes the whole horizon to enforce it)
     for a, t_list in l['t_a_M_ini'].items():
         model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
 

@@ -41,7 +41,6 @@ class GreedyByMission(test.Experiment):
         # self.instance.data['parameters']['maint_capacity'] = 500
         # for r in resources:
         #     self.instance.data['resources'][r]['initial_elapsed'] = 500
-        # TODO: this *must* be temporal
 
         # we preassign ruts and rets.
         for time in ['rut', 'ret']:

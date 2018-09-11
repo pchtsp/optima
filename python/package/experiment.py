@@ -5,6 +5,8 @@ import pandas as pd
 import package.data_input as di
 import package.solution as sol
 import package.instance as inst
+import package.tuplist as tl
+import package.superdict as sd
 import os
 import shutil
 import pprint as pp
@@ -12,12 +14,7 @@ import re
 import package.logFiles as log
 
 
-# TODO: make Experiment subclass of Solution.
-# TODO: make Solution subclass of Instance?
 # TODO: create period objects with proper date methods based on arrow
-# TODO: create listtuple and dictionary objects with proper methods
-
-# TODO: check minimum assignment
 
 class Experiment(object):
     """
@@ -59,8 +56,7 @@ class Experiment(object):
 
     def check_solution(self):
         func_list = {
-            'duration':     self.check_maintenance_duration
-            ,'candidates':  self.check_resource_in_candidates
+            'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
             ,'resources':   self.check_task_num_resources
             ,'usage':       self.check_usage_consumption
@@ -90,8 +86,6 @@ class Experiment(object):
         }
 
         return task_under_assigned
-
-    # TODO: check fixed maintenance
 
     def check_resource_in_candidates(self):
         # task_data = self.instance.get_tasks()
@@ -230,35 +224,34 @@ class Experiment(object):
 
         return [tuple(item) for item in duplicated_states]
 
-    def check_maintenance_duration(self):
-        maintenances = self.solution.get_maintenance_periods()
-        first_period = self.instance.get_param('start')
-        last_period = self.instance.get_param('end')
-        duration = self.instance.get_param('maint_duration')
-
-        incorrect = {}
-        for (resource, start, finish) in maintenances:
-            size_period = len(aux.get_months(start, finish))
-            if size_period > duration:
-                incorrect[(resource, start)] = size_period
-            if size_period < duration and start != first_period and \
-                            finish != last_period:
-                incorrect[(resource, start)] = size_period
-        return incorrect
-
     def check_min_assignment(self):
-        tasks_periods = self.solution.get_task_periods()
-        task_min_assign = self.instance.get_tasks('min_assign')
+        """
+        :return: periods were the min assignment (including maintenance)
+        is not respected
+        """
+        tasks = sd.SuperDict(self.solution.get_tasks()).to_tuplist()
+        maints = sd.SuperDict.from_dict(self.solution.get_state()).to_tuplist()
+        previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
+            to_dictup().to_tuplist()
+        min_assign = self.instance.get_min_assign()
+
+        all_states = maints + tasks + previous
+        all_states_periods = tl.TupList(all_states).tup_to_start_finish()
+
+        # tasks_periods = self.solution.get_task_periods()
+        # task_min_assign = self.instance.get_tasks('min_assign')
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
 
         incorrect = {}
-        for (resource, start, task, finish) in tasks_periods:
-            # limits are not checked for min assignment
-            if start == first_period or finish == last_period:
+        for (resource, start, state, finish) in all_states_periods:
+            # periods that finish before the horizon
+            # or after at the end
+            # are not checked
+            if finish < first_period or finish == last_period:
                 continue
             size_period = len(aux.get_months(start, finish))
-            if size_period < task_min_assign[task]:
+            if size_period < min_assign.get(state, 1):
                 incorrect[(resource, start)] = size_period
         return incorrect
 

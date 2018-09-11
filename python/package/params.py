@@ -26,12 +26,23 @@ OPTIONS = {
     , 'integer': False
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
-    , 'start_pos': 0
-    , 'end_pos': 60
+    , 'start': '2018-01'
+    , 'num_period': 90
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
+    , 'simulate': True
+    , 'simulation': {
+        'num_resources': 50
+        , 'num_parallel_tasks': 4
+        , 'maint_duration': 4
+        , 'max_used_time': 800
+        , 'max_elapsed_time': 40
+        , 'elapsed_time_size': 20
+        , 'min_usage_period': 15
+        , 'perc_capacity': 0.2
+    }
 }
 
 # white_list = ['O1', 'O5']

@@ -97,76 +97,16 @@ class Solution(object):
     def get_number_maintenances(self, resource):
         return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
 
-    def graph_maintenances(self, path, **kwags):
-        """
-        uses bokeh
-        :param path: path to generate image
-        :return: graph object
-        """
-        return aux.graph_dict_time(self.get_in_maintenance(), path, **kwags)
-
-    def graph_unavailable(self, path, **kwags):
-        return aux.graph_dict_time(self.get_unavailable(), path, **kwags)
-
-    # def print_solution(self, path, max_tasks=None):
-    #     cols = ['group', 'start', 'content', 'end']
-    #     table = pd.DataFrame(self.get_schedule(),
-    #                          columns=cols
-    #                          )
-    #     table.end = table.end.apply(lambda x: aux.get_next_month(x))
-    #     table['status'] = table.content.str.replace(r"\d+", "")
-    #     colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
-    #     colors_content = table.set_index('content').status.replace(colors).to_dict()
+    # def graph_maintenances(self, path, **kwags):
+    #     """
+    #     uses bokeh
+    #     :param path: path to generate image
+    #     :return: graph object
+    #     """
+    #     return aux.graph_dict_time(self.get_in_maintenance(), path, **kwags)
     #
-    #     table['style'] = \
-    #         table.status.replace(colors). \
-    #             map("background-color:{0};border-color:{0}".format)
-    #     table = table.sort_values("group").reset_index().rename(columns={'index': "id"})
-    #     cols2 = cols + ['style', 'id']
-    #     table[cols2] = table[cols2].astype(str)
-    #     table = table[['group', 'start', 'content', 'end']]
-    #     table.columns = ["Task", 'Start', 'Resource', 'Finish']
-    #     if max_tasks is not None:
-    #         # TODO: filter correctly tasks to show only the maximum number
-    #         table = table[table.Task.str.len() < 3].reset_index(drop=True)
-    #     fig = ff.create_gantt(table, colors=colors_content, index_col='Resource', show_colorbar=True, group_tasks=True)
-    #     plotly.offline.plot(fig, filename=path)
-    #
-    #     return
-
-    # def print_solution_r(self, path):
-    #     # TODO: this is almost correct but some names are not correctly written.
-    #     cols = ['group', 'start', 'content', 'end']
-    #     table = pd.DataFrame(self.get_schedule(),
-    #                          columns=cols
-    #                          )
-    #     table.end = table.end.apply(lambda x: aux.get_next_month(x))
-    #     table['status'] = table.content.str.replace(r"\d+", "")
-    #     colors = {'A': "white", 'M': '#0055FF', 'O': "#BD0026"}
-    #
-    #     table['style'] = \
-    #         table.status.replace(colors). \
-    #             map("background-color:{0};border-color:{0}".format)
-    #
-    #     groups = pd.DataFrame({'id': table.group.unique(), 'content': table.group.unique()})
-    #     timevis = importr('timevis')
-    #     htmlwidgets = importr('htmlwidgets')
-    #     rdf = pandas2ri.py2ri(table)
-    #     rdfgroups = pandas2ri.py2ri(groups)
-    #
-    #     options = ro.ListVector({
-    #         "stack": False,
-    #         "editable": True,
-    #         "align": "center",
-    #         "orientation": "top",
-    #         # "snap": None,
-    #         "margin": 0
-    #     })
-    #
-    #     graph = timevis.timevis(rdf, groups=rdfgroups, options=options, width="100%")
-    #     htmlwidgets.saveWidget(graph, file=path, selfcontained=False)
-    #     print(graph)
-    #     return graph
+    # def graph_unavailable(self, path, **kwags):
+    #     return aux.graph_dict_time(self.get_unavailable(), path, **kwags)
 
 
 if __name__ == "__main__":
@@ -179,6 +119,6 @@ if __name__ == "__main__":
     #                                 title="Maintenances")
     # sol_nostates.graph_unavailable(path="/home/pchtsp/Documents/projects/OPTIMA/img/unavailable.html",
     #                                title="Affectations")
-    sol_nostates.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
+    # sol_nostates.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
 
     # sol.print_solution("/home/pchtsp/Downloads/calendar_temp3.html")

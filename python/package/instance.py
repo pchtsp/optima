@@ -5,6 +5,8 @@ import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
 import math
+import package.superdict as sd
+import package.tuplist as tl
 
 
 class Instance(object):
@@ -110,7 +112,14 @@ class Instance(object):
         resources_data = self.get_resources()
         resources = list(resources_data.keys())
         duration = param_data['maint_duration']
-        # previous_states = aux.get_property_from_dic(resources_data, 'states')
+        max_elapsed = param_data['max_elapsed_time']
+        min_elapsed = param_data['min_elapsed_time']
+        # previous_states = \
+        #     sd.SuperDict.from_dict(aux.get_property_from_dic(resources_data, 'states')).\
+        #         to_dictup().to_tuplist().tup_to_start_finish()
+        ret_init = self.get_initial_state("elapsed")
+        ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
+
 
         """
         Indentation means "includes the following:".
@@ -118,6 +127,7 @@ class Instance(object):
         at0: all, including the previous period.
             at: all.                                                    => 'used'
                 at_mission: a mission is assigned (fixed)               => 'assign'
+                    at_mission_m: specific mission is assigned (fixed)  => 'assign'
                 at_free: nothing is fixed                               => 'assign' and 'state'
                     at_free_start: can start a maintenance              => 'start_M'
                 at_maint: maintenance is assigned (fixed)               => 'state' 
@@ -126,23 +136,46 @@ class Instance(object):
 
         at = [(a, t) for a in resources for t in periods]
         at0 = [(a, period_0) for a in resources] + at
-        at_mission = []  # to be implemented. Fixed mission assignments.
-        at_start = []  # to be implemented. Fixed maintenances starts
-        at_maint = self.get_fixed_maintenances()
+        at_mission_m = self.get_fixed_tasks()
+        at_mission = [(a, t) for (a, s, t) in at_mission_m]  # Fixed mission assignments.
+        at_start = []  # Fixed maintenances starts
+        at_maint = self.get_fixed_maintenances()  # Fixed maintenance assignments.
         at_free = [(a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission)]
+
+        # we update the possibilities of starting a maintenance
+        # depending on the rule of minimal time between maintenance
+        # an the initial "ret" state of the resource
         at_free_start = [(a, t) for (a, t) in at_free]
         # at_free_start = [(a, t) for (a, t) in at_free if periods_pos[t] % 3 == 0]
+        at_m_ini = [(a, t) for (a, t) in at_free_start
+                    if periods_pos[t] < ret_init_adjusted[a]
+                    ]
+        at_m_ini_s = set(at_m_ini)
+
+        at_free_start = [i for i in at_free_start if i not in at_m_ini_s]
 
         vt = [(v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v]]
         avt = [(a, v, t) for a in resources for (v, t) in vt
                if a in candidates[v]
-               if (a, t) in list(at_free + at_mission)]
+               if (a, t) in at_free] + \
+              at_mission_m
         ast = [(a, s, t) for (a, t) in list(at_free + at_maint) for s in states]
         att = [(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration]
         avtt = [(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
                 ]
+        att_m = [(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                 if periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_elapsed
+                 ]
+        att_M = [(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                 if periods_pos[t1] + max_elapsed < len(periods)
+                 if periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed
+                 ]
+        at_M_ini = [(a, t) for (a, t) in at_free_start
+                    if ret_init[a] <= len(periods)
+                    if ret_init_adjusted[a] <= periods_pos[t] < ret_init[a]
+                    ]
 
         a_t = aux.tup_to_dict(at, result_col=0, is_list=True)
         a_vt = aux.tup_to_dict(avt, result_col=0, is_list=True)
@@ -152,6 +185,8 @@ class Instance(object):
         t2_at1 = aux.tup_to_dict(att, result_col=2, is_list=True)
         t2_avt1 = aux.tup_to_dict(avtt, result_col=3, is_list=True)
         t1_avt2 = aux.tup_to_dict(avtt, result_col=2, is_list=True)
+        t_at_M = tl.TupList(att_M).to_dict(result_col=2, is_list=True)
+        t_a_M_ini = tl.TupList(at_M_ini).to_dict(result_col=1, is_list=True)
 
         return {
          'periods'          :  periods
@@ -168,6 +203,7 @@ class Instance(object):
         ,'avt'              :  avt
         ,'at'               :  at
         ,'at_maint'         :  at_maint
+        , 'at_mission_m'    : at_mission_m
         ,'ast'              :  ast
         ,'at_start'         :  list(at_start + at_free_start)
         ,'at0'              :  at0
@@ -182,11 +218,10 @@ class Instance(object):
         ,'t2_avt1'          : t2_avt1
         ,'t1_avt2'          : t1_avt2
         ,'avtt'             : avtt
-        # TODO: fill
-        , 'att_m': 1
-        , 't_at_M': 1
-        , 'at_m_ini': 1
-        , 't_a_M_ini': 1
+        , 'att_m'           : att_m
+        , 't_at_M'          : t_at_M
+        , 'at_m_ini'        : at_m_ini
+        , 't_a_M_ini'       : t_a_M_ini
         }
 
     def get_initial_state(self, time_type):
@@ -213,35 +248,75 @@ class Instance(object):
 
         return rt_init
 
-    def get_fixed_maintenances(self, dict_key=None):
+    def get_min_assign(self):
+        min_assign = dict(self.get_tasks('min_assign'))
+        min_assign['M'] = self.get_param('maint_duration')
+        return min_assign
+
+    def get_fixed_states(self):
         previous_states = self.get_resources("states")
         first_period = self.get_param('start')
-        duration = self.get_param('maint_duration')
+        period_0 = aux.get_prev_month(first_period)
+        min_assign = self.get_min_assign()
+        # min_assign['M'] = self.get_param('maint_duration')
+        # we get the states into a tuple list,
+        # we turn them into a start-finish tuple
+        # we filter it so we only take the start-finish periods that end before the horizon
+        assignments = \
+            sd.SuperDict.from_dict(previous_states). \
+                to_dictup().to_tuplist().tup_to_start_finish().\
+                filter_list_f(lambda x: x[3] == period_0)
 
-        last_maint = {}
-        planned_maint = []
-        previous_states_n = {key: [key2 for key2 in value if value[key2] == 'M']
-                             for key, value in previous_states.items()}
+        fixed_assignments_q = \
+            [(a[0], a[2], min_assign.get(a[2], 0) - len(aux.get_months(a[1], a[3])))
+             for a in assignments if len(aux.get_months(a[1], a[3])) < min_assign.get(a[2], 0)]
 
-        # after initialization, we search for the scheduled maintenances that:
-        # 1. do not continue the maintenance of the previous month
-        # 2. happen in the last X months before the start of the planning period.
-        for res in previous_states_n:
-            _list = list(previous_states_n[res])
-            _list_n = [period for period in _list if aux.get_prev_month(period) not in _list
-                       if aux.shift_month(first_period, -duration) < period < first_period]
-            if not len(_list_n):
-                continue
-            last_maint[res] = max(_list_n)
-            finish_maint = aux.shift_month(last_maint[res], duration - 1)
-            for period in aux.get_months(first_period, finish_maint):
-                planned_maint.append((res, period))
+        return tl.TupList(
+            [(f_assign[0], f_assign[1], aux.shift_month(first_period, t))
+             for f_assign in fixed_assignments_q for t in range(f_assign[2])]
+            )
+
+    def get_fixed_maintenances(self, dict_key=None):
+        fixed_states = self.get_fixed_states()
+        fixed_maints = tl.TupList([(a, t) for (a, s, t) in fixed_states if s == 'M'])
         if dict_key is None:
-            return planned_maint
+            return fixed_maints
         if dict_key == 'resource':
-            return aux.tup_to_dict(planned_maint, result_col=1)
+            return aux.tup_to_dict(fixed_maints, result_col=1)
         if dict_key == 'period':
-            return aux.tup_to_dict(planned_maint, result_col=0)
+            return aux.tup_to_dict(fixed_maints, result_col=0)
+
+    def get_fixed_tasks(self):
+        return tl.TupList([(a, s, t) for (a, s, t) in self.get_fixed_states() if s in self.get_tasks()])
+
+        # previous_states = self.get_resources("states")
+        # first_period = self.get_param('start')
+        # duration = self.get_param('maint_duration')
+        #
+        # last_maint = {}
+        # planned_maint = []
+        # previous_states_n = {key: [key2 for key2 in value if value[key2] == 'M']
+        #                      for key, value in previous_states.items()}
+        #
+        # # after initialization, we search for the scheduled maintenances that:
+        # # 1. do not continue the maintenance of the previous month
+        # # 2. happen in the last X months before the start of the planning period.
+        # for res in previous_states_n:
+        #     _list = list(previous_states_n[res])
+        #     _list_n = [period for period in _list if aux.get_prev_month(period) not in _list
+        #                if aux.shift_month(first_period, -duration) < period < first_period]
+        #     if not len(_list_n):
+        #         continue
+        #     last_maint[res] = max(_list_n)
+        #     finish_maint = aux.shift_month(last_maint[res], duration - 1)
+        #     for period in aux.get_months(first_period, finish_maint):
+        #         planned_maint.append((res, period))
+        # if dict_key is None:
+        #     return planned_maint
+        # if dict_key == 'resource':
+        #     return aux.tup_to_dict(planned_maint, result_col=1)
+        # if dict_key == 'period':
+        #     return aux.tup_to_dict(planned_maint, result_col=0)
 
     def get_task_period_list(self, in_dict=False):
 
@@ -301,8 +376,7 @@ class Instance(object):
                 present_group += 1
             for task2, cap2 in capacities.items():
                 if task2 not in group:
-                    int_caps = np.intersect1d(cap1, cap2)
-                    if len(int_caps) == len(task1):
+                    if len(set(cap1) - set(cap2):
                         group[task2] = group[task1]
         return group
 
@@ -334,35 +408,40 @@ class Instance(object):
         c_needs_num = {(k, t): c_num_candidates[k] - c_needs[k, t] - c_min[k, t] - num_resource_maint_cluster[k, t]
                        for k, t in c_needs
                        }
-        # TODO; fill
+        # TODO: check all code and fill differently
         c_needs_hours = {(k, t): 0 for (k, t) in range(0)}
+        c_needs_num = {(k, t): 0 for (k, t) in range(0)}
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
 
     def get_task_candidates(self, task=None):
         r_cap = self.get_resources('capacities')
         t_cap = self.get_tasks('capacities')
-        if task is not None:
-            t_cap = t_cap[task]
-        t_cap_df = pd.DataFrame([(t, c) for t in t_cap for c in t_cap[t]], columns=['IdTask', 'CAP'])
-        r_cap_df = pd.DataFrame([(t, c) for t in r_cap for c in r_cap[t]], columns=['IdResource', 'CAP'])
 
-        # task_df = .from_dict(, orient='index')
-        num_capacites = t_cap_df.groupby("IdTask"). \
-            agg(len).reset_index()
-        capacites_join = t_cap_df.merge(r_cap_df, on='CAP').\
-            groupby(['IdTask', 'IdResource']).agg(len).reset_index()
-        # capacites_join = capacites_join.reset_index(). \
-        #     groupby(['IdMission', 'IdAvion']).agg(len).reset_index()
-        mission_aircraft = \
-            pd.merge(capacites_join, num_capacites, on=["IdTask", "CAP"]) \
-                [["IdTask", "IdResource"]]
+        t_candidates = {t: [] for t in t_cap}
+        for t, task_caps in t_cap.items():
+            for res, res_caps in r_cap.items():
+                if len(set(task_caps) - set(res_caps)) == 0:
+                    t_candidates[t].append(res)
 
-        t_candidates =\
-            aux.tup_to_dict(
-                mission_aircraft.to_records(index=False).tolist(),
-                result_col=1
-            )
+        # if task is not None:
+        #     t_cap = t_cap[task]
+        # t_cap_df = pd.DataFrame([(t, c) for t in t_cap for c in t_cap[t]], columns=['IdTask', 'CAP'])
+        # r_cap_df = pd.DataFrame([(t, c) for t in r_cap for c in r_cap[t]], columns=['IdResource', 'CAP'])
+        #
+        # num_capacites = t_cap_df.groupby("IdTask"). \
+        #     agg(len).reset_index()
+        # capacites_join = t_cap_df.merge(r_cap_df, on='CAP').\
+        #     groupby(['IdTask', 'IdResource']).agg(len).reset_index()
+        # mission_aircraft = \
+        #     pd.merge(capacites_join, num_capacites, on=["IdTask", "CAP"]) \
+        #         [["IdTask", "IdResource"]]
+        #
+        # t_candidates =\
+        #     aux.tup_to_dict(
+        #         mission_aircraft.to_records(index=False).tolist(),
+        #         result_col=1
+        #     )
         if task is not None:
             return t_candidates[task]
         return t_candidates

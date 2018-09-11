@@ -12,9 +12,11 @@ class SuperDict(dict):
     def clean(self, default_value=0):
         return SuperDict({key: value for key, value in self.items() if value != default_value})
 
-    def filter(self, indices):
+    def filter(self, indices, check=True):
         if type(indices) is not list:
             indices = [indices]
+        if not check:
+            return SuperDict({k: self[k] for k in indices if k in self})
         bad_elem = np.setdiff1d(indices, list(self.keys()))
         if len(bad_elem) > 0:
             raise KeyError("following elements not in keys: {}".format(bad_elem))
@@ -43,7 +45,7 @@ class SuperDict(dict):
         return self
 
     def dicts_to_tup(self, keys, content):
-        if type(content) is not dict:
+        if type(content) is not SuperDict:
             self[tuple(keys)] = content
             return self
         for key, value in content.items():
@@ -130,8 +132,8 @@ class SuperDict(dict):
     @classmethod
     def from_dict(cls, dictionary):
         if type(dictionary) is not dict:
-            return
+            return dictionary
         dictionary = cls(dictionary)
-        for value in dictionary.values():
-            cls.from_dict(value)
+        for key, value in dictionary.items():
+            dictionary[key] = cls.from_dict(value)
         return dictionary

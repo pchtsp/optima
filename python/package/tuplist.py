@@ -1,4 +1,5 @@
 import numpy as np
+import package.auxiliar as aux
 
 
 class TupList(list):
@@ -14,6 +15,13 @@ class TupList(list):
             # indices = [indices]
             return TupList([np.take(tup, indices) for tup in self])
         return TupList([tuple(np.take(tup, indices)) for tup in self])
+
+    def filter_list_f(self, function):
+        """
+        :param function: function to apply to tuple
+        :return: filtered list of tuple
+        """
+        return TupList([i for i in self if function(i)])
 
     def to_dict(self, result_col=0, is_list=True, indices=None):
         """
@@ -51,7 +59,7 @@ class TupList(list):
 
     def add(self, *args):
         """
-        this is just a shirtcut for doing
+        this is just a shortcut for doing
             list.append((arg1, arg2, arg3))
         by doing:
             list.add(arg1, arg2, arg3)
@@ -66,3 +74,31 @@ class TupList(list):
 
     def unique2(self):
         return TupList(set(self))
+
+    def tup_to_start_finish(self, pp=1):
+        """
+        Takes a calendar tuple list of the form: (id, month) and
+        returns a tuple list of the form (id, start_month, end_month)
+        it works with a bigger tuple too.
+        :param self: [(id, month), (id, month)]
+        :param pp: the position in the tuple where the period is
+        :return:
+        """
+        self.sort(key=lambda x: (x[0], x[pp]))
+        res_start_finish = []
+        last_tup = ()
+        all_periods = []
+        current_period = []
+        for tup in self:
+            if tup == self[0] or tup[0] != last_tup[0] or\
+                    tup[pp] != aux.get_next_month(last_tup[pp]):
+                if len(current_period):
+                    all_periods.append(current_period)
+                current_period = [tup]
+            else:
+                current_period.append(tup)
+            last_tup = tup
+
+        for list_tup in all_periods:
+            res_start_finish.append(tuple(list(list_tup[0]) + [list_tup[-1][pp]]))
+        return TupList(res_start_finish)

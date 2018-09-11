@@ -49,20 +49,13 @@ def empty_data():
     }
 
 
-def create_dataset():
+def create_dataset(params):
     # TODO: clusters, capacities, types, etc.
-    # TODO: the following params should be arguments:
-    num_resources = 50
-    num_parallel_tasks = 4
-    num_periods = 60
-    start_period = '2019-01'
-    last_period = aux.shift_month(start_period, num_periods-1)
-    maint_duration = 4
-    max_usage_hours = 800
-    max_elapsed_periods = 40
-    min_elapsed_periods = max_elapsed_periods - 20
-    min_flight_hours_period = 15
-    perc_capacity = 0.2
+    param_list = ['start', 'max_used_time', 'maint_duration', 'max_elapsed_time',
+                  'num_resources', 'num_parallel_tasks', 'perc_capacity', 'elapsed_time_size']
+    params = sd.SuperDict.from_dict(params)
+    sim_data = params['simulation']
+    defaults = {'maint_weight': 0, 'unavail_weight': 0}
 
     # The following are fixed options, not arguments for the scenario:
     t_min_assign = [2, 3, 6]
@@ -72,19 +65,22 @@ def create_dataset():
     perc_in_maint = 0.1
 
     data_input = {}
-
-    data_input['parameters'] = {
-        'maint_weight': 0
-        , 'unavail_weight': 0
-        , 'max_used_time': max_usage_hours
-        , 'max_elapsed_time': max_elapsed_periods
-        , 'min_elapsed_time': min_elapsed_periods
-        , 'maint_duration': maint_duration
-        , 'maint_capacity': math.ceil(num_resources * perc_capacity)
-        , 'start': start_period
-        , 'end': aux.shift_month(start_period, num_periods - 1)
-        , 'min_usage_period': min_flight_hours_period
+    d_param = data_input['parameters'] = {
+        **defaults,
+        **sim_data.filter(param_list, check=False),
+        **params.filter(param_list, check=False)
     }
+    d_param['min_elapsed_time'] = d_param['max_elapsed_time'] - d_param['elapsed_time_size']
+    d_param['maint_capacity'] = math.ceil(d_param['num_resources'] * d_param['perc_capacity'])
+    d_param['end'] = aux.shift_month(d_param['start'], params['num_period'] - 1)
+
+    num_parallel_tasks = d_param['num_parallel_tasks']
+    start_period = d_param['start']
+    last_period = d_param['end']
+    num_resources = d_param['num_resources']
+    maint_duration = d_param['maint_duration']
+    max_used_time = d_param['max_used_time']
+    max_elapsed_time = d_param['max_elapsed_time']
 
     # Here we simulate the tasks along the planning horizon.
     # we need to guarantee there are num_parallel_tasks active task
@@ -160,16 +156,15 @@ def create_dataset():
             break
     res_task_init = sd.SuperDict(res_task_init). \
         fill_with_default(range(num_resources), default={})
-    # TODO: adapt states instead of using fixed_maintenances and fixed_tasks
     # We fill the states according to the initial values already calculated:
     data_input['resources'] = {
         res: {
             'initial_used':
-                rn.randrange(0, max_usage_hours)
-                if res not in res_in_maint else max_usage_hours
+                rn.randrange(0, max_used_time)
+                if res not in res_in_maint else max_used_time
             , 'initial_elapsed':
-                rn.randrange(0, max_elapsed_periods)
-                if res not in res_in_maint else max_elapsed_periods
+                rn.randrange(0, max_elapsed_time)
+                if res not in res_in_maint else max_elapsed_time
             , 'code': ''  # this is aesthetic
             , 'type': ''  # TODO: capacities
             , 'capacities': []  # TODO: capacities
@@ -182,5 +177,6 @@ def create_dataset():
 
 if __name__ == "__main__":
     import pprint as pp
-    create_dataset()
+    import package.params as params
+    create_dataset(params)
     pass
