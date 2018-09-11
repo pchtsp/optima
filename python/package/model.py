@@ -70,8 +70,8 @@ def solve_model(instance, options=None):
     # ##################################
 
     # num resources:
-    for (v, t) in l['a_vt']:
-        model += pl.lpSum(task[(a, v, t)] for a in l['a_vt'][(v, t)]) == requirement[v]
+    for (v, t), a_list in l['a_vt'].itemes():
+        model += pl.lpSum(task[a, v, t] for a in a_list) == requirement[v]
 
     # definition of task start:
     # if we have a task now but we didn't before: we started it
