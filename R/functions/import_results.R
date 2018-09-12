@@ -148,7 +148,8 @@ get_states <- function(exp_directory, style_config=list()){
         gather(key='state', value = 'hours') %>% 
         bind_rows(data.table(state='M', hours=0)) %>% 
         mutate(bucket= hours %>% as.integer %>% multiply_by(-1) %>% cut2(g= 4),
-               color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket])
+               color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket]) %>% 
+        mutate(color = if_else(state=='M', 'grey', color))
     
     tasks <- 
         solution %>% 
@@ -174,7 +175,7 @@ get_states <- function(exp_directory, style_config=list()){
         inner_join(task_hours) %>% 
         mutate(id= c(1:nrow(.)),
                style= sprintf("background-color:%s;border-color:%s;font-size: %s", color, color, font_size),
-               content = if_else(state=='M', 'M', sprintf('%s (%sh)', state, hours))
+               content = if_else(state=='M', 'M', sprintf('%sh', hours))
         ) %>% 
         rename(start= month, end= post_month, group= resource)
     states
@@ -195,8 +196,8 @@ timevis_from_states <- function(states, max_resources=NULL, ...){
         align = "center",
         orientation = "top",
         snap = NULL,
-        margin = 0,
-        zoomable= FALSE
+        margin = 0
+        # zoomable= FALSE
     )
     
     timevis(states, groups= groups, options= config, ...)
