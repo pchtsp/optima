@@ -2,9 +2,11 @@ import pulp as pl
 import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
+import package.tuplist as tl
 
 
 ######################################################
+# @profile
 def solve_model(instance, options=None):
     l = instance.get_domains_sets()
     ub = instance.get_bounds()
@@ -16,6 +18,7 @@ def solve_model(instance, options=None):
     num_resource_maint = aux.fill_dict_with_default(instance.get_total_fixed_maintenances(), l['periods'])
     maint_capacity = instance.get_param('maint_capacity')
     max_usage = instance.get_param('max_used_time')
+    min_usage = instance.get_param('min_usage_period')
     cluster_data = instance.get_cluster_constraints()
     c_candidates = instance.get_cluster_candidates()
 
@@ -32,10 +35,14 @@ def solve_model(instance, options=None):
 
     # numeric:
     rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
+    usage = pl.LpVariable.dicts(name="usage", indexs=l['at'], lowBound=0, upBound=ub['used_max'], cat=var_type)
 
     # objective function:
     num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
     rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
+
+    # TEMP
+    slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -46,7 +53,7 @@ def solve_model(instance, options=None):
         model += objective
         model += objective >= num_maint * max_usage - rut_obj_var
     else:
-        model += num_maint * max_usage - rut_obj_var
+        model += num_maint * max_usage - rut_obj_var + pl.lpSum(slack_vt.values()) * 99999
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -61,8 +68,8 @@ def solve_model(instance, options=None):
         t1_at2 = l['t1_at2'].get(at, [])  # possible starts of maintenance to be in maintenance status at "at"
         if len(v_at) + len(t1_at2) == 0:
             continue
-        model += pl.lpSum(task[(a, v, t)] for v in v_at) + \
-                 pl.lpSum(start_M[(a, _t)] for _t in t1_at2 if (a, _t) in l['at_start']) + \
+        model += pl.lpSum(task[a, v, t] for v in v_at) + \
+                 pl.lpSum(start_M[a, _t] for _t in t1_at2 if (a, _t) in l['at_start']) + \
                  (at in l['at_maint']) <= 1
 
     # ##################################
@@ -71,14 +78,14 @@ def solve_model(instance, options=None):
 
     # num resources:
     for (v, t), a_list in l['a_vt'].items():
-        model += pl.lpSum(task[a, v, t] for a in a_list) == requirement[v]
+        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt[v, t]
 
     # definition of task start:
     # if we have a task now but we didn't before: we started it
     for avt in l['avt']:
         a, v, t = avt
         avt_ant = a, v, l['previous'][t]
-        if t > first_period:
+        if t != first_period:
             model += start_T[avt] >= task[avt] - task.get(avt_ant, 0)
         else:
             # we check if we have the assignment in the previous period.
@@ -91,6 +98,10 @@ def solve_model(instance, options=None):
         avt2 = a, v, t2
         model += task.get(avt2, 0) >= \
                  pl.lpSum(start_T.get((a, v, t1), 0) for t1 in t1_list)
+    for (a, v, t1, t2) in l['avtt']:
+        avt2 = a, v, t2
+        avt1 = a, v, t1
+        model += task.get(avt2, 0) >= start_T.get(avt1, 0)
 
     # at the beginning of the planning horizon, we may have fixed assignments of tasks.
     # we need to fix the corresponding variable.
@@ -117,13 +128,17 @@ def solve_model(instance, options=None):
     # Usage time
     # ##################################
 
+    for avt in l['avt']:
+        a, v, t = avt
+        at = a, t
+        model += usage[at] >= task[avt] * consumption[v]
+
     # remaining used time calculations:
     for at in l['at']:
         a, t = at
-        model += rut[at] <= rut[(a, l["previous"][t])] - \
-                                pl.lpSum(task[(a, v, t)] * consumption[v] for v in l['v_at'].get(at, [])) + \
-                                ub['rut'] * start_M.get(at, 0)
-
+        t1_at2 = l['t1_at2'].get(at, [])
+        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[(a, _t)] for _t in t1_at2))
+        model += rut[at] <= rut[(a, l["previous"][t])] - usage[at] + ub['rut'] * start_M.get(at, 0)
         model += rut[at] >= ub['rut'] * start_M.get(at, 0)
 
     # calculate the rut:
@@ -137,9 +152,9 @@ def solve_model(instance, options=None):
     # ##################################
 
     # # we cannot do two maintenances too close one from the other:
-    # for att in l['att_m']:
-    #     a, t1, t2 = att
-    #     model += start_M[a, t1] + start_M[a, t2] <= 1
+    for att in l['att_m']:
+        a, t1, t2 = att
+        model += start_M[a, t1] + start_M[a, t2] <= 1
 
     # we cannot do two maintenances too far apart one from the other:
     # (we need to be sure that t2_list includes the whole horizon to enforce it)
@@ -153,7 +168,6 @@ def solve_model(instance, options=None):
     # for at in l['at_m_ini']:
     #     model += start_M[at] == 0
 
-    # TODO: this constraint is not working properly.
     # if we need a maintenance inside the horizon, we enforce it
     for a, t_list in l['t_a_M_ini'].items():
         model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
@@ -173,6 +187,7 @@ def solve_model(instance, options=None):
     # SOLVING
     config = conf.Config(options)
     # model.writeMPS(filename='MFMP_3.mps')
+    # model.writeLP(filename='MFMP_3.lp')
     # return None
     result = config.solve_model(model)
 
@@ -182,17 +197,22 @@ def solve_model(instance, options=None):
     print('model solved correctly')
 
     _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
-    _start = {k: 1 for k in aux.vars_to_tups(start_M)}
+
+    # we store the start of maintenances and tasks in the same place
+    _start = tl.TupList(aux.vars_to_tups(start_T)).to_dict(result_col=1, is_list=False)
+    _start_M = {k: 'M' for k in aux.vars_to_tups(start_M)}
+    _start.update(_start_M)
+
     _rut = {t: rut[t].value() for t in rut}
 
     _state = {tup: 'M' for tup in l['planned_maint']}
-    _state.update({(a, t2): 'M' for (a, t) in _start for t2 in l['t2_at1'][(a, t)]})
+    _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
 
     solution_data_pre = {
         'state': _state,
         'task': _task,
         'aux': {
-            'start_M': _start,
+            'start': _start,
             'rut': _rut,
         }
     }

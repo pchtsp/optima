@@ -19,7 +19,7 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
 OPTIONS = {
     'timeLimit': 3600  # seconds
-    , 'gap': 0
+    , 'gap': 0.3
     , 'solver': "GUROBI"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
     , 'memory': 15000
     , 'print': True
@@ -34,14 +34,15 @@ OPTIONS = {
     ) + '/'
     , 'simulate': True
     , 'simulation': {
-        'num_resources': 50
-        , 'num_parallel_tasks': 1
+        'num_resources': 60
+        , 'num_parallel_tasks': 2
         , 'maint_duration': 4
-        , 'max_used_time': 1000
-        , 'max_elapsed_time': 40
-        , 'elapsed_time_size': 20
-        , 'min_usage_period': 15
-        , 'perc_capacity': 0.2
+        , 'max_used_time': 800
+        , 'max_elapsed_time': 60
+        , 'elapsed_time_size': 30
+        , 'min_usage_period': 0
+        , 'perc_capacity': 0.3
+        , 'seed': 500
     }
 }
 

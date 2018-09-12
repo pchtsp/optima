@@ -295,10 +295,11 @@ class Experiment(object):
         """
         rut = pd.DataFrame.from_dict(self.solution.data['aux']['rut'].get(candidate, {}), orient='index')
         ret = pd.DataFrame.from_dict(self.solution.data['aux']['ret'].get(candidate, {}), orient='index')
+        start = pd.DataFrame.from_dict(self.solution.data['aux']['start'].get(candidate, {}), orient='index')
         state = pd.DataFrame.from_dict(self.solution.data['state'].get(candidate, {}), orient='index')
         task = pd.DataFrame.from_dict(self.solution.data['task'].get(candidate, {}), orient='index')
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
-        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).sort_index()
+        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).merge(start, **args).sort_index()
         # table.columns = ['rut', 'ret', 'state', 'task']
         return table
 

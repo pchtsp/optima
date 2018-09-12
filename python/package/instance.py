@@ -80,10 +80,11 @@ class Instance(object):
         return {
             'ret': math.floor(max_elapsed_time),
             'rut': math.floor(max_used_time),
-            'used': math.ceil(max(consumption.values())),
+            'used_max': math.ceil(max(consumption.values())),
             'num_maint': math.floor(max_num_maint),
             'ret_end': math.ceil(ret_total),
             'rut_end': math.ceil(rut_total)
+            # 'used_min': math.ceil(min_usage)
         }
 
     def get_domains_sets(self):
@@ -148,7 +149,7 @@ class Instance(object):
         at_free_start = [(a, t) for (a, t) in at_free]
         # at_free_start = [(a, t) for (a, t) in at_free if periods_pos[t] % 3 == 0]
         at_m_ini = [(a, t) for (a, t) in at_free_start
-                    if periods_pos[t] < ret_init_adjusted[a]
+                    if periods_pos[t] <= ret_init_adjusted[a]
                     ]
         at_m_ini_s = set(at_m_ini)
 
@@ -166,7 +167,7 @@ class Instance(object):
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
                 ])
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
-                 if periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_elapsed
+                 if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
         att_M = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] + max_elapsed < len(periods)
@@ -174,13 +175,13 @@ class Instance(object):
                  ])
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
-                    if ret_init_adjusted[a] <= periods_pos[t] < ret_init[a]
+                    if ret_init_adjusted[a] < periods_pos[t] <= ret_init[a]
                     ])
 
         a_t = at.to_dict(result_col=0, is_list=True)
         a_vt = avt.to_dict(result_col=0, is_list=True)
         v_at = avt.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
-        at1_t2 = att.to_dict(result_col=[0,1], is_list=True)
+        at1_t2 = att.to_dict(result_col=[0, 1], is_list=True)
         t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
         t2_at1 = att.to_dict(result_col=2, is_list=True)
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
@@ -254,11 +255,11 @@ class Instance(object):
         return min_assign
 
     def get_fixed_states(self):
+        # TODO: I need to add the previous period states!
         previous_states = self.get_resources("states")
         first_period = self.get_param('start')
         period_0 = aux.get_prev_month(first_period)
         min_assign = self.get_min_assign()
-        # min_assign['M'] = self.get_param('maint_duration')
         # we get the states into a tuple list,
         # we turn them into a start-finish tuple
         # we filter it so we only take the start-finish periods that end before the horizon

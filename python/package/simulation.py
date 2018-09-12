@@ -52,7 +52,8 @@ def empty_data():
 def create_dataset(params):
     # TODO: clusters, capacities, types, etc.
     param_list = ['start', 'max_used_time', 'maint_duration', 'max_elapsed_time',
-                  'num_resources', 'num_parallel_tasks', 'perc_capacity', 'elapsed_time_size']
+                  'num_resources', 'num_parallel_tasks', 'perc_capacity', 'elapsed_time_size',
+                  'min_usage_period']
     params = sd.SuperDict.from_dict(params)
     sim_data = params['simulation']
     defaults = {'maint_weight': 0, 'unavail_weight': 0}
@@ -73,6 +74,9 @@ def create_dataset(params):
     d_param['min_elapsed_time'] = d_param['max_elapsed_time'] - d_param['elapsed_time_size']
     d_param['maint_capacity'] = math.ceil(d_param['num_resources'] * d_param['perc_capacity'])
     d_param['end'] = aux.shift_month(d_param['start'], params['num_period'] - 1)
+    seed = sim_data.get('seed', None)
+    if seed:
+        rn.seed(seed)
 
     num_parallel_tasks = d_param['num_parallel_tasks']
     start_period = d_param['start']
@@ -81,6 +85,7 @@ def create_dataset(params):
     maint_duration = d_param['maint_duration']
     max_used_time = d_param['max_used_time']
     max_elapsed_time = d_param['max_elapsed_time']
+    resources = [str(r) for r in range(num_resources)]
 
     # Here we simulate the tasks along the planning horizon.
     # we need to guarantee there are num_parallel_tasks active task
@@ -91,7 +96,7 @@ def create_dataset(params):
     starting_tasks = []
     for t in range(num_parallel_tasks):
         date = start_period
-        starting_tasks.append(task)
+        starting_tasks.append(str(task))
         while date < last_period:
             t_start[task] = date
             date = aux.shift_month(date, rn.randint(*t_duration))
@@ -101,7 +106,7 @@ def create_dataset(params):
             task += 1
 
     d_tasks = data_input['tasks'] = {
-            task: {
+            str(task): {
                 'start': t_start[task]
                 , 'end': t_end[task]
                 , 'consumption': rn.choice(t_required_hours)
@@ -116,7 +121,7 @@ def create_dataset(params):
     # Here we simulate the initial state of resources.
     # First of all we decide which resources are in maintenance
     # and then the periods they have been under maintenance
-    res_in_maint = np.random.choice(range(num_resources),
+    res_in_maint = np.random.choice(resources,
                                     math.ceil(num_resources*perc_in_maint),
                                     replace=False)
     res_maint_init = {
@@ -125,10 +130,10 @@ def create_dataset(params):
         for r in res_in_maint
     }
     res_maint_init = sd.SuperDict(res_maint_init).\
-        fill_with_default(range(num_resources), default={})
+        fill_with_default(resources, default={})
 
     # Secondly, for the remaining resources, we assign tasks
-    _res = [r for r in range(num_resources) if r not in res_in_maint]
+    _res = [r for r in resources if r not in res_in_maint]
     res_task_init = {}
     for j in starting_tasks:
         # first we choose a number of resources equivalent to the number
@@ -155,10 +160,10 @@ def create_dataset(params):
         if not _res:
             break
     res_task_init = sd.SuperDict(res_task_init). \
-        fill_with_default(range(num_resources), default={})
+        fill_with_default(resources, default={})
     # We fill the states according to the initial values already calculated:
     data_input['resources'] = {
-        res: {
+        str(res): {
             'initial_used':
                 rn.randrange(0, max_used_time)
                 if res not in res_in_maint else max_used_time
@@ -169,7 +174,7 @@ def create_dataset(params):
             , 'type': ''  # TODO: capacities
             , 'capacities': []  # TODO: capacities
             , 'states': {**res_task_init[res], **res_maint_init[res]}
-        } for res in range(num_resources)
+        } for res in resources
     }
 
     return data_input

@@ -3,8 +3,10 @@ import package.solution as sol
 import pprint as pp
 from package.params import PATHS
 import package.auxiliar as aux
+import package.data_input as di
 import pandas as pd
 import package.superdict as sd
+import package.model as md
 
 # '201801141334' vs '201802061201 vs '201802061434'
 
@@ -20,14 +22,31 @@ def test1():
 
 
 def test2():
-    e = '201805020942'
+    # e = '201809121711'
+    e = '201809121815'
     experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
+    experiment.set_remaining_usage_time('ret')
+    experiment.get_status('19')
+    # experiment.set_remaining_usage_time('ret')
+    # pp.pprint(experiment.solution.data['aux']['start_T'])
     # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
     checks = experiment.check_solution()
     checks.keys()
     pp.pprint(checks['resources'])
     pp.pprint(checks['elapsed'])
     pp.pprint(experiment.get_kpis())
+    # experiment.
+
+
+def test555():
+    e = '201809121056'
+    experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
+    instance = experiment.instance
+    options = di.load_data(PATHS['experiments'] + e + '/options.json')
+    solution = md.solve_model(instance, options)
+    # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
+    # checks = experiment.check_solution()
+    # checks.keys()
 
 
 def test4():
@@ -107,3 +126,8 @@ def test3():
     sol_nostates.check_solution()
     # sol_states.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
     sol_nostates.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
+
+
+if __name__ == '__main__':
+    # test2()
+    pass
