@@ -71,6 +71,7 @@
         $H_j$             & amount of resource time required by task $j$. \\
         $R_j$             & number of resources required by task $j$. \\
         $MT_j$            & minimum number of consecutive periods a resource can be assigned to task $j$. \\
+        $u^{min}$       & Absolut minimum usage time of resource when resources is not in maintenance.\\
         % $aut_i$           & maximal absolute usage time for resource $i$. \\
         % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
         $M$               & maintenance duration in number of periods. \\
@@ -119,6 +120,7 @@
         $a_{jti}$   &  =1 if task $j \in J$ in period $t \in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
         $a^s_{jti}$ &  =1 if resource $i$ starts a new assignment to task $j$ in period $t$. If $a_{jti} = 1$ and $a_{j(t-1)i} = 0$. \\  
         $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $u_{it}$    &  usage time consumed for resource $i \in I$ during period $t \in \mathcal{T}$. \\        
         % $s_{it}$    &  =1 if resource $i \in I$ starts a storage operation in period $t \in \mathcal{T}$, 0 otherwise. \\
         $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
         % $ret_{it}$  &  remaining elapsed time (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
@@ -189,11 +191,17 @@
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-hours-cluster}
     \end{align}
 
-    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability of resources for each cluster $k$. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task. Constraints (\ref{eq:avalaibility-hours-cluster}) guarantee that a minimum availability in terms of usage houres for each cluster $k$.
+    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability of resources for each cluster $k$. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task. Constraints (\ref{eq:avalaibility-hours-cluster}) guarantee that a minimum availability in terms of usage hours for each cluster $k$.
 
     \begin{align}
         % remaining used time
-         & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+         & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage}\\
+         & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'})
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage}\\
+         & u_{it} \in [0, \max_j{\{H_j\}}]
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\
+         & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it}
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
         & rut_{i0} = Rut^{Init}_i
                & i \in \mathcal{I} \label{eq:rut_initial}\\
@@ -215,7 +223,7 @@
     \end{align}
 
         % These constraints calculate the balances of hours for each resource.
-    The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
+    The usage time per resource and period is calculated in (\ref{eq:usage})-(\ref{eq:usage_lower}). The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
 
     \begin{align}
         & m_{it'} + m_{it} \leq 1
