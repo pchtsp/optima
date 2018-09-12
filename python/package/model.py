@@ -43,6 +43,7 @@ def solve_model(instance, options=None):
 
     # TEMP
     slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
+    slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -53,7 +54,7 @@ def solve_model(instance, options=None):
         model += objective
         model += objective >= num_maint * max_usage - rut_obj_var
     else:
-        model += num_maint * max_usage - rut_obj_var + pl.lpSum(slack_vt.values()) * 99999
+        model += num_maint * max_usage - rut_obj_var + (pl.lpSum(slack_vt.values()) +pl.lpSum(slack_at.values())) * 99999
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -137,7 +138,7 @@ def solve_model(instance, options=None):
     for at in l['at']:
         a, t = at
         t1_at2 = l['t1_at2'].get(at, [])
-        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[(a, _t)] for _t in t1_at2))
+        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) - slack_at[at]
         model += rut[at] <= rut[(a, l["previous"][t])] - usage[at] + ub['rut'] * start_M.get(at, 0)
         model += rut[at] >= ub['rut'] * start_M.get(at, 0)
 
