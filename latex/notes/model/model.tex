@@ -156,7 +156,7 @@
        % & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
        %  &t \in \mathcal{T} \label{eq:avalaibility1}\\
         % min assignments:
-        & \sum_{i \in \mathcal{I}_j} a_{jti} = R_j
+        & \sum_{i \in \mathcal{I}_j} a_{jti} \geq R_j
                 & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
         % just doing one thing at any given time:
         & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
