@@ -387,4 +387,7 @@ def list_options(path, exp_list=None):
 
 
 if __name__ == "__main__":
+    import package.params as pm
+
+    clean_experiments(pm.PATHS['experiments'], clean=True, regex=r'')
     pass

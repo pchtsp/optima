@@ -3,6 +3,7 @@ import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
 import package.tuplist as tl
+import random as rn
 
 
 ######################################################
@@ -21,6 +22,11 @@ def solve_model(instance, options=None):
     min_usage = instance.get_param('min_usage_period')
     cluster_data = instance.get_cluster_constraints()
     c_candidates = instance.get_cluster_candidates()
+
+    # In order to break some symmetries, we're gonna give a
+    # (different) price for each assignment:
+    # price_assign = {(a, v): rn.random()*10 for v in l['tasks'] for a in l['candidates'][v]}
+    price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -42,19 +48,22 @@ def solve_model(instance, options=None):
     rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
     # TEMP
-    slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
-    slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
+    # slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
+    # slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
     # OBJECTIVE:
-    if options.get('integer', False):
-        objective = pl.LpVariable(name="objective", cat=var_type)
-        model += objective
-        model += objective >= num_maint * max_usage - rut_obj_var
-    else:
-        model += num_maint * max_usage - rut_obj_var + (pl.lpSum(slack_vt.values()) +pl.lpSum(slack_at.values())) * 99999
+    # if options.get('integer', False):
+    #     objective = pl.LpVariable(name="objective", cat=var_type)
+    #     model += objective
+    #     model += objective >= num_maint * max_usage - rut_obj_var
+    # else:
+    model += num_maint * max_usage - rut_obj_var + \
+             pl.lpSum(assign * price_assign[a, v] for (a, v, t), assign in task.items()) + \
+             1
+             # pl.lpSum(slack_vt.values()) * 99999 + pl.lpSum(slack_at.values()) * 99
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -79,19 +88,19 @@ def solve_model(instance, options=None):
 
     # num resources:
     for (v, t), a_list in l['a_vt'].items():
-        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt[v, t]
+        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] #- slack_vt[v, t]
 
     # definition of task start:
     # if we have a task now but we didn't before: we started it
     for avt in l['avt']:
         a, v, t = avt
-        avt_ant = a, v, l['previous'][t]
+        avt_prev = a, v, l['previous'][t]
         if t != first_period:
-            model += start_T[avt] >= task[avt] - task.get(avt_ant, 0)
+            model += start_T[avt] >= task[avt] - task.get(avt_prev, 0)
         else:
             # we check if we have the assignment in the previous period.
             # this is stored in the fixed_vars set.
-            model += start_T[avt] >= task[avt] - (avt_ant in l['at_mission_m'])
+            model += start_T[avt] >= task[avt] - (avt_prev in l['at_mission_m'])
 
     # definition of task start (2):
     # if we start a task in at least one earlier period, we need to assign a task
@@ -99,10 +108,10 @@ def solve_model(instance, options=None):
         avt2 = a, v, t2
         model += task.get(avt2, 0) >= \
                  pl.lpSum(start_T.get((a, v, t1), 0) for t1 in t1_list)
-    for (a, v, t1, t2) in l['avtt']:
-        avt2 = a, v, t2
-        avt1 = a, v, t1
-        model += task.get(avt2, 0) >= start_T.get(avt1, 0)
+    # for (a, v, t1, t2) in l['avtt']:
+    #     avt2 = a, v, t2
+    #     avt1 = a, v, t1
+    #     model += task.get(avt2, 0) >= start_T.get(avt1, 0)
 
     # at the beginning of the planning horizon, we may have fixed assignments of tasks.
     # we need to fix the corresponding variable.
@@ -129,17 +138,24 @@ def solve_model(instance, options=None):
     # Usage time
     # ##################################
 
+    # usage time calculation per month
     for avt in l['avt']:
         a, v, t = avt
         at = a, t
         model += usage[at] >= task[avt] * consumption[v]
 
-    # remaining used time calculations:
     for at in l['at']:
         a, t = at
         t1_at2 = l['t1_at2'].get(at, [])
-        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) - slack_at[at]
-        model += rut[at] <= rut[(a, l["previous"][t])] - usage[at] + ub['rut'] * start_M.get(at, 0)
+        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) #- slack_at[at]
+
+    # remaining used time calculations:
+    for at in l['at']:
+        # apparently it's much faster NOT to sum the maintenances
+        # in the two rut calculations below
+        a, t = at
+        at_prev = a, l['previous'][t]
+        model += rut[at] <= rut[at_prev] - usage[at] + ub['rut'] * start_M.get(at, 0)
         model += rut[at] >= ub['rut'] * start_M.get(at, 0)
 
     # calculate the rut:
@@ -206,7 +222,7 @@ def solve_model(instance, options=None):
 
     _rut = {t: rut[t].value() for t in rut}
 
-    _state = {tup: 'M' for tup in l['planned_maint']}
+    _state = {tup: 'M' for tup in l['at_maint']}
     _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
 
     solution_data_pre = {

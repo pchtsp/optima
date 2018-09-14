@@ -198,7 +198,6 @@ class Instance(object):
         ,'tasks'            :  tasks
         ,'candidates'       :  candidates
         ,'resources'        :  resources
-        ,'planned_maint'    :  at_maint
         ,'states'           :  states
         ,'vt'               :  vt
         ,'avt'              :  avt

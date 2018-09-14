@@ -49,43 +49,43 @@ def empty_data():
     }
 
 
-def create_dataset(params):
+def create_dataset(options):
     # TODO: clusters, capacities, types, etc.
-    param_list = ['start', 'max_used_time', 'maint_duration', 'max_elapsed_time',
-                  'num_resources', 'num_parallel_tasks', 'perc_capacity', 'elapsed_time_size',
-                  'min_usage_period']
-    params = sd.SuperDict.from_dict(params)
-    sim_data = params['simulation']
-    defaults = {'maint_weight': 0, 'unavail_weight': 0}
-
-    # The following are fixed options, not arguments for the scenario:
-    t_min_assign = [2, 3, 6]
-    t_required_hours = [50, 60, 70, 80]
-    t_num_resource = (2, 5)
-    t_duration = (12, 36)
-    perc_in_maint = 0.1
+    # param_list = ['start', 'num_period']
+    # options = sd.SuperDict.from_dict(options)
+    sim_data = options['simulation']
 
     data_input = {}
     d_param = data_input['parameters'] = {
-        **defaults,
-        **sim_data.filter(param_list, check=False),
-        **params.filter(param_list, check=False)
+        **sim_data,
     }
-    d_param['min_elapsed_time'] = d_param['max_elapsed_time'] - d_param['elapsed_time_size']
-    d_param['maint_capacity'] = math.ceil(d_param['num_resources'] * d_param['perc_capacity'])
-    d_param['end'] = aux.shift_month(d_param['start'], params['num_period'] - 1)
+    d_param['start'] = options['start']
+    d_param['num_period'] = options['num_period']
     seed = sim_data.get('seed', None)
-    if seed:
-        rn.seed(seed)
+    if not seed:
+        seed = math.ceil(rn.random() * 100000)
+        sim_data['seed'] = seed
+    rn.seed(seed)
+    np.random.seed(seed)
 
     num_parallel_tasks = d_param['num_parallel_tasks']
     start_period = d_param['start']
-    last_period = d_param['end']
     num_resources = d_param['num_resources']
     maint_duration = d_param['maint_duration']
     max_used_time = d_param['max_used_time']
     max_elapsed_time = d_param['max_elapsed_time']
     resources = [str(r) for r in range(num_resources)]
+
+    # The following are fixed options, not arguments for the scenario:
+    t_min_assign = d_param['t_min_assign']
+    t_required_hours = d_param['t_required_hours']
+    t_num_resource = d_param['t_num_resource']
+    t_duration = d_param['t_duration']
+    perc_in_maint = d_param['perc_in_maint']
+
+    d_param['min_elapsed_time'] = max_elapsed_time - d_param['elapsed_time_size']
+    d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
+    last_period = d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
 
     # Here we simulate the tasks along the planning horizon.
     # we need to guarantee there are num_parallel_tasks active task
@@ -162,14 +162,19 @@ def create_dataset(params):
     res_task_init = sd.SuperDict(res_task_init). \
         fill_with_default(resources, default={})
     # We fill the states according to the initial values already calculated:
+
+    # TODO: this adjustment of +- 6 months is arbitrary. It should exist in the configuration in some way.
+    initial_elapsed = {r: rn.randrange(0, max_elapsed_time) for r in resources}
+    initial_elapsed_adj = {k: v + rn.randint(-6, 6) for k, v in initial_elapsed.items()}
+    initial_elapsed_adj = {k: min(max(v, 0), max_elapsed_time) for k, v in initial_elapsed_adj.items()}
     data_input['resources'] = {
         str(res): {
-            'initial_used':
-                rn.randrange(0, max_used_time)
-                if res not in res_in_maint else max_used_time
-            , 'initial_elapsed':
-                rn.randrange(0, max_elapsed_time)
+            'initial_elapsed':
+                initial_elapsed[res]
                 if res not in res_in_maint else max_elapsed_time
+            , 'initial_used':
+                math.ceil(initial_elapsed_adj[res] / max_elapsed_time * max_used_time)
+                if res not in res_in_maint else max_used_time
             , 'code': ''  # this is aesthetic
             , 'type': ''  # TODO: capacities
             , 'capacities': []  # TODO: capacities

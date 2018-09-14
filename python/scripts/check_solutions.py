@@ -23,18 +23,19 @@ def test1():
 
 def test2():
     # e = '201809121711'
-    e = '201809121815'
+    e = '201809131542'
     experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
     experiment.set_remaining_usage_time('ret')
-    experiment.get_status('19')
-    # experiment.set_remaining_usage_time('ret')
+    # experiment.get_status('0')
     # pp.pprint(experiment.solution.data['aux']['start_T'])
     # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
     checks = experiment.check_solution()
     checks.keys()
     pp.pprint(checks['resources'])
     pp.pprint(checks['elapsed'])
+    pp.pprint(checks['usage'])
     pp.pprint(experiment.get_kpis())
+    print(experiment.get_status('16').to_string())
     # experiment.
 
 
