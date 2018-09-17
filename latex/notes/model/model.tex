@@ -196,9 +196,9 @@
     \begin{align}
         % remaining used time
          & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage}\\
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage1}\\
          & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'})
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage}\\
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage2}\\
          & u_{it} \in [0, \max_j{\{H_j\}}]
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\
          & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it}
@@ -208,18 +208,7 @@
         & rut_{it} \geq H^{M} m_{it'}
                 & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\ 
         & rut_{it} \in [0,H^{M}]
-                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}              
-        % & ret_{it} \leq ret_{it-1} - 1 + \sum_{t' \in \mathcal{T}^{st}_t} s_{it'} + E m_{it}
-        %         & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:ret_upper}\\
-        % & ret_{i0} = Ret^{Init}_i
-        %         & i \in \mathcal{I} \label{eq:ret_initial}\\
-        % & ret_{it} \geq E m_{it}
-        %         & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_lower}\\                 
-        % & ret_{it} \in [0,E]
-        %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:me}\\
-        % & \sum_{i \in \mathcal{I}} ret_{it} \geq Ret^{Init}_{sum}
-        %       & t = |\mathcal{T}| \label{eq:min_ret}\\
-        % & \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|} \geq Rut^{Init}_{sum}\\
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
     \end{align}
 
         % These constraints calculate the balances of hours for each resource.
