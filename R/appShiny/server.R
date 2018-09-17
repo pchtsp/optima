@@ -6,9 +6,7 @@ library(lubridate)
 library(data.table)
 
 shinyServer(function(input, output, clientData, session) {
-    # browser()
     dir_pre <- "../"
-    # dir_pre <- "./"
     sources <-
         c("functions/import_results.R",
           "functions/params.R",

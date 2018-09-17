@@ -12,7 +12,7 @@ tasks_gantt <- function(...){
     data <- 
         data.table(
             Phase=c(1, 1, 2, 3, 4, 5, 6, 7)
-            ,Libelle=LETTERS[1:8]
+            ,label=LETTERS[1:8]
         ) %>% 
         mutate(
             month_start=sample(1:5, 8, replace=TRUE)
@@ -22,7 +22,7 @@ tasks_gantt <- function(...){
                end= start_month %m+% months(month_end),
                group= Phase,
                id= c(1:nrow(.)),
-               content = Libelle,
+               content = label,
                color = RColorBrewer::brewer.pal(8, "YlOrRd")[rep_len(1:8, n())],
                style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
         )
@@ -40,21 +40,23 @@ tasks_gantt <- function(...){
 }
 
 tasks_employees <- function(){
-    tasks <- LETTERS[1:8] %>% set_names(.)
+    tasks <- LETTERS[1:8] %>% set_names(., .)
     employees <- 1:10
+    task_colors <- RColorBrewer::brewer.pal(length(tasks), "YlOrRd")
+    n_t <- length(tasks)
     
     nodes <- 
         data.table(label=c(tasks, employees)) %>% 
         mutate(
             id = row_number(),
-            value = c(
-                rep(20, length(tasks))
-                ,rep(2, length(employees))
+            group= c(
+                    rep('T', length(tasks))
+                    ,rep('E', length(employees))
             ),
             color = c(
-                RColorBrewer::brewer.pal(8, "YlOrRd")
+                task_colors
                 ,rep("gray",length(employees))
-                )
+            )
             )
 
     edges_data <- 
@@ -72,7 +74,15 @@ tasks_employees <- function(){
         select(-ends_with(".x")) %>% 
         select(-ends_with(".y"))
     
-    visNetwork(nodes, edges, height = "800px", width = "800px")
-    
+    visNetwork(nodes, edges) %>% 
+        visGroups(groupname = "T", value = 20, color='red') %>%
+        visGroups(groupname = "E", value = 2, color='gray') %>%
+        visLegend(addNodes = list(
+            list(label='Tasks', value = 20, shape='icon', 
+                  icon = list(code = 'f111', color=task_colors[n_t], size=50))
+            ,list(label='Resources', value =2, shape='icon', 
+                  icon = list(code = 'f111', color='gray', size=15))
+        ), useGroups = FALSE, position='right'
+        )
 }
 

@@ -3,9 +3,9 @@ source('functions/import_results.R')
 source('functions/exampleDT.R')
 source('functions/gantt_tasks.R')
 
-exp_directory = PATHS[['experiments']] %>% paste0('201809121748/')
+exp_directory = PATHS[['experiments']] %>% paste0('201809131542/')
 print_solution(exp_directory, width='100%')
-print_tasks(exp_directory, max_tasks = 8)
+print_tasks(exp_directory)
 
 PATHS[['experiments']] %>% paste0('201802061201/')
 

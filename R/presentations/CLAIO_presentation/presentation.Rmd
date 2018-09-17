@@ -17,10 +17,12 @@ output:
     slide_level: 2
     incremental: yes
     fig_height: 4
+    # citation_package: natbib
     # footer: "ISAE-SUPAERO, Université de Toulouse, France"
     includes:
         in_header: header.tex
 bibliography: MFMP_NRP.bib
+# nocite: '@*'
 editor_options: 
   chunk_output_type: console
 ---
@@ -63,19 +65,18 @@ if (show_gantt){
 
 * FMP: Flight and Maintenance Planning problem.
 * A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. 
-* Each task requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period.
+* Each task requires a certain number $R_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $H_j$ in each period and needs to be assigned for a minimum of $MT_j$ consecutive periods if assigned.
 * Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time.
-* A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H$ units.
+* A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H^M$ units.
 
 # State of the art
 
 ## State of the art (1)
 
-* In @Cho2011, US Army aircraft were assigned daily operations over a year to aircraft in order to minimize the maximum number of maintenances.
+* In @Cho2011, US Army aircraft were assigned daily operations over a year to minimize the number of maintenances.
 * In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours in order to maximize the availability and final state of squadrons.
 * In @Verhoeff2015, monthly assignments were done and several objectives were taken into account: availability, serviceability and final state.
-* In @Chastellux2017, an initial version of the model was done, assigning missions instead of only flight hours.
-* In @Seif2018, a generalization was done in order to deal with different types of maintenances and an heterogeneus fleet.
+* In @Seif2018, a generalization of @Kozanidis2008 was done in order to deal with different types of maintenances and an heterogeneus fleet.
 
 ## State of the art (2)
 
@@ -83,109 +84,150 @@ if (show_gantt){
 * Missions need to be assigned for a minimal duration.
 * This model also features several improvements in the MIP modelling that permit greater instance sizes.
 
-## Complexity analysis (1)
+# Complexity analysis
 
-Similar to the 'Fixed interval scheduling' problem presented in @Smet2015.
+## Complexity analysis
 
-Let $P = {1, ..., n}$ be the set of tasks to be assigned and $E = {1, ..., m}$ the set of employees. Each task $p \in P$ has a duration $u_p$ , a start time $s_p$ and a finish time $f_p$ = $s_p + u_p$ . Each employee $e$ has a set of tasks $P_e \in P$ that he/she can perform. Similarly, for each task $p$, a set $E_p \in E$ exists, which contains all employees that can perform task $p$. Both $T_e$ and $E_p$ are defined based on qualifications, time windows of tasks and availabilities of employees.
+<div class="incremental">
 
-## Complexity analysis (2)
+Reduction to the 'Fixed interval scheduling' in @Smet2015.
 
-```{r, echo=FALSE, out.width='50%'}
+* $P$ tasks with duration $u_p$ and start time $s_p$.
+* $E$ employees with a set of tasks $P_e \in P$ that each can perform.
+* Minimize the number of required employees to do all tasks.
+
+\pause
+
+```{r, echo=FALSE, out.width='45%'}
 
 if (show_gantt){
     htmltools::div(class = "row",
-        htmltools::div(task_gantt, class = "col-md-6")
-        ,htmltools::div(task_employees, class = "col-md-6")
+        htmltools::div(task_employees, class = "col-md-6")
+        ,htmltools::div(task_gantt, class = "col-md-6")
         )
 } else {
-    c('../img/tasks-days.png', '../img/task-employees.png') %>% paste0(path_to_R_dir, .) %>% 
-    knitr::include_graphics
+    c('../img/tasks-days.png', '../img/task-employees.png') %>% 
+        paste0(path_to_R_dir, .) %>%
+        knitr::include_graphics()
     # knitr::include_graphics('../img/task-employees.png' %>% paste0(path_to_R_dir, .))
 }
 
 ```
 
+</div>
+
 # Model
 
-## Model: objective function
+## Model: main constraints
 
 <div class="incremental">
 
 \begin{align}
-    & \text{Min}\; W_1 m_{max} + W_2 u_{max}
+& \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H^{M} - \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|}
 \end{align}
+
+The objective is to minimize the total number of maintenances and, at the same time, maximize the end status of the resources.
 
 \pause
 
-The two components of the objective function: the max number of maintenance and the max number of unavailable aircraft.
 \begin{align}
-    &\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq m_{max}
-    &t \in \mathcal{T} \\
-    &\sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max}
-    &t \in \mathcal{T}
+    & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq C^{max}
+      & t \in \mathcal{T} \label{eq:capacity1}\\
+    & \sum_{i \in \mathcal{I}_j} a_{jti} \geq R_j
+            & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
+    & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+            & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
 \end{align}
+
+Mission's needs and incompatibility of several tasks or maintenance in the same period.
 
 </div>
 
-## Model: main constraints
+## Model: minimum assignment times
 
-Mission's needs and incompatibility of several tasks or maintenance in the same period.
+<!-- <div class="incremental"> -->
+
 \begin{align}
-&\sum_{i \in \mathcal{I}_j} a_{jti} = R_j
-&j \in \mathcal{J}, t \in \mathcal{T}_j\\
-&\sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1
-& t \in \mathcal{T}, i \in \mathcal{I}
+    & a^s_{jti} \geq a_{jti} - a_{j(t-1)i}
+            & t =1, ..., \mathcal{T}, j \in \mathcal{J}_t, i \in \mathcal{I}_j \label{eq:start1} \\
+    & a^s_{j0i} \geq a_{j0i} - 1 \!1_{i \in \mathcal{A}^{init}_{j}}
+            & j \in \mathcal{J}_0, i \in \mathcal{I}_j \label{eq:start2} \\        
+    & \sum_{t' \in \mathcal{T}^{MT}_{jt}} a^s_{jt'i} \leq a_{jti} 
+    & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start3}
 \end{align}
 
-<!-- ## Model: flow constraints -->
+Each task needs a minimum continuous duration at each assignment.
 
-<!-- Visualization of accumulated time constraints for one resource. -->
+<!-- \pause -->
 
-<!-- ```{r out.width="250px", echo=FALSE} -->
-<!-- # img <- readPNG("./../../img/balance2.png") -->
-<!-- #  grid.raster(img) -->
-<!-- knitr::include_graphics("./../../img/balance2.png") -->
-<!-- ``` -->
+## Model: maintenances
+
+\begin{align}
+    & m_{it'} + m_{it} \leq 1
+      & t \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
+    & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \geq  m_{it}
+      & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}\\
+    & m_{it} = 0
+      & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:ret_min_init} \\
+    & \sum_{t \in \mathcal{T}^{M_{ini}}_i} m_{it} \geq  1 
+      & i \in \mathcal{I}\label{eq:ret_max_init}
+\end{align}
+
+Maintenances cannot executed too soon or too late with respect to the previous one.
+
+<!-- </div> -->
 
 ## Model: flow constraints
 
-Time usage of an aircraft depending on the assignment to a task.
-<!-- <div class="incremental" style="margin-left: 4em; position: relative">  -->
-<!--   <div style="position: absolute; left: 0; top: 0;background-color:white;width:100%"> -->
+<!-- Time usage of an aircraft depending on the assignment to a task and remaining usage time per aircraft and period. -->
+
 \begin{align}
-& rut_{it} \leq rut_{it-1} + H m_{it} - \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j & t =1, ..., \mathcal{T}, i \in \mathcal{I}\\
-& rut_{i0} = Rut^{Init}_i
-        & i \in \mathcal{I}\\
-& rut_{it} \geq H m_{it}
-        & t \in \mathcal{T}, i \in \mathcal{I}\\
-& rut_{it} \in [0,H]
-        & t \in \mathcal{T}, i \in \mathcal{I} \\
-& \sum_{i \in \mathcal{I}} rut_{it} \geq Rut^{Init}_{sum}
-        & t = |\mathcal{T}|
+ & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
+    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage1}\\
+ & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'})
+    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage2}\\
+ & u_{it} \in [0, \max_j{\{H_j\}}]
+    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\
+ & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it}
+    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
+ & rut_{i0} = Rut^{Init}_i
+       & i \in \mathcal{I} \label{eq:rut_initial}\\
+ & rut_{it} \geq H^{M} m_{it'}
+        & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\
+ & rut_{it} \in [0,H^{M}]
+        & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
 \end{align}
 
-  <!-- </div>  -->
-  <!-- <div style="position: absolute; left: 0; top: 0;background-color:white;width:100%"> -->
-  
+## Model: availability
 
+\begin{align}
+   & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} + N^{clust}_{kt} \leq A^{clust}_{kt}
+    &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster} \\
+   & \sum_{i \in \mathcal{I}_k} rut_{it} \geq H^{clust}_{kt}
+    &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-hours-cluster}
+\end{align}
 
-# Results
+Each cluster of aircraft needs a minimum level of availability in number and usage hours.
 
-## Experiments
+<!-- # Results -->
 
-## Sample solution progress
+<!-- ## Experiments -->
 
-# Current and next steps
+<!-- Instances have been created with the following characteristics: -->
 
-## Next steps
+<!-- <div class="incremental"> -->
 
-* **Add more constraints**: storage of aircraft.
-* **Add robustness**: duration of maintenances, new /different missions, unavailable aircraft.
+<!-- * 60 - 200 resources. -->
+<!-- * 90 periods. -->
+<!-- * Tasks: 3 - 9  -->
+<!--     * 12 - 36 periods long -->
+<!--     * 2 - 5 resources needed -->
+
+<!-- </div> -->
 
 # References
 
 ## References / Questions?
 
 <!-- \bibliographystyle{dcu} -->
-<!-- \bibliography{./../biblio/MFMP} -->
+<!-- \bibliography{MFMP_NRP.bib} -->
