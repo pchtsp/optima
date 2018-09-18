@@ -56,15 +56,20 @@ def config_and_solve(params):
 
 if __name__ == "__main__":
 
+    import json
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
     parser.add_argument('-c', dest='file', default="package.params",
                         help='config file (default: package.params)')
+    parser.add_argument('-d', '--options', dest='config_dict',  type=json.loads)
 
     args = parser.parse_args()
     # if not os.path.exists(args.file):
     #     raise FileNotFoundError("{} was not found".format(args.file))
+    more_options = args.config_dict
 
     print('Using config file in {}'.format(args.file))
     params = importlib.import_module(args.file)
+    params.OPTIONS.update(more_options)
+
     # import package.params as params
     config_and_solve(params)
