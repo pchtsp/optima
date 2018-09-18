@@ -69,11 +69,12 @@ This guarantees that there is *always* N tasks active at any given time. The dur
 
 |Code|Parameter | Value |
 |----|----|----|
-| $N$ |Total number of resources under maintenance at start    | 0 - $C^{max}$|
-| $A_j$ |Total number of resources under task $j$ at start  | 0 - $R_j$|
-| $At_j$ |Total number of periods under task $j$ at start  | 0 - $MT_j$|
+| $N$ |Number of resources in maintenance    | 0 - $C^{max}$|
+| $A_j$ |Number of resources under task $j$  | 0 - $R_j$|
+| $At_j$ |Number of periods under task $j$  | 0 - $MT_j$|
 |$Ret^{Init}_{i}$|Remaining elapsed periods      | 0 - $E^{M}$ |
-|$Rut^{Init}_{i}$|Remaining usage hours          | 0 - $H^{M}$ |
+|$Ret^{I2}_i$|Remaining elapsed periods      | $Ret^{Init}_{i}$ + [-6 - 6] |
+|$Rut^{Init}_{i}$|Remaining usage hours          | $Ret^{I2}_i \frac{H^{M}}{E^{M}}$ |
 |$N_i$           |Remaining maintenance months    | 0 - $M$     |
 
 The initial state of the fleet will be simulated according to the following rule:
@@ -83,7 +84,7 @@ The initial state of the fleet will be simulated according to the following rule
 
 For the rest $I - N$ resources that are not in maintenance:
 
-* $Rut^{Init}_{i}$ and $Ret^{Init}_{i}$ will be calculated.
+* $Ret^{Init}_{i}$ and $Rut^{Init}_{i}$ will be calculated. These two values are correlated. So, this implies creating random noise over lthe first one ($Ret^{I2}_i$) and then creating the second one from this adjusted value. This taken care not to get below or above the limits.
 * $A_j$ resources will be taken and assigned to task $j$ with a random $At_j$ remaining assignment time. The number of resources will be randomly generated from $R_j$ and the remaining assignment time will be taken from $MT_j$.
 
 

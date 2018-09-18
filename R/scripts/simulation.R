@@ -94,7 +94,7 @@ if (FALSE){
 
     data_maints <- 
         states_hours_nn %>%
-        group_by(date, type, state) %>% 
+        group_by(yearmonth, date, type, state) %>% 
         summarise(subtotal = n()) %>% 
         group_by(date, type) %>% 
         mutate(total = sum(subtotal)) %>% 

@@ -9,7 +9,7 @@ library(timevis)
 library(Hmisc)
 library(jsonlite)
 
-print_tasks <- function(exp_directory, max_tasks, ...){
+print_tasks <- function(exp_directory, max_tasks=9999, ...){
     input_path = exp_directory %>% paste0('data_in.json')
     input <- read_json(input_path)
     tasks <-
@@ -17,7 +17,7 @@ print_tasks <- function(exp_directory, max_tasks, ...){
         extract2('tasks') %>% 
         lapply("[", c('consumption', 'num_resource', 'start', 'end')) %>% 
         bind_rows(.id="group") %>% 
-        sample_n(max_tasks) %>% 
+        sample_n(., min(max_tasks, nrow(.))) %>% 
         arrange(consumption) %>% 
         mutate(id= c(1:nrow(.)),
                content = sprintf('%s aéronefs (%sh)', num_resource, consumption),
