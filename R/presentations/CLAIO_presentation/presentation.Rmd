@@ -33,12 +33,21 @@ path_to_R_dir <- "./../../"
 setwd(path_to_R_dir)
 source('functions/params.R')
 source('functions/import_results.R')
+source('functions/scenario_analysis.R')
 source('diagrams/fixed_interval.R')
-exp_directory = PATHS[['experiments']] %>% paste0('201802141539/')
+all_exp_dir <- PATHS[['results']] %>% paste0('simulated_data/')
+exp_directory <- all_exp_dir %>% paste0('2_task/201809180941/')
 gantt <- print_solution(exp_directory, max_resources = 15, width='100%')
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
 task_gantt <- tasks_gantt()
 task_employees <- tasks_employees()
+scen_means <- scenario_mean(all_exp_dir)
+infeasible <- scenario_get_gaps(all_exp_dir) %>% lapply(function(scn){
+    a <- length(scn)
+    scn %>% is.na %>% sum %>% divide_by(a/100)
+} )
+
+
 ```
 
 # Problem
@@ -143,23 +152,6 @@ Mission's needs and incompatibility of several tasks or maintenance in the same 
 
 </div>
 
-<!-- ## Model: minimum assignment times -->
-
-<!-- <!-- <div class="incremental"> -->
-
-<!-- \begin{align} -->
-<!--     & a^s_{jti} \geq a_{jti} - a_{j(t-1)i} -->
-<!--             & t =1, ..., \mathcal{T}, j \in \mathcal{J}_t, i \in \mathcal{I}_j \label{eq:start1} \\ -->
-<!--     & a^s_{j0i} \geq a_{j0i} - 1 \!1_{i \in \mathcal{A}^{init}_{j}} -->
-<!--             & j \in \mathcal{J}_0, i \in \mathcal{I}_j \label{eq:start2} \\         -->
-<!--     & \sum_{t' \in \mathcal{T}^{MT}_{jt}} a^s_{jt'i} \leq a_{jti}  -->
-<!--     & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start3} -->
-<!-- \end{align} -->
-
-<!-- Each task needs a minimum continuous duration at each assignment. -->
-
-<!-- \pause -->
-
 ## Model: maintenances
 
 \begin{align}
@@ -214,21 +206,41 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 
 <!-- Each cluster of aircraft needs a minimum level of availability in number and usage hours. -->
 
-# Results
+# Results and perspectives
 
 ## Experiments
 
-Instances have been created with the following characteristics:
-
-<!-- <div class="incremental"> -->
+Instances have been generated with the following main characteristics:
 
 * 60 - 200 resources.
 * 90 periods.
-* Tasks: 3 - 9
+* 3 - 9 tasks:
     * 12 - 36 periods long
     * 2 - 5 resources needed
 
-<!-- </div> -->
+\pause
+
+* Small instances have **30.000 variables** and **20.000 constraints**.
+* Medium instances have **80.000 variables** and **50.000 constraints**.
+* Runs of 30 minutes have been done on 30 randomly generated cases per scenario and they return a gap between 20% and 40% if a solution exists.
+* CPLEX was used in an i7, quadcore Ubuntu 18.04 workstation.
+
+</div>
+
+## Statistics
+
+* `r infeasible[1]`% of instances were proved infeasible inmediately.
+* From feasible small instances, a gap of `r scen_means[1]`% was found after 30 min
+* From feasible medium instances, a gap of `r scen_means[2]`% was found after 30 min.
+
+## Perspectives
+
+* More extreme (bigger) scenarios need to be tested: more tasks and more resources.
+* A deeper analysis on the detailed solving process is envisioned. Including extending the solving time.
+* Benchmarking of solvers (gurobi, CBC, choco and CPO) is work in progress. Also: heuristics.
+* The inclusion of new possibilities, such as the planned storage of resources is pending.
+* A stochastic sensibility analysis needs to be done, including taking account of stochasticity in the input data.
+
 
 # References
 
