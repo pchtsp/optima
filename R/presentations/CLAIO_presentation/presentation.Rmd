@@ -169,31 +169,32 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 
 <!-- </div> -->
 
-## Model: time consumption
+<!-- ## Model: time consumption -->
 
 <!-- Time usage of an aircraft depending on the assignment to a task and remaining usage time per aircraft and period. -->
 
-\begin{align}
- & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
-    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage1}\\
- & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'})
-    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage2}\\
- & u_{it} \in [0, \max_j{\{H_j\}}]
-    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\
- & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it}
-    & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
- & rut_{i0} = Rut^{Init}_i
-       & i \in \mathcal{I} \label{eq:rut_initial}\\
- & rut_{it} \geq H^{M} m_{it'}
-        & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\
- & rut_{it} \in [0,H^{M}]
-        & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
-\end{align}
+<!-- \begin{align} -->
+<!--  & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j  -->
+<!--     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage1}\\ -->
+<!--  & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'}) -->
+<!--     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage2}\\ -->
+<!--  & u_{it} \in [0, \max_j{\{H_j\}}] -->
+<!--     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\ -->
+<!--  & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it} -->
+<!--     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\ -->
+<!--  & rut_{i0} = Rut^{Init}_i -->
+<!--        & i \in \mathcal{I} \label{eq:rut_initial}\\ -->
+<!--  & rut_{it} \geq H^{M} m_{it'} -->
+<!--         & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\ -->
+<!--  & rut_{it} \in [0,H^{M}] -->
+<!--         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu} -->
+<!-- \end{align} -->
 
 ## Model: other constraints
 
-* Cluster availability.
+* Minimum cluster availability.
 * Minimum duration for task assignment.
+* Hour consumption of resources depending on tasks and maintenances.
 
 <!-- ## Model: availability -->
 
@@ -210,7 +211,7 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 
 ## Experiments
 
-Instances have been generated with the following main characteristics:
+<div class="incremental">
 
 * 60 - 200 resources.
 * 90 periods.
@@ -222,7 +223,7 @@ Instances have been generated with the following main characteristics:
 
 * Small instances have **30.000 variables** and **20.000 constraints**.
 * Medium instances have **80.000 variables** and **50.000 constraints**.
-* Runs of 30 minutes have been done on 30 randomly generated cases per scenario and they return a gap between 20% and 40% if a solution exists.
+* Runs of 30 minutes have been done on 30 randomly generated cases per scenario.
 * CPLEX was used in an i7, quadcore Ubuntu 18.04 workstation.
 
 </div>
@@ -230,16 +231,17 @@ Instances have been generated with the following main characteristics:
 ## Statistics
 
 * `r infeasible[1]`% of instances were proved infeasible inmediately.
-* From feasible small instances, a gap of `r scen_means[1]`% was found after 30 min
-* From feasible medium instances, a gap of `r scen_means[2]`% was found after 30 min.
+* From feasible small instances, a mean gap of `r scen_means[1]`% was found after 30 min.
+* From feasible medium instances, a mean gap of `r scen_means[2]`% was found after 30 min.
 
 ## Perspectives
 
-* More extreme (bigger) scenarios need to be tested: more tasks and more resources.
-* A deeper analysis on the detailed solving process is envisioned. Including extending the solving time.
-* Benchmarking of solvers (gurobi, CBC, choco and CPO) is work in progress. Also: heuristics.
-* The inclusion of new possibilities, such as the planned storage of resources is pending.
-* A stochastic sensibility analysis needs to be done, including taking account of stochasticity in the input data.
+* More extreme (bigger) scenarios: more tasks and more resources.
+* A deeper analysis on the detailed solving process.
+* Benchmarking of solvers (gurobi, CBC, choco and CPO).
+* Heuristics for large scale instances.
+* The inclusion of new possibilities, such as the planned storage of resources.
+* A stochastic sensibility analysis, including taking account of stochasticity in the input data.
 
 
 # References
