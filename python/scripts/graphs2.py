@@ -106,11 +106,11 @@ def get_results_table(path_abs, exp_list=None, **kwargs):
     return table
 
 
-def results_table():
+def results_table(dir_origin=path_abs, dir_dest=path_latex + 'MOSIM2018/tables/', exp_list=None):
     ################################################
     # Instances and Results table
     ################################################
-    table = get_results_table(path_abs)
+    table = get_results_table(dir_origin, exp_list=exp_list)
 
     # pp.pprint(exps)
     # input: num missions, num periods, variables, constraints, assignments, timeLimit
@@ -120,7 +120,8 @@ def results_table():
 
     table_in = table[input_cols].rename(columns=cols_rename)
     latex = table_in.to_latex(escape=False, bold_rows=True, index=False, float_format='%.0f')
-    with open(path_latex + 'MOSIM2018/tables/instance.tex', 'w') as f:
+    destination = dir_dest + 'instance.tex'
+    with open(destination, 'w') as f:
         f.write(latex)
 
     # output: number of cuts, initial relaxation, relaxation after cuts, end relaxation, cuts' time.
@@ -148,8 +149,9 @@ def results_table():
 
     table1 = table.rename(columns=cols_rename)[
         ['id', 'objective', 'gap (\%)', 'time (s)', 'bound']]
-    latex = table1.to_latex(escape=False, bold_rows=True, index=False, float_format='%.1f')
-    with open(path_latex + 'MOSIM2018/tables/summary.tex', 'w') as f:
+    latex = table1.to_latex(escape=False, bold_rows=True, index=False, float_format='%.2f')
+    destination = dir_dest + 'summary.tex'
+    with open(destination, 'w') as f:
         f.write(latex)
 
     table2 = table
@@ -158,7 +160,8 @@ def results_table():
         ['id', 'root', 'b. cuts',
          'bound', 'cuts (\#)', 'cuts (s)']]
     latex = table2.to_latex(escape=False, bold_rows=True, index=False, float_format='%.1f')
-    with open(path_latex + 'MOSIM2018/tables/results.tex', 'w') as f:
+    destination = dir_dest + 'results.tex'
+    with open(destination, 'w') as f:
         f.write(latex)
 
     table3 = table.rename(columns=cols_rename3)[
@@ -167,7 +170,8 @@ def results_table():
     latex = table3.to_latex(escape=False, bold_rows=True, index=False, float_format='%.1f')
     # we replaces the possible NaN values for a - symbol
     latex = re.sub(r'NaN', '-', latex)
-    with open(path_latex + 'MOSIM2018/tables/results2.tex', 'w') as f:
+    destination = dir_dest + 'results2.tex'
+    with open(destination, 'w') as f:
         f.write(latex)
 
 
@@ -563,6 +567,14 @@ def tests():
 
 
 if __name__ == "__main__":
+
+    path, _ = os.path.split(path_abs)
+    path, _ = os.path.split(path)
+    path = os.path.join(path, 'MOSIM2018_new_model')
+    exp_list = [d for d in os.listdir(path) if d.startswith('2018')]
+    dir_dest = "/home/pchtsp/Documents/projects/OPTIMA/R/presentations/CLAIO_presentation/"
+    results_table(dir_dest=dir_dest, dir_origin=path, exp_list=exp_list)
+
     # results_table()
     # remaining_graph()
     # progress_graph()
@@ -578,5 +590,5 @@ if __name__ == "__main__":
     # pp.pprint(pareto_p2)
     # multiobjective_table()
     # table = get_results_table(path_abs)
-    solvers_comp()
+    # solvers_comp()
     pass

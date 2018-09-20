@@ -1,25 +1,43 @@
 source('functions/params.R')
 source('functions/import_results.R')
-source('functions/exampleDT.R')
+source('functions/status_resources.R')
 source('functions/gantt_tasks.R')
 
-exp_directory = PATHS[['experiments']] %>% paste0('201809131542/')
-print_solution(exp_directory, width='100%')
+exp_directory = PATHS[['experiments']] %>% paste0('201801131817/')
+# exp_directory <- PATHS[['results']] %>% paste0('simulated_data/2_task/201809180941/')
+print_solution(exp_directory, width='100%', 30)
 print_tasks(exp_directory)
 
 PATHS[['experiments']] %>% paste0('201802061201/')
 
 res <- 'A20'
+res <- '85'
 
-data_input <- treat_data(experiment1, res)
+data_input <- treat_data(exp_directory, res)
 data_input_n <- 
     data_input %>% 
     rename(Periods=Mois, Time=Temps) %>% 
     mutate(type = if_else(str_detect(type, '^dispo'), 'availability (periods)', type),
            type = if_else(str_detect(type, '^heur'), 'flight hours (hours)', type))
 
-graph_remaining_data(data_input_n, x='Periods', y='Time')
+p <- graph_remaining_data(data_input_n, x='Periods', y='Time', return_object=TRUE)
+p
+m_period <- 
+    data_input_n %>% 
+    filter(Time==60) %>% 
+    arrange(Periods) %>% 
+    select(resource=aircraft, month=Periods) %>% 
+    mutate(month = month %>% str_sub(end=7), state="M") %>% 
+    collapse_states() %>% 
+    slice(1) %>% 
+    extract2('post_month') %>% 
+    paste0("-01") %>% 
+    as.POSIXct()
+ 
+x_limits <- m_period %m+% c(months(30-6), months(60-6))
 
+# p + ggplot2::geom_vline(xintercept = ), linetype=2)
+p + geom_rect(aes(xmin=x_limits[1], xmax=x_limits[2], ymin=0, ymax=Inf), alpha = .005)
 # data_states <- get_states(experiment1)
 # periods <- 
 # data_states %>% 

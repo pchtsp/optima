@@ -2,16 +2,11 @@
 title: "Maintenance planning on French military aircraft operations"
 author: |
     | Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin
-institute: "ISAE SUPAERO"
+institute: "ISAE-SUPAERO, Université de Toulouse, France"
 date: "September 24, 2018"
 output: 
-  slidy_presentation:
-    css: ./../../../css/baobab_slidy.css
-    incremental: yes
-    footer: "ISAE-SUPAERO, Université de Toulouse, France"
-    # slide_level: 2
-    # toc: true
   beamer_presentation:
+    # keep_tex: true
     theme: "Berlin"
     toc: true
     slide_level: 2
@@ -21,6 +16,13 @@ output:
     # footer: "ISAE-SUPAERO, Université de Toulouse, France"
     includes:
         in_header: header.tex
+    # before_body: before_body.tex
+  slidy_presentation:
+    css: ./../../../css/baobab_slidy.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    # slide_level: 2
+    # toc: true
 bibliography: MFMP_NRP.bib
 # nocite: '@*'
 editor_options: 
@@ -54,7 +56,7 @@ infeasible <- scenario_get_gaps(all_exp_dir) %>% lapply(function(scn){
 
 ## Problem (informally)
 
-Assign both missions and maintenance operations to a fleet of aircraft in order to maximize availability and minimize costs. Missions have fixed start and end times and have particular needs in terms of aircraft and time.
+**Assign** both **missions and maintenance** operations to a fleet of **aircraft** in order to maximize **availability** and minimize **costs**. **Missions** have **fixed** start and end times and have particular **needs** in terms of aircraft and time.
 
 ## Problem (example)
 
@@ -73,10 +75,10 @@ if (show_gantt){
 ## Problem
 
 * FMP: Flight and Maintenance Planning problem.
-* A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all tasks are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. 
-* Each task requires a certain number $R_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $H_j$ in each period and needs to be assigned for a minimum of $MT_j$ consecutive periods if assigned.
-* Resources require recurrent preventive maintenance operations since the realization of tasks diminish their remaining usage time.
-* A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H^M$ units.
+* A series of $j \in \mathcal{J}$ tasks are planned along a horizon divided into $t \in \mathcal{T}$ periods.
+* Each task requires $R_{j}$ of resources for $H_j$ hours and needs to be assigned for a minimum of $MT_j$ consecutive periods.
+* Resources $i \in \mathcal{I}$ require recurrent preventive maintenance operations.
+* A maintenance operation takes exactly $m$ periods and restores the resource's remaining usage time to exactly $H^M$ units.
 
 # State of the art
 
@@ -91,7 +93,7 @@ if (show_gantt){
 
 * Asignments to missions are done instead of assignments of flight hours.
 * Missions need to be assigned for a minimal duration.
-* This model also features several improvements in the MIP modelling that permit greater instance sizes.
+* Because of these differences, a new model is proposed to deal with this new problem.
 
 # Complexity analysis
 
@@ -127,6 +129,18 @@ if (show_gantt){
 
 # Model
 
+## Model: variables
+
+The following variables are used in the model.
+
+\begin{tabular}{lll}
+$m_{it}$    &: maintenance start &  $|\mathcal{I}| \times |\mathcal{T}|$ \\
+$a_{jti}$   &: task assignment &  $|\mathcal{T}| \times |\mathcal{J}_t| \times |\mathcal{I}_j|$ \\
+$a^s_{jti}$ &: task assignment start &  $|\mathcal{T}| \times |\mathcal{J}_t| \times |\mathcal{I}_j|$ \\
+$u_{it}$    &: monthly usage time &  $|\mathcal{I}| \times |\mathcal{T}|$ \\
+$rut_{it}$  &: remaining usage time &  $|\mathcal{I}| \times |\mathcal{T}|$ \\
+\end{tabular}
+
 ## Model: main constraints
 
 <div class="incremental">
@@ -158,14 +172,16 @@ Mission's needs and incompatibility of several tasks or maintenance in the same 
     & m_{it'} + m_{it} \leq 1
       & t \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
     & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \geq  m_{it}
-      & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}\\
-    & m_{it} = 0
-      & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:ret_min_init} \\
-    & \sum_{t \in \mathcal{T}^{M_{ini}}_i} m_{it} \geq  1 
-      & i \in \mathcal{I}\label{eq:ret_max_init}
+      & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}
 \end{align}
 
-Maintenances cannot executed too soon or too late with respect to the previous one.
+<!-- Maintenances cannot executed too soon or too late with respect to the previous one. -->
+
+```{r, echo=FALSE, out.width='60%', fig.align="center"}
+'../img/rut_ret.png' %>% 
+    paste0(path_to_R_dir, .) %>%
+    knitr::include_graphics()
+```
 
 <!-- </div> -->
 
@@ -209,7 +225,36 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 
 # Results and perspectives
 
+## Example of a solution
+
+```{r, echo=FALSE, out.width='100%', fig.align="center"}
+'../img/example_solution1.png' %>% 
+    paste0(path_to_R_dir, .) %>%
+    knitr::include_graphics()
+```
+
+## Results on previous instances
+
+All instances are solved to 0.02% of optimality in less than one hour. Previously this was not the case.
+
+\begin{tabular}{lrrrr}
+   id &  objective &  gap (\%) &  time (s) &      bound \\
+ I\_0 & 2212136.80 &      0.01 &     29.79 & 2211841.38 \\
+ I\_1 & 4508365.88 &      0.02 &    173.11 & 4507542.47 \\
+ I\_2 & 6208008.67 &      0.02 &    409.66 & 6206896.17 \\
+ I\_3 & 7511314.89 &      0.03 &    836.08 & 7509070.16 \\
+ I\_4 & 2217358.08 &      0.02 &     37.66 & 2216944.92 \\
+ I\_5 & 4517690.48 &      0.01 &    208.25 & 4517191.09 \\
+ I\_6 & 6220420.49 &      0.01 &    331.90 & 6219541.67 \\
+ I\_7 & 7526281.03 &      0.02 &   1731.50 & 7524413.60 \\
+ I\_8 & 2228684.87 &      0.01 &     76.18 & 2228481.13 \\
+ I\_9 & 4538717.82 &      0.02 &   3332.95 & 4537837.14 \\
+\end{tabular}
+
+
 ## Experiments
+
+Random instances were generated to test the performance following the known instances guidelines.
 
 <div class="incremental">
 
@@ -222,7 +267,7 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 \pause
 
 * Small instances have **30.000 variables** and **20.000 constraints**.
-* Medium instances have **80.000 variables** and **50.000 constraints**.
+* Large instances have **80.000 variables** and **50.000 constraints**.
 * Runs of 30 minutes have been done on 30 randomly generated cases per scenario.
 * CPLEX was used in an i7, quadcore Ubuntu 18.04 workstation.
 
@@ -230,9 +275,8 @@ Maintenances cannot executed too soon or too late with respect to the previous o
 
 ## Statistics
 
-* `r infeasible[1]`% of instances were proved infeasible inmediately.
 * From feasible small instances, a mean gap of `r scen_means[1]`% was found after 30 min.
-* From feasible medium instances, a mean gap of `r scen_means[2]`% was found after 30 min.
+* From feasible large instances, a mean gap of `r scen_means[2]`% was found after 30 min.
 
 ## Perspectives
 

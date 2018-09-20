@@ -61,7 +61,8 @@ class Instance(object):
         return self.get_category('tasks', param, default_tasks)
 
     def get_resources(self, param=None):
-        return self.get_category('resources', param)
+        default_resources = {'states': {}}
+        return self.get_category('resources', param, default_resources)
 
     def get_bounds(self):
         param_data = self.get_param()
@@ -367,9 +368,13 @@ class Instance(object):
         }
 
     def get_clusters(self):
-        capacities = self.get_tasks('capacities')
-        group = {}
         present_group = 1
+        # initialized group.
+        group = {t: present_group for t in self.get_tasks()}
+        if 'capacities' not in self.get_categories()['resources']:
+            # if we're in the old instances: we do not form clusters
+            return group
+        capacities = self.get_tasks('capacities')
         for task1, cap1 in capacities.items():
             if task1 not in group:
                 group[task1] = present_group
@@ -415,6 +420,15 @@ class Instance(object):
         return {'num': c_needs_num, 'hours': c_needs_hours}
 
     def get_task_candidates(self, task=None):
+
+        # we check if these are old instances:
+        if 'capacities' not in self.get_categories()['resources']:
+            t_candidates = self.get_tasks('candidates')
+            if task is not None:
+                return t_candidates[task]
+            return t_candidates
+
+        # if they're the 'newer' instances:
         r_cap = self.get_resources('capacities')
         t_cap = self.get_tasks('capacities')
 
@@ -424,24 +438,6 @@ class Instance(object):
                 if len(set(task_caps) - set(res_caps)) == 0:
                     t_candidates[t].append(res)
 
-        # if task is not None:
-        #     t_cap = t_cap[task]
-        # t_cap_df = pd.DataFrame([(t, c) for t in t_cap for c in t_cap[t]], columns=['IdTask', 'CAP'])
-        # r_cap_df = pd.DataFrame([(t, c) for t in r_cap for c in r_cap[t]], columns=['IdResource', 'CAP'])
-        #
-        # num_capacites = t_cap_df.groupby("IdTask"). \
-        #     agg(len).reset_index()
-        # capacites_join = t_cap_df.merge(r_cap_df, on='CAP').\
-        #     groupby(['IdTask', 'IdResource']).agg(len).reset_index()
-        # mission_aircraft = \
-        #     pd.merge(capacites_join, num_capacites, on=["IdTask", "CAP"]) \
-        #         [["IdTask", "IdResource"]]
-        #
-        # t_candidates =\
-        #     aux.tup_to_dict(
-        #         mission_aircraft.to_records(index=False).tolist(),
-        #         result_col=1
-        #     )
         if task is not None:
             return t_candidates[task]
         return t_candidates

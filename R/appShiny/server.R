@@ -10,7 +10,7 @@ shinyServer(function(input, output, clientData, session) {
     sources <-
         c("functions/import_results.R",
           "functions/params.R",
-          "functions/exampleDT.R") %>% paste0(dir_pre, .)
+          "functions/status_resources.R") %>% paste0(dir_pre, .)
     lapply(sources, source)
 
     experiments <- PATHS[['experiments']] %>% completed_experiments()

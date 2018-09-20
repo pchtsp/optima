@@ -19,7 +19,7 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
 OPTIONS = {
     'timeLimit': 1800  # seconds
-    , 'gap': 0.05
+    , 'gap': 0.00049
     , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
     , 'memory': 15000
     , 'print': True
@@ -32,18 +32,19 @@ OPTIONS = {
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
-    , 'simulate': True
+    , 'simulate': False
+    , 'slack_vars': True
     , 'simulation': {
-        'num_resources': 200
-        , 'num_parallel_tasks': 3
+        'num_resources': 100
+        , 'num_parallel_tasks': 2
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60
         , 'elapsed_time_size': 30
         , 'min_usage_period': 20
         , 'perc_capacity': 0.25
-        , 'seed': 9366
-        # , 'seed': 500
+        # , 'seed': 9366
+        , 'seed': 500
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]
         # , 't_required_hours': [50, 60, 70, 80]

@@ -40,11 +40,14 @@ def test2():
 
 
 def test555():
-    e = '201809121056'
-    experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
+    e = 'simulated_data/2_task/201809180941/'
+    experiment = exp.Experiment.from_dir(PATHS['results'] + e)
     instance = experiment.instance
-    options = di.load_data(PATHS['experiments'] + e + '/options.json')
-    solution = md.solve_model(instance, options)
+    options = di.load_data(PATHS['results'] + e + 'options.json')
+    checks = experiment.check_solution()
+    solution = experiment.solution
+    # solution = md.solve_model(instance, options)
+    di.export_data(options['path'], solution.data, name="data_out", file_type='json')
     # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
     # checks = experiment.check_solution()
     # checks.keys()

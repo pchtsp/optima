@@ -51,7 +51,7 @@ class LogFile(object):
         """
         :return: tuple of length 2
         """
-        regex = r'MIP\s+-\s+{1}:\s+Objective\s+=\s+{0}\n'.format(self.numberSearch, self.wordSearch)
+        regex = r'MIP\s+-\s+{1}.*:\s+Objective\s+=\s+{0}\n'.format(self.numberSearch, self.wordSearch)
         result = self.apply_regex(regex, flags=re.MULTILINE)
         if result is None:
             return None, None

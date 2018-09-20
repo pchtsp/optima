@@ -50,13 +50,15 @@ graph_remaining <- function(exp_directory, aircraft_to_graph='A31'){
     graph_remaining_data(data)
 }
 
-graph_remaining_data <- function(data, x= 'Mois', y= 'Temps'){
+graph_remaining_data <- function(data, x= 'Mois', y= 'Temps', return_object=FALSE){
     p <- ggplot(data, aes_string(x= x, y= y, group='aircraft')) + 
         geom_line() + 
         facet_grid(type~ ., scales = "free_y") +
         theme_minimal() + 
         scale_x_datetime()
-    
+    if (return_object){
+        return(p)
+    }
     ggplotly(p)
 }
 

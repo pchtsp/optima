@@ -25,8 +25,8 @@ def solve_model(instance, options=None):
 
     # In order to break some symmetries, we're gonna give a
     # (different) price for each assignment:
-    # price_assign = {(a, v): rn.random()*10 for v in l['tasks'] for a in l['candidates'][v]}
-    price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+    price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
+    # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -48,8 +48,11 @@ def solve_model(instance, options=None):
     rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
     # TEMP
-    # slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
-    # slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
+    slack_vt = {tup: 0 for tup in l['vt']}
+    slack_at = {tup: 0 for tup in l['at']}
+    if options.get('slack_vars', False):
+        slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
+        slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -60,10 +63,12 @@ def solve_model(instance, options=None):
     #     model += objective
     #     model += objective >= num_maint * max_usage - rut_obj_var
     # else:
-    model += num_maint * max_usage - rut_obj_var + \
-             pl.lpSum(assign * price_assign[a, v] for (a, v, t), assign in task.items()) + \
-             1
-             # pl.lpSum(slack_vt.values()) * 99999 + pl.lpSum(slack_at.values()) * 99
+    model += 100 * num_maint * max_usage - rut_obj_var + \
+             1 * pl.lpSum(assign_st * price_assign[a, v]
+                      for (a, v, t), assign_st in start_T.items() if price_assign[a, v] > 0) + \
+             1000000 * pl.lpSum(slack_vt.values()) +\
+             1000 * pl.lpSum(slack_at.values())
+             # 1
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -88,7 +93,7 @@ def solve_model(instance, options=None):
 
     # num resources:
     for (v, t), a_list in l['a_vt'].items():
-        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] #- slack_vt[v, t]
+        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt[v, t]
 
     # definition of task start:
     # if we have a task now but we didn't before: we started it
@@ -147,7 +152,7 @@ def solve_model(instance, options=None):
     for at in l['at']:
         a, t = at
         t1_at2 = l['t1_at2'].get(at, [])
-        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) #- slack_at[at]
+        model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) - slack_at[at]
 
     # remaining used time calculations:
     for at in l['at']:
