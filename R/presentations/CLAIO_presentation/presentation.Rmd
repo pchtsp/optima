@@ -84,7 +84,7 @@ if (show_gantt){
 
 ## State of the art (1)
 
-* In @Cho2011, US Army aircraft were assigned daily operations over a year to minimize the number of maintenances.
+* In @Cho2011, US Air Force aircraft were assigned daily operations over a year to minimize the number of maintenances.
 * In @Kozanidis2008, Greek aircraft had monthly assignments of maintenances and flight hours in order to maximize the availability and final state of squadrons.
 * In @Verhoeff2015, monthly assignments were done and several objectives were taken into account: availability, serviceability and final state.
 * In @Seif2018, a generalization of @Kozanidis2008 was done in order to deal with different types of maintenances and an heterogeneus fleet.
@@ -237,19 +237,18 @@ Mission's needs and incompatibility of several tasks or maintenance in the same 
 
 All instances are solved to 0.02% of optimality in less than one hour. Previously this was not the case.
 
-\begin{tabular}{lrrrr}
-   id &  objective &  gap (\%) &  time (s) &      bound \\
- I\_0 & 2212136.80 &      0.01 &     29.79 & 2211841.38 \\
- I\_1 & 4508365.88 &      0.02 &    173.11 & 4507542.47 \\
- I\_2 & 6208008.67 &      0.02 &    409.66 & 6206896.17 \\
- I\_3 & 7511314.89 &      0.03 &    836.08 & 7509070.16 \\
- I\_4 & 2217358.08 &      0.02 &     37.66 & 2216944.92 \\
- I\_5 & 4517690.48 &      0.01 &    208.25 & 4517191.09 \\
- I\_6 & 6220420.49 &      0.01 &    331.90 & 6219541.67 \\
- I\_7 & 7526281.03 &      0.02 &   1731.50 & 7524413.60 \\
- I\_8 & 2228684.87 &      0.01 &     76.18 & 2228481.13 \\
- I\_9 & 4538717.82 &      0.02 &   3332.95 & 4537837.14 \\
-\end{tabular}
+| id | $\|\mathcal{J}\|$ |$\|\mathcal{T}\|$ |  assign |  gap (\%)   |  time (s) |
+|-----|------------------|------------------|---------|-------------|-----------|
+| I_0 |                9 |               11 |     310 |      0.01 	|     29.79 |
+| I_1 |                9 |               21 |     650 |      0.02 	|    173.11 |
+| I_2 |                9 |               31 |     990 |      0.02 	|    409.66 |
+| I_3 |                9 |               41 |    1249 |      0.03 	|    836.08 |
+| I_4 |               10 |               11 |     530 |      0.02 	|     37.66 |
+| I_5 |               10 |               21 |    1070 |      0.01 	|    208.25 |
+| I_6 |               10 |               31 |    1610 |      0.01 	|    331.90 |
+| I_7 |               10 |               41 |    2069 |      0.02 	|   1731.50 |
+| I_8 |               11 |               11 |    1080 |      0.01 	|     76.18 |
+| I_9 |               11 |               21 |    2120 |      0.02 	|   3332.95 |
 
 
 ## Experiments
@@ -266,8 +265,7 @@ Random instances were generated to test the performance following the known inst
 
 \pause
 
-* Small instances have **30.000 variables** and **20.000 constraints**.
-* Large instances have **80.000 variables** and **50.000 constraints**.
+* Instances have **30.000 - 80.000 variables** and **20.000 - 50.000 constraints**.
 * Runs of 30 minutes have been done on 30 randomly generated cases per scenario.
 * CPLEX was used in an i7, quadcore Ubuntu 18.04 workstation.
 
