@@ -9,8 +9,10 @@ class SuperDict(dict):
     def values_l(self):
         return list(self.values())
 
-    def clean(self, default_value=0):
-        return SuperDict({key: value for key, value in self.items() if value != default_value})
+    def clean(self, default_value=0, func=None):
+        if func is None:
+            func = lambda x: x != default_value
+        return SuperDict({key: value for key, value in self.items() if func(value)})
 
     def filter(self, indices, check=True):
         if type(indices) is not list:
@@ -97,7 +99,7 @@ class SuperDict(dict):
         return SuperDict({key: value[property] for key, value in self.items() if property in value})
 
     def to_lendict(self):
-        return {k: len(v) for k, v in self.items()}
+        return SuperDict({k: len(v) for k, v in self.items()})
 
     def index_by_property(self, property, get_list=False):
         el = self.keys_l()[0]

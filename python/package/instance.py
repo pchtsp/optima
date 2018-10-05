@@ -25,8 +25,15 @@ class Instance(object):
         self.data = model_data
 
     def get_param(self, param=None):
-        default_params = {'maint_weight': 1, 'unavail_weight': 1,
-                          'min_elapsed_time': 0, 'min_usage_period': 0}
+        default_params = {
+            'maint_weight': 1
+            , 'unavail_weight': 1
+            , 'min_elapsed_time': 0
+            , 'min_usage_period': 0
+            , 'min_avail_percent': 0.1
+            , 'min_avail_value': 1
+            , 'min_hours_perc': 0.2
+        }
         params = {**default_params, **self.data['parameters']}
         if param is not None:
             if param not in params:
@@ -121,7 +128,7 @@ class Instance(object):
         #         to_dictup().to_tuplist().tup_to_start_finish()
         ret_init = self.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
-
+        kt = sd.SuperDict(self.get_cluster_constraints()['num']).keys_l()
 
         """
         Indentation means "includes the following:".
@@ -223,6 +230,7 @@ class Instance(object):
         , 't_at_M'          : t_at_M
         , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
+        , 'kt'              : kt
         }
 
     def get_initial_state(self, time_type):
@@ -369,11 +377,11 @@ class Instance(object):
 
     def get_clusters(self):
         present_group = 1
-        # initialized group.
-        group = {t: present_group for t in self.get_tasks()}
         if 'capacities' not in self.get_categories()['resources']:
             # if we're in the old instances: we do not form clusters
-            return group
+            return {t: present_group for t in self.get_tasks()}
+        # initialized group.
+        group = {}
         capacities = self.get_tasks('capacities')
         for task1, cap1 in capacities.items():
             if task1 not in group:
@@ -395,27 +403,36 @@ class Instance(object):
             cluster_needs[(cluster[task], period)] += value
         return cluster_needs
 
-    def get_cluster_constraints(self, min_percent=0.1, min_value=1):
-        # num_resource_maint_cluster = aux.dict_to_lendict(self.get_fixed_maintenances_cluster())
+    def get_cluster_constraints(self):
+        min_percent = self.get_param('min_avail_percent')
+        min_value = self.get_param('min_avail_value')
+        hour_perc = self.get_param('min_hours_perc')
+        num_periods = len(self.get_periods())
+
         c_needs = self.get_cluster_needs()
-        c_candidates = self.get_cluster_candidates()
-        # c_num_candidates = aux.dict_to_lendict(c_candidates)
-        # c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_resource_maint_cluster.get(tup, 0)
-        #            for tup in c_needs}
-        # c_min = {(k, t): min(
-        #     c_slack[(k, t)],
-        #     max(
-        #         int(c_num_candidates[k] * min_percent),
-        #         min_value)
-        #     ) for (k, t) in c_slack
-        # }
+        num_res_maint = \
+            sd.SuperDict(self.get_fixed_maintenances_cluster()).\
+                to_lendict().\
+                fill_with_default(keys=c_needs)
+        c_num_candidates = sd.SuperDict(self.get_cluster_candidates()).to_lendict()
+        c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_res_maint[tup]
+                   for tup in c_needs}
+        c_min = {(k, t): min(
+            c_slack[(k, t)],
+            max(
+                math.ceil(c_num_candidates[k] * min_percent),
+                min_value)
+            ) for (k, t) in c_slack
+        }
         #
-        # c_needs_num = {(k, t): c_num_candidates[k] - c_needs[k, t] - c_min[k, t] - num_resource_maint_cluster[k, t]
-        #                for k, t in c_needs
-        #                }
-        # TODO: check all code and fill differently
-        c_needs_hours = {kt: 0 for kt in c_needs}
-        c_needs_num = {kt: len(c_candidates[kt[0]]) for kt in c_needs}
+        c_needs_num = {(k, t): c_num_candidates[k] - c_needs[k, t] - c_min[k, t] - num_res_maint[k, t]
+                       for k, t in c_needs
+                       }
+        c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
+                         for k, v in c_num_candidates.items() for t in self.get_periods()}
+
+        # c_needs_hours = {kt: 0 for kt in c_needs}
+        # c_needs_num = {kt: len(c_candidates[kt[0]]) for kt in c_needs}
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
 

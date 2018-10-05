@@ -63,6 +63,8 @@ class Experiment(object):
             ,'elapsed':     self.check_elapsed_consumption
             ,'capacity':    self.check_maintenance_capacity
             ,'min_assign':  self.check_min_assignment
+            ,'available':   self.check_min_available
+            ,'hours':       self.check_min_flight_hours
         }
         result = {k: v() for k, v in func_list.items()}
         return {k: v for k, v in result.items() if len(v) > 0}
@@ -229,7 +231,8 @@ class Experiment(object):
         :return: periods were the min assignment (including maintenance)
         is not respected
         """
-        tasks = sd.SuperDict(self.solution.get_tasks()).to_tuplist()
+        # TODO: do it with self.solution.get_schedule()
+        tasks = sd.SuperDict.from_dict(self.solution.get_tasks()).to_tuplist()
         maints = sd.SuperDict.from_dict(self.solution.get_state()).to_tuplist()
         previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
             to_dictup().to_tuplist()
@@ -238,22 +241,58 @@ class Experiment(object):
         all_states = maints + tasks + previous
         all_states_periods = tl.TupList(all_states).tup_to_start_finish()
 
-        # tasks_periods = self.solution.get_task_periods()
-        # task_min_assign = self.instance.get_tasks('min_assign')
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
 
         incorrect = {}
         for (resource, start, state, finish) in all_states_periods:
             # periods that finish before the horizon
-            # or after at the end
-            # are not checked
+            # or at the end are not checked
             if finish < first_period or finish == last_period:
                 continue
             size_period = len(aux.get_months(start, finish))
             if size_period < min_assign.get(state, 1):
                 incorrect[(resource, start)] = size_period
         return incorrect
+
+    def check_min_available(self):
+        """
+        :return: periods where the min availability is not guaranteed.
+        """
+        resources = self.instance.get_resources().keys()
+        c_candidates = self.instance.get_cluster_candidates()
+        cluster_data = self.instance.get_cluster_constraints()
+        maint_periods = tl.TupList(self.solution.get_maintenance_periods()).\
+            to_dict(result_col=[1, 2]).fill_with_default(keys=resources, default=[])
+        max_candidates = cluster_data['num']
+        num_maintenances = sd.SuperDict().fill_with_default(max_candidates.keys())
+        for cluster, candidates in c_candidates.items():
+            for candidate in candidates:
+                for maint_period in maint_periods[candidate]:
+                    for period in aux.get_months(*maint_period):
+                        num_maintenances[cluster, period] += 1
+        over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
+        return over_assigned.clean(func=lambda x: x < 0)
+        # return over_assigned
+        # cluster_data.keys()
+
+    def check_min_flight_hours(self):
+        """
+        :return: periods where the min flight hours is not guaranteed.
+        """
+        c_candidates = self.instance.get_cluster_candidates()
+        cluster_data = self.instance.get_cluster_constraints()
+        min_hours = cluster_data['hours']
+        ruts = self.set_remaining_usage_time('rut')
+        cluster_hours = sd.SuperDict().fill_with_default(min_hours.keys())
+        for cluster, candidates in c_candidates.items():
+            for candidate in candidates:
+                for period, hours in ruts[candidate].items():
+                    if period >= self.instance.get_param('start'):
+                        cluster_hours[cluster, period] += hours
+
+        hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
+        return hours_deficit.clean(func=lambda x: x < 0)
 
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")
@@ -276,7 +315,6 @@ class Experiment(object):
         }
 
     def export_solution(self, path, sheet_name='solution'):
-        # path = "../data/parametres_DGA_final_test.xlsm"
         tasks = aux.dict_to_tup(self.solution.get_tasks())
         hours = self.instance.get_tasks('consumption')
         tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))

@@ -32,10 +32,10 @@ OPTIONS = {
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
-    , 'simulate': False
-    , 'slack_vars': True
+    , 'simulate': True
+    , 'slack_vars': False
     , 'simulation': {
-        'num_resources': 100
+        'num_resources': 40
         , 'num_parallel_tasks': 2
         , 'maint_duration': 6
         , 'max_used_time': 1000
@@ -43,10 +43,14 @@ OPTIONS = {
         , 'elapsed_time_size': 30
         , 'min_usage_period': 20
         , 'perc_capacity': 0.25
+        , 'min_avail_percent': 0.1
+        , 'min_avail_value': 1
+        , 'min_hours_perc': 0.5
         # , 'seed': 9366
         , 'seed': 500
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]
+        , 'initial_unbalance': (-6, 6)
         # , 't_required_hours': [50, 60, 70, 80]
         , 't_required_hours': [r for r in range(30, 90, 10)]
         , 't_num_resource': (2, 5)

@@ -25,8 +25,8 @@ def solve_model(instance, options=None):
 
     # In order to break some symmetries, we're gonna give a
     # (different) price for each assignment:
-    price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
-    # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+    # price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
+    price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -50,9 +50,11 @@ def solve_model(instance, options=None):
     # TEMP
     slack_vt = {tup: 0 for tup in l['vt']}
     slack_at = {tup: 0 for tup in l['at']}
+    slack_kt = {tup: 0 for tup in l['kt']}
     if options.get('slack_vars', False):
         slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
         slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
+        slack_kt = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=l['kt'], cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -67,8 +69,8 @@ def solve_model(instance, options=None):
              1 * pl.lpSum(assign_st * price_assign[a, v]
                       for (a, v, t), assign_st in start_T.items() if price_assign[a, v] > 0) + \
              1000000 * pl.lpSum(slack_vt.values()) +\
-             1000 * pl.lpSum(slack_at.values())
-             # 1
+             1000 * pl.lpSum(slack_at.values()) +\
+             10000 * pl.lpSum(slack_kt.values())
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -137,7 +139,7 @@ def solve_model(instance, options=None):
     # Each cluster has a minimum number of usage hours to have
     # at each period.
     for (k, t), hours in cluster_data['hours'].items():
-        model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours
+        model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours - slack_kt[k, t]
 
     # ##################################
     # Usage time
