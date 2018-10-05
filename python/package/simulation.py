@@ -50,7 +50,6 @@ def empty_data():
 
 
 def create_dataset(options):
-    # TODO: extra capacities
     sim_data = options['simulation']
 
     data_input = {}
@@ -105,23 +104,25 @@ def create_dataset(options):
             t_end[task] = aux.get_prev_month(date)
             task += 1
 
+    t_capacites = {k: {v} for k, v in t_type.items()}
+    optionals = list(st.ascii_uppercase)[::-1]
+    for task in t_capacites:
+        if rn.random() < 0.10:
+            t_capacites[task].add(optionals.pop())
+
+
     d_tasks = data_input['tasks'] = {
-            str(task): {
-                'start': t_start[task]
-                , 'end': t_end[task]
+            str(t): {
+                'start': t_start[t]
+                , 'end': t_end[t]
                 , 'consumption': rn.choice(t_required_hours)
                 , 'num_resource': rn.randint(*t_num_resource)
-                , 'type_resource': t_type[task]
+                , 'type_resource': t_type[t]
                 , 'matricule': ''  # this is aesthetic
                 , 'min_assign': rn.choice(t_min_assign)
-                , 'capacities': [t_type[task]]  # TODO: capacities
-            } for task in range(task)
+                , 'capacities': list(t_capacites[t])
+            } for t in range(task)
         }
-
-    # optionals = list(st.ascii_uppercase)[::-1]
-    # for task in d_tasks:
-    #     if rn.random() > 0.9:
-    #         d_tasks[task]['capacities'].append(optionals.pop())
 
     period_type_num_resource = {
         t: {p: 0 for p in aux.get_months(start_period, last_period)}
@@ -134,18 +135,39 @@ def create_dataset(options):
 
     # we want at least as many resources as the max requirement of any given month
     # for the rest, we randomly assign a type
-    max_res_need_type = {k: max(v.values()) for k, v in period_type_num_resource.items()}
+    max_res_need_type = sd.SuperDict({k: max(v.values()) for k, v in period_type_num_resource.items()})
     res_types = [t for t, q in max_res_need_type.items() for r in range(q)]
-    res_types.extend(rn.choices(range(num_parallel_tasks), k=len(resources) - len(res_types)))
+    res_types.extend(
+        rn.choices(max_res_need_type.keys_l(),
+                   k=len(resources) - len(res_types),
+                   weights=max_res_need_type.values_l())
+    )
     res_types = sd.SuperDict({k: res_types[i] for i, k in enumerate(resources)})
 
-    # # in addition to this, we want to add the special capacities to only some resources.
-    # # we do this by iterating over tasks and trying to complete the partially able resources.
-    # for task, contents in d_tasks.items():
-    #     capacities = contents['capacities']
-    #     # resources =
-    #     _res = res_types.clean(func=lambda x: x == contents['type_resource'])
-
+    res_capacities = sd.SuperDict({k: {v} for k, v in res_types.items()})
+    # we want to add the special capacities to only some resources.
+    # we do this by iterating over tasks and trying to complete the partially able resources.
+    # We will start with the tasks that demand the most capacities
+    task_content = sorted(d_tasks.items(), key=lambda x: - len(x[1]['capacities']))
+    for task, contents in task_content:
+        _capacities = set(contents['capacities'])
+        _t_type = contents['type_resource']
+        _resources = contents['num_resource']
+        # we filter resources that have the task's type
+        _res_possible = res_capacities.clean(func=lambda x: _t_type in x)
+        # then we see if we already have matching resources:
+        _res_ready = _res_possible.clean(func=lambda x: not _capacities.difference(x))
+        new_resources = _resources*2 - len(_res_ready)
+        if new_resources > 0:
+            # we take new_resources random resources from _res_possible.
+            # we try to upgrade the ones with the least capacities
+            _res_to_upgrade = \
+                rn.choices(_res_possible.keys_l(),
+                           k=new_resources,
+                           weights=1/len(_res_possible.values_l()))
+            for k in _res_to_upgrade:
+                for cap in _capacities:
+                    res_capacities[k].add(cap)
 
     # Here we simulate the initial state of resources.
     # First of all we decide which resources are in maintenance
@@ -211,7 +233,7 @@ def create_dataset(options):
             , 'initial_used': initial_used[res]
             , 'code': ''  # this is aesthetic
             , 'type': res_types[res]
-            , 'capacities': [res_types[res]]  # TODO: capacities
+            , 'capacities': list(res_capacities[res])
             , 'states': {**res_task_init[res], **res_maint_init[res]}
         } for res in resources
     }
@@ -222,5 +244,5 @@ def create_dataset(options):
 if __name__ == "__main__":
     import pprint as pp
     import package.params as params
-    create_dataset(params.OPTIONS)
+    # create_dataset(params.OPTIONS)
     pass

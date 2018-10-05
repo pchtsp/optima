@@ -210,9 +210,6 @@ def solve_model(instance, options=None):
 
     # SOLVING
     config = conf.Config(options)
-    # model.writeMPS(filename='MFMP_3.mps')
-    # model.writeLP(filename='MFMP_3.lp')
-    # return None
     result = config.solve_model(model)
 
     if result != 1:

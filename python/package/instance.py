@@ -76,12 +76,13 @@ class Instance(object):
         task_data = self.get_tasks()
 
         # maximal bounds on continuous variables:
-        max_elapsed_time = param_data['max_elapsed_time']  # me. in periods
         max_used_time = param_data['max_used_time']  # mu. in hours of usage
+        maint_duration = param_data['maint_duration']
+        max_elapsed_time = param_data['max_elapsed_time'] + maint_duration # me. in periods
         consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
         num_resources = len(self.get_resources())
         num_periods = len(self.get_periods())
-        max_num_maint = num_resources*num_periods/param_data['maint_duration']
+        max_num_maint = num_resources*num_periods/maint_duration
         ret_total = max_elapsed_time*num_resources
         rut_total = max_used_time*num_resources
 
@@ -121,8 +122,8 @@ class Instance(object):
         resources_data = self.get_resources()
         resources = list(resources_data.keys())
         duration = param_data['maint_duration']
-        max_elapsed = param_data['max_elapsed_time']
-        min_elapsed = param_data['min_elapsed_time']
+        max_elapsed = param_data['max_elapsed_time'] + duration
+        min_elapsed = param_data['min_elapsed_time'] + duration
         # previous_states = \
         #     sd.SuperDict.from_dict(aux.get_property_from_dic(resources_data, 'states')).\
         #         to_dictup().to_tuplist().tup_to_start_finish()

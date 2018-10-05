@@ -27,27 +27,29 @@ OPTIONS = {
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
-    , 'num_period': 90
+    , 'num_period': 60
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
     , 'slack_vars': False
+    , 'writeLP': True
+    , 'writeMPS': False
     , 'simulation': {
         'num_resources': 40
         , 'num_parallel_tasks': 2
         , 'maint_duration': 6
         , 'max_used_time': 1000
-        , 'max_elapsed_time': 60
-        , 'elapsed_time_size': 30
-        , 'min_usage_period': 20
+        , 'max_elapsed_time': 60  # max time without maintenance
+        , 'elapsed_time_size': 30  # size of window to do next maintenance
+        , 'min_usage_period': 20  # minimum consumption per period
         , 'perc_capacity': 0.25
-        , 'min_avail_percent': 0.1
-        , 'min_avail_value': 1
-        , 'min_hours_perc': 0.5
+        , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
+        , 'min_avail_value': 1  # min num of available aircraft per type
+        , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
         # , 'seed': 9366
-        , 'seed': 500
+        , 'seed': None
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]
         , 'initial_unbalance': (-6, 6)

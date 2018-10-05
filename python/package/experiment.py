@@ -82,12 +82,10 @@ class Experiment(object):
                 self.instance.get_task_period_list()
             )
         task_under_assigned = {
-            (task, period): task_reqs[task] - task_assigned[(task, period)]
+            (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
-            if task_reqs[task] - task_assigned[(task, period)] != 0
         }
-
-        return task_under_assigned
+        return sd.SuperDict(task_under_assigned).clean(func=lambda x: x > 0)
 
     def check_resource_in_candidates(self):
         # task_data = self.instance.get_tasks()

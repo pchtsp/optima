@@ -21,6 +21,8 @@ class Config(object):
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
             , 'memory': 25000
+            , 'writeMPS': False
+            , 'writeLP': False
         }
 
         # the following merges the two configurations (replace into):
@@ -31,6 +33,8 @@ class Config(object):
         self.timeLimit = options['timeLimit']
         self.solver = options['solver']
         self.memory = options['memory']
+        self.writeMPS = options['writeMPS']
+        self.writeLP = options['writeLP']
 
     def config_cbc(self):
         if not os.path.exists(self.path):
@@ -48,7 +52,7 @@ class Config(object):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
         if not os.path.exists(self.path):
             os.mkdir(self.path)
-        result_path = self.path + 'results.sol'.format()
+        result_path = self.path + 'results.sol'
         log_path = self.path + 'results.log'
         return [('TimeLimit', self.timeLimit),
                 ('ResultFile', result_path),
@@ -72,6 +76,12 @@ class Config(object):
                 ('-p', 1)]
 
     def solve_model(self, model):
+
+        if self.writeMPS:
+            model.writeMPS(filename=self.path + 'formulation.mps')
+        if self.writeLP:
+            model.writeLP(filename=self.path + 'formulation.lp')
+
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
         if self.solver == "CPLEX":
