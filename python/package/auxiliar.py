@@ -37,6 +37,10 @@ def get_next_month(month):
     return shift_month(month, shift=1)
 
 
+def get_next_months(month, num=1):
+    return get_months(month, shift_month(month, num-1))
+
+
 def clean_dict(dictionary, default_value=0):
     return {key: value for key, value in dictionary.items() if value != default_value}
 

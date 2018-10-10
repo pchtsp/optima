@@ -25,8 +25,8 @@ def solve_model(instance, options=None):
 
     # In order to break some symmetries, we're gonna give a
     # (different) price for each assignment:
-    # price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
-    price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+    price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
+    # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -50,11 +50,23 @@ def solve_model(instance, options=None):
     # TEMP
     slack_vt = {tup: 0 for tup in l['vt']}
     slack_at = {tup: 0 for tup in l['at']}
-    slack_kt = {tup: 0 for tup in l['kt']}
-    if options.get('slack_vars', False):
+    slack_kt_hours = {tup: 0 for tup in l['kt']}
+    slack_kt_num = {tup: 0 for tup in l['kt']}
+    slack_t = {tup: 0 for tup in l['periods']}
+
+    slack_p = options.get('slack_vars')
+    if slack_p == 'Yes':
         slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
         slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
-        slack_kt = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=l['kt'], cat=var_type)
+        slack_kt_hours = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=l['kt'], cat=var_type)
+    elif slack_p is int:
+        # first X months only
+        first_months = aux.get_next_months(first_period, slack_p)
+        _vt = [(v, t) for v, t in l['vt'] if t in first_months]
+        _kt = [(k, t) for k, t in l['kt'] if t in first_months]
+        slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=var_type)
+        slack_t = pl.LpVariable.dicts(name="slack_t", lowBound=0, indexs=first_months, cat=var_type)
+        slack_kt_num = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=_kt, cat=var_type)
 
     # MODEL
     model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
@@ -65,12 +77,14 @@ def solve_model(instance, options=None):
     #     model += objective
     #     model += objective >= num_maint * max_usage - rut_obj_var
     # else:
-    model += 100 * num_maint * max_usage - rut_obj_var + \
+    model +=  num_maint * max_usage - rut_obj_var + \
              1 * pl.lpSum(assign_st * price_assign[a, v]
-                      for (a, v, t), assign_st in start_T.items() if price_assign[a, v] > 0) + \
+                          for (a, v, t), assign_st in start_T.items()) + \
              1000000 * pl.lpSum(slack_vt.values()) +\
              1000 * pl.lpSum(slack_at.values()) +\
-             10000 * pl.lpSum(slack_kt.values())
+             10000 * pl.lpSum(slack_kt_num.values()) + \
+             1000 * pl.lpSum(slack_kt_hours.values()) + \
+             1000000 * pl.lpSum(slack_t.values())
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)
@@ -95,7 +109,7 @@ def solve_model(instance, options=None):
 
     # num resources:
     for (v, t), a_list in l['a_vt'].items():
-        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt[v, t]
+        model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt.get((v, t), 0)
 
     # definition of task start:
     # if we have a task now but we didn't before: we started it
@@ -134,12 +148,12 @@ def solve_model(instance, options=None):
         model += \
             pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
                      if (a, _t) in l['at_start']
-                     if a in c_candidates[k]) <= num
+                     if a in c_candidates[k]) <= num + slack_kt_num.get((k, t), 0)
 
     # Each cluster has a minimum number of usage hours to have
     # at each period.
     for (k, t), hours in cluster_data['hours'].items():
-        model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours - slack_kt[k, t]
+        model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours - slack_kt_hours.get((k, t), 0)
 
     # ##################################
     # Usage time
@@ -169,7 +183,7 @@ def solve_model(instance, options=None):
     model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) == rut_obj_var
 
     for a in l['resources']:
-        model += rut[(a, l['period_0'])] == rut_init[a]
+        model += rut[a, l['period_0']] == rut_init[a]
 
     # ##################################
     # Maintenances
@@ -201,8 +215,10 @@ def solve_model(instance, options=None):
 
     # max number of maintenances:
     for t in l['periods']:
-        model += pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
-                 num_resource_maint[t] <= maint_capacity
+        model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
+                 num_resource_maint[t] <= maint_capacity + slack_t.get(t, 0)
+
+    # model += start_M['1', '2018-01'] == 1
 
     # ##################################
     # SOLVING

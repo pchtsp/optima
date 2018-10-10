@@ -408,16 +408,19 @@ class Instance(object):
         min_percent = self.get_param('min_avail_percent')
         min_value = self.get_param('min_avail_value')
         hour_perc = self.get_param('min_hours_perc')
-        num_periods = len(self.get_periods())
+        # num_periods = len(self.get_periods())
 
-        c_needs = self.get_cluster_needs()
+        # cluster availability will now mean:
+        # resources that are not under maintenance
+        cluster = self.get_clusters()
+        kt = [(c, period) for c in cluster.values() for period in self.get_periods()]
         num_res_maint = \
             sd.SuperDict(self.get_fixed_maintenances_cluster()).\
                 to_lendict().\
-                fill_with_default(keys=c_needs)
+                fill_with_default(keys=kt)
         c_num_candidates = sd.SuperDict(self.get_cluster_candidates()).to_lendict()
-        c_slack = {tup: c_num_candidates[tup[0]] - c_needs[tup] - num_res_maint[tup]
-                   for tup in c_needs}
+        c_slack = {tup: c_num_candidates[tup[0]] - num_res_maint[tup]
+                   for tup in kt}
         c_min = {(k, t): min(
             c_slack[(k, t)],
             max(
@@ -426,8 +429,8 @@ class Instance(object):
             ) for (k, t) in c_slack
         }
         #
-        c_needs_num = {(k, t): c_num_candidates[k] - c_needs[k, t] - c_min[k, t] - num_res_maint[k, t]
-                       for k, t in c_needs
+        c_needs_num = {(k, t): c_num_candidates[k] - c_min[k, t] - num_res_maint[k, t]
+                       for k, t in kt
                        }
         c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}

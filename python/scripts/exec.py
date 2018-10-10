@@ -5,10 +5,12 @@ import package.data_input as di
 import package.instance as inst
 import package.model as md
 import package.model_cp as md_cp
+import package.experiment as exp
 import importlib
 import argparse
 import package.heuristics as heur
 import package.simulation as sim
+import package.superdict as sd
 
 
 def config_and_solve(params):
@@ -34,6 +36,20 @@ def config_and_solve(params):
         tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
 
     model_data['tasks'] = tasks
+
+    execute_solve(model_data, options)
+
+
+def re_execute_instance(directory, new_options=None):
+
+    model_data = di.load_data(os.path.join(directory, 'data_in.json'))
+    options = di.load_data(os.path.join(directory, 'options.json'))
+    if new_options is not None:
+        options.update(new_options)
+    execute_solve(model_data, options)
+
+
+def execute_solve(model_data, options):
     instance = inst.Instance(model_data)
 
     output_path = options['path']
@@ -50,8 +66,18 @@ def config_and_solve(params):
         solution = heur_obj.solve(options)
     else:
         solution = md.solve_model(instance, options)
-    if solution is not None:
-        di.export_data(output_path, solution.data, name="data_out", file_type='json')
+
+    if solution is None:
+        return None
+
+    experiment = exp.Experiment(instance, solution)
+    errors = experiment.check_solution()
+    errors = sd.SuperDict.from_dict(errors)
+    errors = {k: v.to_dictdict() for k, v in errors.items()}
+
+    di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json')
+    if len(errors):
+        di.export_data(output_path, errors, name='errors', file_type="json")
 
 
 if __name__ == "__main__":
