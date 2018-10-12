@@ -1,4 +1,4 @@
-# Python
+ Python
 
 Here all the code related to python technology will be included.
 
@@ -72,3 +72,12 @@ https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.or
 * Scipy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy
 * cx_freeze in github version, not pip.
 * specific configuration for windows?
+
+## Examples of using some scripts
+
+`exec_iteratively` and `exec.py` both accept json-styled options. They replace the default parameters.
+
+    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}"
+    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/prise_20181012/\"}" -d "{\"solver\": \"GUROBI\"}"
+    python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}"
+

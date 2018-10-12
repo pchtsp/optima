@@ -5,7 +5,7 @@ import datetime as dt
 if 'GUROBI_HOME' in os.environ:
     if 'LD_LIBRARY_PATH' not in os.environ:
         os.environ['LD_LIBRARY_PATH'] = ""
-    os.environ['LD_LIBRARY_PATH'] += os.environ['GUROBI_HOME'] + "/lib"
+    os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
 
 path_root = '/home/pchtsp/Documents/projects/'
