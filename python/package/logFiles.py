@@ -17,7 +17,7 @@ class LogFile(object):
             content = f.read()
 
         self.content = content
-        self.number = r'[\de\.\+]+'
+        self.number = r'-?[\de\.\+]+'
         self.numberSearch = r'({})'.format(self.number)
         self.wordSearch = r'([\w, ]+)'
 
@@ -198,6 +198,11 @@ class LogFile(object):
         regex = r'Best objective {0}, best bound {0}, gap {0}%'.format(self.numberSearch)
         # "Best objective 6.500000000000e+01, best bound 5.800000000000e+01, gap 10.7692%"
         solution = re.search(regex, self.content)
+        bound_out, obj_out, gap_out = (-1, -1, -1)
+        if solution is not None:
+            bound_out = float(solution.group(2))
+            obj_out = float(solution.group(1))
+            gap_out = float(solution.group(3))
 
         regex = r'Optimize a model with {0} rows, {0} columns and {0} nonzeros'.format(self.numberSearch)
         size = re.search(regex, self.content)
@@ -209,9 +214,9 @@ class LogFile(object):
             time_out = float(stats[0][2])
 
         return {
-            'bound_out': float(solution.group(2)),
-            'objective_out': float(solution.group(1)),
-            'gap_out': float(solution.group(3)),
+            'bound_out': bound_out,
+            'objective_out': obj_out,
+            'gap_out': gap_out,
             'cons': int(size.group(1)),
             'vars': int(size.group(2)),
             'nonzeros': int(size.group(3)),

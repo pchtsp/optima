@@ -376,11 +376,10 @@ def exp_get_info(path, get_log_info=True):
     log_path = os.path.join(path, "results.log")
     log_info = {}
     if os.path.exists(log_path) and get_log_info:
+        log_results = log.LogFile(log_path)
         if options['solver'] == 'CPLEX':
-            log_results = log.LogFile(log_path)
             log_info = log_results.get_log_info_cplex()
         elif options['solver'] == 'GUROBI':
-            log_results = log.LogFile(log_path)
             log_info = log_results.get_log_info_gurobi()
     parameters = exp.instance.get_param()
     inst_info = exp.instance.get_info()
@@ -389,11 +388,9 @@ def exp_get_info(path, get_log_info=True):
 
 def list_experiments(path, exp_list=None, get_log_info=True):
     if exp_list is None:
-        exps_paths = [os.path.join(path, f) for f in os.listdir(path)
-                      if os.path.isdir(os.path.join(path, f))]
-    else:
-        exps_paths = [os.path.join(path, f) for f in exp_list
-                      if os.path.isdir(os.path.join(path, f))]
+        exp_list = os.listdir(path)
+    exps_paths = [os.path.join(path, f) for f in exp_list
+                  if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
         info = exp_get_info(e, get_log_info)
