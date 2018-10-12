@@ -1,13 +1,31 @@
-import scripts.exec as exec
+import sys
 import os
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+import scripts.exec as exec
 import datetime as dt
 import time
-import sys
 import package.superdict as sd
-
+import argparse
 
 if __name__ == "__main__":
+
     import package.params as params
+    import json
+    parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
+    parser.add_argument('-d', '--options', dest='config_dict', type=json.loads)
+    parser.add_argument('-p', '--paths', dest='paths_dict', type=json.loads)
+
+    args = parser.parse_args()
+
+    if args.config_dict:
+        params.OPTIONS.update(args.config_dict)
+
+    if args.paths_dict:
+        params.PATHS.update(args.paths_dict)
+
+    if not os.path.exists(params.PATHS['results']):
+        os.mkdir(params.PATHS['results'])
+
     options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
     sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
 
@@ -16,10 +34,10 @@ if __name__ == "__main__":
         'num_parallel_tasks': num_tasks,
         'num_resources': num_tasks * 30,
         # 'solver': solver,
-        'name': 'simulated_data/task_periods_solv_{}_{}_{}/'.format(num_tasks, periods, solver)
+        'name': 'task_periods_solv_{}_{}_{}/'.format(num_tasks, periods, solver)
     }
         for num_tasks in range(1, 4)
-        for solver in ['GUROBI']
+        for solver in [options['solver']]
         for periods in [10, 30, 50]
     ]
 

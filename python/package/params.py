@@ -2,7 +2,10 @@ import os
 import datetime as dt
 
 # TODO: TEMP not sure why python doesn't find the ENV VAR from bash.bashrc
-os.environ['LD_LIBRARY_PATH'] = os.environ['GUROBI_HOME'] + "/lib"
+if 'GUROBI_HOME' in os.environ:
+    if 'LD_LIBRARY_PATH' not in os.environ:
+        os.environ['LD_LIBRARY_PATH'] = ""
+    os.environ['LD_LIBRARY_PATH'] += os.environ['GUROBI_HOME'] + "/lib"
 
 
 path_root = '/home/pchtsp/Documents/projects/'
