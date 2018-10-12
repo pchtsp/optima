@@ -19,7 +19,7 @@ path_root = PATHS['root']
 path_abs = PATHS['experiments']
 path_img = PATHS['img']
 path_latex = PATHS['latex']
-
+path_results = PATHS['results']
 
 # here we get some data inside
 def task_table():
@@ -84,21 +84,9 @@ def remaining_graph():
 def get_results_table(path_abs, exp_list=None, **kwargs):
     exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
     table = pd.DataFrame.from_dict(exps, orient="index")
-    # table = table[np.all((table.model == 'no_states',
-    #                       table.gap == 0,
-    #                       table.timeLimit >= 500,
-    #                       table.solver == 'CPLEX'),
-    #                      axis=0)]
 
-    # Changed the logic to a fix set of results.
-    # This makes it possible to recover the original results
-    if exp_list is None:
-        exp_list = [
-            '201801141705', '201801141331', '201801141334', '201801141706',
-            '201801141646', '201801131813', '201801102127', '201801131817',
-            '201801141607', '201801102259'
-        ]
-    table = table.loc[exp_list]
+    if exp_list is not None:
+        table = table.loc[exp_list]
     table = table.sort_values(['tasks', 'periods']).reset_index()
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
@@ -110,6 +98,15 @@ def results_table(dir_origin=path_abs, dir_dest=path_latex + 'MOSIM2018/tables/'
     ################################################
     # Instances and Results table
     ################################################
+    # Changed the logic to a fix set of results.
+    # This makes it possible to recover the original results
+    # if exp_list is None:
+    if exp_list is None:
+        exp_list = [
+            '201801141705', '201801141331', '201801141334', '201801141706',
+            '201801141646', '201801131813', '201801102127', '201801131817',
+            '201801141607', '201801102259'
+        ]
     table = get_results_table(dir_origin, exp_list=exp_list)
 
     # pp.pprint(exps)
@@ -566,14 +563,35 @@ def tests():
     pp.pprint(exps["7"])
 
 
+def get_simmulation_results():
+
+    cols_rename = {
+        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
+                   'gap_out': 'gap (\%)', 'bound_out': 'bound'
+                   }
+    path_exps = path_results + "simulated_data"
+    exps = [os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)]
+    # path_abs = os.path.join()
+    # cplex_results = get_results_table(path_abs)
+    gurobi_results = [get_results_table(v) for v in exps]
+    # df_cplex = cplex_results.rename(columns=cols_rename)[list(cols_rename.values())]
+    df_gurobi = [d.rename(columns=cols_rename)[list(cols_rename.values())] for d in gurobi_results]
+    # print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    for k, df in enumerate(df_gurobi):
+        print(os.path.basename(os.path.split(exps[k])[0]))
+        print(df.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+
+
+
+
 if __name__ == "__main__":
 
-    path, _ = os.path.split(path_abs)
-    path, _ = os.path.split(path)
-    path = os.path.join(path, 'MOSIM2018_new_model')
-    exp_list = [d for d in os.listdir(path) if d.startswith('2018')]
-    dir_dest = "/home/pchtsp/Documents/projects/OPTIMA/R/presentations/CLAIO_presentation/"
-    results_table(dir_dest=dir_dest, dir_origin=path, exp_list=exp_list)
+    # path, _ = os.path.split(path_abs)
+    # path, _ = os.path.split(path)
+    # path = os.path.join(path, 'MOSIM2018_new_model')
+    # exp_list = [d for d in os.listdir(path) if d.startswith('2018')]
+    # dir_dest = "/home/pchtsp/Documents/projects/OPTIMA/R/presentations/CLAIO_presentation/"
+    # results_table(dir_dest=dir_dest, dir_origin=path, exp_list=exp_list)
 
     # results_table()
     # remaining_graph()
@@ -591,4 +609,6 @@ if __name__ == "__main__":
     # multiobjective_table()
     # table = get_results_table(path_abs)
     # solvers_comp()
+
+    get_simmulation_results()
     pass
