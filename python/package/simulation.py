@@ -106,9 +106,9 @@ def create_dataset(options):
 
     t_capacites = {k: {v} for k, v in t_type.items()}
     optionals = list(st.ascii_uppercase)[::-1]
-    for task in t_capacites:
+    for _task in t_capacites:
         if rn.random() < 0.10:
-            t_capacites[task].add(optionals.pop())
+            t_capacites[_task].add(optionals.pop())
 
 
     d_tasks = data_input['tasks'] = sd.SuperDict({
@@ -121,7 +121,7 @@ def create_dataset(options):
                 , 'matricule': ''  # this is aesthetic
                 , 'min_assign': rn.choice(t_min_assign)
                 , 'capacities': list(t_capacites[t])
-            } for t in range(task)
+            } for t in t_start
         })
 
     period_type_num_resource = {
@@ -149,7 +149,7 @@ def create_dataset(options):
     # we do this by iterating over tasks and trying to complete the partially able resources.
     # We will start with the tasks that demand the most capacities
     task_content = sorted(d_tasks.items(), key=lambda x: - len(x[1]['capacities']))
-    for task, contents in task_content:
+    for _task, contents in task_content:
         _capacities = set(contents['capacities'])
         _t_type = contents['type_resource']
         _resources = contents['num_resource']
