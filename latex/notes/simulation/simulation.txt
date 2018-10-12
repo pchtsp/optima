@@ -3,7 +3,7 @@ title: "Simulations"
 date: "August 28, 2018"
 ---
 
-## Scenario data modelling
+## Scenario data modeling
 
 Values separated by commas imply there is a discrete option between one value and the other. Values separated by dashes imply an integer range between the two values. Unless specified, all values are generated using a **uniform random distribution** for continuous values or a random sampling with replacement for integer values.
 
@@ -14,47 +14,51 @@ Values separated by commas imply there is a discrete option between one value an
 |Code|Parameter | Value | 
 |----|----|----|
 |$\mid I \mid$|Number of resources\*             | 10, 30, 50, 130, 150, 200|
-|$\mid J \mid$|Total number of tasks\*    | 4, 6, 8                 |
+|$\mid J \mid$|Total number of parallel tasks\*  | 1, 2, 3                 |
 |$\mid T \mid$ |Number of periods\*               | 60, 90, 120, 180        |
-|$\mid Y \mid$|Number of types\*                    | 1 - 5                   |
-|$\mid Q \mid$|Number of standards per type\*       | 1 - 3                   |
-|$C^{perc}$|Maintenance capacity (percentage)\*                    | 0.10, 0.15, 0.2      |
+<!-- |$\mid Y \mid$|Number of types\*                    | 1 - 5                   | -->
+<!-- |$\mid Q \mid$|Number of standards per type\*       | 1 - 3                   | -->
+|$C^{perc}$|Maintenance capacity (percentage)\*    | 0.10, 0.15, 0.2      |
 |$C^{max}$|Maintenance capacity                    | $\lceil C^{perc} \times \mid I \mid \rceil$      |
 
 ### Maintenances
 
 |Code|Parameter | Value | 
 |----|----|----|
-|$E^{M}$|Time limit in periods\*    |  40, 60, 80             |
-|$E^{m}$|Time limit in periods\*    | $(E^{M} - 20)$            |
-|$H^{M}$|Flight hours limit\*       | 800, 1000, 1200         |
-|$M$|Maintenance duration\*     | 4, 6, 8                 |
+|$E^{M}$|Time limit in periods\*    |  40, 60, 80      |
+|$E^{s}$|Time limit window\*        |  20, 30          |
+|$E^{m}$|Time limit in periods    | $(E^{M} - E^{s})$  |
+|$H^{M}$|Flight hours limit\*       | 800, 1000, 1200  |
+|$M$|Maintenance duration\*     | 4, 6, 8              |
 
 ### Tasks
 
 |Code|Parameter | Value |
 |----| ---- | ---- | 
-|$MT_j$     |Minimum assignment (periods)   | 2, 3, 6              |
-|           |Start (periods)                | 6 - 36               |
-|$\mid {T}_j \mid$|Duration (periods)             | 12 - 36               |
-|$R_j$      |Number of required resources   | 2 - 5                |
-|$H_j$      |Number of required hours       | 50, 60, 70, 80       |
-|$Y_j$      |Type                             | choice                     |
-|$Q_j$      |Standard                         | choice                     |
+|$MT_j$     |Minimum assignment (periods)   | 2, 3, 6 |
+<!-- |           |Start (periods)           | 6 - 36 | -->
+|$\mid {T}_j \mid$|Duration (periods)       | 6 - 12 |
+|$R_j$      |Number of required resources   | 2 - 5 |
+|$H_j$      |Number of required hours       | triangular(30, 50, 80) |
+|$Y_j$      |Type                           | choice 1|
+|$Q_j$      |Standard                       | 10% chance |
 
-On the other hand, every resource will, when not assigned a task and not in maintenance, consume the following amount of hours each month.
+The total number of types of tasks corresponds to the number of parallel tasks one can allow in order to guarantee that, at any moment in time there is only one active task for each type.
+
+The required hours are generated using a triangular distribution between 30 and 80 with a mode of 50 and rounded down to the closest integer value. This way, we try to have values closer to the mode than to the extremes.
+
+More detail on types and standards is commented in *Task-resource compatibility*.
 
 |Code|Parameter | Training |
 |----| ---- | ---- | 
-|$R^{min}_j$|Number of required hours   | 15 - 25|
+|$R^{min}_j$|Number of required hours\*   | 15 - 25|
 
 ### Tasks durations and start
 
 In order to have credible tasks created, the following logic has been thought; assuming there are N tasks at any given moment:
 
 1. At the beginning we create N tasks with random durations and their other corresponding parameters.
-2. Every time a task ends, we create a new task with, possibly, different parameters.
-3. Possible check: that there's enough resources for all the needs generated at every step.
+2. Every time a task ends, we create a new task with new random parameters.
 
 This guarantees that there is *always* N tasks active at any given time. The durations and characteristics however, change over time.
 
@@ -62,31 +66,35 @@ This guarantees that there is *always* N tasks active at any given time. The dur
 
 |Code|Parameter | Value |
 |----|----|----|
-|$Y_i$           |Type                           | choice                     |
-|$Q_i$           |Standard                       | choice                     |
+|$Y_i$           |Type     | choice |
+|$Q_i$           |Standards| choice |
 
 ### Fleet initial state
 
 |Code|Parameter | Value |
 |----|----|----|
-| $N$ |Number of resources in maintenance    | 0 - $C^{max}$|
+| $NP$ |Percent of resources starting in maintenance.\* | $0 - C^{max}$|
+| $N$ |Number of resources in maintenance.    | $\mid I \mid \times NP$|
 | $A_j$ |Number of resources under task $j$  | 0 - $R_j$|
-| $At_j$ |Number of periods under task $j$  | 0 - $MT_j$|
+| $At_j$ |Number of periods to do under task $j$  | 0 - $MT_j$|
 |$Ret^{Init}_{i}$|Remaining elapsed periods      | 0 - $E^{M}$ |
-|$Ret^{I2}_i$|Remaining elapsed periods      | $Ret^{Init}_{i}$ + [-6 - 6] |
+|$Ret^{I2}_i$|Remaining elapsed periods + noise  | $Ret^{Init}_{i}$ + [-3 - 3] |
 |$Rut^{Init}_{i}$|Remaining usage hours          | $Ret^{I2}_i \frac{H^{M}}{E^{M}}$ |
 |$N_i$           |Remaining maintenance months    | 0 - $M$     |
 
-The initial state of the fleet will be simulated according to the following rule:
+The initial state of the fleet will be simulated according to the following rules.
 
-* $N$ resources will be taken randomly from the set of resources (we will call it set $I$).
-* For these resources, the $N_i$ will be calculated. This number will be generated randomly from $M$, the maintenance duration.
+To obtain the resources $I$ that are in maintenance:
+
+* $N$ resources will be taken randomly from the set of resources.
+* For these resources, the $N_i$ will be calculated. This number will be generated randomly between 0 and $\mid M \mid$.
 
 For the rest $I - N$ resources that are not in maintenance:
 
-* $Ret^{Init}_{i}$ and $Rut^{Init}_{i}$ will be calculated. These two values are correlated. So, this implies creating random noise over lthe first one ($Ret^{I2}_i$) and then creating the second one from this adjusted value. This taken care not to get below or above the limits.
+* $Ret^{Init}_{i}$ and $Rut^{Init}_{i}$ will be calculated. These two values are correlated. So, this implies creating random noise over the first one ($Ret^{I2}_i$) and then creating the second one from this adjusted value. This taken care not to get below or above the limits.
 * $A_j$ resources will be taken and assigned to task $j$ with a random $At_j$ remaining assignment time. The number of resources will be randomly generated from $R_j$ and the remaining assignment time will be taken from $MT_j$.
 
+The resources $A_j$ that need to do tasks are given a greater initial remaining elapsed time in order to let them finish their task in the initial periods.
 
 ### Task-resource compatibility
 
@@ -94,15 +102,23 @@ There's going to be two configurations of compatibility. In the first case, all 
 
 The second implies generating random types and standards for each resource and task. In order to have a meaningful instance, a correct methodology needs to be followed.
 
+A standard is represented by the need of a specific subtype in order to do the task. This subtype is not shared with any other task. In other words, the standards are unique and are specific to each type. There are, many actually, tasks that have no standard requirement.
+
+On the other hand, every resource will, when not assigned a task and not in maintenance, consume the following amount of hours each month.
+
 Regarding tasks:
 
 1. For each task, a type $Y_j \in Y$ and a standard $Q_j \in Q$ will be assigned.
 2. A minimum number of resources of each type is calculated based on $\sum_{\{j \in J \mid Y_j=y\}} R_j \,,\forall y$.
 
-Regarding resources:
+Regarding resources, in order to guarantee some minimal number of resources to comply with tasks, the following logic is being used:
 
-1. For each type, a number of resources with type $Y_i \in Y$ is randomly generated based on this minimum.
-2. Similarly, a number of resources of standard $Q_i \in Q$ is randomly generated based on a similar minimum. Here, it's important to notice that since standards are cumulative, resources of standard $q$ can do tasks of standards $\{q' \in Q \mid q' <= q\}$ (e.g. resources of standard 1 can only do tasks of standards [0, 1]).
+1. Calculate the maximum need for each type of resource in the whole planning horizon.
+2. Assign at least this number of resources to each type.
+3. For the rest of resources, choose some random type, but weighting types that have a greater maximal need of resources.
+
+In order to guarantee some minimal number of resources per standard, we need to guarantee there are, for each task the number of capable resources for that task is two times the number of needed resources. In order for a resource to be capable, it needs to have the same type as the task and include the required standard in its set of Standards. A resources can have multiple standards and therefor be assigned to several missions, as long as they share the same type.
+
 
 ## Instances and experimentation
 
