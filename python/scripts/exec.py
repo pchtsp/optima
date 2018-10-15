@@ -11,6 +11,7 @@ import argparse
 import package.heuristics as heur
 import package.simulation as sim
 import package.superdict as sd
+import datetime as dt
 
 
 def config_and_solve(params):
@@ -87,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument('-c', dest='file', default="package.params",
                         help='config file (default: package.params)')
     parser.add_argument('-d', '--options', dest='config_dict', type=json.loads)
+    parser.add_argument('-p', '--paths', dest='paths_dict', type=json.loads)
 
     args = parser.parse_args()
     # if not os.path.exists(args.file):
@@ -96,6 +98,11 @@ if __name__ == "__main__":
     params = importlib.import_module(args.file)
     if args.config_dict:
         params.OPTIONS.update(args.config_dict)
+
+    if args.paths_dict:
+        params.PATHS.update(args.paths_dict)
+        params.OPTIONS['path'] = \
+            os.path.join(params.PATHS['experiments'], dt.datetime.now().strftime("%Y%m%d%H%M") ) + '/'
 
     # import package.params as params
     config_and_solve(params)
