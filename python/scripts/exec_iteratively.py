@@ -31,12 +31,12 @@ if __name__ == "__main__":
     case_data = [{
         'num_period': periods,
         'num_parallel_tasks': num_tasks,
-        'num_resources': num_tasks * 30,
+        'num_resources': num_tasks * 20,
         # 'solver': solver,
         'name': 'task_periods_solv_minusage_{}_{}_{}_{}/'.format(num_tasks, periods, solver, min_usage),
         'min_usage_period': min_usage
     }
-        for num_tasks in range(1, 2)
+        for num_tasks in range(1, 3)
         for solver in [options['solver']]
         for periods in [18, 24]
         for min_usage in [0, 20]
