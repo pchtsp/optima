@@ -33,13 +33,14 @@ if __name__ == "__main__":
         'num_parallel_tasks': num_tasks,
         'num_resources': num_tasks * 20,
         # 'solver': solver,
-        'name': 'task_periods_solv_minusage_{}_{}_{}_{}/'.format(num_tasks, periods, solver, min_usage),
-        'min_usage_period': min_usage
+        'name': 'task_periods_minusage_pricerutend_{}_{}_{}_{}/'.format(num_tasks, periods, min_usage, price_rut_end),
+        'min_usage_period': min_usage,
+        'price_rut_end': price_rut_end
     }
         for num_tasks in range(1, 3)
-        for solver in [options['solver']]
         for periods in [18, 24]
         for min_usage in [0, 20]
+        for price_rut_end in [0, 1]
     ]
 
     for case in case_data:
