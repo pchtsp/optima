@@ -31,16 +31,17 @@ if __name__ == "__main__":
     case_data = [{
         'num_period': periods,
         'num_parallel_tasks': num_tasks,
-        'num_resources': num_tasks * 20,
+        'num_resources': num_tasks * res_per_task,
         # 'solver': solver,
-        'name': 'task_periods_minusage_pricerutend_{}_{}_{}_{}/'.format(num_tasks, periods, min_usage, price_rut_end),
+        'name': 'task_periods_minusage_pricerutend_respertask_{}_{}_{}_{}_{}/'.format(num_tasks, periods, min_usage, price_rut_end, res_per_task),
         'min_usage_period': min_usage,
         'price_rut_end': price_rut_end
     }
         for num_tasks in range(1, 3)
-        for periods in [18, 24]
+        for periods in [18, 24, 60]
         for min_usage in [0, 20]
         for price_rut_end in [0, 1]
+        for res_per_task in [15, 30]
     ]
 
     for case in case_data:
