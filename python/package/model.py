@@ -27,6 +27,7 @@ def solve_model(instance, options=None):
     # (different) price for each assignment:
     price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
     # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+    price_rut_end = options.get('price_rut_end', 1)
 
     # Sometimes we want to force variables to be integer.
     var_type = pl.LpContinuous
@@ -77,14 +78,15 @@ def solve_model(instance, options=None):
     #     model += objective
     #     model += objective >= num_maint * max_usage - rut_obj_var
     # else:
-    model +=  num_maint * max_usage - rut_obj_var + \
-             1 * pl.lpSum(assign_st * price_assign[a, v]
-                          for (a, v, t), assign_st in start_T.items()) + \
-             1000000 * pl.lpSum(slack_vt.values()) +\
-             1000 * pl.lpSum(slack_at.values()) +\
-             10000 * pl.lpSum(slack_kt_num.values()) + \
-             1000 * pl.lpSum(slack_kt_hours.values()) + \
-             1000000 * pl.lpSum(slack_t.values())
+    model +=  num_maint * max_usage + \
+              - price_rut_end * rut_obj_var + \
+              1 * pl.lpSum(assign_st * price_assign[a, v]
+                           for (a, v, t), assign_st in start_T.items()) + \
+              1000000 * pl.lpSum(slack_vt.values()) +\
+              1000 * pl.lpSum(slack_at.values()) +\
+              10000 * pl.lpSum(slack_kt_num.values()) + \
+              1000 * pl.lpSum(slack_kt_hours.values()) + \
+              1000000 * pl.lpSum(slack_t.values())
 
     # To try Kozanidis objective function:
     # we sum the rut for all periods (we take out the periods under maintenance)

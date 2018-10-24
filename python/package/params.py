@@ -43,6 +43,7 @@ OPTIONS = {
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
     , 'writeLP': True
     , 'writeMPS': False
+    , 'price_rut_end': 1
     , 'simulation': {
         'num_resources': 70
         , 'num_parallel_tasks': 3

@@ -87,6 +87,8 @@ def get_results_table(path_abs, exp_list=None, **kwargs):
 
     if exp_list is not None:
         table = table.loc[exp_list]
+    if not len(table):
+        return table
     table = table.sort_values(['tasks', 'periods']).reset_index()
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
@@ -563,19 +565,20 @@ def tests():
     pp.pprint(exps["7"])
 
 
-def get_simmulation_results():
+def get_simulation_results(experiment):
 
     cols_rename = {
         'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
                    'gap_out': 'gap (\%)', 'bound_out': 'bound'
                    }
-    path_exps = path_results + "simulated_data"
+    path_exps = path_results + experiment
     exps = [os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)]
     # path_abs = os.path.join()
     # cplex_results = get_results_table(path_abs)
     gurobi_results = [get_results_table(v) for v in exps]
     # df_cplex = cplex_results.rename(columns=cols_rename)[list(cols_rename.values())]
-    df_gurobi = [d.rename(columns=cols_rename)[list(cols_rename.values())] for d in gurobi_results]
+    df_gurobi = [d.rename(columns=cols_rename)[list(cols_rename.values())] for d in gurobi_results
+                 if len(d) > 0]
     # print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
     for k, df in enumerate(df_gurobi):
         print(os.path.basename(os.path.split(exps[k])[0]))
@@ -610,5 +613,5 @@ if __name__ == "__main__":
     # table = get_results_table(path_abs)
     # solvers_comp()
 
-    get_simmulation_results()
+    get_simulation_results("prise_20181015")
     pass

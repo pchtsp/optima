@@ -77,7 +77,7 @@ https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.or
 
 `exec_iteratively` and `exec.py` both accept json-styled options. They replace the default parameters.
 
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}"
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/prise_20181012/\"}" -d "{\"solver\": \"GUROBI\"}"
-    python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}"
+    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}" > log.txt &
+    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
+    python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
 

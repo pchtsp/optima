@@ -133,10 +133,10 @@ class LogFile(object):
 
     def get_first_results(self):
         progress = self.get_progress()
-        df_filter = progress.CutsBestBound.apply(lambda x: re.search(r"^\s*\d", x) is not None)
-        first_relax = float(progress.CutsBestBound[df_filter][0])
+        df_filter = progress.CutsBestBound.apply(lambda x: re.search(r"^\s*{}$".format(self.number), x) is not None)
+        first_relax = float(progress.CutsBestBound[df_filter].iloc[0])
 
-        df_filter = progress.BestInteger.str.match(r"^\s*\d")
+        df_filter = progress.BestInteger.str.match(r"^\s*{}$".format(self.number))
         first_solution = "-"
         if len(df_filter) > 0:
             first_solution = float(progress.BestInteger[df_filter].iloc[0])

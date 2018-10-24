@@ -6,6 +6,7 @@ import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
 import package.superdict as sd
+import scripts.exec as exec
 import package.model as md
 
 # '201801141334' vs '201802061201 vs '201802061434'
@@ -23,12 +24,13 @@ def test1():
 
 def test2():
     # e = '201809121711'
-    e = '201809131542'
+    e = '201810041046'
     experiment = exp.Experiment.from_dir(PATHS['experiments'] + e)
     experiment.set_remaining_usage_time('ret')
     # experiment.get_status('0')
     # pp.pprint(experiment.solution.data['aux']['start_T'])
     # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
+
     checks = experiment.check_solution()
     checks.keys()
     pp.pprint(checks['resources'])
@@ -40,7 +42,7 @@ def test2():
 
 
 def test555():
-    e = 'simulated_data/2_task/201809180941/'
+    e = 'simulated_data/1_task_types/201810051247/'
     experiment = exp.Experiment.from_dir(PATHS['results'] + e)
     instance = experiment.instance
     options = di.load_data(PATHS['results'] + e + 'options.json')
@@ -79,6 +81,21 @@ def test4():
         sort_values(['tasks', 'periods'])
 
     pass
+
+def test444():
+    input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
+    input_data['resources']['12']
+    input_data['tasks']['3']
+    [r for r in input_data['resources'].values() if 'C' in r['capacities']]
+
+
+def test111():
+    path = PATHS['results'] + 'simulated_data/1_task_types_capa_slack/201810090924/'
+    new_options = {'gap': 1}
+    new_options =  {'slack_vars': 'No', 'gap': 1}
+    new_options = None
+    exec.re_execute_instance(path, new_options)
+
     # backup = copy.deepcopy(heur_obj.solution.data['aux']['ret'])
 
     # check = heur_obj.check_solution()
@@ -133,5 +150,5 @@ def test3():
 
 
 if __name__ == '__main__':
-    # test2()
+    test111()
     pass

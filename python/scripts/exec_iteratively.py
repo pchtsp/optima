@@ -3,7 +3,6 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import scripts.exec as exec
 import datetime as dt
-import time
 import package.superdict as sd
 import argparse
 
@@ -34,11 +33,13 @@ if __name__ == "__main__":
         'num_parallel_tasks': num_tasks,
         'num_resources': num_tasks * 30,
         # 'solver': solver,
-        'name': 'task_periods_solv_{}_{}_{}/'.format(num_tasks, periods, solver)
+        'name': 'task_periods_solv_minusage_{}_{}_{}_{}/'.format(num_tasks, periods, solver, min_usage),
+        'min_usage_period': min_usage
     }
-        for num_tasks in range(1, 4)
+        for num_tasks in range(1, 2)
         for solver in [options['solver']]
-        for periods in [10, 30, 50]
+        for periods in [18, 24]
+        for min_usage in [0, 20]
     ]
 
     for case in case_data:
