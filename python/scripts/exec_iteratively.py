@@ -65,10 +65,10 @@ if __name__ == "__main__":
             options['path'] = path_instance
             try:
                 exec.config_and_solve(params)
-            except:
+            except Exception as e:
                 if not os.path.exists(path_instance):
                     os.mkdir(path_instance)
-                str_fail = "Unexpected error in case: \n{}".format(sys.exc_info()[0])
+                str_fail = "Unexpected error in case: \n{}".format(repr(e))
                 with open(path_instance + 'failure.txt', 'w') as f:
                     f.write(str_fail)
             # time.sleep(60)
