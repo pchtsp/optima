@@ -572,20 +572,28 @@ def get_simulation_results(experiment):
                    'gap_out': 'gap (\%)', 'bound_out': 'bound'
                    }
     path_exps = path_results + experiment
-    exps = [os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)]
-    # path_abs = os.path.join()
-    # cplex_results = get_results_table(path_abs)
-    gurobi_results = [get_results_table(v) for v in exps]
-    # df_cplex = cplex_results.rename(columns=cols_rename)[list(cols_rename.values())]
-    df_gurobi = [d.rename(columns=cols_rename)[list(cols_rename.values())] for d in gurobi_results
-                 if len(d) > 0]
+    exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
+
+    results_list = {k: get_results_table(v) for k, v in exps.items()}
+    df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
+               if len(df) > 0}
+    return df_list
     # print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
-    for k, df in enumerate(df_gurobi):
-        print(os.path.basename(os.path.split(exps[k])[0]))
+
+
+def sim_list_to_md(df_list):
+    for k, df in df_list.items():
+        print(k)
         print(df.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 
-
+def sim_list_to_tt(df_list):
+    t = pd.concat(df_list).reset_index()
+    t2 = pd.concat(
+        [t.loc[:, t.columns != 'level_0'],
+        t.level_0.str.split('_', expand=True).iloc[:, 5:]],
+        axis=1
+    )
 
 if __name__ == "__main__":
 
@@ -613,5 +621,5 @@ if __name__ == "__main__":
     # table = get_results_table(path_abs)
     # solvers_comp()
 
-    get_simulation_results("prise_20181015")
+    get_simulation_results("clust1_20181024")
     pass
