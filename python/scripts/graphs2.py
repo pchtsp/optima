@@ -589,11 +589,20 @@ def sim_list_to_md(df_list):
 
 def sim_list_to_tt(df_list):
     t = pd.concat(df_list).reset_index()
+    indeces = t.level_0.str.split('_', expand=True)
     t2 = pd.concat(
         [t.loc[:, t.columns != 'level_0'],
-        t.level_0.str.split('_', expand=True).iloc[:, 5:]],
+         indeces.iloc[:, 5:]],
         axis=1
     )
+
+    cols_rename = {a+5: b for a, b in enumerate(indeces.iloc[0, :5])}
+    # t2
+    t2.groupby([n for n in range(5, 10)]).\
+        agg({'time (s)': ['median', 'max', 'min'], 'gap (\%)': ['median', 'max', 'min']}).\
+        reset_index().\
+        rename(columns=cols_rename)
+    print(t2.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 if __name__ == "__main__":
 
@@ -621,5 +630,5 @@ if __name__ == "__main__":
     # table = get_results_table(path_abs)
     # solvers_comp()
 
-    get_simulation_results("clust1_20181024")
+    df_list = get_simulation_results("clust1_20181024")
     pass
