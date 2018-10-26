@@ -363,37 +363,39 @@ def clean_experiments(path, clean=True, regex=""):
     return exps_to_delete
 
 
-def exp_get_info(path, get_log_info=True):
-    exp = Experiment.from_dir(path, format="json")
-    if exp is None:
-        exp = Experiment.from_dir(path, format="pickle")
-    if exp is None:
-        return None
+def exp_get_info(path, get_log_info=True, get_exp_info=True):
+    # print(path)
+    parameters = log_info = inst_info = {}
+    if get_exp_info:
+        exp = Experiment.from_dir(path, format="json")
+        if exp is None:
+            exp = Experiment.from_dir(path, format="pickle")
+        if exp is None:
+            return None
+        parameters = exp.instance.get_param()
+        inst_info = exp.instance.get_info()
     options_path = os.path.join(path, "options.json")
     options = di.load_data(options_path)
     if not options:
         return None
     log_path = os.path.join(path, "results.log")
-    log_info = {}
     if os.path.exists(log_path) and get_log_info:
         log_results = log.LogFile(log_path)
         if options['solver'] == 'CPLEX':
             log_info = log_results.get_log_info_cplex()
         elif options['solver'] == 'GUROBI':
             log_info = log_results.get_log_info_gurobi()
-    parameters = exp.instance.get_param()
-    inst_info = exp.instance.get_info()
     return {**parameters, **options, **log_info, **inst_info}
 
 
-def list_experiments(path, exp_list=None, get_log_info=True):
+def list_experiments(path, exp_list=None, **kwags):
     if exp_list is None:
         exp_list = os.listdir(path)
     exps_paths = [os.path.join(path, f) for f in exp_list
                   if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
-        info = exp_get_info(e, get_log_info)
+        info = exp_get_info(e, **kwags)
         if info is None:
             continue
         directory = os.path.basename(e)

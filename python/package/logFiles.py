@@ -51,11 +51,14 @@ class LogFile(object):
         """
         :return: tuple of length 2
         """
-        regex = r'MIP\s+-\s+{1}.*:\s+Objective\s+=\s+{0}\n'.format(self.numberSearch, self.wordSearch)
+        regex = r'MIP\s+-\s+{1}(.*:\s+Objective\s+=\s+{0}\n)?'.format(self.numberSearch, self.wordSearch)
         result = self.apply_regex(regex, flags=re.MULTILINE)
-        if result is None:
-            return None, None
-        return result[0], float(result[1])
+        status, obj = None, None
+        if result is not None:
+            status = result[0]
+            if result[2] != '':
+                obj = float(result[2])
+        return status, obj
 
     def get_gap(self):
         """
@@ -117,28 +120,31 @@ class LogFile(object):
         df_filter = np.all((progress.Node.str.match(r"^\*?\s*0"),
                             progress.NodesLeft.str.match(r"^\+?\s*2")),
                            axis=0)
-        sol_value = progress.BestInteger.iloc[-1]
-        relax_value = progress.CutsBestBound.iloc[-1]
-        sol_after_cuts = None
-        relax_after_cuts = None
+        sol_value = relax_value = None
+        if len(progress.BestInteger) > 0:
+            sol_value = progress.BestInteger.iloc[-1]
+        if len(progress.CutsBestBound) > 0:
+            relax_value = progress.CutsBestBound.iloc[-1]
 
+        sol_after_cuts = relax_after_cuts = None
         if np.any(df_filter):
             sol_value = progress.BestInteger[df_filter].iloc[0]
             relax_value = progress.CutsBestBound[df_filter].iloc[0]
-        if re.search(r'\s*\d', sol_value):
+        if sol_value and re.search(r'\s*\d', sol_value):
             sol_after_cuts = float(sol_value)
-        if re.search(r'\s*\d', relax_value):
+        if relax_value and re.search(r'\s*\d', relax_value):
             relax_after_cuts = float(relax_value)
         return relax_after_cuts, sol_after_cuts
 
     def get_first_results(self):
+        first_solution = first_relax = None
         progress = self.get_progress()
         df_filter = progress.CutsBestBound.apply(lambda x: re.search(r"^\s*{}$".format(self.number), x) is not None)
-        first_relax = float(progress.CutsBestBound[df_filter].iloc[0])
+        if len(df_filter) > 0 and any(df_filter):
+            first_relax = float(progress.CutsBestBound[df_filter].iloc[0])
 
         df_filter = progress.BestInteger.str.match(r"^\s*{}$".format(self.number))
-        first_solution = "-"
-        if len(df_filter) > 0:
+        if len(df_filter) > 0 and any(df_filter):
             first_solution = float(progress.BestInteger[df_filter].iloc[0])
         return first_relax, first_solution
 
@@ -173,6 +179,7 @@ class LogFile(object):
         first_relax, first_solution = self.get_first_results()
 
         return {
+            'status': status,
             'bound_out': bound,
             'objective_out': objective,
             'gap_out': gap_rel,
@@ -235,12 +242,18 @@ if __name__ == "__main__":
 
     exps = ['201801141705']
     # exps = ['201801102259']
-    for e in exps:
-        path = os.path.join(route, e, 'results.log')
-        log = LogFile(path)
-        result = log.get_log_info_cplex()
-        pp.pprint(result)
+    # for e in exps:
+    #     path = os.path.join(route, e, 'results.log')
+    #     log = LogFile(path)
+    #     result = log.get_log_info_cplex()
+    #     pp.pprint(result)
     #
     # re.search(r"\s*\d", result.CutsBestBound[1])
-
+    path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_0_15/201810252139/results.log'
+    path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_1_15/201810260322/results.log'
+    path = '/home/pchtsp/Dropbox/OPTIMA_results/clust1_20181024/task_periods_minusage_pricerutend_respertask_1_60_20_1_15/201810261129/results.log'
+    # path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_0_15/201810252139_1/results.log'
+    log = LogFile(path)
+    info = log.get_log_info_cplex()
+    info['status']
     # status, objective = log.get_objective()

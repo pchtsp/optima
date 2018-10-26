@@ -27,7 +27,7 @@ PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 OPTIONS = {
     'timeLimit': 3600  # seconds
     , 'gap': 0
-    , 'solver': "GUROBI"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
     , 'memory': 15000
     , 'print': True
     , 'integer': False

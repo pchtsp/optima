@@ -89,7 +89,8 @@ def get_results_table(path_abs, exp_list=None, **kwargs):
         table = table.loc[exp_list]
     if not len(table):
         return table
-    table = table.sort_values(['tasks', 'periods']).reset_index()
+    # table = table.sort_values(['tasks', 'periods']).reset_index()
+    table.reset_index(inplace=True)
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
     table['index'] = ['I\_' + str(num) for num in table.index]
@@ -569,12 +570,12 @@ def get_simulation_results(experiment):
 
     cols_rename = {
         'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
-                   'gap_out': 'gap (\%)', 'bound_out': 'bound'
+                   'gap_out': 'gap (\%)', 'bound_out': 'bound', 'status': 'status'
                    }
     path_exps = path_results + experiment
     exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
 
-    results_list = {k: get_results_table(v) for k, v in exps.items()}
+    results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
     df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
                if len(df) > 0}
     return df_list
@@ -597,12 +598,17 @@ def sim_list_to_tt(df_list):
     )
 
     cols_rename = {a+5: b for a, b in enumerate(indeces.iloc[0, :5])}
-    # t2
-    t2.groupby([n for n in range(5, 10)]).\
-        agg({'time (s)': ['median', 'max', 'min'], 'gap (\%)': ['median', 'max', 'min']}).\
+    # sum(re.search('infeasible', t) is not None for t in t2.status)
+
+    def agg_no_int(x): return sum(re.search('no integer solution', t) is not None for t in x if t is not None)
+    def agg_infeas(x): return sum(re.search('infeasible', t) is not None for t in x if t is not None)
+
+    t3 = t2.groupby([n for n in range(5, 10)]).\
+        agg({'time (s)': ['median', 'max', 'min'], 'gap (\%)': ['median', 'max', 'min'],
+             'status': [agg_no_int, agg_infeas]}).\
         reset_index().\
         rename(columns=cols_rename)
-    print(t2.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print(t3.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 if __name__ == "__main__":
 
@@ -629,6 +635,7 @@ if __name__ == "__main__":
     # multiobjective_table()
     # table = get_results_table(path_abs)
     # solvers_comp()
-
-    df_list = get_simulation_results("clust1_20181024")
+    experiment = 'clust1_20181024'
+    # exp = "hp_20181025"
+    df_list = get_simulation_results(experiment)
     pass

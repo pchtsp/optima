@@ -37,9 +37,9 @@ if __name__ == "__main__":
         'min_usage_period': min_usage,
         'price_rut_end': price_rut_end
     }
-        for num_tasks in range(1, 3)
-        for periods in [18, 24, 60]
-        for min_usage in [0, 20]
+        for num_tasks in range(1, 2)
+        for periods in [90]
+        for min_usage in [0]
         for price_rut_end in [0, 1]
         for res_per_task in [15, 30]
     ]
