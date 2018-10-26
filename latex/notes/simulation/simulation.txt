@@ -3,25 +3,23 @@ title: "Simulations"
 date: "August 28, 2018"
 ---
 
-## Scenario data modeling
+# Scenario data modeling
 
 Values separated by commas imply there is a discrete option between one value and the other. Values separated by dashes imply an integer range between the two values. Unless specified, all values are generated using a **uniform random distribution** for continuous values or a random sampling with replacement for integer values.
 
 \* These values are deterministic, they are fixed in advance for the scenario.
 
-### Sets
+## Sets
 
 |Code|Parameter | Value | 
 |----|----|----|
 |$\mid I \mid$|Number of resources\*             | 10, 30, 50, 130, 150, 200|
 |$\mid J \mid$|Total number of parallel tasks\*  | 1, 2, 3                 |
 |$\mid T \mid$ |Number of periods\*               | 60, 90, 120, 180        |
-<!-- |$\mid Y \mid$|Number of types\*                    | 1 - 5                   | -->
-<!-- |$\mid Q \mid$|Number of standards per type\*       | 1 - 3                   | -->
 |$C^{perc}$|Maintenance capacity (percentage)\*    | 0.10, 0.15, 0.2      |
 |$C^{max}$|Maintenance capacity                    | $\lceil C^{perc} \times \mid I \mid \rceil$      |
 
-### Maintenances
+## Maintenances
 
 |Code|Parameter | Value | 
 |----|----|----|
@@ -31,12 +29,11 @@ Values separated by commas imply there is a discrete option between one value an
 |$H^{M}$|Flight hours limit\*       | 800, 1000, 1200  |
 |$M$|Maintenance duration\*     | 4, 6, 8              |
 
-### Tasks
+## Tasks
 
 |Code|Parameter | Value |
 |----| ---- | ---- | 
 |$MT_j$     |Minimum assignment (periods)   | 2, 3, 6 |
-<!-- |           |Start (periods)           | 6 - 36 | -->
 |$\mid {T}_j \mid$|Duration (periods)       | 6 - 12 |
 |$R_j$      |Number of required resources   | 2 - 5 |
 |$H_j$      |Number of required hours       | triangular(30, 50, 80) |
@@ -53,7 +50,7 @@ More detail on types and standards is commented in *Task-resource compatibility*
 |----| ---- | ---- | 
 |$R^{min}_j$|Number of required hours\*   | 15 - 25|
 
-### Tasks durations and start
+## Tasks durations and start
 
 In order to have credible tasks created, the following logic has been thought; assuming there are N tasks at any given moment:
 
@@ -62,14 +59,14 @@ In order to have credible tasks created, the following logic has been thought; a
 
 This guarantees that there is *always* N tasks active at any given time. The durations and characteristics however, change over time.
 
-### Fleet
+## Fleet
 
 |Code|Parameter | Value |
 |----|----|----|
 |$Y_i$           |Type     | choice |
 |$Q_i$           |Standards| choice |
 
-### Fleet initial state
+## Fleet initial state
 
 |Code|Parameter | Value |
 |----|----|----|
@@ -96,7 +93,7 @@ For the rest $I - N$ resources that are not in maintenance:
 
 The resources $A_j$ that need to do tasks are given a greater initial remaining elapsed time in order to let them finish their task in the initial periods.
 
-### Task-resource compatibility
+## Task-resource compatibility
 
 There's going to be two configurations of compatibility. In the first case, all resources will be able to do all tasks. This implies $\mid Y \mid=1$ and $\mid Q \mid=1$. 
 
@@ -120,7 +117,7 @@ Regarding resources, in order to guarantee some minimal number of resources to c
 In order to guarantee some minimal number of resources per standard, we need to guarantee there are, for each task the number of capable resources for that task is two times the number of needed resources. In order for a resource to be capable, it needs to have the same type as the task and include the required standard in its set of Standards. A resources can have multiple standards and therefor be assigned to several missions, as long as they share the same type.
 
 
-## Instances and experimentation
+# Instances and experimentation
 
 A scenario will consist on a single configuration of the parameters marked with an asterisk (\*).
 

@@ -1,7 +1,9 @@
 \documentclass[review]{elsarticle}
 
 \usepackage{lineno,hyperref}
-\modulolinenumbers[5]
+\usepackage[frenchb,english]{babel}
+\usepackage[latin1]{inputenc}
+% \modulolinenumbers[5]
 
 \journal{Journal of \LaTeX\ Templates}
 
@@ -41,44 +43,52 @@
 
 \begin{frontmatter}
 
-\title{Elsevier \LaTeX\ template\tnoteref{mytitlenote}}
-\tnotetext[mytitlenote]{Fully documented templates are available in the elsarticle package on \href{http://www.ctan.org/tex-archive/macros/latex/contrib/elsarticle}{CTAN}.}
+% \title{Elsevier \LaTeX\ template\tnoteref{mytitlenote}}
+\title{A new MIP model for the Flight and Maintenance Planning problem}
+% \tnotetext[mytitlenote]{Fully documented templates are available in the elsarticle package on \href{http://www.ctan.org/tex-archive/macros/latex/contrib/elsarticle}{CTAN}.}
 
 %% Group authors per affiliation:
-\author{Elsevier\fnref{myfootnote}}
-\address{Radarweg 29, Amsterdam}
-\fntext[myfootnote]{Since 1880.}
+% \author{Elsevier\fnref{myfootnote}}
+\author{Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin}
+\address{ISAE-SUPAERO, Université de Toulouse, France}
+% \fntext[myfootnote]{Since 1880.}
 
 %% or include affiliations in footnotes:
-\author[mymainaddress,mysecondaryaddress]{Elsevier Inc}
-\ead[url]{www.elsevier.com}
+% \institute{
+% ISAE-SUPAERO, Université de Toulouse, France \\
+% \email{\{franco.peschiera,alain.hait,olga.battaia,nicolas.dupin\}@isae-supaero.fr}
+% }
 
-\author[mysecondaryaddress]{Global Customer Service\corref{mycorrespondingauthor}}
-\cortext[mycorrespondingauthor]{Corresponding author}
-\ead{support@elsevier.com}
 
-\address[mymainaddress]{1600 John F Kennedy Boulevard, Philadelphia}
-\address[mysecondaryaddress]{360 Park Avenue South, New York}
+% \author[mysecondaryaddress]{Global Customer Service\corref{mycorrespondingauthor}}
+% \cortext[mycorrespondingauthor]{Corresponding author}
+% \ead{support@elsevier.com}
+
+% \address[mymainaddress]{1600 John F Kennedy Boulevard, Philadelphia}
+% \address[mysecondaryaddress]{360 Park Avenue South, New York}
 
 \begin{abstract}
 This template helps you to create a properly formatted \LaTeX\ manuscript.
 \end{abstract}
 
 \begin{keyword}
-\texttt{elsarticle.cls}\sep \LaTeX\sep Elsevier \sep template
-\MSC[2010] 00-01\sep  99-00
+optimization\sep planning\sep military\sep maintenance
+% \texttt{elsarticle.cls}\sep \LaTeX\sep Elsevier \sep template
+% \MSC[2010] 00-01\sep  99-00
 \end{keyword}
 
 \end{frontmatter}
 
-\linenumbers
+% \linenumbers
 
 \section{Introduction}
+
+\section{Complexity analysis}
 
 
 \section{Mathematical formulation}
 
-\section{Solution methodology}
+
 
 \section{Computational experiments}
 
@@ -86,7 +96,7 @@ This template helps you to create a properly formatted \LaTeX\ manuscript.
 
 \section{Acknowledgment}
 
-\section*{References}
+\section{References}
 
 \bibliography{mybibfile}
 
