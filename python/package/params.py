@@ -28,7 +28,7 @@ OPTIONS = {
     'timeLimit': 3600  # seconds
     , 'gap': 0
     , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
-    , 'memory': 15000
+    , 'memory': None
     , 'print': True
     , 'integer': False
     , 'black_list': ['O8', 'O10', 'O6']
@@ -43,7 +43,7 @@ OPTIONS = {
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
     , 'writeLP': True
     , 'writeMPS': False
-    , 'price_rut_end': 1
+    , 'price_rut_end': 0
     , 'simulation': {
         'num_resources': 70
         , 'num_parallel_tasks': 3
@@ -51,7 +51,7 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'min_usage_period': 20  # minimum consumption per period
+        , 'min_usage_period': 0  # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type

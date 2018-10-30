@@ -20,7 +20,7 @@ class Config(object):
             , 'solver': "GUROBI"
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
-            , 'memory': 25000
+            , 'memory': None
             , 'writeMPS': False
             , 'writeLP': False
         }
@@ -28,11 +28,16 @@ class Config(object):
         # the following merges the two configurations (replace into):
         options = {**default_options, **options}
 
+
         self.gap = options['gap']
         self.path = options['path']
         self.timeLimit = options['timeLimit']
         self.solver = options['solver']
-        self.memory = options['memory']
+
+        if options['memory'] is None:
+            self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
+        else:
+            self.memory = options['memory']
         self.writeMPS = options['writeMPS']
         self.writeLP = options['writeLP']
 
