@@ -34,7 +34,7 @@ OPTIONS = {
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
-    , 'num_period': 50
+    , 'num_period': 60
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
@@ -45,8 +45,8 @@ OPTIONS = {
     , 'writeMPS': False
     , 'price_rut_end': 0
     , 'simulation': {
-        'num_resources': 70
-        , 'num_parallel_tasks': 3
+        'num_resources': 15
+        , 'num_parallel_tasks': 1
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance

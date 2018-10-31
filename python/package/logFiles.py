@@ -60,6 +60,10 @@ class LogFile(object):
                 obj = float(result[2])
         return status, obj
 
+    @staticmethod
+    def status_is_infeasible(status):
+        return re.search('infeasible', status) is not None
+
     def get_gap(self):
         """
         :return: tuple of length 3: bound, absolute gap, relative gap

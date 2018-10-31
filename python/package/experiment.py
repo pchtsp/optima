@@ -369,8 +369,6 @@ def exp_get_info(path, get_log_info=True, get_exp_info=True):
     if get_exp_info:
         exp = Experiment.from_dir(path, format="json")
         if exp is None:
-            exp = Experiment.from_dir(path, format="pickle")
-        if exp is None:
             return None
         parameters = exp.instance.get_param()
         inst_info = exp.instance.get_info()

@@ -591,23 +591,25 @@ def sim_list_to_md(df_list):
 def sim_list_to_tt(df_list):
     t = pd.concat(df_list).reset_index()
     indeces = t.level_0.str.split('_', expand=True)
+    n_ind = len(indeces.columns)//2
     t2 = pd.concat(
         [t.loc[:, t.columns != 'level_0'],
-         indeces.iloc[:, 5:]],
+         indeces.iloc[:, n_ind:]],
         axis=1
     )
     t2['time (s)'] = t2['time (s)'].astype('float')
+    t2['gap (\%)'] = t2['gap (\%)'].astype('float')
 
-    cols_rename = {a+5: b for a, b in enumerate(indeces.iloc[0, :5])}
+    cols_rename = {a+n_ind: b for a, b in enumerate(indeces.iloc[0, :n_ind])}
     # sum(re.search('infeasible', t) is not None for t in t2.status)
 
     def agg_no_int(x): return sum(re.search('no integer solution', t) is not None for t in x
-                                  if t is not None)
+                                  if t is not None if not pd.isna(t))
     def agg_infeas(x): return sum(re.search('infeasible', t) is not None for t in x
-                                  if t is not None)
+                                  if t is not None if not pd.isna(t))
 
-    t3 = t2.groupby([n for n in range(5, 10)]).\
-        agg({'time (s)': ['mean', 'max', 'min'], 'gap (\%)': ['mean', 'max', 'min'],
+    t3 = t2.groupby([n for n in range(n_ind, n_ind*2)]).\
+        agg({'time (s)': ['median', 'max', 'min'], 'gap (\%)': ['median', 'max', 'min'],
              'status': [agg_no_int, agg_infeas], 'level_1': len}).\
         reset_index().\
         rename(columns=cols_rename)
@@ -640,8 +642,8 @@ if __name__ == "__main__":
     # multiobjective_table()
     # table = get_results_table(path_abs)
     # solvers_comp()
-    experiment = 'clust1_20181029'
-    # experiment = "hp_20181030"
+    experiment = 'clust1_20181030_2'
+    experiment = "hp_20181031"
     df_list = get_simulation_results(experiment)
     t3 = sim_list_to_tt(df_list)
     t3

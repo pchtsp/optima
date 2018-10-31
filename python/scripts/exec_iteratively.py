@@ -5,6 +5,7 @@ import scripts.exec as exec
 import datetime as dt
 import package.superdict as sd
 import argparse
+import re
 
 if __name__ == "__main__":
 
@@ -28,13 +29,13 @@ if __name__ == "__main__":
     options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
     sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
 
-    # case_options = {
-    #     'num_period': [60, 90],
-    #     'num_parallel_tasks': range(1, 4),
-    #     'min_usage_period': [0],
-    #     'price_rut_end': [0],
-    #     'maint_duration': [4, 6, 8]
-    # }
+    case_options = {
+        'maint_duration': [4, 8],
+        'max_used_time': [0.1, 0.2],
+        'max_elapsed_time': [800, 1200],
+        'elapsed_time_size': [40, 80],
+        'perc_capacity': [20, 40]
+    }
     # case_data = []
     # for op1, values1 in case_options.items():
     #     for v1 in values1:
@@ -45,35 +46,36 @@ if __name__ == "__main__":
     #                 _dict[op2] = v2
     #                 case_data.append(_dict)
     #
-    # case_data = [(k, vv) for k, v in case_options.items() for vv in v]
+    case_data = [{k: vv, 'name': '{}_{}'.format(re.sub('_', '', k), vv)} for k, v in case_options.items() for vv in v] + [{'name': 'base'}]
 
-    case_data = [{
-        'num_period': periods,
-        'num_parallel_tasks': num_tasks,
-        'num_resources': num_tasks * res_per_task,
-        # 'solver': solver,
-        'name': 'task_periods_mdur_cap_mut_met_ets_{}_{}_{}_{}_{}_{}_{}/'.
-            format(num_tasks, periods, mdur, int(perc_capacity*100),
-                   max_used_time, m_el_time, el_time_size),
-        'min_usage_period': min_usage,
-        'price_rut_end': price_rut_end,
-        'maint_duration': mdur,
-        'max_used_time': max_used_time,
-        'max_elapsed_time': m_el_time,
-        'elapsed_time_size': el_time_size,
-        'perc_capacity': perc_capacity,
-    }
-        for num_tasks in range(1, 4)
-        for periods in [60, 90]
-        for min_usage in [0]
-        for price_rut_end in [0]
-        for res_per_task in [15]
-        for mdur in [4, 6, 8]
-        for perc_capacity in [0.1, 0.15, 0.2]
-        for max_used_time in [800, 1000, 1200]
-        for m_el_time in [40, 60, 80]
-        for el_time_size in [20, 30]
-    ]
+
+    # case_data = [{
+    #     'num_period': periods,
+    #     'num_parallel_tasks': num_tasks,
+    #     'num_resources': num_tasks * res_per_task,
+    #     # 'solver': solver,
+    #     'name': 'task_periods_mdur_cap_mut_met_ets_{}_{}_{}_{}_{}_{}_{}/'.
+    #         format(num_tasks, periods, mdur, int(perc_capacity*100),
+    #                max_used_time, m_el_time, el_time_size),
+    #     'min_usage_period': min_usage,
+    #     'price_rut_end': price_rut_end,
+    #     'maint_duration': mdur,
+    #     'max_used_time': max_used_time,
+    #     'max_elapsed_time': m_el_time,
+    #     'elapsed_time_size': el_time_size,
+    #     'perc_capacity': perc_capacity,
+    # }
+    #     for num_tasks in range(1, 4)
+    #     for periods in [60, 90]
+    #     for min_usage in [0]
+    #     for price_rut_end in [0]
+    #     for res_per_task in [15]
+    #     for mdur in [4, 6, 8]
+    #     for perc_capacity in [0.1, 0.15, 0.2]
+    #     for max_used_time in [800, 1000, 1200]
+    #     for m_el_time in [40, 60, 80]
+    #     for el_time_size in [20, 30]
+    # ]
 
     for case in case_data:
         path_exp = params.PATHS['experiments'] = \
