@@ -6,6 +6,7 @@ import datetime as dt
 import package.superdict as sd
 import argparse
 import re
+import copy
 
 if __name__ == "__main__":
 
@@ -31,10 +32,10 @@ if __name__ == "__main__":
 
     case_options = {
         'maint_duration': [4, 8],
-        'max_used_time': [0.1, 0.2],
-        'max_elapsed_time': [800, 1200],
-        'elapsed_time_size': [40, 80],
-        'perc_capacity': [20, 40]
+        'perc_capacity': [0.1, 0.2],
+        'max_used_time': [800, 1200],
+        'max_elapsed_time': [40, 80],
+        'elapsed_time_size': [20, 40]
     }
     # case_data = []
     # for op1, values1 in case_options.items():
@@ -87,17 +88,18 @@ if __name__ == "__main__":
             sim_data['seed'] = None
             case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
             case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
-            sim_data.update(case_sim)
-            options.update(case_opt)
-            options['path'] = \
+            _options = copy.deepcopy(options)
+            _sim_data = copy.deepcopy(sim_data)
+            _sim_data.update(case_sim)
+            _options.update(case_opt)
+            _path_instance = path_instance = _options['path'] = \
                 os.path.join(path_exp, dt.datetime.now().strftime("%Y%m%d%H%M"))
             num = 1
-            path_instance = options['path']
-            while os.path.exists(path_instance):
-                path_instance = options['path'] + "_{}".format(num)
+
+            while os.path.exists(_path_instance):
+                _path_instance = path_instance + "_{}".format(num)
                 num += 1
-            path_instance += '/'
-            options['path'] = path_instance
+            _options['path'] = path_instance = _path_instance + '/'
             try:
                 exec.config_and_solve(params)
             except Exception as e:
