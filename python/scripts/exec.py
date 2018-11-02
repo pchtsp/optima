@@ -14,14 +14,14 @@ import package.superdict as sd
 import datetime as dt
 
 
-def config_and_solve(params):
+def config_and_solve(options):
 
-    options = params.OPTIONS
+    # options = params.OPTIONS
     if options.get('simulate', False):
         model_data = sim.create_dataset(options)
     else:
-        model_data = di.get_model_data(params.PATHS['input'])
-        historic_data = di.generate_solution_from_source(params.PATHS['hist'])
+        model_data = di.get_model_data(options['PATHS']['input'])
+        historic_data = di.generate_solution_from_source(options['PATHS']['hist'])
         model_data = di.combine_data_states(model_data, historic_data)
         model_data['parameters']['start'] = options['start']
         model_data['parameters']['end'] = \
@@ -104,5 +104,7 @@ if __name__ == "__main__":
         params.OPTIONS['path'] = \
             os.path.join(params.PATHS['experiments'], dt.datetime.now().strftime("%Y%m%d%H%M") ) + '/'
 
+    options = params.OPTIONS
+    options['PATHS'] = params.PATHS
     # import package.params as params
-    config_and_solve(params)
+    config_and_solve(options)

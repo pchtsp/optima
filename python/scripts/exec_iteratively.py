@@ -29,6 +29,7 @@ if __name__ == "__main__":
 
     options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
     sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
+    options['PATHS'] = params.PATHS
 
     case_options = {
         'maint_duration': [4, 8],
@@ -89,7 +90,7 @@ if __name__ == "__main__":
             case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
             case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
             _options = copy.deepcopy(options)
-            _sim_data = copy.deepcopy(sim_data)
+            _sim_data = _options['simulation']
             _sim_data.update(case_sim)
             _options.update(case_opt)
             _path_instance = path_instance = _options['path'] = \
@@ -101,7 +102,7 @@ if __name__ == "__main__":
                 num += 1
             _options['path'] = path_instance = _path_instance + '/'
             try:
-                exec.config_and_solve(params)
+                exec.config_and_solve(_options)
             except Exception as e:
                 if not os.path.exists(path_instance):
                     os.mkdir(path_instance)
