@@ -82,8 +82,9 @@ if __name__ == "__main__":
     #     for m_el_time in [40, 60, 80]
     #     for el_time_size in [20, 30]
     # ]
-
+    seed_backup = sim_data['seed']
     for case in case_data:
+        sim_data['seed'] = seed_backup
         path_exp = params.PATHS['experiments'] = \
             params.PATHS['results'] + case['name']
         if not os.path.exists(path_exp):
