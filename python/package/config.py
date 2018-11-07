@@ -35,7 +35,10 @@ class Config(object):
         self.solver = options['solver']
 
         if options['memory'] is None:
-            self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
+            if hasattr(os, "sysconf"):
+                self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
+            else: # windows
+                self.memory = 15000
         else:
             self.memory = options['memory']
         self.writeMPS = options['writeMPS']

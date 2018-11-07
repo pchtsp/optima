@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
     parser.add_argument('-d', '--options', dest='config_dict', type=json.loads)
     parser.add_argument('-p', '--paths', dest='paths_dict', type=json.loads)
+    parser.add_argument('-s', '--simulation', dest='sim_dict', type=json.loads)
 
     args = parser.parse_args()
 
@@ -24,16 +25,21 @@ if __name__ == "__main__":
     if args.paths_dict:
         params.PATHS.update(args.paths_dict)
 
+    if args.sim_dict:
+        params.OPTIONS['simulation'].update(args.sim_dict)
+
     if not os.path.exists(params.PATHS['results']):
         os.mkdir(params.PATHS['results'])
 
     options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
     sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
+    options['PATHS'] = params.PATHS
 
     case_options = {
-        'maint_duration': [4, 8],
-        'perc_capacity': [0.1, 0.2],
-        'max_used_time': [800, 1200],
+        # 'maint_duration': [4, 8],
+        # 'perc_capacity': [0.1, 0.2],
+        'max_used_time': [1200],
+        # 'max_used_time': [800, 1200],
         'max_elapsed_time': [40, 80],
         'elapsed_time_size': [20, 40]
     }
@@ -85,11 +91,12 @@ if __name__ == "__main__":
             os.mkdir(path_exp)
 
         for sim in range(10):
-            sim_data['seed'] = None
+            if sim_data['seed']:
+                sim_data['seed'] += 1
             case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
             case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
             _options = copy.deepcopy(options)
-            _sim_data = copy.deepcopy(sim_data)
+            _sim_data = _options['simulation']
             _sim_data.update(case_sim)
             _options.update(case_opt)
             _path_instance = path_instance = _options['path'] = \
@@ -101,7 +108,7 @@ if __name__ == "__main__":
                 num += 1
             _options['path'] = path_instance = _path_instance + '/'
             try:
-                exec.config_and_solve(params)
+                exec.config_and_solve(_options)
             except Exception as e:
                 if not os.path.exists(path_instance):
                     os.mkdir(path_instance)
