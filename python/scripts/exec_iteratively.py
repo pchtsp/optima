@@ -36,10 +36,9 @@ if __name__ == "__main__":
     options['PATHS'] = params.PATHS
 
     case_options = {
-        # 'maint_duration': [4, 8],
-        # 'perc_capacity': [0.1, 0.2],
-        'max_used_time': [1200],
-        # 'max_used_time': [800, 1200],
+        'maint_duration': [4, 8],
+        'perc_capacity': [0.1, 0.2],
+        'max_used_time': [800, 1200],
         'max_elapsed_time': [40, 80],
         'elapsed_time_size': [20, 40]
     }
