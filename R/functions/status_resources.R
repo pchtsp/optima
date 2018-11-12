@@ -6,7 +6,9 @@ library(ggplot2)
 library(plotly)
 library(stringr)
 
-treat_data <- function(exp_directory, aircraft_to_graph){
+treat_data <- function(exp_directory, aircraft_to_graph, 
+                       rut_name='heures de vol', ret_name='disponibilité (mois)',
+                       periods='Mois'){
     # browser()
     solution_path = exp_directory %>% paste0('data_out.json')
     
@@ -19,7 +21,7 @@ treat_data <- function(exp_directory, aircraft_to_graph){
         bind_rows(.id="aircraft") %>% 
         gather(key='Mois', value = 'Temps', -aircraft) %>% 
         filter(aircraft == aircraft_to_graph) %>% 
-        mutate(type='heures de vol')
+        mutate(type=rut_name)
     
     evolution_ret <- 
         solution %>% 
@@ -28,7 +30,7 @@ treat_data <- function(exp_directory, aircraft_to_graph){
         bind_rows(.id="aircraft") %>% 
         gather(key='Mois', value = 'Temps', -aircraft) %>% 
         filter(aircraft == aircraft_to_graph) %>% 
-        mutate(type='disponibilité (mois)')
+        mutate(type=ret_name)
     
     data <- bind_rows(evolution_ret, evolution_rut) %>% 
         mutate(Mois= Mois %>% paste0("-01") %>% as.POSIXct())

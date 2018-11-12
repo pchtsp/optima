@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
     parser.add_argument('-d', '--options', dest='config_dict', type=json.loads)
     parser.add_argument('-p', '--paths', dest='paths_dict', type=json.loads)
+    parser.add_argument('-s', '--simulation', dest='sim_dict', type=json.loads)
 
     args = parser.parse_args()
 
@@ -23,6 +24,9 @@ if __name__ == "__main__":
 
     if args.paths_dict:
         params.PATHS.update(args.paths_dict)
+
+    if args.sim_dict:
+        params.OPTIONS['simulation'].update(args.sim_dict)
 
     if not os.path.exists(params.PATHS['results']):
         os.mkdir(params.PATHS['results'])
@@ -78,15 +82,17 @@ if __name__ == "__main__":
     #     for m_el_time in [40, 60, 80]
     #     for el_time_size in [20, 30]
     # ]
-
+    seed_backup = sim_data['seed']
     for case in case_data:
+        sim_data['seed'] = seed_backup
         path_exp = params.PATHS['experiments'] = \
             params.PATHS['results'] + case['name']
         if not os.path.exists(path_exp):
             os.mkdir(path_exp)
 
         for sim in range(10):
-            sim_data['seed'] = None
+            if sim_data['seed']:
+                sim_data['seed'] += 1
             case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
             case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
             _options = copy.deepcopy(options)

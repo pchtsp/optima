@@ -149,7 +149,7 @@ get_states <- function(exp_directory, style_config=list()){
         bind_rows(data.table(state='M', hours=0)) %>% 
         mutate(bucket= hours %>% as.integer %>% multiply_by(-1) %>% cut2(g= 4),
                color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket]) %>% 
-        mutate(color = if_else(state=='M', 'grey', color))
+        mutate(color = if_else(state=='M', '#D3D3D3', color))
     
     tasks <- 
         solution %>% 

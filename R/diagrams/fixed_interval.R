@@ -5,14 +5,13 @@ library(lubridate)
 library(visNetwork)
 library(magrittr)
 library(RColorBrewer)
+source('functions/pdf_gantt.R')
 
-tasks_gantt <- function(...){
+tasks_gantt_data <- function(){
     start_month <- as.Date('2017-10-01')
     
-    data <- 
-        data.table(
-            Phase=c(1, 1, 2, 3, 4, 5, 6, 7)
-            ,label=LETTERS[1:8]
+    data.table(
+        label=LETTERS[1:8]
         ) %>% 
         mutate(
             month_start=sample(1:5, 8, replace=TRUE)
@@ -20,12 +19,17 @@ tasks_gantt <- function(...){
         ) %>% 
         mutate(start= start_month %m+% months(month_start-1),
                end= start_month %m+% months(month_end),
-               group= Phase,
+               group= 1:8,
                id= c(1:nrow(.)),
                content = label,
                color = RColorBrewer::brewer.pal(8, "YlOrRd")[rep_len(1:8, n())],
                style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
         )
+
+}
+
+make_tasks_gantt <- function(data, ...){
+    
     config <- list(
         editable = TRUE,
         align = "center",
@@ -36,7 +40,12 @@ tasks_gantt <- function(...){
     )
     
     groups <- data %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
-    timevis(data, groups= groups, options= config)
+    timevis(data, groups= groups, options= config, ...)
+}
+
+tasks_gantt <- function(...){
+    data <- tasks_gantt_data()
+    make_tasks_gantt(data, ...)
 }
 
 tasks_employees <- function(){

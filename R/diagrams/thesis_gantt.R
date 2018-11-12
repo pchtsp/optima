@@ -23,6 +23,7 @@ gantt_thesis <- function(...){
                color = RColorBrewer::brewer.pal(7, "YlOrRd")[rep_len(1:7, n())],
                style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
         )
+    
     config <- list(
         editable = TRUE,
         align = "center",
@@ -33,5 +34,6 @@ gantt_thesis <- function(...){
     )
     
     groups <- data %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
-    timevis(data, groups= groups, options= config, ...)    
+    timevis(data, groups= groups, options= config, ...)
 }
+gantt_thesis() %>% htmlwidgets::saveWidget('test.html')

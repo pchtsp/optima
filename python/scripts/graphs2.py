@@ -15,6 +15,9 @@ import package.heuristics as heur
 from package.params import PATHS
 import package.superdict as sd
 
+from dfply import *
+
+
 path_root = PATHS['root']
 path_abs = PATHS['experiments']
 path_img = PATHS['img']
@@ -589,33 +592,40 @@ def sim_list_to_md(df_list):
 
 
 def sim_list_to_tt(df_list):
-    t = pd.concat(df_list).reset_index()
-    indeces = t.level_0.str.split('_', expand=True)
-    n_ind = len(indeces.columns)//2
-    t2 = pd.concat(
-        [t.loc[:, t.columns != 'level_0'],
-         indeces.iloc[:, n_ind:]],
-        axis=1
-    )
-    t2['time (s)'] = t2['time (s)'].astype('float')
-    t2['gap (\%)'] = t2['gap (\%)'].astype('float')
 
-    cols_rename = {a+n_ind: b for a, b in enumerate(indeces.iloc[0, :n_ind])}
-    # sum(re.search('infeasible', t) is not None for t in t2.status)
+    @make_symbolic
+    def find_regex(series, regex_text):
+        return sum(re.search(regex_text, t) is not None for t in series
+                   if t is not None if not pd.isna(t))
+    # @make_symbolic
+    # def agg_infeas(series):
+    #     return sum(re.search('infeasible', t) is not None for t in series
+    #                if t is not None if not pd.isna(t))
 
-    def agg_no_int(x): return sum(re.search('no integer solution', t) is not None for t in x
-                                  if t is not None if not pd.isna(t))
-    def agg_infeas(x): return sum(re.search('infeasible', t) is not None for t in x
-                                  if t is not None if not pd.isna(t))
+    def treat_table(table):
+        return \
+            table >> \
+            rename(t= 'time (s)', g = 'gap (\%)') >> \
+            summarize(t_max = X.t.max(),
+                      t_min = X.t.min(),
+                      t_med = X.t.median(),
+                      g_max = X.g.max(),
+                      g_min = X.g.min(),
+                      g_med = X.g.median(),
+                      total = n(X.t),
+                      no_int = find_regex(X.status, 'no integer solution'),
+                      inf = find_regex(X.status, 'infeasible')
+                    )
 
-    t3 = t2.groupby([n for n in range(n_ind, n_ind*2)]).\
-        agg({'time (s)': ['median', 'max', 'min'], 'gap (\%)': ['median', 'max', 'min'],
-             'status': [agg_no_int, agg_infeas], 'level_1': len}).\
-        reset_index().\
-        rename(columns=cols_rename)
+    t3_b = {k: treat_table(v) for k, v in df_list.items()}
+    t3 = pd.concat(t3_b)
     print(t3.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
     return t3
 
+
+def sim_list_to_tlist(df_list):
+    pass
+    # df_list_sum = {k: v.agg({'gap'})}
 
 if __name__ == "__main__":
 
@@ -642,8 +652,8 @@ if __name__ == "__main__":
     # multiobjective_table()
     # table = get_results_table(path_abs)
     # solvers_comp()
-    experiment = 'clust1_20181030_2'
-    experiment = "hp_20181031"
+    # experiment = 'clust1_20181031'
+    experiment = "hp_20181102"
     df_list = get_simulation_results(experiment)
     t3 = sim_list_to_tt(df_list)
     t3

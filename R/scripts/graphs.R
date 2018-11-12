@@ -2,16 +2,22 @@ source('functions/params.R')
 source('functions/import_results.R')
 source('functions/status_resources.R')
 source('functions/gantt_tasks.R')
+source('functions/pdf_gantt.R')
+
+# main functions ----------------------------------------------------------
 
 exp_directory = PATHS[['experiments']] %>% paste0('201801131817/')
-# exp_directory <- PATHS[['results']] %>% paste0('simulated_data/2_task/201809180941/')
-print_solution(exp_directory, width='100%', 30)
-print_tasks(exp_directory)
-
 PATHS[['experiments']] %>% paste0('201802061201/')
+# exp_directory <- PATHS[['results']] %>% paste0('simulated_data/2_task_types/201810051400/')
+print_solution(exp_directory, width='100%')
+print_tasks(exp_directory)
+graph_remaining(exp_directory)
+
+# graph renaming ----------------------------------------------------------
 
 res <- 'A20'
-res <- '85'
+# res <- '85'
+res <- '30'
 
 data_input <- treat_data(exp_directory, res)
 data_input_n <- 
@@ -22,6 +28,10 @@ data_input_n <-
 
 p <- graph_remaining_data(data_input_n, x='Periods', y='Time', return_object=TRUE)
 p
+
+
+# graph window of maintenances --------------------------------------------
+
 m_period <- 
     data_input_n %>% 
     filter(Time==60) %>% 
@@ -36,6 +46,8 @@ m_period <-
  
 x_limits <- m_period %m+% c(months(30-6), months(60-6))
 
+rut <- get_ret(exp_directory, res)
+
 # p + ggplot2::geom_vline(xintercept = ), linetype=2)
 p + geom_rect(aes(xmin=x_limits[1], xmax=x_limits[2], ymin=0, ymax=Inf), alpha = .005)
 # data_states <- get_states(experiment1)
@@ -43,6 +55,49 @@ p + geom_rect(aes(xmin=x_limits[1], xmax=x_limits[2], ymin=0, ymax=Inf), alpha =
 # data_states %>% 
 #     group_by()
 
+# graph with remaining ret/ rut ----------------------------------------------------
+
+exp_directory <- PATHS[['experiments']] %>% paste0('201810081437/')
+exp_directory <- PATHS[['results']] %>% paste0('simulated_data/3_task_types_capa_slack/201810091058/')
+resources <- get_states(exp_directory) %>% distinct(group) %>% extract2(1)
+
+data_input <- lapply(resources, function(res){
+    treat_data(exp_directory, res, rut_name='rut', ret_name='ret')
+}) %>% bind_rows()
+
+data_input_n <-
+    data_input %>% 
+    select(group=aircraft, start=Mois, value=Temps, type) %>% 
+    spread(key='type', value='value') %>% 
+    mutate(start= start %>% format('%Y-%m')) %>% 
+    arrange(group, start) %>% 
+    group_by(group) %>% 
+    mutate(ret = lag(ret), rut= lag(rut))
+states <- 
+    get_states(exp_directory) %>% 
+    left_join(data_input_n) %>% 
+    mutate(content= ifelse(state=="M",
+                           sprintf('%s (%s h /%s p)', state, rut, ret),
+                           content))
+
+timevis_from_states(states, max_resources=NULL, width='100%')
+
+
+# pdf graph ---------------------------------------------------------------
+
+states <- get_states(exp_directory)
+resources <- states %>% distinct(group) %>% sample_n(10)
+states <- states %>% inner_join(resources)
+text <- states_to_pgfgantt(states, x_unit = 0.3, date_format = 'isodate-yearmonth')
+
+write(text, file='/home/pchtsp/Documents/projects/COR2019/gantt.tex')
+
+
+# -----------other options...
+data <- tasks_gantt_data()
+data %>% states_to_pgfgantt(x_unit=1, y_unit=0.6) %>% write(file='/home/pchtsp/Documents/projects/COR2019/gantt.tex')
+
+# example of states -------------------------------------------------------
 
 #       id   start     end   content group                                         style
 #    <int>   <chr>   <chr>    <fctr> <chr>                                         <chr>
