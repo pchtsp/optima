@@ -8,22 +8,22 @@ library(stringr)
 states_to_pgfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isodate'){
     t_start <- data$start %>% min()
     t_end <- data$end %>% max()
+    y_string <- ''
+    x_string <- ''
     if (x_unit %>% is.null){
       x_string <- 'expand chart=\\textwidth,'
     } else {
       x_string <- sprintf('x unit=%scm,', x_unit) 
     }
-    
     if (y_unit %>% is.null %>% not){
-      y_string <- sprintf('y unit chart=%scm,', y_unit) 
+      y_string <- sprintf('\ny unit chart=%scm,', y_unit) 
     }
     
     header <- "\\newcommand\\Dganttbar[5]{
       \\ganttbar[#5]{#1}{#3}{#4}\\ganttbar[inline,bar label font=\\tiny\\color{white}\\bfseries, #5]{#2}{#3}{#4}
     }
     \\begin{ganttchart}[
-    %s
-    %s
+    %s%s
     hgrid,
     vgrid,
     time slot format=%s,
