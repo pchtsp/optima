@@ -1,4 +1,5 @@
 import re
+from dfply import *
 
 
 def simulation_params_fr():
@@ -45,3 +46,19 @@ def names_latex():
         , 'min_avail_value': ""
         , 'min_hours_perc': ""
     }
+
+
+def config_to_latex(col_names):
+    names_values = {i: '={}'.format(i.split('_')[1]) for i in col_names if i != 'base'}
+    names_values.update({'base': ''})
+    names = {i: i.split('_')[0] for i in col_names if i != 'base'}
+    eqs = {v: k for k, v in names_no_spaces().items()}
+    names_l = names_latex()
+    names_correct = {k: names_l[eqs[v]] for k, v in names.items()}
+    names_correct.update({'base': ''})
+    names_correct_v = {k: v + names_values[k] for k, v in names_correct.items()}
+
+    return pd.DataFrame.from_dict(names_correct_v, orient='index').\
+                   reset_index() >> rename(scenario='index', case=1)
+
+

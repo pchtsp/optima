@@ -14,6 +14,7 @@ import re
 import package.heuristics as heur
 from package.params import PATHS
 import package.superdict as sd
+import scripts.names as na
 
 from dfply import *
 
@@ -597,10 +598,6 @@ def sim_list_to_tt(df_list):
     def find_regex(series, regex_text):
         return sum(re.search(regex_text, t) is not None for t in series
                    if t is not None if not pd.isna(t))
-    # @make_symbolic
-    # def agg_infeas(series):
-    #     return sum(re.search('infeasible', t) is not None for t in series
-    #                if t is not None if not pd.isna(t))
 
     def treat_table(table):
         return \
@@ -623,9 +620,23 @@ def sim_list_to_tt(df_list):
     return t3
 
 
-def sim_list_to_tlist(df_list):
-    pass
-    # df_list_sum = {k: v.agg({'gap'})}
+def summary_to_latex(table, path):
+    names_df = na.config_to_latex(table.index.levels[0])
+
+    eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'med'] for a in ['t', 'g']}
+    eqs.update({'no-int': 'no_int', 'scenario': 'level_0'})
+    t4 = table.reset_index() >> \
+         rename(**eqs) >> \
+         left_join(names_df, on="scenario") >> \
+         select(~X.scenario, ~X.level_1) >> \
+         rename(scenario=X.case)
+    t4 = t4.reindex(columns=['scenario']+t4.columns[:-1].tolist())
+
+    latex = t4.to_latex(float_format='%.1f', escape=False, index=False)
+    # path = '/home/pchtsp/Documents/projects/COR2019/tables/'
+    file_path = os.path.join(path, '{}.tex'.format(experiment))
+    with open(file_path, 'w') as f:
+        f.write(latex)
 
 if __name__ == "__main__":
 
@@ -653,8 +664,11 @@ if __name__ == "__main__":
     # table = get_results_table(path_abs)
     # solvers_comp()
     # experiment = 'clust1_20181031'
-    experiment = "hp_20181102"
+    experiment = "clust1_20181107"
+    experiment = "hp_20181104"
     df_list = get_simulation_results(experiment)
-    t3 = sim_list_to_tt(df_list)
-    t3
+    table = sim_list_to_tt(df_list)
+    summary_to_latex(table, '/home/pchtsp/Documents/projects/COR2019/tables/')
+
+
     pass
