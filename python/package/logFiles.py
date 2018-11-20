@@ -21,7 +21,7 @@ class LogFile(object):
         self.numberSearch = r'({})'.format(self.number)
         self.wordSearch = r'([\w, ]+)'
 
-    def apply_regex(self, regex, content_type=None, first=True, pos=None, **kwargs):
+    def apply_regex(self, regex, content_type=None, first=True, pos=None, num=None, **kwargs):
         solution = re.findall(regex, self.content, **kwargs)
         if solution is None:
             return None
@@ -29,24 +29,166 @@ class LogFile(object):
             return solution
         if len(solution) == 0:
             return None
-        possible_tuple = solution[0]
-        if pos is None:
-            if content_type is None:
-                return possible_tuple
-            if content_type == "float":
-                return [float(val) for val in possible_tuple]
-            if content_type == "int":
-                return [int(val) for val in possible_tuple]
-        value = possible_tuple[pos]
-        if content_type == 'int':
-            return int(value)
-        if content_type == 'float':
-            return float(value)
-        return possible_tuple[pos]
+        if num is None:
+            num = 0
+        possible_tuple = solution[num]
+        if type(possible_tuple) is str:
+            # we force a tuple to deal with one string lists
+            possible_tuple = (possible_tuple, )
+            pos = 0
+        func = {
+            'float': float,
+            'int': int,
+            'str': str
+        }
+        if pos is not None:
+            value = possible_tuple[pos]
+            if content_type in func:
+                return func[content_type](value)
+            else:
+                return possible_tuple[pos]
+        if content_type is None:
+            return possible_tuple
+        if type(content_type) is not list:
+            return [func[content_type](val) for val in possible_tuple]
+        else:
+            # each one has its own type.
+            # by default we use strings
+            ct = ['str' for r in possible_tuple]
+            for i, c in enumerate(content_type):
+                if c in func:
+                    ct[i] = c
+            return [func[ct[i]](val) for i, val in enumerate(possible_tuple)]
+
+    def get_progress_general(self, names, regex_filter):
+        """
+        :return: pandas dataframe with 8 columns
+        """
+        # before we clean the rest of lines:
+        # names, widths = zip(*name_width)
+        # length_start = sum(widths)
+
+        lines = self.apply_regex(regex_filter, first=False, flags=re.MULTILINE)
+        processed = [self.process_line(line) for line in lines]
+        processed_clean = [p for p in processed if p is not None]
+        table = pd.DataFrame(processed_clean)
+        if len(table):
+            table.columns = names
+        return table
+
+    def get_first_results(self, progress):
+        first_solution = first_relax = None
+        df_filter = progress.CutsBestBound.apply(lambda x: re.search(r"^\s*{}$".format(self.number), x) is not None)
+        if len(df_filter) > 0 and any(df_filter):
+            first_relax = float(progress.CutsBestBound[df_filter].iloc[0])
+
+        df_filter = progress.BestInteger.str.match(r"^\s*{}$".format(self.number))
+        if len(df_filter) > 0 and any(df_filter):
+            first_solution = float(progress.BestInteger[df_filter].iloc[0])
+        return first_relax, first_solution
+
+    @staticmethod
+    def get_results_after_cuts(progress):
+         # = self.get_progress_cplex()
+        df_filter = np.all((progress.Node.str.match(r"^\*?H?\s*0"),
+                            progress.NodesLeft.str.match(r"^\+?H?\s*[12]")),
+                           axis=0)
+        sol_value = relax_value = None
+        if len(progress.BestInteger) > 0:
+            sol_value = progress.BestInteger.iloc[-1]
+        if len(progress.CutsBestBound) > 0:
+            relax_value = progress.CutsBestBound.iloc[-1]
+
+        sol_after_cuts = relax_after_cuts = None
+        if np.any(df_filter):
+            sol_value = progress.BestInteger[df_filter].iloc[0]
+            relax_value = progress.CutsBestBound[df_filter].iloc[0]
+        if sol_value and re.search(r'\s*\d', sol_value):
+            sol_after_cuts = float(sol_value)
+        if relax_value and re.search(r'\s*\d', relax_value):
+            relax_after_cuts = float(relax_value)
+        return relax_after_cuts, sol_after_cuts
+
+    def get_log_info(self):
+        # cons, vars, nonzeroes = self.get_matrix()
+        cons, vars, nonzeroes = self.get_matrix_post()
+        status, objective, bound, gap_rel = self.get_stats()
+        # bound, gap_abs, gap_rel = self.get_gap()
+        if bound is None:
+            bound = objective
+        cuts = self.get_cuts()
+        cutsTime = self.get_cuts_time()
+        presolve = self.get_lp_presolve()
+        time_out = self.get_time()
+        rootTime = self.get_root_time()
+        progress = self.get_progress()
+        after_cuts, sol_after_cuts = self.get_results_after_cuts(progress)
+        first_relax, first_solution = self.get_first_results(progress)
+
+        return {
+            'status': status,
+            'bound_out': bound,
+            'objective_out': objective,
+            'gap_out': gap_rel,
+            'time_out': time_out,
+            'cons': cons,
+            'vars': vars,
+            'nonzeros': nonzeroes,
+            'cuts': cuts,
+            'rootTime': rootTime,
+            'cutsTime': cutsTime,
+            'presolve': presolve,
+            'first_relaxed': first_relax,
+            'after_cuts': after_cuts,
+            'progress': progress,
+            'first_solution': first_solution,
+            'sol_after_cuts': sol_after_cuts
+        }
+
+    @staticmethod
+    def status_is_infeasible(status):
+        return re.search('infeasible', status) is not None
+
+    def get_matrix(self):
+        return None, None, None
+
+    def get_matrix_post(self):
+        return None, None, None
+
+    def get_stats(self):
+        return None, None, None, None
+
+    def get_cuts(self):
+        return None
+
+    def get_cuts_time(self):
+        return None
+
+    def get_lp_presolve(self):
+        return None
+
+    def get_time(self):
+        return None
+
+    def get_root_time(self):
+        return None
+
+    def process_line(self, line):
+        return None
+
+    def get_progress(self):
+        return pd.DataFrame()
 
 
-    # CPLEX PART:
+class CPLEX(LogFile):
 
+    def get_stats(self):
+        status, objective = self.get_objective()
+        bound, gap_abs, gap_rel = self.get_gap()
+        return status, objective, bound, gap_rel
+
+    # Reference:
+    # https://www.ibm.com/support/knowledgecenter/SSSA5P_12.6.3/ilog.odms.cplex.help/CPLEX/UsrMan/topics/discr_optim/mip/para/52_node_log.html
     def get_objective(self):
         """
         :return: tuple of length 2
@@ -59,10 +201,6 @@ class LogFile(object):
             if result[2] != '':
                 obj = float(result[2])
         return status, obj
-
-    @staticmethod
-    def status_is_infeasible(status):
-        return re.search('infeasible', status) is not None
 
     def get_gap(self):
         """
@@ -79,7 +217,17 @@ class LogFile(object):
         :return: tuple of length 3
         """
         regex = r'Reduced MIP has {0} rows, {0} columns, and {0} nonzeros'.format(self.numberSearch)
-        result = self.apply_regex(regex, content_type="int")
+        result = self.apply_regex(regex, content_type="int", num=-1)
+        if result is None:
+            return None, None, None
+        return result
+
+    def get_matrix_post(self):
+        """
+        :return: tuple of length 3
+        """
+        regex = r'Reduced MIP has {0} rows, {0} columns, and {0} nonzeros'.format(self.numberSearch)
+        result = self.apply_regex(regex, content_type="int", num=-1)
         if result is None:
             return None, None, None
         return result
@@ -119,124 +267,216 @@ class LogFile(object):
         regex = r'Elapsed time = {0} sec\. \({0} ticks, tree = {0} MB, solutions = {0}\)'.format(self.numberSearch)
         return self.apply_regex(regex, content_type="float", pos=0)
 
-    def get_results_after_cuts(self):
-        progress = self.get_progress()
-        df_filter = np.all((progress.Node.str.match(r"^\*?\s*0"),
-                            progress.NodesLeft.str.match(r"^\+?\s*2")),
-                           axis=0)
-        sol_value = relax_value = None
-        if len(progress.BestInteger) > 0:
-            sol_value = progress.BestInteger.iloc[-1]
-        if len(progress.CutsBestBound) > 0:
-            relax_value = progress.CutsBestBound.iloc[-1]
+    def process_line(self, line):
+        keys = ['n', 'n_left', 'obj', 'iinf', 'b_int', 'b_bound', 'ItCnt', 'gap']
+        args = {k: self.numberSearch for k in keys}
+        args['gap'] = '({}%)'.format(self.number)
 
-        sol_after_cuts = relax_after_cuts = None
-        if np.any(df_filter):
-            sol_value = progress.BestInteger[df_filter].iloc[0]
-            relax_value = progress.CutsBestBound[df_filter].iloc[0]
-        if sol_value and re.search(r'\s*\d', sol_value):
-            sol_after_cuts = float(sol_value)
-        if relax_value and re.search(r'\s*\d', relax_value):
-            relax_after_cuts = float(relax_value)
-        return relax_after_cuts, sol_after_cuts
+        if line[0] in ['*']:
+            args['obj'] = '(integral)'
+            args['iinf'] = '()'
 
-    def get_first_results(self):
-        first_solution = first_relax = None
-        progress = self.get_progress()
-        df_filter = progress.CutsBestBound.apply(lambda x: re.search(r"^\s*{}$".format(self.number), x) is not None)
-        if len(df_filter) > 0 and any(df_filter):
-            first_relax = float(progress.CutsBestBound[df_filter].iloc[0])
+        if re.search('\*\s*\d+\+', line):
+            args['obj'] = '()'
+            args['ItCnt'] = '()'
 
-        df_filter = progress.BestInteger.str.match(r"^\s*{}$".format(self.number))
-        if len(df_filter) > 0 and any(df_filter):
-            first_solution = float(progress.BestInteger[df_filter].iloc[0])
-        return first_relax, first_solution
+        if re.search('Cuts: \d+', line):
+            args['b_bound'] = '(Cuts: \d+)'
+
+        get = re.search('\*?\s*\d+\+?\s*\d+\s*(infeasible|cutoff|integral)', line)
+        if get is not None:
+            args['obj'] = '({})'.format(get.group(1))
+
+        find = re.search('\s+{n}\s+{n_left}\s+{obj}\s+{iinf}?\s+{b_int}?\s+{b_bound}\s+{ItCnt}\s+{gap}?'. \
+                         format(**args), line)
+        if not find:
+            #
+            return None
+        return find.groups()
 
     def get_progress(self):
-        """
-        :return: pandas dataframe with 8 columns
-        """
-        # before we clean the rest of lines:
-        regex = r'(^\*?\s+\d.*$)'
-        lines = self.apply_regex(regex, first=False, flags=re.MULTILINE)
-        lines_content = io.StringIO('\n'.join(lines)[2:])
-        names = ['Node', 'NodesLeft', 'Objective', 'IInf', 'BestInteger', 'CutsBestBound', 'ItCnt', 'Gap']
-        widths = [7, 6, 14, 6, 14, 14, 9, 9]
-        df = pd.read_fwf(lines_content, names=names, header=None, dtype=str, widths=widths)
-        return df
+        name_width = [('Node', 7), ('NodesLeft', 6), ('Objective', 14), ('IInf', 4), ('BestInteger', 11),
+                      ('CutsBestBound', 11), ('Gap', 7), ('ItpNode', 6)]
+        names = [k[0] for k in name_width]
+        return self.get_progress_general(names, regex_filter = r'(^[\*H]?\s+\d.*$)')
 
-    def get_log_info_cplex(self):
-        cons, vars, nonzeroes = self.get_matrix()
-        status, objective = self.get_objective()
-        bound, gap_abs, gap_rel = self.get_gap()
-        if bound is None:
-            bound = objective
-            gap_abs = 0
-            gap_rel = 0
-        cuts = self.get_cuts()
-        presolve = self.get_lp_presolve()
-        time_out = self.get_time()
-        rootTime = self.get_root_time()
-        cutsTime = self.get_cuts_time()
-        progress = self.get_progress()
-        after_cuts, sol_after_cuts = self.get_results_after_cuts()
-        first_relax, first_solution = self.get_first_results()
+class GUROBI(LogFile):
 
-        return {
-            'status': status,
-            'bound_out': bound,
-            'objective_out': objective,
-            'gap_out': gap_rel,
-            'time_out': time_out,
-            'cons': cons,
-            'vars': vars,
-            'nonzeros': nonzeroes,
-            'cuts': cuts,
-            'rootTime': rootTime,
-            'cutsTime': cutsTime,
-            'presolve': presolve,
-            'first_relaxed': first_relax,
-            'after_cuts': after_cuts,
-            'progress': progress,
-            'first_solution': first_solution,
-            'sol_after_cuts': sol_after_cuts
-        }
+    def get_cuts(self):
+        regex = r'Cutting planes:([\n\s\w:]+)Explored'  # gurobi
+        result = self.apply_regex(regex, flags=re.MULTILINE)
+        cuts = [r for r in result.split('\n') if r != '']
+        regex = '\s*{}: {}'.format(self.wordSearch, self.numberSearch)
+        searches = [re.search(regex, v) for v in cuts]
+        return {s.group(1): s.group(2) for s in searches if s is not None and s.lastindex >= 2}
 
+    def get_progress(self):
+        name_width = [('Node', 7), ('NodesLeft', 6), ('Objective', 14), ('Depth', 2), ('IInf', 4), ('BestInteger', 11),
+                      ('CutsBestBound', 11), ('Gap', 7), ('ItpNode', 6), ('Time', 6)]
+        names = [k[0] for k in name_width]
+        return self.get_progress_general(names, regex_filter = r'(^[\*H]?\s+\d.*$)')
 
-    # GUROBI PART:
-    def get_log_info_gurobi(self):
-
-        regex = r'Best objective {0}, best bound {0}, gap {0}%'.format(self.numberSearch)
-        # "Best objective 6.500000000000e+01, best bound 5.800000000000e+01, gap 10.7692%"
-        solution = re.search(regex, self.content)
-        bound_out, obj_out, gap_out = (-1, -1, -1)
-        if solution is not None:
-            bound_out = float(solution.group(2))
-            obj_out = float(solution.group(1))
-            gap_out = float(solution.group(3))
-
+    def get_matrix(self):
         regex = r'Optimize a model with {0} rows, {0} columns and {0} nonzeros'.format(self.numberSearch)
-        size = re.search(regex, self.content)
+        return self.apply_regex(regex, content_type="int")
 
+    def get_matrix_post(self):
+        regex = r'Presolved: {0} rows, {0} columns, {0} nonzeros'.format(self.numberSearch)
+        return self.apply_regex(regex, content_type="int")
+
+    def get_stats(self):
+        regex = r'{1}( \(.*\))?\nBest objective ({0}|-), best bound ({0}|-), gap ({0}|-)'.\
+            format(self.numberSearch,self.wordSearch)
+        # content_type = ['', '', 'float', 'float', 'float']
+        solution = self.apply_regex(regex)
+        if solution is None:
+            return None, None, None, None
+
+        status = solution[0]
+        objective, bound, gap_rel = \
+            [float(solution[pos]) if solution[pos] != '-' else None for pos in [2, 4, 6]]
+        return status, objective, bound, gap_rel
+
+    def get_cuts_time(self):
+        progress = self.get_progress()
+        df_filter = np.all((progress.Node.str.match(r"^\*?H?\s*0"),
+                            progress.NodesLeft.str.match(r"^\+?H?\s*2")),
+                           axis=0)
+        if not len(df_filter) or not any(df_filter):
+            return None
+
+        content = progress.Time[df_filter].iloc[0]
+        number = re.search(self.numberSearch, content).group(1)
+        return float(number)
+
+    def get_lp_presolve(self):
+        """
+        :return: tuple  of length 3
+        """
+        regex = r'Presolve time: {0}s'.format(self.numberSearch)
+        time = self.apply_regex(regex, pos=0, content_type="float")
+        if time is None:
+            time = None
+        regex = r'Presolve removed {0} rows and {0} columns'.format(self.numberSearch)
+        result = self.apply_regex(regex, content_type="int")
+        if result is None:
+            result = None, None
+        return {'time': time, 'rows': result[0], 'cols': result[1]}
+
+    def get_time(self):
         regex = r"Explored {0} nodes \({0} simplex iterations\) in {0} seconds".format(self.numberSearch)
         stats = re.findall(regex, self.content)
-        time_out = -1
+        time_out = None
         if stats:
             time_out = float(stats[0][2])
+        return time_out
 
-        return {
-            'bound_out': bound_out,
-            'objective_out': obj_out,
-            'gap_out': gap_out,
-            'cons': int(size.group(1)),
-            'vars': int(size.group(2)),
-            'nonzeros': int(size.group(3)),
-            'time_out': time_out
-        }
+    def get_root_time(self):
+        regex = r'Root relaxation: objective {0}, {0} iterations, {0} seconds'.format(self.numberSearch)
+        return self.apply_regex(regex, pos=2, content_type="float")
+
+    def process_line(self, line):
+        keys = ['n', 'n_left', 'obj', 'iinf', 'b_int', 'b_bound', 'ItCnt', 'gap', 'depth', 'time']
+        args = {k: self.numberSearch for k in keys}
+        args['gap'] = '({}%)'.format(self.number)
+        args['time'] = '({}s)'.format(self.number)
+
+        if line[0] in ['*', 'H']:
+            args['obj'] = '()'
+            args['iinf'] = '()'
+            args['depth'] = '()'
+
+        if re.search('\*\s*\d+\+', line):
+            args['obj'] = '()'
+            args['ItCnt'] = '()'
+
+        if re.search('Cuts: \d+', line):
+            args['b_bound'] = '(Cuts: \d+)'
+
+        get = re.search('\*?\s*\d+\+?\s*\d+\s*(infeasible|cutoff|integral)', line)
+        if get is not None:
+            args['obj'] = '({})'.format(get.group(1))
+
+        find = re.search('\s+{n}\s+{n_left}\s+{obj}\s+{depth}\s+{iinf}?\s+{b_int}?-?'
+                         '\s+{b_bound}\s+{gap}?-?\s+{ItCnt}?-?\s+{time}'. \
+                         format(**args), line)
+        if not find:
+            return None
+        return find.groups()
+
+class CBC(LogFile):
+
+    def get_cuts(self):
+        # TODO
+        pass
+
+    def get_progress(self):
+        names = ['Node', 'NodesLeft', 'BestInteger', 'CutsBestBound', 'Time']
+        return self.get_progress_general(names, regex_filter=r'(^Cbc0010I.*$)')
+
+    def get_matrix(self):
+        regex = r'Problem MODEL has {0} rows, {0} columns and {0} elements'.format(self.numberSearch)
+        return self.apply_regex(regex, content_type="int")
+
+    def get_matrix_post(self):
+        regex = r'Cgl0004I processed model has {0} rows, {0} columns \(\d+ integer ' \
+                r'\(\d+ of which binary\)\) and {0} elements'.format(self.numberSearch)
+        return self.apply_regex(regex, content_type="int")
+
+    def get_stats(self):
+
+        regex = 'Result - {}'.format(self.wordSearch)
+        status = self.apply_regex(regex, pos=0)
+
+        regex = 'best objective {0}( \(best possible {0}\))?, took {1} iterations and {1} nodes \({1} seconds\)'.\
+            format(self.numberSearch, self.number)
+        solution = self.apply_regex(regex, content_type=['float', '', 'float'])
+
+        if solution is None:
+            return None, None, None, None
+
+        objective = solution[0]
+        bound = solution[2]
+        # objective, bound = solution
+        if bound is None:
+            bound = objective
+
+        gap_rel = abs(objective - bound) / objective * 100
+
+        return status, objective, bound, gap_rel
+
+    def get_cuts_time(self):
+        # TODO
+        return None
+
+    def get_lp_presolve(self):
+        # TODO
+        return None
+
+    def get_time(self):
+        regex = r'Time \(Wallclock seconds\):\s*{}'.format(self.numberSearch)
+        stats = self.apply_regex(regex, content_type='float', pos=0)
+        return stats
+
+    def get_root_time(self):
+        # TODO
+        return None
+
+    def process_line(self, line):
+
+        keys = ['n', 'n_left', 'b_int', 'b_bound', 'time']
+        args = {k: self.numberSearch for k in keys}
+        find = re.search('Cbc0010I After {n} nodes, {n_left} on tree, {b_int} best solution, '
+                         'best possible {b_bound} \({time} seconds\)'. \
+                         format(**args), line)
+        if not find:
+            return None
+        return find.groups()
 
 
 if __name__ == "__main__":
     import pprint as pp
+    import package.params as pm
     route = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/'
     # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801102259/results.log'
     # path = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201801141334/results.log'
@@ -253,11 +493,24 @@ if __name__ == "__main__":
     #     pp.pprint(result)
     #
     # re.search(r"\s*\d", result.CutsBestBound[1])
-    path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_0_15/201810252139/results.log'
-    path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_1_15/201810260322/results.log'
-    path = '/home/pchtsp/Dropbox/OPTIMA_results/clust1_20181024/task_periods_minusage_pricerutend_respertask_1_60_20_1_15/201810261129/results.log'
+    # cplex tests
+    path = pm.PATHS['results'] + 'hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_0_15/201810252139/results.log'
+    path = pm.PATHS['results'] + 'hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_1_15/201810260322/results.log'
+    path = pm.PATHS['results'] + 'clust1_20181024/task_periods_minusage_pricerutend_respertask_1_60_20_1_15/201810261129/results.log'
+    # log = CPLEX(path)
+
+    # gurobi tests
+    path = pm.PATHS['results'] + 'clust1_20181112/base/201811140123/results.log'
+    # path = pm.PATHS['results'] + 'clust1_20181112/maxusedtime_800/201811130631_1/results.log'
+    # path = pm.PATHS['results'] + 'clust1_20181112/maxusedtime_800/201811130130/results.log'
+    # log = GUROBI(path)
+
+    # cbc tests
+    path = pm.PATHS['results'] + 'hp_20181114/base/201811180430/results.log'
     # path = '/home/pchtsp/Dropbox/OPTIMA_results/hp_20181025/task_periods_minusage_pricerutend_respertask_1_90_0_0_15/201810252139_1/results.log'
-    log = LogFile(path)
-    info = log.get_log_info_cplex()
+    # info = log.get_log_info_cplex()
+    log = CBC(path)
+
+    info = log.get_log_info()
     info['status']
     # status, objective = log.get_objective()
