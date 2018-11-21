@@ -74,6 +74,8 @@ if __name__ == "__main__":
             _sim_data = _options['simulation']
             _sim_data.update(case_sim)
             _options.update(case_opt)
+            # this needs to be enforced so feasible instances can be obtained:
+            _sim_data['num_resources'] = 15*_sim_data['num_parallel_tasks']
             _path_instance = path_instance = _options['path'] = \
                 os.path.join(path_exp, dt.datetime.now().strftime("%Y%m%d%H%M"))
             num = 1
