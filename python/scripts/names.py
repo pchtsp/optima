@@ -5,6 +5,7 @@ from dfply import *
 def simulation_params_fr():
     return {
         'num_resources': "nombre total de ressources. En ressources."
+        , 'num_period': "nombre total de périodes. En périodes."
         , 'num_parallel_tasks': "nombre total de tâches en parallèle. En tâches."
         , 'maint_duration': "durée de la maintenance. En périodes."
         , 'max_used_time': "butée horaire. En heures."
@@ -15,6 +16,7 @@ def simulation_params_fr():
         , 'min_avail_percent': "quantité minimale d'avions disponibles par cluster. En pourcentage de la taille du cluster."
         , 'min_avail_value': "quantité minimale d'avions disponibles par cluster. En ressources."
         , 'min_hours_perc': "quantité minimale d'heures totales de chaque ensemble de cluster. En pourcentage de la taille du cluster."
+        , 'price_rut_end': "0= état final n'est pas maximisé; 1= état final est maximisé."
         , 'seed': None
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': "options de besoins d'affectation minimale des tâches. En périodes."
@@ -41,10 +43,12 @@ def names_latex():
         , 'elapsed_time_size': "$E^{s}$"
         , 'min_usage_period': "$R^{min}_j$"
         , 'perc_capacity': "$C^{perc}$"
-        # TODO:
-        , 'min_avail_percent': ""
-        , 'min_avail_value': ""
-        , 'min_hours_perc': ""
+        , 'num_period': "$\mid T \mid$"
+        , 'min_avail_percent': "$AP^{K}_{kt}$"
+        , 'min_avail_value': "$AN^{K}_{kt}$"
+        , 'min_hours_perc': "$HP^{K}_{kt}$"
+        , 't_min_assign': "$MT_j$"
+        , 'price_rut_end': "$\max \{rut\}$"
     }
 
 
@@ -57,8 +61,12 @@ def config_to_latex(col_names):
     names_correct = {k: names_l[eqs[v]] for k, v in names.items()}
     names_correct.update({'base': ''})
     names_correct_v = {k: v + names_values[k] for k, v in names_correct.items()}
+    name_df = pd.DataFrame.from_dict(names, orient='index').\
+        reset_index() >> rename(scenario='index', name=1)
 
     return pd.DataFrame.from_dict(names_correct_v, orient='index').\
-                   reset_index() >> rename(scenario='index', case=1)
+                   reset_index() >> \
+           rename(scenario='index', case=1) >>\
+           inner_join(name_df, on='scenario')
 
 

@@ -16,7 +16,10 @@ from package.params import PATHS
 import package.superdict as sd
 import scripts.names as na
 
-from dfply import *
+import dfply as dp
+from dfply import X
+# from dfply import left_join, rename, X, select, mutate, \
+#     group_by, filter_by, summarize, distinct, make_symbolic, first, n
 
 
 path_root = PATHS['root']
@@ -297,9 +300,10 @@ def progress_graph():
     ################################################
     # Progress
     ################################################
+    # TODO: correct this to new logging interface
     path = path_abs + '201801131817/results.log'
     result_log = log.LogFile(path)
-    table = result_log.get_progress()
+    table = result_log.get_progress_cplex()
     table.rename(columns={'ItCnt': 'it', 'Objective': 'relax', 'BestInteger': 'obj'},
                  inplace=True)
     table = table[table.it.str.match(r'\s*\d')][['it', 'relax', 'obj']]
@@ -570,20 +574,37 @@ def tests():
     pp.pprint(exps["7"])
 
 
-def get_simulation_results(experiment):
+def get_simulation_results(experiment, cols_rename=None):
 
-    cols_rename = {
-        'time_out': 'time (s)', 'index': 'id', 'objective_out': 'objective',
-                   'gap_out': 'gap (\%)', 'bound_out': 'bound', 'status': 'status'
-                   }
+    if cols_rename is None:
+        cols_rename = {
+            'time_out': 'time_out', 'index': 'id', 'objective_out': 'objective',
+            'gap_out': 'gap_out', 'bound_out': 'bound', 'status': 'status',
+            'cons': 'cons', 'vars': 'vars', 'nonzeros': 'nonzeros'
+                       }
     path_exps = path_results + experiment
     exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
 
     results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
     df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
                if len(df) > 0}
-    return df_list
-    # print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    table = pd.concat(df_list).reset_index() >> dp.rename(scenario=X.level_0, instance=X.level_1)
+    names_df = na.config_to_latex(table.scenario)
+    scenarios = table >> dp.distinct(X.scenario) >> dp.select(X.scenario)
+    scenarios = scenarios.reset_index(drop=True) >> dp.mutate(code = X.index)
+
+    @dp.make_symbolic
+    def find_regex(series, regex_text):
+        return [re.search(regex_text, t) is not None
+                if t is not None and not pd.isna(t) else False
+                for t in series]
+
+    return table >> \
+           dp.left_join(names_df, on="scenario") >> \
+           dp.left_join(scenarios, on='scenario') >> \
+           dp.mutate(no_int=find_regex(X.status, 'no integer solution'),
+                  inf=find_regex(X.status, 'infeasible'))
+
 
 
 def sim_list_to_md(df_list):
@@ -592,51 +613,57 @@ def sim_list_to_md(df_list):
         print(df.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 
-def sim_list_to_tt(df_list):
+def summary_table(table_in):
 
-    @make_symbolic
-    def find_regex(series, regex_text):
-        return sum(re.search(regex_text, t) is not None for t in series
-                   if t is not None if not pd.isna(t))
+    t3 = \
+    table_in >> \
+        dp.rename(t= 'time_out', g = 'gap_out') >> \
+        dp.group_by(X.scenario) >> \
+        dp.mutate(sizet = dp.n(X.t)) >> \
+        dp.filter_by(~X.inf) >> \
+        dp.summarize(g_med = X.g.median(),
+                     t_max = X.t.max(),
+                     t_min = X.t.min(),
+                     t_med = X.t.median(),
+                     cons = X.cons.mean(),
+                     vars = X.vars.mean(),
+                     non_0 = X.nonzeros.mean(),
+                     no_int = X.no_int.sum(),
+                     inf = dp.first(X.sizet) - dp.n(X.t),
+                     code = dp.first(X.code),
+                     case=dp.first(X.case)
+                )
 
-    def treat_table(table):
-        return \
-            table >> \
-            rename(t= 'time (s)', g = 'gap (\%)') >> \
-            summarize(t_max = X.t.max(),
-                      t_min = X.t.min(),
-                      t_med = X.t.median(),
-                      g_max = X.g.max(),
-                      g_min = X.g.min(),
-                      g_med = X.g.median(),
-                      total = n(X.t),
-                      no_int = find_regex(X.status, 'no integer solution'),
-                      inf = find_regex(X.status, 'infeasible')
-                    )
-
-    t3_b = {k: treat_table(v) for k, v in df_list.items()}
-    t3 = pd.concat(t3_b)
-    print(t3.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    # t3_b = {k: treat_table(v) for k, v in df_list.items()}
     return t3
 
 
-def summary_to_latex(table, path):
-    names_df = na.config_to_latex(table.index.levels[0])
+def summary_to_latex(experiment, table, path):
+    names_df = na.config_to_latex(table.scenario)
 
     eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'med'] for a in ['t', 'g']}
-    eqs.update({'no-int': 'no_int', 'scenario': 'level_0'})
-    t4 = table.reset_index() >> \
-         rename(**eqs) >> \
-         left_join(names_df, on="scenario") >> \
-         select(~X.scenario, ~X.level_1) >> \
-         rename(scenario=X.case)
-    t4 = t4.reindex(columns=['scenario']+t4.columns[:-1].tolist())
+    eqs.update({'no-int': 'no_int', 'non-zero': 'non_0'})
+    t4 = table.sort_values(by='t_med') >> \
+         dp.left_join(names_df, on='scenario') >> \
+        dp.select(X.code, X.case, X.t_min, X.t_med, X.t_max, X.non_0,
+                  X.vars, X.cons,
+                  # X.no_int, X.inf,
+                  X.g_med) >> \
+         dp.rename(**eqs)
+
+    # t4 = t4.reindex(columns=['scenario']+t4.columns[:-1].tolist())
 
     latex = t4.to_latex(float_format='%.1f', escape=False, index=False)
-    # path = '/home/pchtsp/Documents/projects/COR2019/tables/'
     file_path = os.path.join(path, '{}.tex'.format(experiment))
     with open(file_path, 'w') as f:
         f.write(latex)
+
+
+def boxplot_instances(table, column='time_out'):
+    # table = table >> dp.filter_by(~X.inf)
+    return ggplot(aes(x='code', y=column), data=table) + geom_boxplot() + \
+    xlab(element_text("Scenario", size=20, vjust=-0.05)) + \
+    ylab(element_text("Solving time (in seconds)", size=20, vjust=0.15))
 
 if __name__ == "__main__":
 
@@ -664,11 +691,7 @@ if __name__ == "__main__":
     # table = get_results_table(path_abs)
     # solvers_comp()
     # experiment = 'clust1_20181031'
-    experiment = "clust1_20181107"
-    experiment = "hp_20181104"
-    df_list = get_simulation_results(experiment)
-    table = sim_list_to_tt(df_list)
-    summary_to_latex(table, '/home/pchtsp/Documents/projects/COR2019/tables/')
+
 
 
     pass
