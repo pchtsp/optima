@@ -16,7 +16,6 @@ output:
     # footer: "ISAE-SUPAERO, Université de Toulouse, France"
     includes:
         in_header: header.tex
-    # before_body: before_body.tex
   slidy_presentation:
     css: ./../../../css/baobab_slidy.css
     incremental: yes
@@ -31,6 +30,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+path_to_R_dir <- '.'
 path_to_R_dir <- "./../../"
 setwd(path_to_R_dir)
 source('functions/params.R')
@@ -38,7 +38,7 @@ source('functions/import_results.R')
 source('functions/scenario_analysis.R')
 source('diagrams/fixed_interval.R')
 all_exp_dir <- PATHS[['results']] %>% paste0('simulated_data/')
-exp_directory <- all_exp_dir %>% paste0('2_task/201809180941/')
+exp_directory <- all_exp_dir %>% paste0('task_periods_solv_2_50_GUROBI/201810121218/')
 gantt <- print_solution(exp_directory, max_resources = 15, width='100%')
 show_gantt <- knitr::opts_knit$get("rmarkdown.pandoc.to")=="slidy"
 task_gantt <- tasks_gantt()

@@ -144,6 +144,7 @@ def create_dataset(options):
     )
     res_types = sd.SuperDict({k: res_types[i] for i, k in enumerate(resources)})
 
+    # we initialize the capacities with the types of resources
     res_capacities = sd.SuperDict({k: {v} for k, v in res_types.items()})
     # we want to add the special capacities to only some resources.
     # we do this by iterating over tasks and trying to complete the partially able resources.

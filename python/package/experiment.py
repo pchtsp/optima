@@ -73,7 +73,7 @@ class Experiment(object):
         maints = self.solution.get_in_maintenance()
         return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
 
-    def check_task_num_resources(self):
+    def check_task_num_resources(self, strict=False):
         task_reqs = self.instance.get_tasks('num_resource')
 
         task_assigned = \
@@ -85,6 +85,8 @@ class Experiment(object):
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
         }
+        if strict:
+            return sd.SuperDict(task_under_assigned).clean(func=lambda x: x != 0)
         return sd.SuperDict(task_under_assigned).clean(func=lambda x: x > 0)
 
     def check_resource_in_candidates(self):
@@ -378,11 +380,7 @@ def exp_get_info(path, get_log_info=True, get_exp_info=True):
         return None
     log_path = os.path.join(path, "results.log")
     if os.path.exists(log_path) and get_log_info:
-        log_results = log.LogFile(log_path)
-        if options['solver'] == 'CPLEX':
-            log_info = log_results.get_log_info_cplex()
-        elif options['solver'] == 'GUROBI':
-            log_info = log_results.get_log_info_gurobi()
+        log_info = log.get_info_solver(log_path, options['solver'])
     return {**parameters, **options, **log_info, **inst_info}
 
 
@@ -393,6 +391,7 @@ def list_experiments(path, exp_list=None, **kwags):
                   if os.path.isdir(os.path.join(path, f))]
     experiments = {}
     for e in exps_paths:
+        print(e)
         info = exp_get_info(e, **kwags)
         if info is None:
             continue

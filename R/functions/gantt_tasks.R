@@ -26,8 +26,12 @@ print_tasks <- function(exp_directory, max_tasks=9999, ...){
         ) %>% 
         slice(sample(1:n()))
         
+    make_tasks_gantt(tasks)
+}
+
+make_tasks_gantt <- function(data, ...){
+    
     config <- list(
-        stack = FALSE,
         editable = TRUE,
         align = "center",
         orientation = "top",
@@ -36,6 +40,6 @@ print_tasks <- function(exp_directory, max_tasks=9999, ...){
         zoomable= FALSE
     )
     
-    groups <- tasks %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
-    timevis(tasks, groups= groups, options= config, ...)
+    groups <- data %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
+    timevis(data, groups= groups, options= config, ...)
 }

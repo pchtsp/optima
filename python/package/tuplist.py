@@ -102,3 +102,6 @@ class TupList(list):
         for list_tup in all_periods:
             res_start_finish.append(tuple(list(list_tup[0]) + [list_tup[-1][pp]]))
         return TupList(res_start_finish)
+
+    def to_list(self):
+        return list(self)

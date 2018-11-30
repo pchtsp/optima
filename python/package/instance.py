@@ -435,9 +435,6 @@ class Instance(object):
         c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
 
-        # c_needs_hours = {kt: 0 for kt in c_needs}
-        # c_needs_num = {kt: len(c_candidates[kt[0]]) for kt in c_needs}
-
         return {'num': c_needs_num, 'hours': c_needs_hours}
 
     def get_task_candidates(self, task=None):
@@ -464,6 +461,7 @@ class Instance(object):
         return t_candidates
 
     def get_cluster_candidates(self):
+        # Since clusters are strict, their candidates are the same as the tasks.
         c_candidates = {}
         t_candidates = self.get_task_candidates()
         cluster = self.get_clusters()

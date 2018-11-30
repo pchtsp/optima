@@ -6,6 +6,7 @@ library(visNetwork)
 library(magrittr)
 library(RColorBrewer)
 source('functions/pdf_gantt.R')
+source('functions/gantt_tasks.R')
 
 tasks_gantt_data <- function(){
     start_month <- as.Date('2017-10-01')
@@ -26,21 +27,6 @@ tasks_gantt_data <- function(){
                style= sprintf("background-color:%s;border-color:%s;font-size: 15px", color, color),
         )
 
-}
-
-make_tasks_gantt <- function(data, ...){
-    
-    config <- list(
-        editable = TRUE,
-        align = "center",
-        orientation = "top",
-        snap = NULL,
-        margin = 0,
-        zoomable= FALSE
-    )
-    
-    groups <- data %>% distinct(group) %>% rename(id= group) %>% mutate(content= id)
-    timevis(data, groups= groups, options= config, ...)
 }
 
 tasks_gantt <- function(...){

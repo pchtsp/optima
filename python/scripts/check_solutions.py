@@ -7,6 +7,7 @@ import package.data_input as di
 import pandas as pd
 import package.superdict as sd
 import scripts.exec as exec
+import os
 import package.model as md
 
 # '201801141334' vs '201802061201 vs '201802061434'
@@ -149,6 +150,23 @@ def test3():
     sol_nostates.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
 
 
+def check_over_assignments():
+    experiment = 'clust1_20181107'
+    path_results = PATHS['results']
+    path_exps = path_results + experiment
+
+    def listdir_fullpath(d):
+        return [os.path.join(d, f) for f in os.listdir(d)]
+
+    exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/') for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
+    checks = {e: v.check_task_num_resources(strict=True) for e, v in exps.items() if v is not None}
+    num = sd.SuperDict(checks).to_lendict().values_l()
+    result = pd.Series.from_array(num).value_counts()
+    # exp.Experiment.
+    result.sort_index(inplace=True)
+    return result
+
+
 if __name__ == '__main__':
-    test111()
+    check_over_assignments()
     pass
