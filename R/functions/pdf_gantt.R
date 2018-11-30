@@ -5,7 +5,7 @@ library(lubridate)
 library(magrittr)
 library(stringr)
 
-states_to_pgfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isodate'){
+states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isodate'){
     t_start <- data$start %>% min()
     t_end <- data$end %>% max()
     y_string <- ''

@@ -7,7 +7,10 @@ source('functions/pdf_gantt.R')
 # main functions ----------------------------------------------------------
 
 exp_directory = PATHS[['experiments']] %>% paste0('201801131817/')
-PATHS[['experiments']] %>% paste0('201802061201/')
+# PATHS[['experiments']] %>% paste0('201802061201/')
+exp_directory = PATHS[['experiments']] %>% paste0('../hp_20181104/base/201811061411/')
+exp_directory = PATHS['results'] %>% paste0('hp_20181104/base/201811061411/')
+exp_directory = PATHS['results'] %>% paste0('clust1_20181121/tminassign_[1]/201811252202/')
 # exp_directory <- PATHS[['results']] %>% paste0('simulated_data/2_task_types/201810051400/')
 print_solution(exp_directory, width='100%')
 print_tasks(exp_directory)
@@ -84,18 +87,23 @@ timevis_from_states(states, max_resources=NULL, width='100%')
 
 
 # pdf graph ---------------------------------------------------------------
-
+exp_directory = PATHS['results'] %>% paste0('hp_20181104/base/201811061411/')
 states <- get_states(exp_directory)
 resources <- states %>% distinct(group) %>% sample_n(10)
-states <- states %>% inner_join(resources)
-text <- states_to_pgfgantt(states, x_unit = 0.3, date_format = 'isodate-yearmonth')
+states <- states %>% inner_join(resources) %>% mutate_at(vars(group), as.numeric) %>% arrange(group)
+dir_out <- '/home/pchtsp/Documents/projects/COR2019/gantts/'
 
-write(text, file='/home/pchtsp/Documents/projects/COR2019/gantt.tex')
+# -----------graph solution
+text <- states_to_pgfgantt(states, y_unit = 0.5, date_format = 'isodate-yearmonth')
+write(text, file=dir_out %>% paste0('gantt_example.tex'))
 
 
 # -----------other options...
 data <- tasks_gantt_data()
-data %>% states_to_pgfgantt(x_unit=1, y_unit=0.6) %>% write(file='/home/pchtsp/Documents/projects/COR2019/gantt.tex')
+data %>% states_to_pdfgantt(x_unit=1, y_unit=0.6) %>% write(file=dir_out %>% paste0('gantt.tex'))
+
+data %>% states_to_pdfgantt(y_unit=0.6) %>% write(file=dir_out %>% paste0('gantt.tex'))
+
 
 # example of states -------------------------------------------------------
 
