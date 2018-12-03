@@ -9,7 +9,7 @@ import numpy as np
 import random
 import package.data_input as di
 import tabulate
-import package.logFiles as log
+import orloge as log
 import re
 import package.heuristics as heur
 from package.params import PATHS

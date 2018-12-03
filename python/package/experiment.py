@@ -11,7 +11,8 @@ import os
 import shutil
 import pprint as pp
 import re
-import package.logFiles as log
+import orloge as ol
+# import package.logFiles as log
 
 
 # TODO: create period objects with proper date methods based on arrow
@@ -380,7 +381,7 @@ def exp_get_info(path, get_log_info=True, get_exp_info=True):
         return None
     log_path = os.path.join(path, "results.log")
     if os.path.exists(log_path) and get_log_info:
-        log_info = log.get_info_solver(log_path, options['solver'])
+        log_info = ol.get_info_solver(log_path, options['solver'])
     return {**parameters, **options, **log_info, **inst_info}
 
 
