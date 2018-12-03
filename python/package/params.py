@@ -34,18 +34,18 @@ OPTIONS = {
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
-    , 'num_period': 60
+    , 'num_period': 90
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
-    , 'writeLP': True
+    , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
     , 'simulation': {
-        'num_resources': 15
+        'num_resources': 15  # this depends on the number of tasks actually
         , 'num_parallel_tasks': 1
         , 'maint_duration': 6
         , 'max_used_time': 1000
@@ -56,10 +56,9 @@ OPTIONS = {
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type
         , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
-        # , 'seed': 9366
         , 'seed': None
         # The following are fixed options, not arguments for the scenario:
-        , 't_min_assign': [2, 3, 6]
+        , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)
         , 't_required_hours': (30, 50, 80) # triangular distribution params
         , 't_num_resource': (2, 5)
