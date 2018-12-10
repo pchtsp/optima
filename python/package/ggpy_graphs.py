@@ -7,6 +7,7 @@ import orloge as log
 import numpy as np
 import package.auxiliar as aux
 import package.experiment as exp
+import package.reports as rep
 
 
 path_root = PATHS['root']
@@ -44,7 +45,7 @@ def remaining_graph():
 def multi_objective_graph():
 
     path_comp = path_abs + "weights3/"
-    data_dic = multi_get_info(path_comp)
+    data_dic = rep.multi_get_info(path_comp)
 
     cols_rename = {'maint_weight': '$W_1$', 'unavail_weight': '$W_2$', 'index': 'exp', 'gap': 'gap (\%)'}
     data = pd.DataFrame.from_dict(data_dic, orient='index').reset_index().rename(columns=cols_rename)

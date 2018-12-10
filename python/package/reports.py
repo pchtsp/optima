@@ -1,4 +1,3 @@
-import pprint as pp
 import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
@@ -22,7 +21,7 @@ path_img = PATHS['img']
 path_latex = PATHS['latex']
 path_results = PATHS['results']
 
-# here we get some data inside
+
 def task_table():
     ################################################
     # Task table
@@ -116,11 +115,6 @@ def results_table(dir_origin=path_abs, dir_dest=path_latex + 'MOSIM2018/tables/'
         'first_solution': 'first', 'objective_out': 'last'
     }
 
-    # table['most cuts'] = table.cuts.apply(
-    #     lambda x: ["{}: {}".format(k, v)
-    #                for k, v in x.items()
-    #                if v == max(x.values())
-    #                ][0])
 
     table1 = table.rename(columns=cols_rename)[
         ['id', 'objective', 'gap (\%)', 'time (s)', 'bound']]
@@ -162,10 +156,7 @@ def multi_get_info(path_comp):
     unavailable = {k: max(v.solution.get_unavailable().values()) for k, v in experiments.items()}
     maint = {k: max(v.solution.get_in_maintenance().values()) for k, v in experiments.items()}
     gaps = aux.get_property_from_dic(exps, "gap_out")
-    # obj = aux.get_property_from_dic(exps, "objective_out")
-    # obj2 = {k: v.get_objective_function() for k, v in experiments.items()}
-    # checks = {k: v.check_solution() for k, v in experiments.items()}
-    # aux.get_property_from_dic(exps, "timeLimit")
+
 
     data_dic = \
         {k:
@@ -231,7 +222,6 @@ def multi_multiobjective_table():
 
 def solvers_comp():
 
-
     # exps = sd.SuperDict(exps)
     # solver = exps.get_property('solver')
     # solver.clean('CPO')
@@ -265,11 +255,6 @@ def solvers_comp():
     # sort_values(['maintenances'], ascending=True).\
     unstacked = table_filt.set_index(['tasks', 'periods', 'solver'])['maintenances'].unstack('solver')
     print(unstacked.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
-
-    # results = get_results_table(path_abs, get_log_info=False)
-
-    # gurobi_results = get_results_table(path_abs + 'GUROBI/')
-
 
 
 def gurobi_vs_cplex():
@@ -306,17 +291,6 @@ def add_task_types():
     exps = {f: exp.Experiment.from_dir(os.path.join(path_types, f)) for f in os.listdir(path_types)}
     unavailables = {k: v.solution.get_unavailable() for k, v in exps.items()}
     maintenances = {k: v.solution.get_in_maintenance() for k, v in exps.items()}
-    # exp.exp_get_info(path_to_compare)['tasks']
-    # exp.exp_get_info(path_to_compare)['periods']
-    # sum(exp.exp_get_info(path_types + f)['tasks']
-    #     for f in os.listdir(path_types))
-    # [exp.exp_get_info(path_types + f)['periods']
-    #     for f in os.listdir(path_types)]
-
-    # pp.pprint(di.load_data(path_to_compare + '/options.json'))
-    # pp.pprint(di.load_data(path_types + '2000_D/options.json'))
-    # pp.pprint(exp.)
-    # di.load_data(path_to_compare + '/options.json')
 
     table1 = pd.DataFrame.from_dict(unavailables, orient='index')
     table1 = table1.reset_index().melt(value_vars=table1.columns, id_vars='index').\
@@ -375,53 +349,6 @@ def compare_heur_model():
     return comparison
 
 
-def tests():
-    ################################################
-    # Tests
-    ################################################
-    path_weights = path_abs + "weights3/"
-    paths = os.listdir(path_abs)
-    small_tests = \
-    ['201801141705', '201801141331', '201801141646', '201801131813',
-     '201801091304', '201801091338', '201801091342', '201801091346',
-     '201801091412', '201801141607', '201712142345', '201801102259']
-
-    weights_wrong = [0, 2, 3, 4, 7, 8, 10]
-
-    comp = {}
-    for experiment in range(11):
-        # path = path_abs + experiment
-        path = path_weights + str(experiment)
-        comp[experiment] = exp.Experiment.from_dir(path).check_solution()
-
-    pp.pprint([k for k, v in comp.items() if len(v) > 0])
-    weights2_wrong = [4, 7, 9]
-
-    no_feasible = \
-    ['201712142345', '201801091338', '201801131813', '201801091304', '201801091412', '201801091346']
-
-    experiment = "201801091346"
-    experiment = "201801182313"
-    experiment = "201801091412"
-    experiment = "weights/7"
-    experiment = "weights2/7"
-    experiment = "201801190010"
-
-    path = path_abs + experiment
-    test = exp.Experiment.from_dir(path)
-    checks = test.check_solution()
-    pp.pprint(checks)
-    # comp[experiment]
-    schedule = test.solution.get_schedule()
-
-    tasks = test.solution.get_tasks()
-    # tasks
-    # schedule[]
-    exps = exp.list_experiments(path_abs)
-    exps = exp.list_experiments(path_weights)
-    pp.pprint(exps["7"])
-
-
 def multiobjective_table():
     ################################################
     # Multiobjective
@@ -476,7 +403,6 @@ def get_simulation_results(experiment, cols_rename=None):
                   inf=find_regex(X.status, 'infeasible'))
 
 
-
 def sim_list_to_md(df_list):
     for k, df in df_list.items():
         print(k)
@@ -503,8 +429,6 @@ def summary_table(table_in):
                      # code = dp.first(X.code),
                      case=dp.first(X.case)
                 )
-
-    # t3_b = {k: treat_table(v) for k, v in df_list.items()}
     return t3
 
 
@@ -521,40 +445,13 @@ def summary_to_latex(experiment, table, path):
                   X.g_med) >> \
          dp.rename(**eqs)
 
-    # t4 = t4.reindex(columns=['scenario']+t4.columns[:-1].tolist())
-
     latex = t4.to_latex(float_format='%.1f', escape=False, index=False)
     file_path = os.path.join(path, '{}.tex'.format(experiment))
     with open(file_path, 'w') as f:
         f.write(latex)
 
+
 if __name__ == "__main__":
-
-    # path, _ = os.path.split(path_abs)
-    # path, _ = os.path.split(path)
-    # path = os.path.join(path, 'MOSIM2018_new_model')
-    # exp_list = [d for d in os.listdir(path) if d.startswith('2018')]
-    # dir_dest = "/home/pchtsp/Documents/projects/OPTIMA/R/presentations/CLAIO_presentation/"
-    # results_table(dir_dest=dir_dest, dir_origin=path, exp_list=exp_list)
-
-    # results_table()
-    # remaining_graph()
-    # progress_graph()
-    # maintenances_graph()
-    # maintenances_graph(maint=False)
-    # multiobjective_table()
-    # multi_multiobjective_table()
-    # pp.pprint(d)
-    # for x_key in x:
-    #     print(x[x_key], y[x_key])
-
-    # multiobjective_table()
-    # pp.pprint(pareto_p2)
-    # multiobjective_table()
-    # table = get_results_table(path_abs)
-    # solvers_comp()
-    # experiment = 'clust1_20181031'
-
 
 
     pass

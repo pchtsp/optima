@@ -1,14 +1,14 @@
-import scripts.graphs2 as gp
+import package.reports as rep
 import os
 import package.experiment as exp
 import pandas as pd
 import package.params as pm
 import package.superdict as sd
-import scripts.names as na
+# import scripts.names as na
+# import numpy as np
 import dfply as dp
 from dfply import X
-import package.rpi_graphs as rg
-import numpy as np
+import package.rpy_graphs as rg
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
 
@@ -32,15 +32,15 @@ def boxplot_gaps(table, experiment):
 
 
 def summary_to_latex(table, experiment):
-    table_summary = gp.summary_table(table)
-    gp.summary_to_latex(experiment=experiment, table=table_summary,
-                        path=path + 'tables/')
+    table_summary = rep.summary_table(table)
+    rep.summary_to_latex(experiment=experiment, table=table_summary,
+                         path=path + 'tables/')
 
 
 # experiment2 = "clust1_20181107"
 # experiment = "hp_20181102"
 def test1():
-    table = gp.get_simulation_results(experiment)
+    table = rep.get_simulation_results(experiment)
     # table2 = get_simulation_results(experiment2)
     # table = table.append(table2)
 
@@ -120,7 +120,7 @@ def test2():
 
         # dp.mutate(code = range(X.scenario.n()))
 
-    plot = gp.boxplot_instances(table_sum, column='num_cuts')
+    plot = rep.boxplot_instances(table_sum, column='num_cuts')
 
 
     print(plot)
@@ -128,7 +128,7 @@ def test2():
 
 if __name__ == "__main__":
     experiment = "clust1_20181121"
-    table = gp.get_simulation_results(experiment)
+    table = rep.get_simulation_results(experiment)
     boxplot_times(table, experiment)
     boxplot_gaps(table, experiment)
     summary_to_latex(table, experiment)
