@@ -7,17 +7,43 @@ import package.superdict as sd
 import scripts.names as na
 import dfply as dp
 from dfply import X
-from ggplot import *
+import package.rpi_graphs as rg
+import numpy as np
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
-experiment = "clust1_20181107"
+
+def boxplot_times(table, experiment):
+    plot = rg.boxplot(table >> dp.filter_by(~X.inf), x='scenario', y='time_out',
+                      xlab='Scenario', ylab='Solving time')
+    plot.save(os.path.join(path, 'img', experiment + '_times.png'))
+
+def boxplot_gaps(table, experiment):
+
+    @dp.make_symbolic
+    def is_na(series):
+        return pd.isna(series)
+
+    table_n = table >> dp.filter_by(~X.inf) >> \
+              dp.mutate(gap = dp.if_else(is_na(X.gap_out), 0, X.gap_out))
+
+    plot = rg.boxplot(table_n, x='scenario', y='gap',
+                      xlab='Scenario', ylab='Relative gap')
+    plot.save(os.path.join(path, 'img', experiment + '_gaps.png'))
+
+
+def summary_to_latex(table, experiment):
+    table_summary = gp.summary_table(table)
+    gp.summary_to_latex(experiment=experiment, table=table_summary,
+                        path=path + 'tables/')
+
+
 # experiment2 = "clust1_20181107"
 # experiment = "hp_20181102"
 def test1():
     table = gp.get_simulation_results(experiment)
     # table2 = get_simulation_results(experiment2)
     # table = table.append(table2)
-    table_summary = gp.summary_table(table)
+
 # nsp = na.names_no_spaces()
 # names_fr = na.simulation_params_fr()
 # nsp_fr = {v: names_fr[k] for k, v in nsp.items()}
@@ -34,7 +60,7 @@ def test1():
 
 # name = experiment1 + '_' + experiment
     name = experiment
-    gp.summary_to_latex(experiment=name, table=table_summary, path=path + 'tables/')
+
 
 ############################ TEST:
 
@@ -72,17 +98,16 @@ def test2():
 
     table_sum = table_sum >> dp.left_join(scenarios, on='scenario')
 
-    ggplot(aes(x='code', y='num'), data=table_sum) + geom_boxplot() + \
-    theme(axis_text_x  = element_text("Cut", angle = 45, hjust = 1))
+    # rg.rpy2_boxplot(table_sum, x='scenario', y='num')
 
     t = table >> dp.group_by(X.scenario, X.cut) >> dp.summarize(num = X.num.sum())
     t >> \
     dp.spread(X.scenario, X.num) >> \
     dp.select(X.cut, X.base, X.maxelapsedtime_40, X.maxelapsedtime_80, X.elapsedtimesize_40, X.elapsedtimesize_20) >> \
     dp.rename(mt80=X.maxelapsedtime_80, mt40=X.maxelapsedtime_40, es40=X.elapsedtimesize_40, es20=X.elapsedtimesize_20)
-
-    ggplot(aes(x='cut', y='num', color='scenario'), data=t) + geom_bar() + \
-    xlab(element_text("Scenario", size=10, vjust=-0.05, angle=100))
+    #
+    # ggplot(aes(x='cut', y='num', color='scenario'), data=t) + geom_bar() + \
+    # xlab(element_text("Scenario", size=10, vjust=-0.05, angle=100))
     # theme(axis_text_x=element_text("Cut", angle = 45, hjust = 1, size=10))
     # xlab(element_text("Scenario", size=10, vjust=-0.05, angle=100))
 
@@ -96,8 +121,14 @@ def test2():
         # dp.mutate(code = range(X.scenario.n()))
 
     plot = gp.boxplot_instances(table_sum, column='num_cuts')
+
+
     print(plot)
     # pd.io.json.json_normalize(cuts, record_path=['*', '*'])
 
 if __name__ == "__main__":
-    test2()
+    experiment = "clust1_20181121"
+    table = gp.get_simulation_results(experiment)
+    boxplot_times(table, experiment)
+    boxplot_gaps(table, experiment)
+    summary_to_latex(table, experiment)
