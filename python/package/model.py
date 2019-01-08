@@ -48,7 +48,7 @@ def solve_model(instance, options=None):
     num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
     rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
-    # TEMP
+    # slack variables:
     slack_vt = {tup: 0 for tup in l['vt']}
     slack_at = {tup: 0 for tup in l['at']}
     slack_kt_hours = {tup: 0 for tup in l['kt']}

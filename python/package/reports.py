@@ -254,7 +254,7 @@ def solvers_comp():
         drop_duplicates(subset=['tasks', 'periods', 'solver'])
     # sort_values(['maintenances'], ascending=True).\
     unstacked = table_filt.set_index(['tasks', 'periods', 'solver'])['maintenances'].unstack('solver')
-    print(unstacked.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print_table_md(unstacked)
 
 
 def gurobi_vs_cplex():
@@ -266,8 +266,8 @@ def gurobi_vs_cplex():
     gurobi_results = get_results_table(path_abs + 'GUROBI/')
     df_cplex = cplex_results.rename(columns=cols_rename)[list(cols_rename.values())]
     df_gurobi = gurobi_results.rename(columns=cols_rename)[list(cols_rename.values())]
-    print(df_cplex.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
-    print(df_gurobi.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print_table_md(df_cplex)
+    print_table_md(df_gurobi)
 
 
 def add_task_types():
@@ -308,8 +308,7 @@ def add_task_types():
             ,table2
             ,left_index = True, right_index = True
         ).merge(table_ref,left_index = True, right_index = True)
-
-    print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print_table_md(table)
 
 
 def compare_heur_model():
@@ -345,7 +344,7 @@ def compare_heur_model():
     reftable = get_results_table(path_abs)
     reftable = reftable[['index', 'date']].set_index('date')
     comparison = pd.merge(table, reftable, left_index=True, right_index=True).set_index('index').sort_index()
-    print(comparison.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+    print_table_md(comparison)
     return comparison
 
 
@@ -371,8 +370,9 @@ def get_simulation_results(experiment, cols_rename=None):
         cols_rename = {
             'time': 'time_out', 'index': 'id', 'best_solution': 'objective',
             'gap': 'gap_out', 'best_bound': 'bound', 'status': 'status',
+            'sol_code': 'sol_code', 'status_code': 'status_code',
             'matrix': 'matrix'
-                       }
+        }
     path_exps = path_results + experiment
     exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
 
@@ -382,31 +382,31 @@ def get_simulation_results(experiment, cols_rename=None):
     table = pd.concat(df_list).reset_index() >> dp.rename(scenario=X.level_0, instance=X.level_1)
 
     # here we join the sub columns from the matrix
-    table = table >> \
-            dp.bind_cols(table.matrix.apply(pd.Series)) >> \
-            dp.rename(vars = X.variables, cons = X.constraints, nonzeros = X.nonzeros)
+    if 'matrix' in table.columns:
+        table = table >> \
+                dp.bind_cols(table.matrix.apply(pd.Series)) >> \
+                dp.rename(vars = X.variables, cons = X.constraints, nonzeros = X.nonzeros)
 
     names_df = na.config_to_latex(table.scenario)
     scenarios = table >> dp.distinct(X.scenario) >> dp.select(X.scenario)
     scenarios = scenarios.reset_index(drop=True) >> dp.mutate(code = X.index)
 
     @dp.make_symbolic
-    def find_regex(series, regex_text):
-        return [re.search(regex_text, t) is not None
-                if t is not None and not pd.isna(t) else False
-                for t in series]
+    def replace_3600(series):
+        return np.where(series>=3600, 3600, series)
 
     return table >> \
            dp.left_join(names_df, on="scenario") >> \
            dp.left_join(scenarios, on='scenario') >> \
-           dp.mutate(no_int=find_regex(X.status, 'no integer solution'),
-                  inf=find_regex(X.status, 'infeasible'))
+           dp.mutate(no_int=X.sol_code == 0,
+                     inf=X.sol_code == -1,
+                     time_out=replace_3600(X.time_out))
 
 
 def sim_list_to_md(df_list):
     for k, df in df_list.items():
         print(k)
-        print(df.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
+        print_table_md(df)
 
 
 def summary_table(table_in):
@@ -437,12 +437,17 @@ def summary_to_latex(experiment, table, path):
 
     eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'med'] for a in ['t', 'g']}
     eqs.update({'no-int': 'no_int', 'non-zero': 'non_0'})
-    t4 = table.sort_values(by='t_med') >> \
+    t4 = table  >> \
+         dp.ungroup() >>\
+         dp.arrange(X.t_med, X.g_med) >>\
          dp.left_join(names_df, on='scenario') >> \
-        dp.select(X.case, X.t_min, X.t_med, X.t_max, X.non_0,
-                  X.vars, X.cons,
-                  # X.no_int, X.inf,
-                  X.g_med) >> \
+         dp.select(X.case, X.t_min, X.t_med,
+                   # X.t_max,
+                   X.non_0,
+                   # X.vars, X.cons,
+                   X.no_int,
+                   # X.inf,
+                   X.g_med) >> \
          dp.rename(**eqs)
 
     latex = t4.to_latex(float_format='%.1f', escape=False, index=False)
@@ -451,7 +456,13 @@ def summary_to_latex(experiment, table, path):
         f.write(latex)
 
 
-if __name__ == "__main__":
+def print_table_md(table):
+    print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
+
+def col_names_collapsed(table):
+    ['.'.join(reversed(col)).strip() for col in table.columns.values]
+
+if __name__ == "__main__":
 
     pass

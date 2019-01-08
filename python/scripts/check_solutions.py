@@ -159,7 +159,17 @@ def check_over_assignments():
         return [os.path.join(d, f) for f in os.listdir(d)]
 
     exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/') for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
+    exp_scenario = {os.path.basename(e): os.path.basename(p) for p in listdir_fullpath(path_exps) for e in             listdir_fullpath(p)}
     checks = {e: v.check_task_num_resources(strict=True) for e, v in exps.items() if v is not None}
+
+
+    keys = sd.SuperDict(checks).to_lendict().clean().keys_l()
+    set(sd.SuperDict(exp_scenario).filter(keys).values_l())
+    set(sd.SuperDict(exp_scenario).values_l())
+
+    scenario_over_assigned = sd.SuperDict(exp_scenario).filter(keys).values_l()
+    num = pd.Series(scenario_over_assigned).value_counts()
+
     num = sd.SuperDict(checks).to_lendict().values_l()
     result = pd.Series.from_array(num).value_counts()
     # exp.Experiment.
