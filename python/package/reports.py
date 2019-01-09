@@ -371,15 +371,24 @@ def get_simulation_results(experiment, cols_rename=None):
             'time': 'time_out', 'index': 'id', 'best_solution': 'objective',
             'gap': 'gap_out', 'best_bound': 'bound', 'status': 'status',
             'sol_code': 'sol_code', 'status_code': 'status_code',
-            'matrix': 'matrix'
+            'matrix_post': 'matrix'
         }
     path_exps = path_results + experiment
     exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
 
     results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
-    df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
-               if len(df) > 0}
-    table = pd.concat(df_list).reset_index() >> dp.rename(scenario=X.level_0, instance=X.level_1)
+    # table.columns
+    table = \
+        pd.concat(results_list) >> \
+        dp.select(list(cols_rename.keys()))
+
+    table = \
+        table.rename(columns=cols_rename).reset_index() >> \
+        dp.rename(scenario=X.level_0, instance=X.level_1)
+
+    # df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
+    #            if len(df) > 0}
+    # table = pd.concat(df_list).reset_index() >> dp.rename(scenario=X.level_0, instance=X.level_1)
 
     # here we join the sub columns from the matrix
     if 'matrix' in table.columns:
@@ -444,7 +453,7 @@ def summary_to_latex(experiment, table, path):
          dp.select(X.case, X.t_min, X.t_med,
                    # X.t_max,
                    X.non_0,
-                   # X.vars, X.cons,
+                   X.vars, X.cons,
                    X.no_int,
                    # X.inf,
                    X.g_med) >> \
@@ -461,7 +470,7 @@ def print_table_md(table):
 
 
 def col_names_collapsed(table):
-    ['.'.join(reversed(col)).strip() for col in table.columns.values]
+    return ['.'.join(reversed(col)).strip() for col in table.columns.values]
 
 if __name__ == "__main__":
 

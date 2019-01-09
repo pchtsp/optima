@@ -96,6 +96,28 @@ def get_relaxations(table):
                   rel_end=_round(X.rel_end))
     return table_nn.pivot(index="instance", columns='scenario')
 
+def get_cuts(table):
+    # table_nn.columns
+    @dp.make_symbolic
+    def has_cuts(series):
+        return pd.Series(len(n)>0 if type(n) is dict else False for n in series)
+
+    table_n = \
+        table >> \
+        dp.select(X.scenario, X.instance) >>\
+        dp.bind_cols(table.cut_info.apply(pd.Series)) >> \
+        dp.filter_by(has_cuts(X.cuts))
+
+    table_nn = \
+        table_n >> \
+        dp.select(X.scenario, X.instance) >> \
+        dp.bind_cols(table_n.cuts.apply(pd.Series)) >> \
+        dp.gather('cut', 'num', dp.columns_from(2)) >> \
+        dp.filter_by(X.num > 0) >>\
+        dp.spread(X.scenario, X.num)
+
+    return table_nn
+
 def get_efficiency(table):
     table_nn = \
         table >> \
@@ -113,7 +135,7 @@ def get_preprocessing(table):
 
     table_nn = table_n.pivot(index="instance", columns='scenario')
     table_nn.columns = rep.col_names_collapsed(table_nn)
-    return
+    return table_nn
 
 
 # nsp = na.names_no_spaces()
@@ -194,6 +216,39 @@ def statistics_experiment(experiment):
     bars_inf(table, experiment)
     summary_to_latex(table, experiment)
 
+def cut_comparison():
+    scenarios = \
+        dict(
+            # GUROBI = "clust1_20181112/base/",
+            # CPLEX = "clust1_20181107/base/"
+            MIN_HOUR_5="clust_params2_cplex/minusageperiod_5",
+            MIN_HOUR_15="clust_params2_cplex/minusageperiod_15",
+            MIN_HOUR_20="clust_params2_cplex/minusageperiod_20",
+            BASE="clust_params2_cplex/base",
+        )
+
+    table = get_scenarios_to_compare(scenarios)
+
+    # functions = [get_efficiency, get_preprocessing, get_relaxations]
+    # functions = [get_cuts]
+    # for f in functions:
+    #     rep.print_table_md(f(table))
+
+    cuts_table = get_cuts(table)
+    for scenario in scenarios.keys():
+        plot = rg.boxplot(cuts_table, 'cut', scenario)
+        plot.save(os.path.join(path, 'img', scenario + '.png'))
+
+    summary_medians = \
+        cuts_table >> \
+        dp.group_by(X.cut) >> \
+        dp.summarize(BASE = X.BASE.median(),
+                     MIN_5=X.MIN_HOUR_5.median(),
+                     MIN_15=X.MIN_HOUR_15.median(),
+                     MIN_20=X.MIN_HOUR_20.median(),
+                     )
+    print(summary_medians.\
+        to_latex(bold_rows=True, index=False, float_format='%.0f'))
 
 if __name__ == "__main__":
     ####################
@@ -205,21 +260,6 @@ if __name__ == "__main__":
     for experiment in experiments:
         statistics_experiment(experiment)
 
-    ####################
-    # Solver comparison
-    ####################
-
-    # scenarios = \
-    #     dict(
-    #         GUROBI = "clust1_20181112/base/",
-    #         CPLEX = "clust1_20181107/base/"
-    #     )
-    #
-    # table = get_scenarios_to_compare(scenarios)
-    #
-    # functions = [get_efficiency, get_preprocessing, get_relaxations]
-    # for f in functions:
-    #     rep.print_table_md(f(table))
 
     ####################
     # Other?

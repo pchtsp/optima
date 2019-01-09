@@ -5,6 +5,7 @@ python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.pesc
 python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Dropbox/OPTIMA_results/hp_2018110777/\"}" -d "{\"solver\": \"CPLEX\", \"num_period\": 10}" -s "{\"seed\": 42}" > log.txt &
 
 
+# clust1_20181112
 python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181112/\"}" -d "{\"solver\": \"GUROBI\", \"num_period\": 90}" -s "{\"seed\": 42}" > log.txt &
 
 # hp_20181114:
@@ -27,6 +28,9 @@ nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"./../../opt
 
 # clust1_20181128 (4): 
 nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20181128/\"}" -d "{\"solver\": \"CPLEX\", \"num_period\": 90}" -s "{\"seed\": 52}" -c "{\"min_avail_value\": [3] , \"min_hours_perc\": [0.3, 0.7] , \"t_min_assign\": [[1], [3], [6]], \"price_rut_end\": [1]}"  -q 40 > /tmp/f.peschiera/log.txt &
+
+# clust1_20190108
+nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20190108/\"}" -d "{\"solver\": \"CBC\", \"num_period\": 90}" -s "{\"seed\": 42}" -q 10 > /tmp/f.peschiera/log.txt &
 
 # get files back:
 
