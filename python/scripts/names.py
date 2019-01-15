@@ -53,14 +53,16 @@ def names_latex():
 
 
 def config_to_latex(col_names):
+    base_scenario = {'base': 'base'}
     names_values = {i: '={}'.format(i.split('_')[1]) for i in col_names if i != 'base'}
-    names_values.update({'base': ''})
+    names_values.update(base_scenario)
     names = {i: i.split('_')[0] for i in col_names if i != 'base'}
     eqs = {v: k for k, v in names_no_spaces().items()}
     names_l = names_latex()
     names_correct = {k: names_l[eqs[v]] for k, v in names.items()}
     names_correct.update({'base': ''})
     names_correct_v = {k: v + names_values[k] for k, v in names_correct.items()}
+    names.update(base_scenario)
     name_df = pd.DataFrame.from_dict(names, orient='index').\
         reset_index() >> rename(scenario='index', name=1)
 

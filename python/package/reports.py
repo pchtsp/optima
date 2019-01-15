@@ -442,14 +442,11 @@ def summary_table(table_in):
 
 
 def summary_to_latex(experiment, table, path):
-    names_df = na.config_to_latex(table.scenario)
-
     eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'med'] for a in ['t', 'g']}
-    eqs.update({'no-int': 'no_int', 'non-zero': 'non_0'})
+    eqs.update({'no-int': 'no_int', 'non-zero': 'non_0', 'case': 'scenario'})
     t4 = table  >> \
          dp.ungroup() >>\
          dp.arrange(X.t_med, X.g_med) >>\
-         dp.left_join(names_df, on='scenario') >> \
          dp.select(X.case, X.t_min, X.t_med,
                    # X.t_max,
                    X.non_0,

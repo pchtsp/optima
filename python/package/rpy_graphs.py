@@ -38,7 +38,7 @@ def boxplot(table, x, y, xlab=None, ylab=None):
     if ylab is None:
         ylab = y
     theme_params = {
-        'axis.text.x': ggplot2.element_text(angle = 45, size=14),
+        'axis.text.x': ggplot2.element_text(angle = 45, size=14, hjust=1, vjust=1),
         'axis.text.y': ggplot2.element_text(size=14),
         'axis.title': ggplot2.element_text(size=14, face="bold")
     }
@@ -60,7 +60,7 @@ def bars(table, x, y, xlab=None, ylab=None):
     if ylab is None:
         ylab = y
     theme_params = {
-        'axis.text.x': ggplot2.element_text(angle = 45, size=14),
+        'axis.text.x': ggplot2.element_text(angle = 45, size=14, hjust=1, vjust=1),
         'axis.text.y': ggplot2.element_text(size=14),
         'axis.title': ggplot2.element_text(size=14, face="bold")
     }

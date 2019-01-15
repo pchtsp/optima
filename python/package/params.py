@@ -8,9 +8,9 @@ if 'GUROBI_HOME' in os.environ:
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
 path_base = r'/home'
-path_base = r'C:\Users'
+# path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
-path_results = path_base + '/pchtsp/Dropbox/OPTIMA_results/'
+path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
 path_project = path_root + "OPTIMA/"
 
 PATHS = {

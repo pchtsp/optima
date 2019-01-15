@@ -260,6 +260,10 @@ if __name__ == "__main__":
     for experiment in experiments:
         statistics_experiment(experiment)
 
+    ####################
+    # Scenario comparison
+    ####################
+    # cut_comparison()
 
     ####################
     # Other?
