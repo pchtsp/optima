@@ -48,7 +48,7 @@ def names_latex():
         , 'min_avail_value': "$AN^{K}_{kt}$"
         , 'min_hours_perc': "$HP^{K}_{kt}$"
         , 't_min_assign': "$MT_j$"
-        , 'price_rut_end': "$\max \{rut\}$"
+        , 'price_rut_end': "$\max \{rft\}$"
     }
 
 
