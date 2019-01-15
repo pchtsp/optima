@@ -32,6 +32,18 @@ nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.pesc
 # clust1_20190108
 nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20190108/\"}" -d "{\"solver\": \"CBC\", \"num_period\": 90}" -s "{\"seed\": 42}" -q 10 > /tmp/f.peschiera/log.txt &
 
+# clust1_20190114
+nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20190114/\"}" -d "{\"solver\": \"CPLEX\", \"num_period\": 90, \"timeLimit\": 0, \"writeMPS\": \"True\"}" -s "{\"seed\": 42}" -q 10 > /tmp/f.peschiera/log.txt &
+
+# clust1_20190115
+nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20190115/\"}" -d "{\"solver\": \"CPLEX\", \"num_period\": 90, \"timeLimit\": 0, \"writeMPS\": \"True\"}" -s "{\"seed\": 42}" -c "{\"min_usage_period\": [5, 15, 20]}" -q 10 > /tmp/f.peschiera/log.txt &
+
 # get files back:
 
 rsync -rav -e ssh --include '*/' --exclude='formulation.lp' f.peschiera@serv-cluster1:/home/disc/f.peschiera/Documents/projects/optima/results/* ./
+
+# cplex tuner
+
+ls -d -1 /tmp/f.peschiera/optima_results/clust1_20190114/base/*/formulation.mps > modelfile
+ls -d -1 /tmp/f.peschiera/optima_results/clust1_20190115/minusageperiod_5/*/formulation.mps > modelfile
+nohup python3 ./python/scripts/cplex_tuner.py > /tmp/f.peschiera/log_20190115.txt &
