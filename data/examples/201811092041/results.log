@@ -1,0 +1,124 @@
+
+Log started (V12.8.0.0) Fri Nov  9 20:41:19 2018
+
+New value for time limit in seconds: 3600
+New value for mixed integer optimality gap tolerance: 0
+New value for upper limit on size of tree in megabytes: 64413.2
+CPXPARAM_TimeLimit                               3600
+CPXPARAM_MIP_Tolerances_MIPGap                   0
+CPXPARAM_MIP_Limits_TreeMemory                   64413.1875
+Tried aggregator 3 times.
+MIP Presolve eliminated 33228 rows and 452 columns.
+MIP Presolve modified 712 coefficients.
+Aggregator did 1353 substitutions.
+Reduced MIP has 7022 rows, 4644 columns, and 62041 nonzeros.
+Reduced MIP has 3259 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.26 sec. (248.59 ticks)
+Probing fixed 189 vars, tightened 0 bounds.
+Probing changed sense of 286 constraints.
+Probing time = 0.05 sec. (13.24 ticks)
+Cover probing fixed 0 vars, tightened 1 bounds.
+Tried aggregator 2 times.
+MIP Presolve eliminated 769 rows and 264 columns.
+MIP Presolve modified 587 coefficients.
+Aggregator did 109 substitutions.
+Reduced MIP has 6144 rows, 4271 columns, and 46178 nonzeros.
+Reduced MIP has 2995 binaries, 1 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.12 sec. (101.29 ticks)
+Probing time = 0.01 sec. (3.44 ticks)
+Clique table members: 9917.
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: deterministic, using up to 12 threads.
+Root relaxation solution time = 0.60 sec. (368.34 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+      0     0    16378.4868   209                  16378.4868     4093         
+      0     0    21004.2942   130                    Cuts: 61     5027         
+      0     0    21004.3284   143                    Cuts: 40     5181         
+      0     0    21004.3286   128                    Cuts: 33     5253         
+      0     0    21004.3300   125                     Cuts: 4     5286         
+*     0+    0                        23006.5073    21004.3300             8.70%
+*     0+    0                        21006.0394    21004.3374             0.01%
+      0     2    21004.3300   112    21006.0394    21004.3419     5286    0.01%
+Elapsed time = 3.30 sec. (1961.55 ticks, tree = 0.01 MB, solutions = 2)
+    153    90    21004.4128   142    21006.0394    21004.3495    13952    0.01%
+    378   301    21005.5500    14    21006.0394    21004.3495    30005    0.01%
+*   402   300      integral     0    21005.5635    21004.3495    30084    0.01%
+*   505   378      integral     0    21004.9345    21004.3495    34702    0.00%
+    835   500        cutoff          21004.9345    21004.3609    46555    0.00%
+*   911   594      integral     0    21004.9295    21004.3609    51462    0.00%
+*   927   541      integral     0    21004.8772    21004.3609    48766    0.00%
+   1271   767    21004.8525    32    21004.8772    21004.3793    65816    0.00%
+*  1290   735      integral     0    21004.8337    21004.3793    63967    0.00%
+   1475   752    21004.5645   107    21004.8337    21004.3793    72956    0.00%
+*  1538+  792                        21004.7985    21004.3793             0.00%
+*  1938+  854                        21004.7814    21004.3793             0.00%
+   2044   909    21004.7983    20    21004.7814    21004.3799   123095    0.00%
+Elapsed time = 7.63 sec. (4269.34 ticks, tree = 26.29 MB, solutions = 11)
+   2705  1423    21004.6790    62    21004.7814    21004.4067   187629    0.00%
+   3528  1932    21004.5466   106    21004.7814    21004.4169   248234    0.00%
+*  3550+ 1907                        21004.6865    21004.4169             0.00%
+*  3672+ 1522                        21004.6659    21004.4169             0.00%
+*  3920+ 1487                        21004.6563    21004.4351             0.00%
+   3978  1607    21004.5740    40    21004.6563    21004.5715   307186    0.00%
+   4020    10    21004.6484   141    21004.6563    21004.5845   313823    0.00%
+
+GUB cover cuts applied:  1
+Clique cuts applied:  1
+Cover cuts applied:  2
+Implied bound cuts applied:  13
+Flow cuts applied:  8
+Mixed integer rounding cuts applied:  28
+Zero-half cuts applied:  20
+Lift and project cuts applied:  4
+Gomory fractional cuts applied:  23
+
+Root node processing (before b&c):
+  Real time             =    3.18 sec. (1944.22 ticks)
+Parallel b&c, 12 threads:
+  Real time             =   15.43 sec. (9027.36 ticks)
+  Sync time (average)   =    2.89 sec.
+  Wait time (average)   =    0.06 sec.
+                          ------------
+Total (root+branch&cut) =   18.61 sec. (10971.58 ticks)
+
+Solution pool: 15 solutions saved.
+
+MIP - Integer optimal solution:  Objective =  2.1004656332e+04
+Solution time =   18.61 sec.  Iterations = 319171  Nodes = 4022
+Deterministic time = 10971.60 ticks  (589.52 ticks/sec)
+
+MILP problem relaxed to LP with fixed integer variables using
+incumbent solution.
+CPXPARAM_TimeLimit                               3600
+CPXPARAM_MIP_Tolerances_MIPGap                   0
+CPXPARAM_MIP_Limits_TreeMemory                   64413.1875
+Parallel mode: deterministic, using up to 12 threads for concurrent optimization.
+Tried aggregator 1 time.
+LP Presolve eliminated 40244 rows and 5221 columns.
+Aggregator did 638 substitutions.
+Reduced LP has 721 rows, 590 columns, and 2553 nonzeros.
+Presolve time = 0.01 sec. (13.63 ticks)
+Initializing dual steep norms . . .
+
+Iteration log . . .
+Iteration:     1   Dual objective     =         21004.656332
+Perturbation started.
+Iteration:    51   Dual objective     =         21004.656332
+Iteration:   165   Dual objective     =         21004.691958
+Iteration:   249   Dual objective     =         21004.703348
+Iteration:   328   Dual objective     =         21004.718714
+Removing perturbation.
+
+Dual simplex solved model.
+
+
+Dual simplex - Optimal:  Objective =  2.1004656332e+04
+Solution time =    0.04 sec.  Iterations = 378 (0)
+Deterministic time = 32.23 ticks  (877.17 ticks/sec)
+
+
+Solution written to file 'MFMP_v0002-pulp.sol'.
