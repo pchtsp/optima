@@ -161,22 +161,27 @@ class MaintenanceFirst(heur.GreedyByMission):
 
     def assign_missing_maints_to_aircraft(self):
         first = self.instance.get_param('start')
+        last = self.instance.get_param('end')
+        duration = self.instance.get_param('maint_duration')
         elapsed_time_size = self.instance.get_param('elapsed_time_size')
         errors = []
         while True:
             rets = sd.SuperDict(self.solution.data['aux']['ret'])
-            per_maint_start = {}
+            maint_candidates = []
             for res, info in rets.items():
                 if res in errors:
                     continue
                 for period, ret in info.items():
                     if ret <= 0:
                         # print(res, period, ret)
-                        per_maint_start[res] = max(first, aux.shift_month(period, -elapsed_time_size + 1)), period
+                        tup = res, \
+                              max(first, aux.shift_month(period, -elapsed_time_size + 1)), \
+                              min(last, aux.shift_month(period, duration))
+                        maint_candidates.append(tup)
                         break
-            if not len(per_maint_start):
+            if not len(maint_candidates):
                 break
-            maint_candidates = [(r, s, e) for r, (s, e) in per_maint_start.items()]
+            # maint_candidates = [(r, s, e) for r, (s, e) in per_maint_start.items()]
             maint_candidates.sort(key=lambda x: len(aux.get_months(x[1], x[2])))
             for resource, start, end in maint_candidates:
                 result = self.find_assign_maintenance(resource=resource,

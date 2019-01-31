@@ -186,7 +186,8 @@ class GreedyByMission(test.Experiment):
         Tries to find the soonest maintenance in the planning horizon
         for a given resource.
         :param resource: resource to find maintenance
-        :param maint_need: date when the resources needs the maintenance
+        :param maint_need: date when the resource needs the maintenance
+        :param max_period: date when the resource can no longer have the maintenance
         :return:
         """
         if max_period is None:
