@@ -92,12 +92,20 @@ class TupList(list):
         for tup in self:
             if tup == self[0] or tup[0] != last_tup[0] or\
                     tup[pp] != aux.get_next_month(last_tup[pp]):
+                # we're starting, or it's a new id. Or we're changing month.
                 if len(current_period):
+                    # if there was a previous list of periods: save it
                     all_periods.append(current_period)
+                # start list of consecutive periods
                 current_period = [tup]
             else:
+                # don't start: just keep on storing it
                 current_period.append(tup)
             last_tup = tup
+
+        # The last tup, we need to save it too:
+        if len(current_period):
+            all_periods.append(current_period)
 
         for list_tup in all_periods:
             res_start_finish.append(tuple(list(list_tup[0]) + [list_tup[-1][pp]]))

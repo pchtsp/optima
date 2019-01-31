@@ -386,10 +386,6 @@ def get_simulation_results(experiment, cols_rename=None):
         table.rename(columns=cols_rename).reset_index() >> \
         dp.rename(scenario=X.level_0, instance=X.level_1)
 
-    # df_list = {k: df.rename(columns=cols_rename)[list(cols_rename.values())] for k, df in results_list.items()
-    #            if len(df) > 0}
-    # table = pd.concat(df_list).reset_index() >> dp.rename(scenario=X.level_0, instance=X.level_1)
-
     # here we join the sub columns from the matrix
     if 'matrix' in table.columns:
         table = table >> \
@@ -404,12 +400,19 @@ def get_simulation_results(experiment, cols_rename=None):
     def replace_3600(series):
         return np.where(series>=3600, 3600, series)
 
-    return table >> \
+    table_n = \
+        table >> \
            dp.left_join(names_df, on="scenario") >> \
-           dp.left_join(scenarios, on='scenario') >> \
-           dp.mutate(no_int=X.sol_code == 0,
-                     inf=X.sol_code == -1,
-                     time_out=replace_3600(X.time_out))
+           dp.left_join(scenarios, on='scenario')\
+
+    if 'sol_code' in table_n.columns:
+        table_n = table_n >> dp.mutate(no_int=X.sol_code == 0,
+                                       inf=X.sol_code == -1)
+
+    if 'time_out' in table_n.columns:
+        table_n = table_n >> dp.mutate(time_out=replace_3600(X.time_out))
+
+    return table_n
 
 
 def sim_list_to_md(df_list):
@@ -427,9 +430,11 @@ def summary_table(table_in):
         dp.mutate(sizet = dp.n(X.t)) >> \
         dp.filter_by(~X.inf) >> \
         dp.summarize(g_med = X.g.median(),
+                     g_avg=X.g.mean(),
                      t_max = X.t.max(),
                      t_min = X.t.min(),
                      t_med = X.t.median(),
+                     t_avg=X.t.mean(),
                      cons = X.cons.mean(),
                      vars = X.vars.mean(),
                      non_0 = X.nonzeros.mean(),
@@ -442,18 +447,18 @@ def summary_table(table_in):
 
 
 def summary_to_latex(experiment, table, path):
-    eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'med'] for a in ['t', 'g']}
+    eqs = {'${}^{{{}}}$'.format(a, m): '{}_{}'.format(a, m) for m in ['max', 'min', 'avg'] for a in ['t', 'g']}
     eqs.update({'no-int': 'no_int', 'non-zero': 'non_0', 'case': 'scenario'})
     t4 = table  >> \
          dp.ungroup() >>\
-         dp.arrange(X.t_med, X.g_med) >>\
-         dp.select(X.case, X.t_min, X.t_med,
+         dp.arrange(X.t_avg, X.g_avg) >>\
+         dp.select(X.case, X.t_min, X.t_avg,
                    # X.t_max,
                    X.non_0,
                    X.vars, X.cons,
                    X.no_int,
-                   # X.inf,
-                   X.g_med) >> \
+                   X.inf,
+                   X.g_avg) >> \
          dp.rename(**eqs)
 
     latex = t4.to_latex(float_format='%.1f', escape=False, index=False)

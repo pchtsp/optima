@@ -25,11 +25,24 @@ PATHS = {
 PATHS['input'] = PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
 PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
+params_cplex = \
+[ 'set mip cuts flowcovers 1'
+, 'set mip cuts mircut 1'
+, 'set mip strategy backtrack 0.1'
+, 'set mip strategy heuristicfreq 100'
+, 'set mip strategy presolvenode 2'
+, 'set mip strategy probe 3'
+, 'set mip limits gomorycand 10000'
+, 'set mip limits gomorypass 10'
+, 'set mip tolerances mipgap 0']
+
+
 OPTIONS = {
     'timeLimit': 3600  # seconds
     , 'gap': 0
-    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC
+    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf
     , 'memory': None
+    , 'solver_add_opts': params_cplex
     , 'print': True
     , 'integer': False
     , 'black_list': ['O8', 'O10', 'O6']
@@ -45,6 +58,7 @@ OPTIONS = {
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
+    , 'seed': None
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
         , 'num_parallel_tasks': 1
@@ -57,7 +71,7 @@ OPTIONS = {
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type
         , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
-        , 'seed': None
+        , 'seed': 44
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)

@@ -3,6 +3,7 @@
 import package.auxiliar as aux
 import pandas as pd
 import numpy as np
+import package.superdict as sd
 # import rpy2.robjects as ro
 # from rpy2.robjects.packages import importr
 # from rpy2.robjects import pandas2ri
@@ -41,12 +42,15 @@ class Solution(object):
     def get_tasks(self):
         return aux.dictdict_to_dictup(self.data['task'])
 
-    def get_state(self):
-        return aux.dictdict_to_dictup(self.data['state'])
+    def get_state(self, resource=None):
+        data = sd.SuperDict.from_dict(self.data['state'])
+        if resource is not None:
+            data = data.filter(resource, check=False)
+        return data.to_dictup()
 
-    def get_maintenance_periods(self):
+    def get_maintenance_periods(self, resource=None):
         result = aux.tup_to_start_finish(
-            aux.dict_to_tup(self.get_state())
+            aux.dict_to_tup(self.get_state(resource))
         )
         return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
@@ -66,7 +70,8 @@ class Solution(object):
         return {(a, t): v for (t, a), v in task_resources.items()}
 
     def get_task_num_resources(self):
-        return {key: len(value) for key, value in self.get_task_resources().items()}
+        task_resources = self.get_task_resources()
+        return {key: len(value) for key, value in task_resources.items()}
 
     def get_schedule(self):
         """

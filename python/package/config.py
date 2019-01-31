@@ -33,6 +33,7 @@ class Config(object):
         self.path = options['path']
         self.timeLimit = options['timeLimit']
         self.solver = options['solver']
+        self.solver_add_opts = options.get('solver_add_opts', [])
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
@@ -54,7 +55,7 @@ class Config(object):
              "knapsack on",
              "probing on",
              "ratio {}".format(self.gap),
-             "sec {}".format(self.timeLimit)]
+             "sec {}".format(self.timeLimit)] + self.solver_add_opts
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
@@ -65,7 +66,7 @@ class Config(object):
         return [('TimeLimit', self.timeLimit),
                 ('ResultFile', result_path),
                 ('LogFile', log_path),
-                ('MIPGap', self.gap)]
+                ('MIPGap', self.gap)] + self.solver_add_opts
 
     def config_cplex(self):
         # CPLEX parameters: https://www.ibm.com/support/knowledgecenter/en/SSSA5P_12.6.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/tutorials/InteractiveOptimizer/settingParams.html
@@ -76,12 +77,12 @@ class Config(object):
                 'set timelimit {}'.format(self.timeLimit),
                 'set mip tolerances mipgap {}'.format(self.gap),
                 'set mip limits treememory {}'.format(self.memory),
-                ]
+                ] + self.solver_add_opts
 
     def config_choco(self):
         # CHOCO parameters https://github.com/chocoteam/choco-parsers/blob/master/MPS.md
         return [('-tl', self.timeLimit * 1000),
-                ('-p', 1)]
+                ('-p', 1)] + self.solver_add_opts
 
     def solve_model(self, model):
 

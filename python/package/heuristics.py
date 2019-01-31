@@ -20,50 +20,11 @@ class GreedyByMission(test.Experiment):
         solution = sol.Solution({'state': {}, 'task': {}})
         super().__init__(instance, solution)
 
-        self.solution.data['aux'] = {'ret': {}, 'rut': {}}
-        first_period = aux.get_prev_month(self.instance.get_param('start'))
-        last_period = self.instance.get_param('end')
+        self.solution.data['aux'] = {'ret': {}, 'rut': {}, 'start': {}}
         resources = list(self.instance.get_resources())
 
-        # TODO: this *must* be temporal
-        # instance.data['parameters']['maint_duration'] = 5
-        # problems = [('2019-10-01', '2000_B', 2)]
-        # date = problems[0][0]
-        # capacity = problems[0][1]
-        # num_res = problems[0][2]
-        # ret = aux.get_months(first_period, date).__len__() - 1
-        # ret_init = instance.get_resources('initial_elapsed')
-        # capacities = instance.get_resources('capacities')
-        # bad_resources = [r for r, v in capacities.items() if v[0] == capacity]
-        # bad_resources = [r for r in bad_resources if ret_init[r] == ret][:num_res]
-        # for res in bad_resources:
-        #     instance.data['resources'][res]['initial_elapsed'] += 2
-        # self.instance.data['parameters']['maint_capacity'] = 500
-        # for r in resources:
-        #     self.instance.data['resources'][r]['initial_elapsed'] = 500
-
-        # we preassign ruts and rets.
-        for time in ['rut', 'ret']:
-            initial_state = self.instance.get_initial_state(self.label_rt(time))
-            for resource in resources:
-                self.set_remainingtime(resource, first_period, time, initial_state[resource])
-
-        periods_to_update = {r: self.instance.get_periods() for r in resources}
-
-        # we preassign fixed maintenances:
-        fixed_maintenances = self.instance.get_fixed_maintenances(dict_key='resource')
-        for resource, periods in fixed_maintenances.items():
-            periods_to_update[resource] = \
-                aux.get_months(aux.get_next_month(periods[-1]), last_period)
-
-            for period in periods:
-                self.set_maint(resource, period)
-            self.update_time_maint(resource, periods, time='ret')
-            self.update_time_maint(resource, periods, time='rut')
-
-        for t in ['rut', 'ret']:
-            for r in resources:
-                self.update_time_usage(r, periods_to_update[r], time=t)
+        for r in resources:
+            self.initialize_resource_states(r)
 
         def_options = {'print': True}
         self.options = {**def_options, **options}
@@ -89,63 +50,45 @@ class GreedyByMission(test.Experiment):
         needs = [k for k, v in self.check_elapsed_consumption().items() if v == -1]
         for res, period in needs:
             print('resource {} needs a maintenance in {}'.format(res, period))
-            self.find_assign_maintenance(res, aux.shift_month(period, -1), get_latest=True)
+            self.find_assign_maintenance(res, aux.shift_month(period, -1), which_maint='latest')
         # solution[i] = copy.deepcopy(self.solution)
         # quality[i] = self.check_solution()
         return self.solution
 
-    def fill_mission(self, task, determinist=True):
+    def fill_mission(self, task, assign_maints=True, max_iters=100, rem_resources=None):
         """
         This function assigns all the necessary resources to a given task
         It edits the solution object inside the experiment
         :param task: a task code to satisfy
-        :param determinist: this means no randomness.
         :return: nothing
         """
+        if rem_resources is None:
+            rem_resources = self.check_task_num_resources().to_dictdict()
+        if task in rem_resources:
+            rem_resources = rem_resources[task]
+        else:
+            return False
         duration = self.instance.get_param('maint_duration')
         dtype = 'U7'
-        # get task candidates: we copy the list.
-        task_resources = self.instance.get_task_candidates()
-        resource_num_tasks = \
-            aux.dict_to_lendict(
-                aux.dict_list_reverse(task_resources)
-            )
-        rut_initial = self.instance.get_resources('initial_used')
-        ret_initial = self.instance.get_resources('initial_elapsed')
-        # remaining_status = {
-        #     r: min(
-        #         ret_initial[r] / self.instance.get_param('max_elapsed_time')
-        #         , rut_initial[r] / self.instance.get_param('max_used_time')
-        #     )
-        #     for r in ret_initial
-        # }
-
-        candidates = task_resources[task]
-        num_maints = {r: self.solution.get_number_maintenances(r) for r in candidates}
-        if determinist:
-            candidates.sort(key=lambda x: (num_maints[x], resource_num_tasks[x], ret_initial[x]))
-        else:
-            rn.shuffle(candidates)
-        # get task periods to satisfy:
-        rem_resources = \
-            aux.dicttup_to_dictdict(
-                self.instance.get_task_period_needs()
-            )[task]
-
-        while len(rem_resources) > 0 and len(candidates) > 0:
-            num_maints = {r: self.solution.get_number_maintenances(r) for r in candidates}
-            candidates.sort(key=lambda x: (num_maints[x], resource_num_tasks[x], ret_initial[x]))
-            candidate = candidates[0]
+        candidates = self.instance.get_task_candidates(task=task)
+        i = 0
+        while len(rem_resources) > 0 and len(candidates) > 0 and i < max_iters:
+            i += 1
+            # num_maints = {r: self.solution.get_number_maintenances(r) for r in candidates}
+            # candidates.sort(key=lambda x: (num_maints[x], resource_num_tasks[x], ret_initial[x]))
+            candidate = rn.choice(candidates)
             # get free periods for candidate
             periods_task = \
                 self.get_free_starts(candidate, np.fromiter(rem_resources, dtype=dtype))
             if len(periods_task) == 0:
                 # consider eliminating the resource from the list.
                 # if all its periods are 'used'
-                candidates.pop(0)
+                candidates.remove(candidate)
                 continue
             maint_need = ''
             # for each period of consecutive months
+            # we randomize them to give some more sugar
+            rn.shuffle(periods_task)
             for start, end in periods_task:
                 # here we do all the checks to see if we can assign tasks
                 # and how many periods we can assign it to.
@@ -159,8 +102,9 @@ class GreedyByMission(test.Experiment):
                 if maint_need == '' and last_month < end:
                     # we register (only) the first need of maintenance:
                     maint_need = aux.shift_month(last_month, -duration+1)
-            if maint_need == '':
+            if maint_need == '' or not assign_maints:
                 # if the resource has no need for maintenance yet, we don't attempt one
+                # also, if we do not want to assign maintenances: we do not do it
                 continue
             if self.options['print']:
                 print("resource {} needs a maintenance after period {}".format(candidate, maint_need))
@@ -168,9 +112,36 @@ class GreedyByMission(test.Experiment):
             result = self.find_assign_maintenance(candidate, maint_need)
             if not result:
                 # the maintenance failed: we pop the candidate because it is most probably useless.
-                candidates.pop(0)
-
+                candidates.remove(candidate)
         return
+
+    def initialize_resource_states(self, resource):
+        last_period = self.instance.get_param('end')
+        period_0 = aux.get_prev_month(self.instance.get_param('start'))
+        periods_to_update = []
+
+        # we preassign initial ruts and rets.
+        for time in ['rut', 'ret']:
+            initial_state = self.instance.get_initial_state(self.label_rt(time), resource=resource)
+            self.set_remainingtime(resource, period_0, time, initial_state[resource])
+
+        # we preassign fixed maintenances:
+        fixed_maintenances = \
+            self.instance.get_fixed_maintenances(dict_key='resource', resource=resource)
+        for _, periods in fixed_maintenances.items():
+            periods_to_update = \
+                aux.get_months(aux.get_next_month(periods[-1]), last_period)
+
+            for period in periods:
+                self.set_maint(resource, period)
+            self.update_time_maint(resource, periods, time='ret')
+            self.update_time_maint(resource, periods, time='rut')
+
+        if not len(fixed_maintenances.get(resource, [])):
+            periods_to_update = self.instance.get_periods()
+
+        for t in ['rut', 'ret']:
+            self.update_time_usage(resource, periods_to_update, time=t)
 
     def fix_over_maintenances(self):
         # sometimes the solution includes a 12 period maintenance
@@ -179,18 +150,26 @@ class GreedyByMission(test.Experiment):
 
     def find_assign_task(self, resource, start, end, task):
         periods_to_assign = self.check_assign_task(resource, aux.get_months(start, end), task)
+        info = self.instance.data['tasks'][task]
+        min_asign = info['min_assign']
+        last_month_task = info['end']
+        size_assign = len(periods_to_assign)
+        if not size_assign:
+            # if there was nothing assigned: there is nothing to do
+            return aux.shift_month(start, -1)
+        first_period_to_assign = periods_to_assign[0]
+        last_period_to_assign = periods_to_assign[-1]
+        previous_period = aux.shift_month(first_period_to_assign, -1)
+        previous_state = self.solution.data['task'].get(resource, {}).get(previous_period ,'')
+        if (size_assign < min_asign
+            and last_period_to_assign != last_month_task
+            and previous_state != task):
+            # if not enough to assign
+            #   (and not the last task month and different from previous state)
+            return aux.shift_month(start, -1)
         for period in periods_to_assign:
             self.expand_resource_period(self.solution.data['task'], resource, period)
             self.solution.data['task'][resource][period] = task
-        last_month = end
-        if len(periods_to_assign) == 0:
-            # if there was nothing assigned: there is nothing to do
-            return aux.shift_month(start, -1)
-        if periods_to_assign[-1] != end:
-            # if last assigned period corresponds with the end:
-            # this means we did not have problems.
-            # if not, a maintenance is needed after that period.
-            last_month = periods_to_assign[-1]
         # here, the updating of ret and rut is done.
         # It is done until the next maintenance or the end
         next_maint = self.get_next_maintenance(resource, end)
@@ -200,9 +179,9 @@ class GreedyByMission(test.Experiment):
             periods_to_update = aux.get_months(start, next_maint)
         self.update_time_usage(resource, periods=periods_to_update, time='rut')
         # self.update_time_usage(resource, periods=periods_to_update, time='ret')
-        return last_month
+        return last_period_to_assign
 
-    def find_assign_maintenance(self, resource, maint_need, get_latest=False):
+    def find_assign_maintenance(self, resource, maint_need, max_period=None, which_maint='soonest'):
         """
         Tries to find the soonest maintenance in the planning horizon
         for a given resource.
@@ -210,12 +189,16 @@ class GreedyByMission(test.Experiment):
         :param maint_need: date when the resources needs the maintenance
         :return:
         """
+        if max_period is None:
+            max_period = self.instance.get_param('end')
         horizon_end = self.instance.get_param('end')
         duration = self.instance.get_param('maint_duration')
         maint_start = None
-        if get_latest:
+        if which_maint == 'latest':
             maint_start = self.get_latest_maint(resource, maint_need)
-        if maint_start is None:
+        elif which_maint == 'random':
+            maint_start = self.get_random_maint(resource, maint_need, max_period)
+        elif maint_start == 'soonest':
             maint_start = self.get_soonest_maint(resource, maint_need)
         if maint_start is None:
             # this means that we cannot assign tasks BUT
@@ -300,40 +283,70 @@ class GreedyByMission(test.Experiment):
         return [p for p, num in num_in_maint.items() if
                                  num < self.instance.get_param('maint_capacity')]
 
-    def get_soonest_maint(self, resource, min_period, maint_duration=6):
-        """
-        Finds the soonest possible maintenance to assign to a resource.
-        :param resource: resource (code) to search for maintenance
-        :param min_period: period (month) starting period to search for date
-        :param maint_duration: duration in number periods of the maintenance
-        :return: period (month) or none
-        """
-        horizon_end = self.instance.get_param('end')
+    def get_maintenance_candidates(self, resource, min_period, max_period):
         periods_to_search = \
             np.intersect1d(self.get_free_periods_maint(),
                            self.get_free_periods_resource(resource))
-        free = [(1, period) for period in periods_to_search if period >= min_period]
-        for (id, st, end) in aux.tup_to_start_finish(free):
+        free = [(1, period) for period in periods_to_search
+                if min_period <= period <= max_period]
+        return aux.tup_to_start_finish(free)
+
+    def get_random_maint(self, resource, min_period, max_period):
+        """
+        Finds a random maintenance from all possible assignments in range
+        :param resource: resource (code) to search for maintenance
+        :param min_period: period (month) to start searching for date
+        :param max_period: period (month) to end searching for date
+        :return: period (month) or none
+        """
+        maint_duration = self.instance.get_param('maint_duration')
+        start_to_finish = \
+            self.get_maintenance_candidates(
+                resource, min_period=min_period, max_period=max_period
+            )
+        sizes = [(pos, len(aux.get_months(st, end)) - maint_duration)
+                 for pos, (id, st, end) in enumerate(start_to_finish)]
+        maint_options = [(pos, t) for pos, size in sizes if size >= 0 for t in range(size+1)]
+        if not len(maint_options):
+            return None
+        l = rn.choice(maint_options)
+        pos1, pos2 = l
+        _id, st, end = start_to_finish[pos1]
+        return aux.shift_month(st, pos2)
+
+    def get_soonest_maint(self, resource, min_period):
+        """
+        Finds the soonest possible maintenance to assign to a resource.
+        :param resource: resource (code) to search for maintenance
+        :param min_period: period (month) to start searching for date
+        :return: period (month) or none
+        """
+        maint_duration = self.instance.get_param('maint_duration')
+        horizon_end = self.instance.get_param('end')
+        start_to_finish = \
+            self.get_maintenance_candidates(
+                resource, min_period=min_period, max_period=horizon_end
+            )
+        for (id, st, end) in start_to_finish:
             # the period needs to be as least the size of the maintenance
             # alternative: the end is the end of the horizon.
             if end == horizon_end or len(aux.get_months(st, end)) >= maint_duration:
                 return st
         return None
 
-    def get_latest_maint(self, resource, max_period, maint_duration=6):
+    def get_latest_maint(self, resource, max_period):
         """
         Finds the soonest possible maintenance to assign to a resource.
         :param resource: resource (code) to search for maintenance
-        :param max_period: period (month) last possible period to search for date
-        :param maint_duration: duration in number periods of the maintenance
+        :param max_period: period (month) to end searching for date
         :return: period (month) or none
         """
-        horizon_end = self.instance.get_param('end')
-        periods_to_search = \
-            np.intersect1d(self.get_free_periods_maint(),
-                           self.get_free_periods_resource(resource))
-        free = [(1, period) for period in periods_to_search if period <= max_period]
-        start_to_finish = aux.tup_to_start_finish(free)
+        horizon_start = self.instance.get_param('start')
+        maint_duration = self.instance.get_param('maint_duration')
+        start_to_finish = \
+            self.get_maintenance_candidates(
+                resource, min_period=horizon_start, max_period=max_period
+            )
         for (id, st, end) in reversed(start_to_finish):
             # the period needs to be as least the size of the maintenance
             # alternative: the end is the end of the horizon.

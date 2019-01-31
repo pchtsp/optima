@@ -91,11 +91,9 @@ class Experiment(object):
         return sd.SuperDict(task_under_assigned).clean(func=lambda x: x > 0)
 
     def check_resource_in_candidates(self):
-        # task_data = self.instance.get_tasks()
         task_solution = self.solution.get_tasks()
 
         task_candidates = self.instance.get_task_candidates()
-        # aux.get_property_from_dic(task_data, 'candidates')
 
         bad_assignment = {
             (resource, period): task
@@ -120,6 +118,11 @@ class Experiment(object):
         self.expand_resource_period(self.solution.data['aux'][time], resource, period)
         self.solution.data['aux'][time][resource][period] = value
         return True
+
+    def update_resource_all(self, resource):
+        periods_to_update = self.instance.get_periods()
+        for t in ['rut', 'ret']:
+            self.update_time_usage(resource, periods_to_update, time=t)
 
     def update_time_usage(self, resource, periods, previous_value=None, time='rut'):
         """
@@ -149,34 +152,44 @@ class Experiment(object):
             return self.instance.get_param('min_usage_period')
         return self.instance.data['tasks'].get(task, {}).get('consumption', 0)
 
-    def get_non_maintenance_periods(self):
+    def get_non_maintenance_periods(self, resource=None):
         """
         :return: a dictionary with the following structure:
         resource: [(start_period1, end_period1), (start_period2, end_period2), ..., (start_periodN, end_periodN)]
         two consecutive periods being separated by a maintenance operation.
         It's built using the information of the maintenance operations.
+        :param resource: if not None, we filter to only provide this resource's info
         """
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
-        maintenances = aux.tup_to_dict(self.solution.get_maintenance_periods(), result_col=[1, 2])
-        nonmaintenances = []
-        resources_nomaint = [r for r in self.instance.get_resources() if r not in maintenances]
-        for resource in resources_nomaint:
-            nonmaintenances.append((resource, first, last))
-        for resource in maintenances:
-            maints = sorted(maintenances[resource], key=lambda x: x[0])
+        maintenances = aux.tup_to_dict(self.solution.get_maintenance_periods(resource), result_col=[1, 2])
+        if resource is None:
+            resources = self.instance.get_resources()
+        else:
+            resources = [resource]
+        # we initialize nomaint periods for resources that do not have a single maintenance:
+        nonmaintenances = [(r, first, last) for r in resources if r not in maintenances]
+        # now, we iterate over all maintenances to add the before and the after
+        for res in maintenances:
+            maints = sorted(maintenances[res], key=lambda x: x[0])
             first_maint_start = maints[0][0]
             last_maint_end = maints[-1][1]
             if first_maint_start != first:
-                nonmaintenances.append((resource, first, aux.get_prev_month(first_maint_start)))
+                nonmaintenances.append((res, first, aux.get_prev_month(first_maint_start)))
             for maint1, maint2 in zip(maints, maints[1:]):
                 nonmaintenances.append(
-                    (resource, aux.get_next_month(maint1[1]), aux.get_prev_month(maint2[0]))
+                    (res, aux.get_next_month(maint1[1]), aux.get_prev_month(maint2[0]))
                                        )
             if last_maint_end != last:
-                nonmaintenances.append((resource, aux.get_next_month(last_maint_end), last))
+                nonmaintenances.append((res, aux.get_next_month(last_maint_end), last))
         return nonmaintenances
 
     def set_remaining_usage_time(self, time="rut"):
+        """
+        This function remakes the rut and ret times for all resources.
+        It assumes nothing of state or task.
+        :param time:
+        :return:
+        """
         if 'aux' not in self.solution.data:
             self.solution.data['aux'] = {'ret': {}, 'rut': {}}
         else:
@@ -212,7 +225,7 @@ class Experiment(object):
     def check_resource_consumption(self, time='rut'):
         rt = self.set_remaining_usage_time(time)
         rt_tup = aux.dictdict_to_dictup(rt)
-        return {k: v for k, v in rt_tup.items() if v < 0}
+        return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
 
     def check_resource_state(self):
         task_solution = self.solution.get_tasks()
@@ -255,6 +268,8 @@ class Experiment(object):
             if size_period < min_assign.get(state, 1):
                 incorrect[(resource, start)] = size_period
         return incorrect
+
+    # TODO: check start initial assignments.
 
     def check_min_available(self):
         """

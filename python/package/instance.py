@@ -234,20 +234,30 @@ class Instance(object):
         , 'kt'              : kt
         }
 
-    def get_initial_state(self, time_type):
+    def get_initial_state(self, time_type, resource=None):
+        """
+        Returns the correct initial states for resources.
+        It corrects it using the max and whether it is in maintenance.
+        :param time_type: elapsed or used
+        :param resource: optional value to filter only one resource
+        :return:
+        """
         if time_type not in ["elapsed", "used"]:
             raise KeyError("Wrong type in time_type parameter: elapsed or used only")
 
         key_initial = "initial_" + time_type
         key_max = "max_" + time_type + "_time"
-        param_resources = self.get_resources()
+        param_resources = sd.SuperDict(self.get_resources())
+        if resource is not None:
+            param_resources.filter(resource)
         rt_max = self.get_param(key_max)
 
         rt_read = aux.get_property_from_dic(param_resources, key_initial)
 
         # we also check if the resources is currently in maintenance.
         # If it is: we assign the rt_max (according to convention).
-        res_in_maint = set([res for res, period in self.get_fixed_maintenances()])
+        res_in_maint = set([res for res, period
+                            in self.get_fixed_maintenances(resource=resource)])
         rt_fixed = {a: rt_max for a in param_resources if a in res_in_maint}
 
         rt_init = {a: rt_max for a in param_resources}
@@ -263,9 +273,16 @@ class Instance(object):
         min_assign['M'] = self.get_param('maint_duration')
         return min_assign
 
-    def get_fixed_states(self):
-        # TODO: I need to add the previous period states!
-        previous_states = self.get_resources("states")
+    def get_fixed_states(self, resource=None):
+        """
+        This function returns the fixed states in the beginning of the planning period
+        They can be maintenances or mission assignments
+        :param resource: if given filters only for that resource
+        :return:
+        """
+        previous_states = sd.SuperDict.from_dict(self.get_resources("states"))
+        if resource is not None:
+            previous_states = previous_states.filter(resource)
         first_period = self.get_param('start')
         period_0 = aux.get_prev_month(first_period)
         min_assign = self.get_min_assign()
@@ -286,8 +303,8 @@ class Instance(object):
              for f_assign in fixed_assignments_q for t in range(f_assign[2])]
             )
 
-    def get_fixed_maintenances(self, dict_key=None):
-        fixed_states = self.get_fixed_states()
+    def get_fixed_maintenances(self, dict_key=None, resource=None):
+        fixed_states = self.get_fixed_states(resource)
         fixed_maints = tl.TupList([(a, t) for (a, s, t) in fixed_states if s == 'M'])
         if dict_key is None:
             return fixed_maints
@@ -298,35 +315,6 @@ class Instance(object):
 
     def get_fixed_tasks(self):
         return tl.TupList([(a, s, t) for (a, s, t) in self.get_fixed_states() if s in self.get_tasks()])
-
-        # previous_states = self.get_resources("states")
-        # first_period = self.get_param('start')
-        # duration = self.get_param('maint_duration')
-        #
-        # last_maint = {}
-        # planned_maint = []
-        # previous_states_n = {key: [key2 for key2 in value if value[key2] == 'M']
-        #                      for key, value in previous_states.items()}
-        #
-        # # after initialization, we search for the scheduled maintenances that:
-        # # 1. do not continue the maintenance of the previous month
-        # # 2. happen in the last X months before the start of the planning period.
-        # for res in previous_states_n:
-        #     _list = list(previous_states_n[res])
-        #     _list_n = [period for period in _list if aux.get_prev_month(period) not in _list
-        #                if aux.shift_month(first_period, -duration) < period < first_period]
-        #     if not len(_list_n):
-        #         continue
-        #     last_maint[res] = max(_list_n)
-        #     finish_maint = aux.shift_month(last_maint[res], duration - 1)
-        #     for period in aux.get_months(first_period, finish_maint):
-        #         planned_maint.append((res, period))
-        # if dict_key is None:
-        #     return planned_maint
-        # if dict_key == 'resource':
-        #     return aux.tup_to_dict(planned_maint, result_col=1)
-        # if dict_key == 'period':
-        #     return aux.tup_to_dict(planned_maint, result_col=0)
 
     def get_task_period_list(self, in_dict=False):
 
@@ -350,7 +338,8 @@ class Instance(object):
 
     def get_total_period_needs(self):
         num_resource_working = {t: 0 for t in self.get_periods()}
-        for (v, t), req in self.get_task_period_needs().items():
+        task_period_needs = self.get_task_period_needs()
+        for (v, t), req in task_period_needs.items():
             num_resource_working[t] += req
         return num_resource_working
 
