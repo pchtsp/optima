@@ -9,6 +9,7 @@ import package.experiment as exp
 import importlib
 import argparse
 import package.heuristics as heur
+import package.heuristics_maintfirst as mf
 import package.simulation as sim
 import package.superdict as sd
 import datetime as dt
@@ -54,7 +55,7 @@ def execute_solve(model_data, options):
     instance = inst.Instance(model_data)
 
     output_path = options['path']
-
+    print(output_path)
     di.export_data(output_path, instance.data, name="data_in", file_type='json')
     di.export_data(output_path, options, name="options", file_type='json')
 
@@ -63,7 +64,10 @@ def execute_solve(model_data, options):
     if solver == 'CPO':
         solution = md_cp.solve_model2(instance, options)
     elif solver == 'HEUR':
-        heur_obj = heur.GreedyByMission(instance)
+        heur_obj = heur.GreedyByMission(instance, options)
+        solution = heur_obj.solve(options)
+    elif solver == 'HEUR_mf':
+        heur_obj = mf.MaintenanceFirst(instance, options)
         solution = heur_obj.solve(options)
     else:
         solution = md.solve_model(instance, options)
@@ -73,7 +77,6 @@ def execute_solve(model_data, options):
 
     experiment = exp.Experiment(instance, solution)
     errors = experiment.check_solution()
-    errors = sd.SuperDict.from_dict(errors)
     errors = {k: v.to_dictdict() for k, v in errors.items()}
 
     di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json')

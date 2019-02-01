@@ -55,6 +55,9 @@ class Experiment(object):
         else:
             raise ValueError("time needs to be rut or ret")
 
+    def check_solution_count(self):
+        return self.check_solution().to_lendict()
+
     def check_solution(self):
         func_list = {
             'candidates':  self.check_resource_in_candidates
@@ -68,7 +71,7 @@ class Experiment(object):
             ,'hours':       self.check_min_flight_hours
         }
         result = {k: v() for k, v in func_list.items()}
-        return {k: v for k, v in result.items() if len(v) > 0}
+        return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
 
     def check_maintenance_capacity(self):
         maints = self.solution.get_in_maintenance()
@@ -137,7 +140,7 @@ class Experiment(object):
         """
         if previous_value is None:
             previous_value = self.solution.data['aux'][time][resource]\
-                [aux.get_prev_month(periods[0])]
+                [self.instance.get_prev_period(periods[0])]
         for period in periods:
             value = previous_value - self.get_consumption_individual(resource, period, time)
             self.set_remainingtime(resource, period, time, value)
@@ -174,13 +177,13 @@ class Experiment(object):
             first_maint_start = maints[0][0]
             last_maint_end = maints[-1][1]
             if first_maint_start != first:
-                nonmaintenances.append((res, first, aux.get_prev_month(first_maint_start)))
+                nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
             for maint1, maint2 in zip(maints, maints[1:]):
                 nonmaintenances.append(
-                    (res, aux.get_next_month(maint1[1]), aux.get_prev_month(maint2[0]))
+                    (res, self.instance.get_next_period(maint1[1]), self.instance.get_prev_period(maint2[0]))
                                        )
             if last_maint_end != last:
-                nonmaintenances.append((res, aux.get_next_month(last_maint_end), last))
+                nonmaintenances.append((res, self.instance.get_next_period(last_maint_end), last))
         return nonmaintenances
 
     def set_remaining_usage_time(self, time="rut"):
@@ -196,7 +199,7 @@ class Experiment(object):
             self.solution.data['aux'][time] = {}
 
         label = 'initial_' + self.label_rt(time)
-        prev_month = aux.get_prev_month(self.instance.get_param('start'))
+        prev_month = self.instance.get_prev_period(self.instance.get_param('start'))
         initial = self.instance.get_resources(label)
 
         label = 'max_' + self.label_rt(time) + '_time'
@@ -206,13 +209,13 @@ class Experiment(object):
 
         maintenances = self.solution.get_maintenance_periods()
         for resource, start, end in maintenances:
-            for period in aux.get_months(start, end):
+            for period in self.instance.get_periods_range(start, end):
                 self.set_remainingtime(resource, period, time, max_rem)
 
         non_maintenances = self.get_non_maintenance_periods()
         for resource, start, end in non_maintenances:
             # print(resource, start, end)
-            self.update_time_usage(resource, aux.get_months(start, end), time=time)
+            self.update_time_usage(resource, self.instance.get_periods_range(start, end), time=time)
 
         return self.solution.data['aux'][time]
 
@@ -264,7 +267,7 @@ class Experiment(object):
             # or at the end are not checked
             if finish < first_period or finish == last_period:
                 continue
-            size_period = len(aux.get_months(start, finish))
+            size_period = len(self.instance.get_periods_range(start, finish))
             if size_period < min_assign.get(state, 1):
                 incorrect[(resource, start)] = size_period
         return incorrect
@@ -285,7 +288,7 @@ class Experiment(object):
         for cluster, candidates in c_candidates.items():
             for candidate in candidates:
                 for maint_period in maint_periods[candidate]:
-                    for period in aux.get_months(*maint_period):
+                    for period in self.instance.get_periods_range(*maint_period):
                         num_maintenances[cluster, period] += 1
         over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
         return over_assigned.clean(func=lambda x: x < 0)

@@ -19,10 +19,20 @@ class Instance(object):
         * parameters: adimentional data
         * tasks: data related to tasks
         * resources: data related to resources
+        * aux: cached data (months, for example)
     """
 
     def __init__(self, model_data):
         self.data = model_data
+        start = self.get_param('start')
+        num_periods = self.get_param('num_period')
+        self.data['aux'] = {}
+        self.data['aux']['period_e'] = {
+            k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
+        }
+        self.data['aux']['period_i'] = {
+            v: k for k, v in self.data['aux']['period_e'].items()
+        }
 
     def get_param(self, param=None):
         default_params = {
@@ -103,8 +113,8 @@ class Instance(object):
 
         # periods
         first_period, last_period = param_data['start'], param_data['end']
-        periods = aux.get_months(first_period, last_period)
-        period_0 = aux.get_prev_month(param_data['start'])
+        periods = self.get_periods_range(first_period, last_period)
+        period_0 = self.get_next_period(param_data['start'])
         periods_0 = [period_0] + periods
         periods_pos = {periods[pos]: pos for pos in range(len(periods))}
         previous = {period: periods_0[periods_pos[period]] for period in periods}
@@ -284,7 +294,7 @@ class Instance(object):
         if resource is not None:
             previous_states = previous_states.filter(resource)
         first_period = self.get_param('start')
-        period_0 = aux.get_prev_month(first_period)
+        period_0 = self.get_prev_period(first_period)
         min_assign = self.get_min_assign()
         # we get the states into a tuple list,
         # we turn them into a start-finish tuple
@@ -295,11 +305,11 @@ class Instance(object):
                 filter_list_f(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \
-            [(a[0], a[2], min_assign.get(a[2], 0) - len(aux.get_months(a[1], a[3])))
-             for a in assignments if len(aux.get_months(a[1], a[3])) < min_assign.get(a[2], 0)]
+            [(a[0], a[2], min_assign.get(a[2], 0) - len(self.get_periods_range(a[1], a[3])))
+             for a in assignments if len(self.get_periods_range(a[1], a[3])) < min_assign.get(a[2], 0)]
 
         return tl.TupList(
-            [(f_assign[0], f_assign[1], aux.shift_month(first_period, t))
+            [(f_assign[0], f_assign[1], self.shift_period(first_period, t))
              for f_assign in fixed_assignments_q for t in range(f_assign[2])]
             )
 
@@ -314,13 +324,20 @@ class Instance(object):
             return aux.tup_to_dict(fixed_maints, result_col=0)
 
     def get_fixed_tasks(self):
-        return tl.TupList([(a, s, t) for (a, s, t) in self.get_fixed_states() if s in self.get_tasks()])
+        tasks = self.get_tasks()
+        states = self.get_fixed_states()
+        return tl.TupList([(a, s, t) for (a, s, t) in states if s in tasks])
+
+    def get_fixed_periods(self):
+        states = self.get_fixed_states()
+        return states.filter([0, 2]).unique()
+        # return tl.TupList([(a, t) for (a, s, t) in states]).unique()
 
     def get_task_period_list(self, in_dict=False):
 
         task_periods = {task:
             np.intersect1d(
-                aux.get_months(self.get_tasks('start')[task], self.get_tasks('end')[task]),
+                self.get_periods_range(self.get_tasks('start')[task], self.get_tasks('end')[task]),
                 self.get_periods()
             ) for task in self.get_tasks()
         }
@@ -329,7 +346,26 @@ class Instance(object):
         return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
 
     def get_periods(self):
-        return aux.get_months(self.get_param("start"), self.get_param("end"))
+        return self.get_periods_range(self.get_param('start'), self.get_param('end'))
+
+    def get_periods_range(self, start, end):
+        equiv_i = self.data['aux']['period_i']
+        equiv = self.data['aux']['period_e']
+        return [equiv[t] for t in range(equiv_i[start], equiv_i[end]+1)]
+
+    def shift_period(self, period, num=1):
+        equiv = self.data['aux']['period_i']
+        equiv_i = self.data['aux']['period_e']
+        return equiv_i[equiv[period] + num]
+
+    def get_next_period(self, period):
+        return self.shift_period(period, 1)
+
+    def get_prev_period(self, period):
+        return self.shift_period(period, -1)
+
+    def get_next_periods(self, period, num=1):
+        return self.get_periods_range(period, self.shift_period(period, num - 1))
 
     def get_task_period_needs(self):
         requirement = self.get_tasks('num_resource')

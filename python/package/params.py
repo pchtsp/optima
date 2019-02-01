@@ -43,7 +43,8 @@ OPTIONS = {
     , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf
     , 'memory': None
     , 'solver_add_opts': params_cplex
-    , 'print': True
+    , 'print': False
+    , 'prob_ch_all': 1
     , 'integer': False
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
@@ -66,12 +67,12 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'min_usage_period': 5  # minimum consumption per period
+        , 'min_usage_period': 0  # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type
         , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
-        , 'seed': 44
+        , 'seed': 43
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)

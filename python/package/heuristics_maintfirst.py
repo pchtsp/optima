@@ -16,15 +16,11 @@ import copy
 
 class MaintenanceFirst(heur.GreedyByMission):
 
-    # def __init__(self, instance, options=None):
-    #
-    #     if options is None:
-    #         options = {}
-    #     solution = sol.Solution({'state': {}, 'task': {}})
-    #     super().__init__(instance, solution)
-    #
-    #     self.solution.data['aux'] = {'ret': {}, 'rut': {}}
-    #     pass
+    def __init__(self, instance, options=None):
+
+        super().__init__(instance, options)
+
+        pass
 
     def solve(self, options):
         seed = options.get('seed')
@@ -32,10 +28,10 @@ class MaintenanceFirst(heur.GreedyByMission):
             seed = rn.random()*10000
             options['seed'] = seed
         rn.seed(seed)
-        resources = sd.SuperDict(self.instance.data['resources']).keys_l()
         i = 0
+        best_solution = None
+        min_errors = 10000
         while True:
-            i += 1
             # 1. assign maints for all aircraft around horizon limits
             self.assign_missing_maints_to_aircraft()
 
@@ -44,22 +40,46 @@ class MaintenanceFirst(heur.GreedyByMission):
 
             # 3. check if feasible. If not, un-assign (some/ all)
                 # maintenances and go to 1
-            candidates_tasks = self.get_candidates_tasks()
-            # candidates_tasks = [t[0] for t in candidates_tasks]
-            candidates_maints = self.get_candidates_maints()
-            # candidates_maints = [t[0] for t in candidates_maints]
-            candidates_cluster = self.get_candidates_cluster()
-            candidates = set(candidates_tasks + candidates_maints + candidates_cluster)
-            candidates = rn.choices(sorted(candidates), k=min(5, len(candidates)))
-
-            # print(task_needs)
+            candidates = self.get_candidates(1)
             if not len(candidates) or i >= 100:
                 break
-            cands = rn.choices(resources, k=1)
-            candidates.extend([(c, None) for c in cands])
             for candidate in candidates:
                 self.free_resource(candidate)
-        return self.solution
+
+            # sometimes, we go back to the best solution found
+            if rn.random() < 0.05:
+                self.solution.data = copy.deepcopy(best_solution)
+                print('back to best solution')
+
+            # check quality of solution, store best.
+            error_cat = self.check_solution_count()
+            if self.options['print']:
+                print("errors: {}".format(error_cat))
+            num_errors = sum(error_cat.values())
+            if num_errors < min_errors:
+                min_errors = num_errors
+                print('best solution found: {}'.format(num_errors))
+                best_solution = copy.deepcopy(self.solution.data)
+            prob_ch_all = self.options['prob_ch_all']
+            self.options['prob_ch_all'] = prob_ch_all*0.995
+            print("iteration={}, prob_ch_all={}, errors={}".format(i, prob_ch_all, num_errors))
+            i += 1
+        return sol.Solution(best_solution)
+
+    def get_candidates(self, k=5):
+        candidates_tasks = self.get_candidates_tasks()
+        candidates_maints = self.get_candidates_maints()
+        candidates_cluster = self.get_candidates_cluster()
+        candidates = set(candidates_tasks + candidates_maints + candidates_cluster)
+        if not len(candidates):
+            return []
+        resources = sd.SuperDict(self.instance.data['resources']).keys_l()
+        candidates_filter = rn.choices(sorted(candidates), k=min(k, len(candidates)))
+        ress, dates = [t for t in zip(*candidates_filter)]
+        res, indices = np.unique(ress, return_index=True)
+        candidates_n = [t for t in zip(res, np.array(dates)[indices])]
+        # candidates_n.extend([(c, None) for c in rn.choices(resources, k=k)])
+        return candidates_n
 
     def get_candidates_cluster(self):
         clust_hours = self.check_min_flight_hours()
@@ -93,9 +113,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         duration = self.instance.get_param('maint_duration')
         resources = self.instance.get_resources().keys()
         dates = [k[1] for k, v in maints_probs.items() if v == -1]
-        start = [max(start_h, aux.shift_month(d, -duration)) for d in dates]
-        end = [min(end_h, aux.shift_month(d, duration)) for d in dates]
-        periods = [d for (st, end) in zip(start, end) for d in aux.get_months(st, end)]
+        start = [max(start_h, self.instance.shift_period(d, -duration)) for d in dates]
+        end = [min(end_h, self.instance.shift_period(d, duration)) for d in dates]
+        periods = [d for (st, end) in zip(start, end) for d in self.instance.get_periods_range(st, end)]
         periods = sorted(set(periods))
         data = self.solution.data
         candidates = []
@@ -117,9 +137,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         """
         distance1 = round((rn.random()) * 6)
         distance2 = round((rn.random()) * 6)
-        first = aux.shift_month(ref_period, -distance1)
-        second = aux.shift_month(ref_period, distance2)
-        return aux.get_months(first, second)
+        first = self.instance.shift_period(ref_period, -distance1)
+        second = self.instance.shift_period(ref_period, distance2)
+        return self.instance.get_periods_range(first, second)
 
     def free_resource(self, candidate):
         """
@@ -135,28 +155,50 @@ class MaintenanceFirst(heur.GreedyByMission):
             data['aux']['start']
         ]
         resource, date = candidate
-        if rn.random() >= 0.2:
-            print('freeing resource: {}'.format(resource))
+        if rn.random() <= self.options['prob_ch_all']:
+            if self.options['print']:
+                print('freeing resource: {}'.format(resource))
             for pl in places:
                 if resource in pl:
                     pl[resource] = {}
             self.initialize_resource_states(resource=resource)
         else:
-            print('freeing resource: {}'.format(candidate))
+            if self.options['print']:
+                print('freeing resource: {}'.format(candidate))
             if date is None:
                 # if no date, we create a random one
                 periods = self.instance.get_periods()
                 date = rn.choice(periods)
             periods = self.get_random_periods(ref_period=date)
+            fixed_periods = self.instance.get_fixed_periods()
+            # deactivate tasks
+            if resource in data['task']:
+                for period in periods:
+                    if (resource, period) not in fixed_periods:
+                        data['task'][resource].pop(period, None)
+
+            # deactivate states
+            if resource not in data['state']:
+                return
+            delete_maint = None
             for period in periods:
-                # for now, we just clean tasks
-                if resource in data['task']:
-                    data['task'][resource].pop(period, None)
+                if data['state'][resource].get(period) == 'M' and \
+                                (resource, period) not in fixed_periods:
+                    delete_maint = period
+                    break
+            if delete_maint is not None and delete_maint > periods[0]:
+                # we only delete maintenances that start inside the periods
+                duration = self.instance.get_param('maint_duration')
+                for period in self.instance.get_next_periods(delete_maint, duration):
+                    data['state'][resource].pop(period, None)
 
             # only update remaining hours when no maintenances
+            # also, the ret since we're deactivating maintenances
             non_maintenances = self.get_non_maintenance_periods(resource)
             for resource, start, end in non_maintenances:
-                self.update_time_usage(resource, aux.get_months(start, end), time='rut')
+                periods = self.instance.get_periods_range(start, end)
+                for t in ['rut', 'ret']:
+                    self.update_time_usage(resource, periods, time=t)
 
 
     def assign_missing_maints_to_aircraft(self):
@@ -175,14 +217,14 @@ class MaintenanceFirst(heur.GreedyByMission):
                     if ret <= 0:
                         # print(res, period, ret)
                         tup = res, \
-                              max(first, aux.shift_month(period, -elapsed_time_size + 1)), \
-                              min(last, aux.shift_month(period, duration))
+                              max(first, self.instance.shift_period(period, -elapsed_time_size + 1)), \
+                              min(last, self.instance.shift_period(period, duration))
                         maint_candidates.append(tup)
                         break
             if not len(maint_candidates):
                 break
             # maint_candidates = [(r, s, e) for r, (s, e) in per_maint_start.items()]
-            maint_candidates.sort(key=lambda x: len(aux.get_months(x[1], x[2])))
+            maint_candidates.sort(key=lambda x: len(self.instance.get_periods_range(x[1], x[2])))
             for resource, start, end in maint_candidates:
                 result = self.find_assign_maintenance(resource=resource,
                                                       maint_need=start,
@@ -198,7 +240,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         tasks = rem_resources.keys_l()
         rn.shuffle(tasks)
         for task in tasks:
-            self.fill_mission(task, assign_maints=False, max_iters=15, rem_resources=rem_resources)
+            self.fill_mission(task, assign_maints=False, max_iters=5, rem_resources=rem_resources)
 
 if __name__ == "__main__":
     import package.params as pm
