@@ -10,6 +10,8 @@ import package.superdict as sd
 import dfply as dp
 from dfply import X
 import package.rpy_graphs as rg
+import scripts.names as na
+import orloge as ol
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
 
@@ -51,12 +53,14 @@ def bars_inf(table, experiment):
 def boxplot_var(table, experiment, str_tup):
     col, ylab, path_ext = str_tup
     table_n = \
-        table >> dp.filter_by(~X.inf) >> dp.select(X.scenario, [col]) >>\
-        dp.mutate(filt=X.scenario == 'base') >> dp.ungroup() >> dp.arrange(X.filt)
+        table >> dp.filter_by(~X.inf) >> dp.mutate(filt=X.scenario == 'base') >> \
+        dp.ungroup() >> dp.arrange(X.filt)
     # force float to avoid errors
     table_n[col] = table_n[col].astype('float')
-    plot = rg.boxplot(table_n, x='scenario', y=col, xlab='Scenario', ylab=ylab)
-    plot.save(os.path.join(path, 'img', experiment + path_ext + '.png'))
+    plot = rg.boxplot(table_n, x='case', y=col, xlab='Scenario', ylab=ylab)
+    aspect_ratio = 2
+    plot.save(os.path.join(path, 'img', experiment + path_ext + '.png'),
+              height=7, width=7 * aspect_ratio)
 
 
 def summary_to_latex(table, experiment):
@@ -212,15 +216,13 @@ def statistics_experiment(experiment):
     table = rep.get_simulation_results(experiment)
     boxplot_times(table, experiment)
     boxplot_gaps(table, experiment)
-    bars_no_int(table, experiment)
-    bars_inf(table, experiment)
+    # bars_no_int(table, experiment)
+    # bars_inf(table, experiment)
     summary_to_latex(table, experiment)
 
 def cut_comparison():
     scenarios = \
         dict(
-            # GUROBI = "clust1_20181112/base/",
-            # CPLEX = "clust1_20181107/base/"
             MIN_HOUR_5="clust_params2_cplex/minusageperiod_5",
             MIN_HOUR_15="clust_params2_cplex/minusageperiod_15",
             MIN_HOUR_20="clust_params2_cplex/minusageperiod_20",
@@ -250,15 +252,93 @@ def cut_comparison():
     print(summary_medians.\
         to_latex(bold_rows=True, index=False, float_format='%.0f'))
 
+
+def cuts_relaxation_comparison():
+    scenarios = \
+        dict(
+            elapsedtimesize_20="clust_params1_cplex/elapsedtimesize_20",
+            elapsedtimesize_40="clust_params1_cplex/elapsedtimesize_40/",
+            base="clust_params1_cplex/base",
+        )
+
+    table = get_scenarios_to_compare(scenarios)
+    # table.columns
+    names_df = na.config_to_latex(table.scenario)
+    table_n = \
+        table >> \
+        dp.select(X.scenario, X.instance) >>\
+        dp.bind_cols(table.cut_info.apply(pd.Series)) >> \
+        dp.select(X.scenario, X.instance, X.best_bound, X.best_solution) >> \
+        dp.mutate(gap_out= 100*(X.best_solution - X.best_bound)/X.best_solution) >> \
+        dp.left_join(names_df, on="scenario")
+
+    table_n['inf'] = pd.isna(table_n.gap_out)
+
+    experiment = 'elapsed_time'
+    # str_tup = 'gap_out', 'Relative gap', '_gaps'
+    boxplot_gaps(table_n, experiment)
+
+
+def statistics_relaxations(experiment):
+    # experiment = "clust1_20181121"
+    cols_rename = {
+        'index': 'id', 'best_solution': 'best_solution',
+        'best_bound': 'bound', 'sol_code': 'sol_code', 'status_code': 'status_code',
+        'nodes': 'nodes', 'first_relaxed': 'first_relaxed', 'cut_info': 'cut_info'
+    }
+    table = rep.get_simulation_results(experiment, cols_rename)
+    table_cuts = table.cut_info.apply(pd.Series)
+    table_cuts.columns = ['cuts_' + str(i) for i in table_cuts.columns]
+    table_n =\
+        table >>\
+            dp.bind_cols(table_cuts) >>\
+            dp.mutate(opt = X.sol_code==ol.LpSolutionOptimal,
+                      gap_init = 100*(X.best_solution - X.first_relaxed)/X.best_solution,
+                      gap_cuts = 100*(X.best_solution - X.cuts_best_bound)/X.best_solution,
+                      gap_cuts_int = 100*(X.cuts_best_solution - X.best_solution) / X.best_solution
+                      )  >>\
+            dp.select(X.scenario, X.instance, X.opt,  X.nodes, X.gap_init, X.gap_cuts, X.gap_cuts_int)
+
+    table_n_sum =\
+        table_n >>\
+            dp.group_by(X.scenario) >>\
+            dp.summarize_each([np.mean], X.gap_init, X.gap_cuts, X.gap_cuts_int)
+
+    table_n_sum2 =\
+        table_n >> \
+            dp.filter_by(X.opt) >> \
+            dp.group_by(X.scenario) >> \
+            dp.summarize_each([np.mean], X.nodes)
+
+    names_df = na.config_to_latex(table_n_sum.scenario)
+    table_nn = \
+        table_n_sum >> \
+        dp.left_join(table_n_sum2) >> \
+        dp.left_join(names_df, on="scenario") >> \
+        dp.select(~X.scenario, ~X.name) >> \
+        dp.rename(rcuts = X.gap_cuts_mean,
+                  rinit= X.gap_init_mean,
+                  icuts = X.gap_cuts_int_mean,
+                  nodes = X.nodes_mean)
+    cols = ['case'] + [c for c in table_nn.columns if c != 'case']
+    table_nnn = table_nn >> dp.select(cols)
+    latex = table_nnn.to_latex(float_format='%.1f', escape=False, index=False)
+    file_path = os.path.join(path + 'tables/', '{}_cut_statistics.tex'.format(experiment))
+    with open(file_path, 'w') as f:
+        f.write(latex)
+
+
 if __name__ == "__main__":
     ####################
     # Scenario analysis
     ####################
     experiments = ["clust1_20181121"]
-    # experiments = 'clust1_20181128'
     experiments = ['clust_params2_cplex', 'clust_params1_cplex']
     for experiment in experiments:
-        statistics_experiment(experiment)
+        # statistics_experiment(experiment)
+        statistics_relaxations(experiment)
+    cuts_relaxation_comparison()
+
 
     ####################
     # Scenario comparison

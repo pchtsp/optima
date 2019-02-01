@@ -1,5 +1,4 @@
 import package.experiment as exp
-import package.solution as sol
 import pprint as pp
 from package.params import PATHS
 import package.auxiliar as aux
@@ -9,6 +8,7 @@ import package.superdict as sd
 import scripts.exec as exec
 import os
 import package.model as md
+import package.rpy_graphs as rg
 
 # '201801141334' vs '201802061201 vs '201802061434'
 
@@ -84,9 +84,18 @@ def test4():
     pass
 
 def test444():
+    path = PATHS['experiments'] + "201902011249/"
+    path = PATHS['data'] + 'examples/201811092041/'
+    path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
+    path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
+    path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
+    experiment = exp.Experiment.from_dir(path)
+    rg.gantt_experiment(path)
+
+    experiment.check_solution()
+
     input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
-    input_data['resources']['12']
-    input_data['tasks']['3']
+
     [r for r in input_data['resources'].values() if 'C' in r['capacities']]
 
 
@@ -96,21 +105,6 @@ def test111():
     new_options =  {'slack_vars': 'No', 'gap': 1}
     new_options = None
     exec.re_execute_instance(path, new_options)
-
-    # backup = copy.deepcopy(heur_obj.solution.data['aux']['ret'])
-
-    # check = heur_obj.check_solution()
-    # pp.pprint(check)
-    # check.keys()
-    # res_problems = set([tup[0] for tup in check['elapsed']])
-
-    # pp.pprint(heur_obj.solution.data['aux']['rut']['A97'])
-    # pp.pprint(backup)
-    # [res for res in res_problems if res in heur_obj.solution.data['task']]
-    # heur_obj.solution.data['task']['A97']
-
-    # heur.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
-
 
 def test3():
     path_abs = PATHS['experiments']

@@ -196,8 +196,8 @@ timevis_from_states <- function(states, max_resources=NULL, ...){
         align = "center",
         orientation = "top",
         snap = NULL,
-        margin = 0
-        # zoomable= FALSE
+        margin = 0,
+        zoomable= FALSE
     )
     
     timevis(states, groups= groups, options= config, ...)
@@ -208,6 +208,12 @@ print_solution <- function(exp_directory, max_resources=NULL, ...){
     states <- get_states(exp_directory)
     
     timevis_from_states(states, max_resources=max_resources, ...)
+}
+
+print_solution_and_print <- function(exp_directory, ...){
+    result <- print_solution(exp_directory, ...)
+    path_out <- paste0(exp_directory, 'solution.html')
+    saveWidget(result, file = path_out, selfcontained = FALSE)
 }
 
 completed_experiments <- function(path){
