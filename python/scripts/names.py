@@ -36,17 +36,17 @@ def names_no_spaces():
 def names_latex():
     return {
         'num_resources': "$| I |$"
-        , 'num_parallel_tasks': "$| J |$"
+        , 'num_parallel_tasks': "$| J^P |$"
         , 'maint_duration': "$M$"
         , 'max_used_time': "$H^{M}$"
-        , 'max_elapsed_time': "$E^{m}$"
+        , 'max_elapsed_time': "$E^{M}$"
         , 'elapsed_time_size': "$E^{s}$"
         , 'min_usage_period': "$U^{min}$"
         , 'perc_capacity': "$C^{perc}$"
         , 'num_period': "$| T |$"
-        , 'min_avail_percent': "$AP^{K}_{kt}$"
-        , 'min_avail_value': "$AN^{K}_{kt}$"
-        , 'min_hours_perc': "$HP^{K}_{kt}$"
+        , 'min_avail_percent': "$AP^{K}$"
+        , 'min_avail_value': "$AN^{K}$"
+        , 'min_hours_perc': "$HP^{K}$"
         , 't_min_assign': "$MT_j$"
         , 'price_rut_end': "$\max \{rft\}$"
     }
