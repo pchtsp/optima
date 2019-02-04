@@ -62,15 +62,16 @@ def execute_solve(model_data, options):
     # solving part:
     solver = options.get('solver', 'CPLEX')
     if solver == 'CPO':
-        solution = md_cp.solve_model2(instance, options)
-    elif solver == 'HEUR':
-        heur_obj = heur.GreedyByMission(instance, options)
-        solution = heur_obj.solve(options)
+        raise("The CPO model is not supported for the time being")
+    if solver == 'HEUR':
+        experiment = heur.GreedyByMission(instance, options)
     elif solver == 'HEUR_mf':
-        heur_obj = mf.MaintenanceFirst(instance, options)
-        solution = heur_obj.solve(options)
+        experiment = mf.MaintenanceFirst(instance, options)
     else:
-        solution = md.solve_model(instance, options)
+        # model with solver
+        experiment = md.Model(instance, options)
+
+    solution = experiment.solve(options)
 
     if solution is None:
         return None
