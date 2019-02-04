@@ -1,15 +1,7 @@
 # /usr/bin/python3
 
 import package.auxiliar as aux
-import pandas as pd
-import numpy as np
 import package.superdict as sd
-# import rpy2.robjects as ro
-# from rpy2.robjects.packages import importr
-# from rpy2.robjects import pandas2ri
-# import plotly.figure_factory as ff
-# import plotly
-
 
 class Solution(object):
     """
@@ -40,7 +32,7 @@ class Solution(object):
         return sorted(aux.tup_to_dict(resource_period, result_col=0).keys())
 
     def get_tasks(self):
-        return aux.dictdict_to_dictup(self.data['task'])
+        return sd.SuperDict.from_dict(self.data['task']).to_dictup()
 
     def get_state(self, resource=None):
         data = sd.SuperDict.from_dict(self.data['state'])
@@ -55,10 +47,10 @@ class Solution(object):
         return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
     def get_task_periods(self):
-        result = aux.tup_to_start_finish(
-            aux.dict_to_tup(self.get_tasks())
-        )
-        return result
+        return \
+            sd.SuperDict.from_dict(self.get_tasks()).\
+            to_tuplist().\
+            tup_to_start_finish()
 
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
@@ -101,17 +93,6 @@ class Solution(object):
 
     def get_number_maintenances(self, resource):
         return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
-
-    # def graph_maintenances(self, path, **kwags):
-    #     """
-    #     uses bokeh
-    #     :param path: path to generate image
-    #     :return: graph object
-    #     """
-    #     return aux.graph_dict_time(self.get_in_maintenance(), path, **kwags)
-    #
-    # def graph_unavailable(self, path, **kwags):
-    #     return aux.graph_dict_time(self.get_unavailable(), path, **kwags)
 
 
 if __name__ == "__main__":
