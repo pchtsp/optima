@@ -21,8 +21,8 @@ class Model(exp.Experiment):
         super().__init__(instance, solution)
 
     def solve(self, options=None):
-        l = self.instance.get_domains_sets()
-        ub = self.instance.get_bounds()
+        l = self.get_domains_sets()
+        ub = self.get_bounds()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
         consumption = self.instance.get_tasks('consumption')
