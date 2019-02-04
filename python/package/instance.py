@@ -349,14 +349,14 @@ class Instance(object):
         return self.get_periods_range(self.get_param('start'), self.get_param('end'))
 
     def get_periods_range(self, start, end):
-        equiv_i = self.data['aux']['period_i']
-        equiv = self.data['aux']['period_e']
-        return [equiv[t] for t in range(equiv_i[start], equiv_i[end]+1)]
+        pos_period = self.data['aux']['period_i']
+        period_pos = self.data['aux']['period_e']
+        return [period_pos[t] for t in range(pos_period[start], pos_period[end]+1)]
 
     def shift_period(self, period, num=1):
-        equiv = self.data['aux']['period_i']
-        equiv_i = self.data['aux']['period_e']
-        return equiv_i[equiv[period] + num]
+        pos_period = self.data['aux']['period_i']
+        period_pos = self.data['aux']['period_e']
+        return period_pos[pos_period[period] + num]
 
     def get_next_period(self, period):
         return self.shift_period(period, 1)
@@ -365,7 +365,13 @@ class Instance(object):
         return self.shift_period(period, -1)
 
     def get_next_periods(self, period, num=1):
-        return self.get_periods_range(period, self.shift_period(period, num - 1))
+        if num < 0:
+            return []
+        pos_period = self.data['aux']['period_i']
+        period_pos = self.data['aux']['period_e']
+        start = pos_period[period]
+        end = start + num
+        return [period_pos[t] for t in range(start, end)]
 
     def get_task_period_needs(self):
         requirement = self.get_tasks('num_resource')
