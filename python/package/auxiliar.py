@@ -37,27 +37,6 @@ def get_next_month(month):
     return shift_month(month, shift=1)
 
 
-def get_next_months(month, num=1):
-    return get_months(month, shift_month(month, num-1))
-
-
-def clean_dict(dictionary, default_value=0):
-    return {key: value for key, value in dictionary.items() if value != default_value}
-
-
-def tup_filter(tuplist, indeces):
-    return [tuple(np.take(tup, indeces)) for tup in tuplist]
-
-
-def dict_filter(dictionary, indeces):
-    if type(indeces) is not list:
-        indeces = [indeces]
-    bad_elem = np.setdiff1d(indeces, list(dictionary.keys()))
-    if len(bad_elem) > 0:
-        raise KeyError("following elements not in keys: {}".format(bad_elem))
-    return {k: dictionary[k] for k in indeces}
-
-
 def tup_to_dict(tuplist, result_col=0, is_list=True, indeces=None):
     if type(result_col) is not list:
         result_col = [result_col]
@@ -125,20 +104,6 @@ def dictdict_to_dictup(dictdict):
     return dicts_to_tup({}, [], dictdict)
 
 
-def dict_list_reverse(dict_in):
-    """
-    :param dict_in: a dictionary with a list as a result
-    :return: a dictionary with the list elements as keys and
-    old keys as values.
-    """
-    new_keys = np.unique([val for l in dict_in.values() for val in l])
-    dict_out = {k: [] for k in new_keys}
-    for k, v in dict_in.items():
-        for el in v:
-            dict_out[el].append(k)
-    return dict_out
-
-
 def dict_to_tup(dict_in):
     """
     The last element of the returned tuple was the dict's value.
@@ -152,42 +117,6 @@ def dict_to_tup(dict_in):
         else:
             tup_list.append(tuple([key, value]))
     return tup_list
-
-
-def tup_replace(tup, pos, value):
-    _l = list(tup)
-    _l[pos] = value
-    return tuple(_l)
-
-
-def next_tup(tup, period_pos, shift=1):
-    return tup_replace(tup, period_pos, shift_month(tup[period_pos], shift))
-
-
-def tup_to_start_finish(tup_list, pp=1):
-    """
-    Takes a calendar tuple list of the form: (id, month) and
-    returns a tuple list of the form (id, start_month, end_month)
-    it works with a bigger tuple too.
-    :param tup_list: [(id, month), (id, month)]
-    :param pp: the position in the tuple where the period is
-    :return:
-    """
-    # And make it possible to do it with a simple list of dates
-    # If I sort for id and then period... I can do it in nlog(n) i guess
-    res_start_finish = []
-    tup_list_set = set(tup_list)
-    for tup in tup_list:
-        if next_tup(tup, pp, -1) in tup_list_set:
-            continue
-        stop = False
-        next_tuple = tup
-        while not stop:
-            next_tuple = next_tup(next_tuple, pp)
-            stop = next_tuple not in tup_list_set
-        res_start_finish.append(tuple(list(tup) + [shift_month(next_tuple[pp], -1)]))
-
-    return res_start_finish
 
 
 def vars_to_tups(var):

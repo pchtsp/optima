@@ -1,14 +1,9 @@
-import package.auxiliar as aux
 import package.superdict as sd
 import os
-import math
 import package.data_input as di
 import numpy as np
 import package.instance as inst
 import package.solution as sol
-# import pprint as pp
-import pandas as pd
-import package.experiment as exp
 import package.heuristics as heur
 import random as rn
 import copy
@@ -16,9 +11,9 @@ import copy
 
 class MaintenanceFirst(heur.GreedyByMission):
 
-    def __init__(self, instance, options=None):
+    def __init__(self, instance, solution=None):
 
-        super().__init__(instance, options)
+        super().__init__(instance, solution)
 
         pass
 

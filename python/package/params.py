@@ -39,13 +39,7 @@ params_cplex = \
 
 OPTIONS = {
     'timeLimit': 3600  # seconds
-    , 'gap': 0
-    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf
-    , 'memory': None
-    , 'solver_add_opts': params_cplex
-    , 'print': False
-    , 'prob_ch_all': 1
-    , 'integer': False
+    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
@@ -55,11 +49,21 @@ OPTIONS = {
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
+    # heuristic params:
+    , 'prob_ch_all': 1
+    , 'print': False
+    # MIP params:
+    , 'gap': 0
+    , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
+    , 'integer': False
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
+    , 'solver_add_opts': params_cplex
+    , 'mip_start': True
     , 'seed': None
+    # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
         , 'num_parallel_tasks': 1

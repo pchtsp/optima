@@ -2,6 +2,7 @@
 
 import package.auxiliar as aux
 import package.superdict as sd
+import package.tuplist as tl
 
 class Solution(object):
     """
@@ -41,9 +42,10 @@ class Solution(object):
         return data.to_dictup()
 
     def get_maintenance_periods(self, resource=None):
-        result = aux.tup_to_start_finish(
-            aux.dict_to_tup(self.get_state(resource))
-        )
+        result = self.get_state(resource).to_tuplist().tup_to_start_finish()
+        #  = aux.tup_to_start_finish(
+        #     aux.dict_to_tup()
+        # )
         return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
     def get_task_periods(self):
@@ -65,14 +67,18 @@ class Solution(object):
         task_resources = self.get_task_resources()
         return {key: len(value) for key, value in task_resources.items()}
 
+    def get_state_tasks(self):
+        statesMissions = self.get_state().to_tuplist() + self.get_tasks().to_tuplist()
+        return tl.TupList(statesMissions)
+
     def get_schedule(self):
         """
         returns periods of time where a resources has a specific state
         In a way, collapses single period assignments into a start-finish
         :return: a (resource, start, finish, task) tuple
         """
-        statesMissions = aux.dict_to_tup(self.get_state()) + aux.dict_to_tup(self.get_tasks())
-        result = aux.tup_to_start_finish(statesMissions)
+        statesMissions = self.get_state_tasks()
+        result = statesMissions.tup_to_start_finish()
         return result
 
     def get_unavailable(self):

@@ -94,21 +94,21 @@ class Config(object):
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
         if self.solver == "CPLEX":
-            return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1))
+            return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=True))
         if self.solver == "CHOCO":
             return model.solve(pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0))
         if self.solver == "CBC":
             with tempfile.TemporaryFile() as tmp_output:
-                orig_std_out = dup(1)
-                dup2(tmp_output.fileno(), 1)
-                result = model.solve(pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1))
-                dup2(orig_std_out, 1)
-                close(orig_std_out)
-                tmp_output.seek(0)
-                logFile = [line.decode('ascii') for line in tmp_output.read().splitlines()]
-            with open(self.path + "results.log", 'w') as f:
-                for item in logFile:
-                    f.write("{}\n".format(item))
+                # orig_std_out = dup(1)
+                # dup2(tmp_output.fileno(), 1)
+                result = model.solve(pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1, mip_start=True))
+                # dup2(orig_std_out, 1)
+                # close(orig_std_out)
+                # tmp_output.seek(0)
+                # logFile = [line.decode('ascii') for line in tmp_output.read().splitlines()]
+            # with open(self.path + "results.log", 'w') as f:
+            #     for item in logFile:
+            #         f.write("{}\n".format(item))
             return result
         return 0
 

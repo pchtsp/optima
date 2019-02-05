@@ -37,8 +37,8 @@ class Model(exp.Experiment):
 
         # In order to break some symmetries, we're gonna give a
         # (different) price for each assignment:
-        # price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
-        price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+        price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
+        # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
         price_rut_end = options.get('price_rut_end', 1)
 
         # Sometimes we want to force variables to be integer.
@@ -67,25 +67,33 @@ class Model(exp.Experiment):
             for a, t in l['at']:
                 usage[a, t].varValue = min_usage
 
+            number_maint = 0
             for (a, t, t2) in main_starts:
-                start_M[a, t].varValue = 1
+                if (a, t) in l['at_start']:
+                    # we check this because of fixed maints
+                    start_M[a, t].varValue = 1
+                    number_maint += 1
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
                     usage[a, p].varValue = 0
 
             start_periods = self.solution.get_task_periods()
             task_usage = self.instance.get_tasks('consumption')
-            for (a, v, t, t2) in start_periods:
-                start_T[a, v, t].varValue = 1
+            for (a, t, v, t2) in start_periods:
+                if (a, v, t) in start_T:
+                    start_T[a, v, t].varValue = 1
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
-                    task[a, v, p].varValue = 1
+                    if (a, v, p) in task:
+                        task[a, v, p].varValue = 1
                     usage[a, p].varValue = task_usage[v]
 
             rut_data = self.set_remaining_usage_time('rut')
-            for (a, t), v in rut_data.items():
-                rut[a, t].varValue = v
+            for a, date_info in rut_data.items():
+                for t, v in date_info.items():
+                    rut[a, t].varValue = v
 
+            num_maint.varValue = number_maint
 
         # slack variables:
         slack_vt = {tup: 0 for tup in l['vt']}
@@ -101,7 +109,7 @@ class Model(exp.Experiment):
             slack_kt_hours = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=l['kt'], cat=var_type)
         elif slack_p is int:
             # first X months only
-            first_months = aux.get_next_months(first_period, slack_p)
+            first_months = self.instance.get_next_periods(first_period, slack_p)
             _vt = [(v, t) for v, t in l['vt'] if t in first_months]
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
             slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=var_type)
@@ -220,8 +228,9 @@ class Model(exp.Experiment):
             model += rut[at] <= rut[at_prev] - usage[at] + ub['rut'] * start_M.get(at, 0)
             model += rut[at] >= ub['rut'] * start_M.get(at, 0)
 
-        # calculate the rut:
-        model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) == rut_obj_var
+        # calculate the rut, only if it has a weight:
+        if price_rut_end:
+            model += pl.lpSum(rut[(a, last_period)] for a in l['resources']) == rut_obj_var
 
         for a in l['resources']:
             model += rut[a, l['period_0']] == rut_init[a]

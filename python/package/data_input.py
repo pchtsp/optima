@@ -211,7 +211,12 @@ def load_data(path, file_type=None):
             return json.load(f)
 
 
-def export_data(path, obj, name=None, file_type="pickle"):
+def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False):
+    # I'm gonna add the option to exclude the 'aux' section of the object, if exists
+    # we're assuming obj is a dictionary
+    dictionary = copy.deepcopy(dictionary)
+    if exclude_aux and 'aux' in dictionary:
+        dictionary.pop('aux', None)
     if not os.path.exists(path):
         os.mkdir(path)
     if name is None:
@@ -219,10 +224,10 @@ def export_data(path, obj, name=None, file_type="pickle"):
     path = os.path.join(path, name + "." + file_type)
     if file_type == "pickle":
         with open(path, 'wb') as f:
-            pickle.dump(obj, f)
+            pickle.dump(dictionary, f)
     if file_type == 'json':
         with open(path, 'w') as f:
-            json.dump(obj, f)
+            json.dump(dictionary, f)
     return True
 
 

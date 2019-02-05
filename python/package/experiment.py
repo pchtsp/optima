@@ -9,13 +9,8 @@ import package.tuplist as tl
 import package.superdict as sd
 import os
 import shutil
-import pprint as pp
 import re
 import orloge as ol
-# import package.logFiles as log
-
-
-# TODO: create period objects with proper date methods based on arrow
 
 class Experiment(object):
     """
@@ -69,6 +64,7 @@ class Experiment(object):
             ,'min_assign':  self.check_min_assignment
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
+            ,'start_periods': self.check_fixed_assignments
         }
         result = {k: v() for k, v in func_list.items()}
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
@@ -272,7 +268,16 @@ class Experiment(object):
                 incorrect[(resource, start)] = size_period
         return incorrect
 
-    # TODO: check start initial assignments.
+    def check_fixed_assignments(self):
+        state_tasks = self.solution.get_state_tasks()
+        fixed_states = self.instance.get_fixed_states()
+        state_tasks_tab = pd.DataFrame.from_records(list(state_tasks),
+                                                    columns=['resource', 'period', 'state'])
+        fixed_states_tab = pd.DataFrame.from_records(list(fixed_states),
+                                                     columns=['resource', 'state', 'period'])
+        result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
+        return [tuple(x) for x in result[result.state_x != result.state_y].to_records(index=False)]
+
 
     def check_min_available(self):
         """

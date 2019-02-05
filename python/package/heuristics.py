@@ -1,35 +1,38 @@
 import package.auxiliar as aux
-import package.data_input as di
 import numpy as np
 import package.experiment as test
-import package.instance as inst
 import package.solution as sol
-# import pprint as pp
-import pandas as pd
-import package.experiment as exp
 import random as rn
-import copy
+import package.tuplist as tl
 
 
 class GreedyByMission(test.Experiment):
 
-    def __init__(self, instance, options=None):
+    def __init__(self, instance, solution=None):
 
-        if options is None:
-            options = {}
-        solution = sol.Solution({'state': {}, 'task': {}})
+        self.options = {'print': True}
+
+        # if solution given, just initialize and go
+        if solution is not None:
+            super().__init__(instance, solution)
+            return
+
+        # if not, create a mock solution, initialize and fill
+        sol_data = {'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
+        solution = sol.Solution(sol_data)
         super().__init__(instance, solution)
 
-        self.solution.data['aux'] = {'ret': {}, 'rut': {}, 'start': {}}
         resources = list(self.instance.get_resources())
 
         for r in resources:
             self.initialize_resource_states(r)
 
-        def_options = {'print': True}
-        self.options = {**def_options, **options}
+        return
 
     def solve(self, options):
+
+        self.options.update(options)
+
         # 1. Choose a mission.
         # 2. Choose candidates for that mission.
         # 3. Start assigning candidates to the mission's months.
@@ -290,7 +293,7 @@ class GreedyByMission(test.Experiment):
                            self.get_free_periods_resource(resource))
         free = [(1, period) for period in periods_to_search
                 if min_period <= period <= max_period]
-        return aux.tup_to_start_finish(free)
+        return tl.TupList(free).tup_to_start_finish()
 
     def get_random_maint(self, resource, min_period, max_period):
         """
@@ -382,8 +385,9 @@ class GreedyByMission(test.Experiment):
         )
         if len(candidate_periods) == 0:
             return []
-        startend = aux.tup_to_start_finish([(1, p) for p in candidate_periods])
-        return aux.tup_filter(startend, [1, 2])
+
+        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish()
+        return startend.filter([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut'):
         value = 'max_' + self.label_rt(time) + '_time'
@@ -408,8 +412,8 @@ class GreedyByMission(test.Experiment):
 
     def get_maintenance_periods_resource(self, resource):
         periods = [(1, k) for k, v in self.solution.data['state'].get(resource, {}).items() if v == 'M']
-        result = aux.tup_to_start_finish(periods)
-        return [(k[1], k[2]) for k in result]
+        result = tl.TupList(periods).tup_to_start_finish()
+        return result.filter([1, 2])
 
     def get_next_maintenance(self, resource, min_start, previous=False):
         start_end = self.get_maintenance_periods_resource(resource)
