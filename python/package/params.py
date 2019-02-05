@@ -53,6 +53,7 @@ OPTIONS = {
     , 'prob_ch_all': 1
     , 'print': False
     # MIP params:
+    , 'noise_assignment': True
     , 'gap': 0
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]

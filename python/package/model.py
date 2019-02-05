@@ -37,8 +37,10 @@ class Model(exp.Experiment):
 
         # In order to break some symmetries, we're gonna give a
         # (different) price for each assignment:
-        price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
-        # price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+        price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
+        if options.get('noise_assignment', True):
+            price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
+
         price_rut_end = options.get('price_rut_end', 1)
 
         # Sometimes we want to force variables to be integer.
