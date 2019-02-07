@@ -75,7 +75,7 @@ class TupList(list):
     def unique2(self):
         return TupList(set(self))
 
-    def tup_to_start_finish(self, pp=1, compare_tups=None):
+    def tup_to_start_finish(self, compare_tups=None, pp=1):
         """
         Takes a calendar tuple list of the form: (id, month) and
         returns a tuple list of the form (id, start_month, end_month)
@@ -85,7 +85,7 @@ class TupList(list):
         :return:
         """
         if compare_tups is None:
-            def compare_tups(tup1, tup2):
+            def compare_tups(tup1, tup2, pp):
                 for n, (v1, v2) in enumerate(zip(tup1, tup2)):
                     if n == pp:
                         if v1 != aux.get_next_month(v2):
@@ -101,7 +101,7 @@ class TupList(list):
         all_periods = []
         current_period = []
         for tup in self:
-            if tup == self[0] or compare_tups(tup, last_tup):
+            if tup == self[0] or compare_tups(tup, last_tup, pp):
                 # we're starting, or it's a new id. Or we're changing month.
                 if len(current_period):
                     # if there was a previous list of periods: save it

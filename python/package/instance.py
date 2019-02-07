@@ -120,6 +120,16 @@ class Instance(object):
         min_assign['M'] = self.get_param('maint_duration')
         return min_assign
 
+    def compare_tups(self, tup1, tup2, pp):
+        for n, (v1, v2) in enumerate(zip(tup1, tup2)):
+            if n == pp:
+                if v1 != self.get_next_period(v2):
+                    return True
+            else:
+                if v1 != v2:
+                    return True
+        return False
+
     def get_fixed_states(self, resource=None):
         """
         This function returns the fixed states in the beginning of the planning period
@@ -138,7 +148,7 @@ class Instance(object):
         # we filter it so we only take the start-finish periods that end before the horizon
         assignments = \
             sd.SuperDict.from_dict(previous_states). \
-                to_dictup().to_tuplist().tup_to_start_finish().\
+                to_dictup().to_tuplist().tup_to_start_finish(compare_tups=self.compare_tups).\
                 filter_list_f(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \
@@ -189,6 +199,10 @@ class Instance(object):
         pos_period = self.data['aux']['period_i']
         period_pos = self.data['aux']['period_e']
         return [period_pos[t] for t in range(pos_period[start], pos_period[end]+1)]
+
+    def get_dist_periods(self, start, end):
+        pos_period = self.data['aux']['period_i']
+        return pos_period[end] - pos_period[start]
 
     def shift_period(self, period, num=1):
         pos_period = self.data['aux']['period_i']

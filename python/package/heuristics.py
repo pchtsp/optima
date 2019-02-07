@@ -155,6 +155,7 @@ class GreedyByMission(test.Experiment):
         periods_to_assign = self.check_assign_task(resource, self.instance.get_periods_range(start, end), task)
         info = self.instance.data['tasks'][task]
         min_asign = info['min_assign']
+        # min_asign = 1
         last_month_task = info['end']
         size_assign = len(periods_to_assign)
         if not size_assign:
@@ -163,12 +164,17 @@ class GreedyByMission(test.Experiment):
         first_period_to_assign = periods_to_assign[0]
         last_period_to_assign = periods_to_assign[-1]
         previous_period = self.instance.shift_period(first_period_to_assign, -1)
+        next_period = self.instance.shift_period(last_period_to_assign, 1)
         previous_state = self.solution.data['task'].get(resource, {}).get(previous_period ,'')
+        next_state = self.solution.data['task'].get(resource, {}).get(next_period, '')
         if (size_assign < min_asign
             and last_period_to_assign != last_month_task
-            and previous_state != task):
+            and previous_state != task
+            and next_state != task):
             # if not enough to assign
-            #   (and not the last task month and different from previous state)
+            #   (and not the last task month
+            # and different from previous state)
+            # and different from next state)
             return self.instance.shift_period(start, -1)
         for period in periods_to_assign:
             self.expand_resource_period(self.solution.data['task'], resource, period)
@@ -257,9 +263,11 @@ class GreedyByMission(test.Experiment):
         :param resource: candidate to assign a task
         :param periods: periods to try to assign the task
         :param task: task to assign to resource
-        :return: subset of continous periods to assign to the resource
+        :return: subset of continuous periods to assign to the resource
         """
+        min_usage = self.instance.get_param('min_usage_period')
         consumption = self.instance.data['tasks'][task]['consumption']
+        net_consumption = consumption - min_usage
         start = periods[0]
         end = periods[-1]
         number_periods = len(periods)
@@ -273,7 +281,7 @@ class GreedyByMission(test.Experiment):
             rut = self.solution.data['aux']['rut'][resource][horizon_end]
         # ret = self.solution.data['aux']['ret'][resource][end]
         number_periods_ret = self.solution.data['aux']['ret'][resource][start] - 2
-        number_periods_rut = int(rut // consumption)
+        number_periods_rut = int(rut // net_consumption)
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]
 
@@ -293,7 +301,7 @@ class GreedyByMission(test.Experiment):
                            self.get_free_periods_resource(resource))
         free = [(1, period) for period in periods_to_search
                 if min_period <= period <= max_period]
-        return tl.TupList(free).tup_to_start_finish()
+        return tl.TupList(free).tup_to_start_finish(self.instance.compare_tups)
 
     def get_random_maint(self, resource, min_period, max_period):
         """
@@ -360,7 +368,7 @@ class GreedyByMission(test.Experiment):
 
     def get_free_periods_resource(self, resource):
         """
-        Finds the list of periods (month) that the resouce is available.
+        Finds the list of periods (month) that the resource is available.
         :param resource: resource code
         :return: periods (month)
         """
@@ -386,7 +394,7 @@ class GreedyByMission(test.Experiment):
         if len(candidate_periods) == 0:
             return []
 
-        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish()
+        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish(self.instance.compare_tups)
         return startend.filter([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut'):
@@ -412,7 +420,7 @@ class GreedyByMission(test.Experiment):
 
     def get_maintenance_periods_resource(self, resource):
         periods = [(1, k) for k, v in self.solution.data['state'].get(resource, {}).items() if v == 'M']
-        result = tl.TupList(periods).tup_to_start_finish()
+        result = tl.TupList(periods).tup_to_start_finish(self.instance.compare_tups)
         return result.filter([1, 2])
 
     def get_next_maintenance(self, resource, min_start, previous=False):

@@ -63,11 +63,22 @@ class Model(exp.Experiment):
         rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
         if options.get('mip_start'):
-            main_starts = self.solution.get_maintenance_periods()
+            main_starts = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
             min_usage = self.instance.get_param('min_usage_period')
+
+            # Initialize values:
+            for tup in start_M:
+                start_M[tup].varValue = 0
+
+            for tup in task:
+                task[tup].varValue = 0
+
+            for tup in start_T:
+                start_T[tup].varValue = 0
 
             for a, t in l['at']:
                 usage[a, t].varValue = min_usage
+
 
             number_maint = 0
             for (a, t, t2) in main_starts:

@@ -65,6 +65,7 @@ class Experiment(object):
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
+            ,'dist_maints': self.check_min_distance_maints
         }
         result = {k: v() for k, v in func_list.items()}
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
@@ -160,7 +161,9 @@ class Experiment(object):
         :param resource: if not None, we filter to only provide this resource's info
         """
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
-        maintenances = aux.tup_to_dict(self.solution.get_maintenance_periods(resource), result_col=[1, 2])
+        maintenances = aux.tup_to_dict(
+            self.solution.get_maintenance_periods(resource, compare_tups=self.instance.compare_tups)
+            , result_col=[1, 2])
         if resource is None:
             resources = self.instance.get_resources()
         else:
@@ -182,12 +185,32 @@ class Experiment(object):
                 nonmaintenances.append((res, self.instance.get_next_period(last_maint_end), last))
         return nonmaintenances
 
+    def set_start_periods(self):
+        """
+        This function remakes the start tasks assignments and states (maintenances)
+        It edits the aux part of the solution data
+        :return: the dictionary that it assigns
+        """
+        tasks_start = self.solution.get_task_periods()
+        states_start = self.solution.get_state_periods()
+        all_starts = tasks_start + states_start
+        starts = {(r, t): v for (r, t, v, _) in all_starts}
+
+        if 'aux' not in self.solution.data:
+            self.solution.data['aux'] = {'start': {}}
+        else:
+            self.solution.data['aux']['start'] = {}
+        self.solution.data['aux']['start'] = starts
+
+        return starts
+
     def set_remaining_usage_time(self, time="rut"):
         """
         This function remakes the rut and ret times for all resources.
         It assumes nothing of state or task.
-        :param time:
-        :return:
+        It edits the aux part of the solution data
+        :param time: ret or rut
+        :return: the dictionary that's assigned
         """
         if 'aux' not in self.solution.data:
             self.solution.data['aux'] = {'ret': {}, 'rut': {}}
@@ -203,7 +226,7 @@ class Experiment(object):
         for resource in initial:
             self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rem))
 
-        maintenances = self.solution.get_maintenance_periods()
+        maintenances = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
         for resource, start, end in maintenances:
             for period in self.instance.get_periods_range(start, end):
                 self.set_remainingtime(resource, period, time, max_rem)
@@ -252,7 +275,7 @@ class Experiment(object):
         min_assign = self.instance.get_min_assign()
 
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).tup_to_start_finish()
+        all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=self.instance.compare_tups)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -265,7 +288,7 @@ class Experiment(object):
                 continue
             size_period = len(self.instance.get_periods_range(start, finish))
             if size_period < min_assign.get(state, 1):
-                incorrect[(resource, start)] = size_period
+                incorrect[resource, start] = size_period
         return incorrect
 
     def check_fixed_assignments(self):
@@ -276,7 +299,8 @@ class Experiment(object):
         fixed_states_tab = pd.DataFrame.from_records(list(fixed_states),
                                                      columns=['resource', 'state', 'period'])
         result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
-        return [tuple(x) for x in result[result.state_x != result.state_y].to_records(index=False)]
+        return sd.SuperDict({tuple(x): 1 for x in
+                             result[result.state_x != result.state_y].to_records(index=False)})
 
 
     def check_min_available(self):
@@ -286,7 +310,7 @@ class Experiment(object):
         resources = self.instance.get_resources().keys()
         c_candidates = self.instance.get_cluster_candidates()
         cluster_data = self.instance.get_cluster_constraints()
-        maint_periods = tl.TupList(self.solution.get_maintenance_periods()).\
+        maint_periods = tl.TupList(self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)).\
             to_dict(result_col=[1, 2]).fill_with_default(keys=resources, default=[])
         max_candidates = cluster_data['num']
         num_maintenances = sd.SuperDict().fill_with_default(max_candidates.keys())
@@ -318,6 +342,26 @@ class Experiment(object):
         hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
         return hours_deficit.clean(func=lambda x: x < 0)
 
+    def check_min_distance_maints(self):
+        """
+        checks if maintenances have the correct distance between them
+        :return:
+        """
+        maints = self.solution.get_maintenance_starts(compare_tups=self.instance.compare_tups)
+        maints_res = tl.TupList(maints).to_dict(result_col=1)
+        errors = {}
+        max_dist = self.instance.get_param('max_elapsed_time')
+        size = self.instance.get_param('elapsed_time_size')
+        min_dist = max_dist - size
+
+        for res, periods in maints_res.items():
+            periods.sort()
+            for period1, period2 in zip(periods, periods[1:]):
+                dist = self.instance.get_dist_periods(period1, period2)
+                if dist < min_dist or dist > max_dist:
+                    errors[res, period1, period2] = dist
+        return errors
+
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")
         weight2 = self.instance.get_param("unavail_weight")
@@ -329,7 +373,7 @@ class Experiment(object):
         rut = self.set_remaining_usage_time(time='rut')
         ret = self.set_remaining_usage_time(time='ret')
         end = self.instance.get_param('end')
-        starts = self.solution.get_maintenance_periods()
+        starts = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
         return {
             'unavail': max(self.solution.get_unavailable().values())
             , 'maint': max(self.solution.get_in_maintenance().values())
@@ -355,13 +399,22 @@ class Experiment(object):
         :param candidate: a resource
         :return: dataframe with everything that's going on with the resource
         """
-        rut = pd.DataFrame.from_dict(self.solution.data['aux']['rut'].get(candidate, {}), orient='index')
-        ret = pd.DataFrame.from_dict(self.solution.data['aux']['ret'].get(candidate, {}), orient='index')
-        start = pd.DataFrame.from_dict(self.solution.data['aux']['start'].get(candidate, {}), orient='index')
-        state = pd.DataFrame.from_dict(self.solution.data['state'].get(candidate, {}), orient='index')
-        task = pd.DataFrame.from_dict(self.solution.data['task'].get(candidate, {}), orient='index')
+        data = self.solution.data
+        if 'aux' not in data:
+            data['aux'] = {}
+        for t in ['rut', 'ret']:
+            if t not in data['aux']:
+                self.set_remaining_usage_time(t)
+        if 'start' not in data['aux']:
+            self.set_start_periods()
+        rut = pd.DataFrame.from_dict(data['aux']['rut'].get(candidate, {}), orient='index')
+        ret = pd.DataFrame.from_dict(data['aux']['ret'].get(candidate, {}), orient='index')
+        start = pd.DataFrame.from_dict(data['aux']['start'].get(candidate, {}), orient='index')
+        state = pd.DataFrame.from_dict(data['state'].get(candidate, {}), orient='index')
+        task = pd.DataFrame.from_dict(data['task'].get(candidate, {}), orient='index')
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
         table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).merge(start, **args).sort_index()
+        table.reset_index(inplace=True)
         # table.columns = ['rut', 'ret', 'state', 'task']
         return table
 

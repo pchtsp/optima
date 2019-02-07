@@ -6,7 +6,8 @@ import package.instance as inst
 import package.solution as sol
 import package.heuristics as heur
 import random as rn
-import copy
+import math
+import ujson
 
 
 class MaintenanceFirst(heur.GreedyByMission):
@@ -17,14 +18,30 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         pass
 
+    def export_solution(self):
+        data = self.solution.data
+        return ujson.loads(ujson.dumps(data))
+
+    def import_solution(self, data):
+        self.solution.data = ujson.loads(ujson.dumps(data))
+
     def solve(self, options):
+        self.options = options
         seed = options.get('seed')
         if not seed:
             seed = rn.random()*10000
             options['seed'] = seed
         rn.seed(seed)
+        max_iters = options.get('max_iters', 100)
+        cooling = options.get('cooling', 0.995)
+        num_change_prob = options.get('num_change', 2)
+        # prob_ch_all = self.options['prob_ch_all']
+        temperature = self.options['temperature']
+        num_change = [n + 1 for n, _ in enumerate(num_change_prob)]
         i = 0
         best_solution = None
+        previous_solution = None
+        prev_errors = 10000
         min_errors = 10000
         while True:
             # 1. assign maints for all aircraft around horizon limits
@@ -33,18 +50,8 @@ class MaintenanceFirst(heur.GreedyByMission):
             # 2. assign missions for all aircraft
             self.assign_missions()
 
-            # 3. check if feasible. If not, un-assign (some/ all)
-                # maintenances and go to 1
-            candidates = self.get_candidates(1)
-            if not len(candidates) or i >= 100:
-                break
-            for candidate in candidates:
-                self.free_resource(candidate)
-
-            # sometimes, we go back to the best solution found
-            if rn.random() < 0.05:
-                self.solution.data = copy.deepcopy(best_solution)
-                print('back to best solution')
+            # 3. try to correct min_assign
+            self.over_assign_missions()
 
             # check quality of solution, store best.
             error_cat = self.check_solution_count()
@@ -52,13 +59,41 @@ class MaintenanceFirst(heur.GreedyByMission):
                 print("errors: {}".format(error_cat))
             num_errors = sum(error_cat.values())
             if num_errors < min_errors:
-                min_errors = num_errors
+                prev_errors = min_errors = num_errors
                 print('best solution found: {}'.format(num_errors))
-                best_solution = copy.deepcopy(self.solution.data)
-            prob_ch_all = self.options['prob_ch_all']
-            self.options['prob_ch_all'] = prob_ch_all*0.995
-            print("iteration={}, prob_ch_all={}, errors={}".format(i, prob_ch_all, num_errors))
+                best_solution = self.export_solution()
+            elif num_errors > prev_errors \
+                    and rn.random() > math.exp((prev_errors - num_errors)/temperature/50) \
+                    and previous_solution:
+                self.import_solution(previous_solution)
+                num_errors = prev_errors
+            else:
+                previous_solution = self.export_solution()
+                prev_errors = num_errors
+            # 3. check if feasible. If not, un-assign (some/ all)
+                # maintenances and go to 1
+            num_change_iter = rn.choices(num_change, num_change_prob)[0]
+            candidates = self.get_candidates(num_change_iter)
+            for candidate in candidates:
+                self.free_resource(candidate)
+
+            # sometimes, we go back to the best solution found
+            if rn.random() < 0.01 and num_errors > min_errors and best_solution:
+                self.import_solution(best_solution)
+                num_errors = prev_errors = min_errors
+                print('back to best solution: {}'.format(min_errors))
+
+            temperature *= cooling
+            # prob_ch_all = self.options['prob_ch_all']
+            # self.options['prob_ch_all'] = prob_ch_all*cooling
+
+            print("iteration={}, temperaure={}, errors={}, best={}".
+                  format(i, temperature, num_errors, min_errors))
             i += 1
+
+            if not min_errors or i >= max_iters:
+                break
+
         return sol.Solution(best_solution)
 
     def get_candidates(self, k=5):
@@ -73,14 +108,14 @@ class MaintenanceFirst(heur.GreedyByMission):
         ress, dates = [t for t in zip(*candidates_filter)]
         res, indices = np.unique(ress, return_index=True)
         candidates_n = [t for t in zip(res, np.array(dates)[indices])]
-        # candidates_n.extend([(c, None) for c in rn.choices(resources, k=k)])
+        candidates_n.extend([(c, None) for c in rn.choices(resources, k=1)])
         return candidates_n
 
     def get_candidates_cluster(self):
         clust_hours = self.check_min_flight_hours()
         if not len(clust_hours):
             return []
-        clust_hours = clust_hours.to_tuplist().tup_to_start_finish()
+        clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
         c_cand = self.instance.get_cluster_candidates()
         # clusts = [c for c, _ in clust_hours]
         # print(clust_hours)
@@ -97,7 +132,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         #     cands_init = self.instance.get_task_candidates(task)
         #     cands = rn.choices(cands_init, k=num)
         #     candidates_to_change.extend(cands)
-        return rn.choices(candidates_to_change, k=min(5, len(candidates_to_change)))
+        # return rn.choices(candidates_to_change, k=min(5, len(candidates_to_change)))
+        return candidates_to_change
 
     def get_candidates_maints(self):
         maints_probs = self.check_elapsed_consumption()
@@ -229,6 +265,41 @@ class MaintenanceFirst(heur.GreedyByMission):
                     # we failed miserably
                     errors.append(resource)
         return
+
+    def over_assign_missions(self):
+        first_period = self.instance.get_param('start')
+        min_assign = self.instance.get_min_assign()
+        min_assign_err_start = sd.SuperDict(self.check_min_assignment())
+        task_periods = self.instance.get_task_period_list(True)
+        added = 0
+        for (res, start), size in min_assign_err_start.items():
+            end = self.instance.shift_period(start, size - 1)
+            if start >= first_period:
+                task = self.solution.data['task'][res][start]
+            else:
+                task = self.instance.data['resources'][res]['states'][start]
+            task_periods_t = set(task_periods[task])
+            target = min_assign[task] - size
+            modifs = [-1, 1]
+            while len(modifs):
+                modif = modifs.pop()
+                if modif > 0:
+                    candidate_period = self.instance.shift_period(end, modif)
+                    modif += 1
+                else:
+                    candidate_period = self.instance.shift_period(start, modif)
+                    modif -= 1
+                if candidate_period not in task_periods_t:
+                    continue
+                if not self.solution.is_resource_free(res, candidate_period):
+                    continue
+                last_period = self.find_assign_task(res, candidate_period, candidate_period, task)
+                if last_period == candidate_period:
+                    added += 1
+                    modifs.append(modif)
+                if added >= target:
+                    break
+
 
     def assign_missions(self):
         rem_resources = self.check_task_num_resources().to_dictdict()

@@ -41,21 +41,24 @@ class Solution(object):
             data = data.filter(resource, check=False)
         return data.to_dictup()
 
-    def get_maintenance_periods(self, resource=None):
-        result = self.get_state(resource).to_tuplist().tup_to_start_finish()
-        #  = aux.tup_to_start_finish(
-        #     aux.dict_to_tup()
-        # )
+    def get_state_periods(self, resource=None, compare_tups=None):
+        return \
+            self.get_state(resource).\
+            to_tuplist().\
+            tup_to_start_finish(compare_tups=compare_tups)
+
+    def get_maintenance_periods(self, resource=None, compare_tups=None):
+        result = self.get_state_periods(resource, compare_tups)
         return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
 
-    def get_task_periods(self):
+    def get_task_periods(self, compare_tups=None):
         return \
-            sd.SuperDict.from_dict(self.get_tasks()).\
+            self.get_tasks().\
             to_tuplist().\
-            tup_to_start_finish()
+            tup_to_start_finish(compare_tups=compare_tups)
 
-    def get_maintenance_starts(self):
-        maintenances = self.get_maintenance_periods()
+    def get_maintenance_starts(self, compare_tups=None):
+        maintenances = self.get_maintenance_periods(compare_tups=compare_tups)
         return [(r, s) for (r, s, e) in maintenances]
 
     def get_task_resources(self):
@@ -71,14 +74,14 @@ class Solution(object):
         statesMissions = self.get_state().to_tuplist() + self.get_tasks().to_tuplist()
         return tl.TupList(statesMissions)
 
-    def get_schedule(self):
+    def get_schedule(self, compare_tups):
         """
         returns periods of time where a resources has a specific state
         In a way, collapses single period assignments into a start-finish
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.tup_to_start_finish()
+        result = statesMissions.tup_to_start_finish(compare_tups)
         return result
 
     def get_unavailable(self):
@@ -100,6 +103,12 @@ class Solution(object):
     def get_number_maintenances(self, resource):
         return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
 
+    def is_resource_free(self, resource, period):
+        if self.data['task'].get(resource, {}).get(period) is not None:
+            return False
+        if self.data['state'].get(resource, {}).get(period) is not None:
+            return False
+        return True
 
 if __name__ == "__main__":
     path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
