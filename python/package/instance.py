@@ -24,6 +24,18 @@ class Instance(object):
 
     def __init__(self, model_data):
         self.data = model_data
+        params = {
+            'maint_weight': 1
+            , 'unavail_weight': 1
+            , 'min_elapsed_time': 0
+            , 'min_usage_period': 0
+            , 'min_avail_percent': 0.1
+            , 'min_avail_value': 1
+            , 'min_hours_perc': 0.2
+        }
+        params.update(self.data['parameters'])
+        self.data['parameters'] = params
+
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
         self.data['aux'] = {}
@@ -35,20 +47,12 @@ class Instance(object):
         }
 
     def get_param(self, param=None):
-        default_params = {
-            'maint_weight': 1
-            , 'unavail_weight': 1
-            , 'min_elapsed_time': 0
-            , 'min_usage_period': 0
-            , 'min_avail_percent': 0.1
-            , 'min_avail_value': 1
-            , 'min_hours_perc': 0.2
-        }
-        params = {**default_params, **self.data['parameters']}
+        params = self.data['parameters']
         if param is not None:
-            if param not in params:
+            try:
+                return params[param]
+            except:
                 raise ValueError("param named {} does not exist in parameters".format(param))
-            return params[param]
         return params
 
     def get_categories(self):
@@ -319,7 +323,7 @@ class Instance(object):
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
 
-    def get_task_candidates(self, task=None):
+    def get_task_candidates(self, recalculate=True, task=None):
 
         # we check if these are old instances:
         if 'capacities' not in self.get_categories()['resources']:

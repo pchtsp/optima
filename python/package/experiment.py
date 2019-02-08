@@ -50,10 +50,10 @@ class Experiment(object):
         else:
             raise ValueError("time needs to be rut or ret")
 
-    def check_solution_count(self):
-        return self.check_solution().to_lendict()
+    def check_solution_count(self, **params):
+        return self.check_solution(**params).to_lendict()
 
-    def check_solution(self):
+    def check_solution(self, **params):
         func_list = {
             'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
@@ -67,14 +67,14 @@ class Experiment(object):
             ,'start_periods': self.check_fixed_assignments
             ,'dist_maints': self.check_min_distance_maints
         }
-        result = {k: v() for k, v in func_list.items()}
+        result = {k: v(**params) for k, v in func_list.items()}
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
 
-    def check_maintenance_capacity(self):
+    def check_maintenance_capacity(self, **params):
         maints = self.solution.get_in_maintenance()
         return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
 
-    def check_task_num_resources(self, strict=False):
+    def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
 
         task_assigned = \
@@ -90,7 +90,7 @@ class Experiment(object):
             return sd.SuperDict(task_under_assigned).clean(func=lambda x: x != 0)
         return sd.SuperDict(task_under_assigned).clean(func=lambda x: x > 0)
 
-    def check_resource_in_candidates(self):
+    def check_resource_in_candidates(self, **params):
         task_solution = self.solution.get_tasks()
 
         task_candidates = self.instance.get_task_candidates()
@@ -238,18 +238,22 @@ class Experiment(object):
 
         return self.solution.data['aux'][time]
 
-    def check_usage_consumption(self):
-        return self.check_resource_consumption(time='rut')
+    def check_usage_consumption(self, **params):
+        return self.check_resource_consumption(time='rut', **params)
 
-    def check_elapsed_consumption(self):
-        return self.check_resource_consumption(time='ret')
+    def check_elapsed_consumption(self, **params):
+        return self.check_resource_consumption(time='ret', **params)
 
-    def check_resource_consumption(self, time='rut'):
-        rt = self.set_remaining_usage_time(time)
+    def check_resource_consumption(self, time='rut', recalculate=True, **params):
+        if recalculate:
+            rt = self.set_remaining_usage_time(time)
+        else:
+            rt = self.solution.data['aux'][time]
+
         rt_tup = aux.dictdict_to_dictup(rt)
         return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
 
-    def check_resource_state(self):
+    def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
         state_solution = self.solution.get_state()
 
@@ -262,7 +266,7 @@ class Experiment(object):
 
         return [tuple(item) for item in duplicated_states]
 
-    def check_min_assignment(self):
+    def check_min_assignment(self, **params):
         """
         :return: periods were the min assignment (including maintenance)
         is not respected
@@ -291,7 +295,7 @@ class Experiment(object):
                 incorrect[resource, start] = size_period
         return incorrect
 
-    def check_fixed_assignments(self):
+    def check_fixed_assignments(self, **params):
         state_tasks = self.solution.get_state_tasks()
         fixed_states = self.instance.get_fixed_states()
         state_tasks_tab = pd.DataFrame.from_records(list(state_tasks),
@@ -303,7 +307,7 @@ class Experiment(object):
                              result[result.state_x != result.state_y].to_records(index=False)})
 
 
-    def check_min_available(self):
+    def check_min_available(self, **params):
         """
         :return: periods where the min availability is not guaranteed.
         """
@@ -324,14 +328,17 @@ class Experiment(object):
         # return over_assigned
         # cluster_data.keys()
 
-    def check_min_flight_hours(self):
+    def check_min_flight_hours(self, recalculate=True, **params):
         """
         :return: periods where the min flight hours is not guaranteed.
         """
         c_candidates = self.instance.get_cluster_candidates()
         cluster_data = self.instance.get_cluster_constraints()
         min_hours = cluster_data['hours']
-        ruts = self.set_remaining_usage_time('rut')
+        if recalculate:
+            ruts = self.set_remaining_usage_time('rut')
+        else:
+            ruts = self.solution.data['aux']['rut']
         cluster_hours = sd.SuperDict().fill_with_default(min_hours.keys())
         for cluster, candidates in c_candidates.items():
             for candidate in candidates:
@@ -342,7 +349,7 @@ class Experiment(object):
         hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
         return hours_deficit.clean(func=lambda x: x < 0)
 
-    def check_min_distance_maints(self):
+    def check_min_distance_maints(self, **params):
         """
         checks if maintenances have the correct distance between them
         :return:

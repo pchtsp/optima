@@ -3,6 +3,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
+import package.solution as sol
 import package.model as md
 import package.model_cp as md_cp
 import package.experiment as exp
@@ -42,21 +43,28 @@ def config_and_solve(options):
     execute_solve(model_data, options)
 
 
-def re_execute_instance(directory, new_options=None):
+def re_execute_instance(directory, new_options=None, warm_start=False):
 
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
+    solution_data = None
+    if warm_start:
+        solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
     options = di.load_data(os.path.join(directory, 'options.json'))
     if new_options is not None:
         options.update(new_options)
-    execute_solve(model_data, options)
+    execute_solve(model_data, options, solution_data)
 
 
-def execute_solve(model_data, options):
+def execute_solve(model_data, options, solution_data=None):
     instance = inst.Instance(model_data)
+    solution = None
+
+    if solution_data is not None:
+        solution = sol.Solution(solution_data)
 
     output_path = options['path']
-    print(output_path)
-    di.export_data(output_path, instance.data, name="data_in", file_type='json')
+    # print(output_path)
+    di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=True)
     di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
@@ -64,12 +72,17 @@ def execute_solve(model_data, options):
     if solver == 'CPO':
         raise("The CPO model is not supported for the time being")
     if solver == 'HEUR':
-        experiment = heur.GreedyByMission(instance, options)
+        experiment = heur.GreedyByMission(instance, solution=solution)
     elif solver == 'HEUR_mf':
-        experiment = mf.MaintenanceFirst(instance, options)
+        experiment = mf.MaintenanceFirst(instance, solution=solution)
+    elif solver == 'HEUR_mf_CPLEX':
+        experiment = mf.MaintenanceFirst(instance, solution=solution)
+        solution = experiment.solve(options)
+        experiment = md.Model(instance, solution=solution)
+        options.update(dict(mip_start= True, solver='CPLEX'))
     else:
         # model with solver
-        experiment = md.Model(instance, options)
+        experiment = md.Model(instance, solution=solution)
 
     solution = experiment.solve(options)
 
@@ -80,7 +93,7 @@ def execute_solve(model_data, options):
     errors = experiment.check_solution()
     errors = {k: v.to_dictdict() for k, v in errors.items()}
 
-    di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json')
+    di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json', exclude_aux=True)
     if len(errors):
         di.export_data(output_path, errors, name='errors', file_type="json")
 
