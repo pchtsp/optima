@@ -18,11 +18,11 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         pass
 
-    def export_solution(self):
+    def get_solution(self):
         data = self.solution.data
         return ujson.loads(ujson.dumps(data))
 
-    def import_solution(self, data):
+    def set_solution(self, data):
         self.solution.data = ujson.loads(ujson.dumps(data))
 
     def solve(self, options):
@@ -34,9 +34,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         rn.seed(seed)
         max_iters = options.get('max_iters', 100)
         cooling = options.get('cooling', 0.995)
-        num_change_prob = options.get('num_change', 2)
+        num_change_prob = options.get('num_change', [1])
         # prob_ch_all = self.options['prob_ch_all']
-        temperature = self.options['temperature']
+        temperature = self.options.get('temperature', 1)
         num_change = [n + 1 for n, _ in enumerate(num_change_prob)]
         i = 0
         best_solution = None
@@ -61,14 +61,14 @@ class MaintenanceFirst(heur.GreedyByMission):
             if num_errors < min_errors:
                 prev_errors = min_errors = num_errors
                 print('best solution found: {}'.format(num_errors))
-                best_solution = self.export_solution()
+                best_solution = self.get_solution()
             elif num_errors > prev_errors \
                     and rn.random() > math.exp((prev_errors - num_errors)/temperature/50) \
                     and previous_solution:
-                self.import_solution(previous_solution)
+                self.set_solution(previous_solution)
                 num_errors = prev_errors
             else:
-                previous_solution = self.export_solution()
+                previous_solution = self.get_solution()
                 prev_errors = num_errors
             # 3. check if feasible. If not, un-assign (some/ all)
                 # maintenances and go to 1
@@ -79,7 +79,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
             # sometimes, we go back to the best solution found
             if rn.random() < 0.01 and num_errors > min_errors and best_solution:
-                self.import_solution(best_solution)
+                self.set_solution(best_solution)
                 num_errors = prev_errors = min_errors
                 print('back to best solution: {}'.format(min_errors))
 
@@ -100,11 +100,12 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_tasks = self.get_candidates_tasks()
         candidates_maints = self.get_candidates_maints()
         candidates_cluster = self.get_candidates_cluster()
-        candidates = set(candidates_tasks + candidates_maints + candidates_cluster)
+        candidates_dist_maints = self.get_candidates_bad_maints()
+        candidates = candidates_tasks + candidates_maints + candidates_cluster + candidates_dist_maints
         if not len(candidates):
             return []
         resources = sd.SuperDict(self.instance.data['resources']).keys_l()
-        candidates_filter = rn.choices(sorted(candidates), k=min(k, len(candidates)))
+        candidates_filter = rn.choices(candidates, k=min(k, len(candidates)))
         ress, dates = [t for t in zip(*candidates_filter)]
         res, indices = np.unique(ress, return_index=True)
         candidates_n = [t for t in zip(res, np.array(dates)[indices])]
@@ -117,10 +118,6 @@ class MaintenanceFirst(heur.GreedyByMission):
             return []
         clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
         c_cand = self.instance.get_cluster_candidates()
-        # clusts = [c for c, _ in clust_hours]
-        # print(clust_hours)
-        # if len(clust_hours):
-        #     a = 1
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
     def get_candidates_tasks(self):
@@ -134,6 +131,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         #     candidates_to_change.extend(cands)
         # return rn.choices(candidates_to_change, k=min(5, len(candidates_to_change)))
         return candidates_to_change
+
+    def get_candidates_bad_maints(self):
+        bad_maints = self.check_min_distance_maints()
+        return [(r, t) for r, t1, t2 in bad_maints for t in [t1, t2]]
 
     def get_candidates_maints(self):
         maints_probs = self.check_elapsed_consumption()
@@ -246,7 +247,6 @@ class MaintenanceFirst(heur.GreedyByMission):
                     continue
                 for period, ret in info.items():
                     if ret <= 0:
-                        # print(res, period, ret)
                         tup = res, \
                               max(first, self.instance.shift_period(period, -elapsed_time_size + 1)), \
                               min(last, self.instance.shift_period(period, duration))
@@ -254,7 +254,6 @@ class MaintenanceFirst(heur.GreedyByMission):
                         break
             if not len(maint_candidates):
                 break
-            # maint_candidates = [(r, s, e) for r, (s, e) in per_maint_start.items()]
             maint_candidates.sort(key=lambda x: len(self.instance.get_periods_range(x[1], x[2])))
             for resource, start, end in maint_candidates:
                 result = self.find_assign_maintenance(resource=resource,

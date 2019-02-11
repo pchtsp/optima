@@ -358,9 +358,12 @@ class Experiment(object):
             periods.sort()
             for period1, period2 in zip(periods, periods[1:]):
                 dist = self.instance.get_dist_periods(period1, period2)
-                if dist < min_dist or dist > max_dist:
-                    errors[res, period1, period2] = dist
-        return errors
+                if dist < min_dist:
+                    errors[res, period1, period2] = dist - min_dist
+                elif dist > max_dist:
+                    errors[res, period1, period2] = dist - max_dist
+
+        return sd.SuperDict.from_dict(errors)
 
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")
