@@ -9,19 +9,8 @@ import scripts.exec as exec
 import os
 import package.model as md
 import package.rpy_graphs as rg
-
-# '201801141334' vs '201802061201 vs '201802061434'
-
-def test1():
-    experiments = ['201801141334', '201802061201', '201802061434']
-
-    for e in experiments:
-        experiment = exp.Experiment.from_dir(PATHS['experiments']+e)
-        # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
-        experiment.check_solution()
-        print(e)
-        pp.pprint(experiment.get_kpis())
-
+import dfply as dp
+from dfply import X
 
 def test2():
     # e = '201809121711'
@@ -40,21 +29,6 @@ def test2():
     pp.pprint(experiment.get_kpis())
     print(experiment.get_status('16').to_string())
     # experiment.
-
-
-def test555():
-    e = 'simulated_data/1_task_types/201810051247/'
-    experiment = exp.Experiment.from_dir(PATHS['results'] + e)
-    instance = experiment.instance
-    options = di.load_data(PATHS['results'] + e + 'options.json')
-    checks = experiment.check_solution()
-    solution = experiment.solution
-    # solution = md.solve_model(instance, options)
-    di.export_data(options['path'], solution.data, name="data_out", file_type='json')
-    # experiment.solution.print_solution("/home/pchtsp/Downloads/calendar_temp1.html")
-    # checks = experiment.check_solution()
-    # checks.keys()
-
 
 def test4():
     case1 = '201805232311'
@@ -83,28 +57,39 @@ def test4():
 
     pass
 
-def test444():
-    path = PATHS['experiments'] + "201902011249/"
-    path = PATHS['data'] + 'examples/201811092041/'
-    path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
-    path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
-    path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
+def graph_check():
+    path = PATHS['experiments'] + "201902061522/"
+    path = PATHS['experiments'] + "201902071811/"
+    # path = PATHS['data'] + 'examples/201811231417/'
+    # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
+    # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
+    # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
     experiment = exp.Experiment.from_dir(path)
+    experiment.check_min_distance_maints()
+    status = experiment.get_status('9')
+    status.reset_index(inplace=True)
+    status.columns = ['period', 'rut', 'ret', 'state', 'task']
+    status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
+
     rg.gantt_experiment(path)
 
     experiment.check_solution()
 
-    input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
+    # input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
 
-    [r for r in input_data['resources'].values() if 'C' in r['capacities']]
+    # [r for r in input_data['resources'].values() if 'C' in r['capacities']]
 
 
-def test111():
-    path = PATHS['results'] + 'simulated_data/1_task_types_capa_slack/201810090924/'
-    new_options = {'gap': 1}
-    new_options =  {'slack_vars': 'No', 'gap': 1}
-    new_options = None
-    exec.re_execute_instance(path, new_options)
+def test_rexecute():
+    e = 'examples/201811231417/'
+    path = PATHS['data'] + e
+
+    new_options = {'solver': 'CBC', 'mip_start': True,
+                   'path': path, 'timeLimit': 600, 'writeLP': False,
+                   'gap': 1}
+    # new_options =  {'slack_vars': 'No', 'gap': 1}
+    # new_options = None
+    exec.re_execute_instance(path, new_options, warm_start=True)
 
 def test3():
     path_abs = PATHS['experiments']
@@ -172,5 +157,7 @@ def check_over_assignments():
 
 
 if __name__ == '__main__':
-    check_over_assignments()
+    # check_over_assignments()
+    # test_rexecute()
+    graph_check()
     pass

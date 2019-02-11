@@ -33,28 +33,32 @@ params_cplex = \
 , 'set mip strategy presolvenode 2'
 , 'set mip strategy probe 3'
 , 'set mip limits gomorycand 10000'
-, 'set mip limits gomorypass 10'
-, 'set mip tolerances mipgap 0']
+, 'set mip limits gomorypass 10']
 
 
 OPTIONS = {
     'timeLimit': 3600  # seconds
-    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf
+    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
-    , 'num_period': 90
+    , 'num_period': 140
     , 'path': os.path.join(
         PATHS['experiments'],
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
     # heuristic params:
-    , 'prob_ch_all': 1
+    , 'seed': 42
+    , 'num_change': [0.8, 0.1, 0.1]
+    , 'temperature': 1
+    , 'prob_ch_all': 0.1
+    , 'cooling': 0.997
     , 'print': False
+    , 'max_iters': 300
     # MIP params:
-    , 'noise_assignment': True
-    , 'gap': 0
+    , 'noise_assignment': False
+    , 'gap': 0.05
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
     , 'integer': False
@@ -63,11 +67,10 @@ OPTIONS = {
     , 'price_rut_end': 0
     , 'solver_add_opts': params_cplex
     , 'mip_start': True
-    , 'seed': None
     # simulation params:
     , 'simulation': {
-        'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 1
+        'num_resources': 60  # this depends on the number of tasks actually
+        , 'num_parallel_tasks': 4
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance

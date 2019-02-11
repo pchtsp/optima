@@ -54,7 +54,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             self.over_assign_missions()
 
             # check quality of solution, store best.
-            error_cat = self.check_solution_count()
+            error_cat = self.check_solution_count(recalculate=False)
             if self.options['print']:
                 print("errors: {}".format(error_cat))
             num_errors = sum(error_cat.values())
@@ -113,7 +113,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         return candidates_n
 
     def get_candidates_cluster(self):
-        clust_hours = self.check_min_flight_hours()
+        clust_hours = self.check_min_flight_hours(recalculate=False)
         if not len(clust_hours):
             return []
         clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
@@ -137,7 +137,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         return [(r, t) for r, t1, t2 in bad_maints for t in [t1, t2]]
 
     def get_candidates_maints(self):
-        maints_probs = self.check_elapsed_consumption()
+        maints_probs = self.check_elapsed_consumption(recalculate=False)
         if not len(maints_probs):
             return []
         start_h = self.instance.get_param('start')
@@ -298,6 +298,17 @@ class MaintenanceFirst(heur.GreedyByMission):
                     modifs.append(modif)
                 if added >= target:
                     break
+
+    def move_maintenance(self, resource, start):
+        duration = self.instance.get_param('maint_duration')
+        end = self.instance.shift_period(start, duration - 1)
+        new_end = self.instance.shift_period(start, end + 1)
+        new_start = self.instance.get_prev_period(start)
+        options = [(start, new_end), (end, new_start)]
+        options_f = []
+        for op in options:
+            if self.solution.is_resource_free(resource, op[1]):
+                options_f.append(op)
 
 
     def assign_missions(self):
