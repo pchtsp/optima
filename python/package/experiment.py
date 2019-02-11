@@ -293,7 +293,7 @@ class Experiment(object):
             size_period = len(self.instance.get_periods_range(start, finish))
             if size_period < min_assign.get(state, 1):
                 incorrect[resource, start] = size_period
-        return incorrect
+        return sd.SuperDict(incorrect)
 
     def check_fixed_assignments(self, **params):
         state_tasks = self.solution.get_state_tasks()

@@ -101,7 +101,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_maints = self.get_candidates_maints()
         candidates_cluster = self.get_candidates_cluster()
         candidates_dist_maints = self.get_candidates_bad_maints()
-        candidates = candidates_tasks + candidates_maints + candidates_cluster + candidates_dist_maints
+        candidates_min_assign = self.get_candidates_min_assign()
+        candidates = candidates_tasks + candidates_maints + \
+                     candidates_cluster + candidates_dist_maints + \
+                     candidates_min_assign
         if not len(candidates):
             return []
         resources = sd.SuperDict(self.instance.data['resources']).keys_l()
@@ -131,6 +134,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         #     candidates_to_change.extend(cands)
         # return rn.choices(candidates_to_change, k=min(5, len(candidates_to_change)))
         return candidates_to_change
+
+    def get_candidates_min_assign(self):
+        return self.check_min_assignment().keys_l()
 
     def get_candidates_bad_maints(self):
         bad_maints = self.check_min_distance_maints()
