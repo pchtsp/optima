@@ -4,13 +4,14 @@ import package.experiment as test
 import package.solution as sol
 import random as rn
 import package.tuplist as tl
+import logging as log
 
 
 class GreedyByMission(test.Experiment):
 
     def __init__(self, instance, solution=None):
 
-        self.options = {'print': True}
+        self.options = {'debug': True}
 
         # if solution given, just initialize and go
         if solution is not None:
@@ -52,7 +53,7 @@ class GreedyByMission(test.Experiment):
         # for r in range(2):
         needs = [k for k, v in self.check_elapsed_consumption().items() if v == -1]
         for res, period in needs:
-            print('resource {} needs a maintenance in {}'.format(res, period))
+            log.debug('resource {} needs a maintenance in {}'.format(res, period))
             self.find_assign_maintenance(res, self.instance.shift_period(period, -1), which_maint='latest')
         # solution[i] = copy.deepcopy(self.solution)
         # quality[i] = self.check_solution()
@@ -109,8 +110,7 @@ class GreedyByMission(test.Experiment):
                 # if the resource has no need for maintenance yet, we don't attempt one
                 # also, if we do not want to assign maintenances: we do not do it
                 continue
-            if self.options['print']:
-                print("resource {} needs a maintenance after period {}".format(candidate, maint_need))
+            log.debug("resource {} needs a maintenance after period {}".format(candidate, maint_need))
             # find soonest period to start maintenance:
             result = self.find_assign_maintenance(candidate, maint_need)
             if not result:
@@ -214,8 +214,7 @@ class GreedyByMission(test.Experiment):
             # this means that we cannot assign tasks BUT
             # we cannot assign maintenance either :/
             # we should then take out the candidate:
-            if self.options['print']:
-                print("resource {} has no candidate periods for maintenance".format(resource))
+            log.debug("resource {} has no candidate periods for maintenance".format(resource))
             return False
         maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
         periods_maint = self.instance.get_periods_range(maint_start, maint_end)
@@ -223,21 +222,18 @@ class GreedyByMission(test.Experiment):
         next_maint = self.get_next_maintenance(resource, maint_start)
         last_maint_prev = self.get_next_maintenance(resource, maint_start, previous=True)
         if last_maint_prev is not None and last_maint_prev >= maint_need:
-            if self.options['print']:
-                print("resource {} has already a maintenance {} after the need {}.".
+            log.debug("resource {} has already a maintenance {} after the need {}.".
                       format(resource, last_maint_prev, maint_need))
             return False
         # TODO: this swap is not checking everything: sometimes make infeasible choices
         if next_maint is not None and False:
             # we need to take out the old one, that happens *after* the new.
             # and choose carefully the periods to update.
-            if self.options['print']:
-                print("resource {} could swap maintenances: {} to {}".format(resource, next_maint, maint_start))
+            log.debug("resource {} could swap maintenances: {} to {}".format(resource, next_maint, maint_start))
             old_maint_end = self.instance.shift_period(next_maint, duration - 1)
             for period in self.instance.get_periods_range(next_maint, old_maint_end):
                 self.del_maint(resource, period)
-        if self.options['print']:
-            print("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
+        log.debug("resource {} will get a maintenance in periods {} -> {}".format(resource, maint_start, maint_end))
         start_update_rt = self.instance.get_next_period(maint_end)
         end_update_rt = self.get_next_maintenance(resource, start_update_rt)
         if end_update_rt is None:

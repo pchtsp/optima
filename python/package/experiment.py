@@ -61,7 +61,7 @@ class Experiment(object):
             ,'usage':       self.check_usage_consumption
             ,'elapsed':     self.check_elapsed_consumption
             ,'capacity':    self.check_maintenance_capacity
-            ,'min_assign':  self.check_min_assignment
+            ,'min_assign':  self.check_min_max_assignment
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
@@ -266,17 +266,22 @@ class Experiment(object):
 
         return [tuple(item) for item in duplicated_states]
 
-    def check_min_assignment(self, **params):
+    def check_min_max_assignment(self, **params):
         """
         :return: periods were the min assignment (including maintenance)
+        in format: (resource, start, end): error.
+        if error negative: bigger than max. Otherwise: less than min
         is not respected
         """
         # TODO: do it with self.solution.get_schedule()
-        tasks = sd.SuperDict.from_dict(self.solution.get_tasks()).to_tuplist()
-        maints = sd.SuperDict.from_dict(self.solution.get_state()).to_tuplist()
+        tasks = self.solution.get_tasks().to_tuplist()
+        maints = self.solution.get_state().to_tuplist()
         previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
             to_dictup().to_tuplist()
         min_assign = self.instance.get_min_assign()
+        max_assign = self.instance.get_max_assign()
+
+        num_periods = self.instance.get_param('num_period')
 
         all_states = maints + tasks + previous
         all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=self.instance.compare_tups)
@@ -292,7 +297,9 @@ class Experiment(object):
                 continue
             size_period = len(self.instance.get_periods_range(start, finish))
             if size_period < min_assign.get(state, 1):
-                incorrect[resource, start] = size_period
+                incorrect[resource, start, finish] = min_assign[state] - size_period
+            elif size_period > max_assign.get(state, num_periods):
+                incorrect[resource, start, finish] = max_assign[state] - size_period
         return sd.SuperDict(incorrect)
 
     def check_fixed_assignments(self, **params):
@@ -371,6 +378,11 @@ class Experiment(object):
                     errors[res, period1, period2] = dist - max_dist
 
         return sd.SuperDict.from_dict(errors)
+
+    def check_maint_size(self, **params):
+        tups_func = self.instance.compare_tups
+        maint_periods = self.solution.get_maintenance_periods(compare_tups=tups_func)
+        # we check if the size of the maintenance is equal to its duration
 
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")

@@ -124,6 +124,10 @@ class Instance(object):
         min_assign['M'] = self.get_param('maint_duration')
         return min_assign
 
+    def get_max_assign(self):
+        max_assign = dict(M = self.get_param('maint_duration'))
+        return sd.SuperDict(max_assign)
+
     def compare_tups(self, tup1, tup2, pp):
         for n, (v1, v2) in enumerate(zip(tup1, tup2)):
             if n == pp:
