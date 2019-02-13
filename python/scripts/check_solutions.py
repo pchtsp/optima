@@ -1,6 +1,6 @@
 import package.experiment as exp
 import pprint as pp
-from package.params import PATHS
+from package.params import PATHS, OPTIONS
 import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
@@ -59,7 +59,7 @@ def test4():
 
 def graph_check():
     path = PATHS['experiments'] + "201902061522/"
-    path = PATHS['experiments'] + "201902071811/"
+    path = PATHS['experiments'] + "201902111621/"
     # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
@@ -81,15 +81,20 @@ def graph_check():
 
 
 def test_rexecute():
-    e = 'examples/201811231417/'
+    e = 'examples/201811240019/'
     path = PATHS['data'] + e
+    # path = "/home/pchtsp/Documents/projects/optima_results/experiments/201902131123/"
 
-    new_options = {'solver': 'CBC', 'mip_start': True,
-                   'path': path, 'timeLimit': 600, 'writeLP': False,
-                   'gap': 1}
+    # new_options = {'solver': 'CPLEX', 'mip_start': True,
+    #                'path': path, 'timeLimit': 600, 'writeLP': False,
+    #                'gap': 0, 'noise_assignment': True}
+
+    new_options = OPTIONS
+    new_options.update({'solver': 'HEUR_mf', 'mip_start': False})
+    # new_options.update({'solver': 'CPLEX', 'path': path, 'mip_start': False, 'fix_start': False})
     # new_options =  {'slack_vars': 'No', 'gap': 1}
     # new_options = None
-    exec.re_execute_instance(path, new_options, warm_start=True)
+    exec.re_execute_instance(path, new_options)
 
 def test3():
     path_abs = PATHS['experiments']
@@ -159,5 +164,5 @@ def check_over_assignments():
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    graph_check()
+    test_rexecute()
     pass

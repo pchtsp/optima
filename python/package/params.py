@@ -26,18 +26,20 @@ PATHS['input'] = PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
 PATHS['hist'] = PATHS['data'] + 'raw/Planifs M2000.xlsm'
 
 params_cplex = \
-[ 'set mip cuts flowcovers 1'
+[
+'set mip cuts flowcovers 1'
 , 'set mip cuts mircut 1'
 , 'set mip strategy backtrack 0.1'
 , 'set mip strategy heuristicfreq 100'
 , 'set mip strategy presolvenode 2'
 , 'set mip strategy probe 3'
 , 'set mip limits gomorycand 10000'
-, 'set mip limits gomorypass 10']
+, 'set mip limits gomorypass 10'
+  ]
 
 
 OPTIONS = {
-    'timeLimit': 3600  # seconds
+    'timeLimit': 600  # seconds
     , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
@@ -51,14 +53,15 @@ OPTIONS = {
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
-    , 'temperature': 1
+    , 'temperature': 2
     , 'prob_ch_all': 0.1
-    , 'cooling': 0.997
-    , 'debug': False
-    , 'max_iters': 3000
+    , 'cooling': 0.998
+    , 'debug': True
+    , 'max_iters': 99999999
     # MIP params:
-    , 'noise_assignment': False
-    , 'gap': 0.05
+    , 'noise_assignment': True
+    , 'gap': 0
+    , 'gap_abs': 40
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
     , 'integer': False
@@ -66,7 +69,8 @@ OPTIONS = {
     , 'writeMPS': False
     , 'price_rut_end': 0
     , 'solver_add_opts': params_cplex
-    , 'mip_start': True
+    , 'mip_start': False
+    , 'fix_start': False
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
@@ -75,12 +79,12 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'min_usage_period': 15  # minimum consumption per period
+        , 'min_usage_period': 15 # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type
         , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
-        , 'seed': 45
+        , 'seed': 47
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)

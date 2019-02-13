@@ -223,13 +223,25 @@ class Instance(object):
     def get_prev_period(self, period):
         return self.shift_period(period, -1)
 
-    def get_next_periods(self, period, num=1):
+    def get_next_periods(self, period, num=1, previous=False):
+        """
+        get num next periods. The include the reference as the first one.
+        Or last one in the case of previous.
+        :param period:
+        :param num:
+        :param previous: boolean to change the sense of the search
+        :return:
+        """
         if num < 0:
             return []
         pos_period = self.data['aux']['period_i']
         period_pos = self.data['aux']['period_e']
-        start = pos_period[period]
-        end = start + num
+        if not previous:
+            start = pos_period[period]
+            end = start + num
+        else:
+            end = pos_period[period] + 1
+            start = end - num
         return [period_pos[t] for t in range(start, end)]
 
     def get_task_period_needs(self):
