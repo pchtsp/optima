@@ -43,15 +43,17 @@ def config_and_solve(options):
     execute_solve(model_data, options)
 
 
-def re_execute_instance(directory, new_options=None, warm_start=False):
+def re_execute_instance(directory, new_options=None):
 
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
     solution_data = None
-    if warm_start:
-        solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
     options = di.load_data(os.path.join(directory, 'options.json'))
     if new_options is not None:
         options.update(new_options)
+    warm_start = options.get('mip_start', False)
+    if warm_start:
+        solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
+    # print(options)
     execute_solve(model_data, options, solution_data)
 
 
