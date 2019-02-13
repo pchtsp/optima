@@ -178,11 +178,12 @@ class Experiment(object):
             if first_maint_start != first:
                 nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
             for maint1, maint2 in zip(maints, maints[1:]):
-                nonmaintenances.append(
-                    (res, self.instance.get_next_period(maint1[1]), self.instance.get_prev_period(maint2[0]))
-                                       )
+                start = self.instance.get_next_period(maint1[1])
+                end = self.instance.get_prev_period(maint2[0])
+                nonmaintenances.append((res, start, end))
             if last_maint_end != last:
-                nonmaintenances.append((res, self.instance.get_next_period(last_maint_end), last))
+                start = self.instance.get_next_period(last_maint_end)
+                nonmaintenances.append((res, start, last))
         return nonmaintenances
 
     def set_start_periods(self):
