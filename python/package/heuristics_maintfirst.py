@@ -49,10 +49,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         _log.setLevel(level)
 
 
-        max_iters = options.get('max_iters', 100)
+        max_iters = options.get('max_iters', 99999999)
+        max_time = options.get('timeLimit', 600)
         cooling = options.get('cooling', 0.995)
         num_change_prob = options.get('num_change', [1])
-        # prob_ch_all = self.options['prob_ch_all']
         temperature = self.options.get('temperature', 1)
         num_change = [n + 1 for n, _ in enumerate(num_change_prob)]
         i = 0
@@ -107,11 +107,11 @@ class MaintenanceFirst(heur.GreedyByMission):
             # prob_ch_all = self.options['prob_ch_all']
             # self.options['prob_ch_all'] = prob_ch_all*cooling
 
-            log.info("timestamp={}, time={}, iteration={}, temperaure={}, errors={}, best={}".
-                     format(round(clock), round(time_now), i, round(temperature, 4), num_errors, min_errors))
+            log.info("time={}, iteration={}, temperaure={}, errors={}, best={}".
+                     format(round(time_now), i, round(temperature, 4), num_errors, min_errors))
             i += 1
 
-            if not min_errors or i >= max_iters:
+            if not min_errors or i >= max_iters or time_now > max_time:
                 break
 
         return sol.Solution(best_solution)
@@ -122,17 +122,23 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_cluster = self.get_candidates_cluster()
         candidates_dist_maints = self.get_candidates_bad_maints()
         candidates_min_assign = self.get_candidates_min_max_assign()
+        candidates_rut = self.get_candidates_rut()
         candidates = candidates_tasks + candidates_maints + \
                      candidates_cluster + candidates_dist_maints + \
-                     candidates_min_assign
+                     candidates_min_assign + candidates_rut
         if not len(candidates):
             return []
-        resources = sd.SuperDict(self.instance.data['resources']).keys_l()
+        # we add a random resource.
+        resources = list(self.instance.data['resources'].keys())
+        candidates.extend([(c, None) for c in rn.choices(resources, k=1)])
+        # we only select a few (or 1) resource to change
         candidates_filter = rn.choices(candidates, k=min(k, len(candidates)))
+
+        # we want to garantee we only change the same resource once per iteration:
         ress, dates = [t for t in zip(*candidates_filter)]
         res, indices = np.unique(ress, return_index=True)
         candidates_n = [t for t in zip(res, np.array(dates)[indices])]
-        candidates_n.extend([(c, None) for c in rn.choices(resources, k=1)])
+
         return candidates_n
 
     def get_candidates_cluster(self):
@@ -181,9 +187,15 @@ class MaintenanceFirst(heur.GreedyByMission):
         # pick 2?
         return candidates
 
+    def get_candidates_rut(self):
+        maints_probs = self.check_usage_consumption(recalculate=False)
+        maints_probs_st = maints_probs.to_tuplist().tup_to_start_finish()
+        candidates = [(r, d) for r, d, p, e in maints_probs_st]
+        return candidates
+
     def get_random_periods(self, ref_period):
         """
-        Given a reference date, a period around is it's created
+        Given a reference date, a period around it is created
         :param ref_period: period (month)
         :return:
         """
@@ -193,6 +205,39 @@ class MaintenanceFirst(heur.GreedyByMission):
         second = self.instance.shift_period(ref_period, distance2)
         return self.instance.get_periods_range(first, second)
 
+    def get_start_maints_period(self, resource, periods, fixed_periods):
+        """
+        gets the maintenance start period for the first maintenance that falls
+        inside "periods" for resource. That is not fixed
+        :param resource:
+        :param periods:
+        :param fixed_periods:
+        :return:
+        """
+        data = self.solution.data
+        delete_maint = None
+        for period in periods:
+            if data['state'][resource].get(period) == 'M' and \
+                            (resource, period) not in fixed_periods:
+                delete_maint = period
+                break
+        if delete_maint is None:
+            return delete_maint
+
+        if delete_maint == periods[0]:
+            prev_period = self.instance.get_prev_period(delete_maint)
+            # we need to search for the first month
+            while data['state'][resource].get(prev_period) == 'M':
+                delete_maint = prev_period
+                prev_period = self.instance.get_prev_period(delete_maint)
+        return delete_maint
+
+    # def free_maintenances(self, resource, periods, fixed_periods):
+    #
+    #
+
+    #     return 1
+
     def free_resource(self, candidate):
         """
         This function empties totally or partially the assignments
@@ -200,6 +245,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         :param resource: resource to empty
         :return:
         """
+        # a = self.get_status(candidate[0])
+        # a[:50]
         data = self.solution.data
         places = [
             data['state'],
@@ -221,34 +268,46 @@ class MaintenanceFirst(heur.GreedyByMission):
                 date = rn.choice(periods)
             periods = self.get_random_periods(ref_period=date)
             fixed_periods = self.instance.get_fixed_periods()
+
             # deactivate tasks
+            delete_tasks = 0
             if resource in data['task']:
                 for period in periods:
                     if (resource, period) not in fixed_periods:
                         data['task'][resource].pop(period, None)
+                        delete_tasks = 1
 
-            # deactivate states
-            if resource not in data['state']:
-                return
-            delete_maint = None
-            for period in periods:
-                if data['state'][resource].get(period) == 'M' and \
-                                (resource, period) not in fixed_periods:
-                    delete_maint = period
-                    break
-            if delete_maint is not None and delete_maint > periods[0]:
-                # we only delete maintenances that start inside the periods
+            # we have several options for deactivating tasks:
+            # 1. we eliminate all existing maintenances.
+            # 2. we move existing maintenances
+            maint_found = None
+            if resource in data['state']:
+                maint_found = self.get_start_maints_period(resource, periods, fixed_periods)
+            if maint_found is not None:
                 duration = self.instance.get_param('maint_duration')
-                for period in self.instance.get_next_periods(delete_maint, duration):
-                    data['state'][resource].pop(period, None)
+                if rn.random() > 0.1:
+                    # We can directly take out the maintenances
+                    for period in self.instance.get_next_periods(maint_found, duration):
+                        data['state'][resource].pop(period, None)
+                else:
+                    # Or we can just move them
+                    maint_found = self.move_maintenance(resource, maint_found)
 
+            if not (delete_tasks or maint_found):
+                return 0
             # only update remaining hours when no maintenances
             # also, the ret since we're deactivating maintenances
             non_maintenances = self.get_non_maintenance_periods(resource)
-            for resource, start, end in non_maintenances:
+            times = ['rut']
+            if maint_found:
+                times.append('ret')
+            for _, start, end in non_maintenances:
                 periods = self.instance.get_periods_range(start, end)
-                for t in ['rut', 'ret']:
+                # if not len(periods):
+                #     a = 1
+                for t in times:
                     self.update_time_usage(resource, periods, time=t)
+            return 1
 
 
     def assign_missing_maints_to_aircraft(self):
@@ -319,16 +378,57 @@ class MaintenanceFirst(heur.GreedyByMission):
                     break
 
     def move_maintenance(self, resource, start):
+        """
+        we move a maintenance that starts at start to the left or right
+        :param resource:
+        :param start: start of maintenance
+        :return:
+        """
+        # a = self.get_status(resource)
+        # a[a.period >= '2021-03'][:8]
+        first, last = [self.instance.get_param(p) for p in ['start', 'end']]
         duration = self.instance.get_param('maint_duration')
         end = self.instance.shift_period(start, duration - 1)
-        new_end = self.instance.shift_period(start, end + 1)
-        new_start = self.instance.get_prev_period(start)
-        options = [(start, new_end), (end, new_start)]
-        options_f = []
-        for op in options:
-            if self.solution.is_resource_free(resource, op[1]):
-                options_f.append(op)
+        modif = rn.randint(-3, 3)
+        ret = self.solution.data['aux']['ret'][resource].get(start)
+        new_ret = ret + modif
+        _max = self.instance.get_param('max_elapsed_time')
+        _min = _max - self.instance.get_param('elapsed_time_size')
+        if new_ret > _max or new_ret < _min:
+            return None
+        if modif > 0:
+            periods_to_add = self.instance.get_next_periods(end, modif + 1)
+            periods_to_take = self.instance.get_next_periods(start, modif + 1)
+            # the first one is not relevant.
+            periods_to_add.pop(0)
+            periods_to_take.pop()
+        elif modif < 0:
+            periods_to_add = self.instance.get_next_periods(start, -modif + 1, previous=True)
+            periods_to_take = self.instance.get_next_periods(end, -modif + 1, previous=True)
+            # the last one is not relevant.
+            periods_to_add.pop()
+            periods_to_take.pop(0)
+        else:
+            return None
+        if periods_to_add[0] < first or periods_to_add[-1] > last:
+            return None
 
+        for period in periods_to_add:
+            # we check if it's possible to move...
+            # for that we check availability and ret only.
+            if not self.solution.is_resource_free(resource, period):
+                return None
+
+        # we arrived here: we're assigning a maintenance:
+        for period in periods_to_add:
+            self.set_maint(resource, period)
+        self.update_time_maint(resource, periods_to_add, time='ret')
+        self.update_time_maint(resource, periods_to_add, time='rut')
+
+        # and deleting a maintenance, also:
+        for period in periods_to_take:
+            self.solution.data['state'][resource].pop(period, None)
+        return start
 
     def assign_missions(self):
         rem_resources = self.check_task_num_resources().to_dictdict()

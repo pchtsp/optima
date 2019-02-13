@@ -160,6 +160,8 @@ class Experiment(object):
         It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
         """
+        # a = self.get_status(resource)
+        # a[a.period>='2019-02'][:8]
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
         maintenances = aux.tup_to_dict(
             self.solution.get_maintenance_periods(resource, compare_tups=self.instance.compare_tups)
@@ -175,7 +177,7 @@ class Experiment(object):
             maints = sorted(maintenances[res], key=lambda x: x[0])
             first_maint_start = maints[0][0]
             last_maint_end = maints[-1][1]
-            if first_maint_start != first:
+            if first_maint_start > first:
                 nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
             for maint1, maint2 in zip(maints, maints[1:]):
                 nonmaintenances.append(
@@ -436,9 +438,9 @@ class Experiment(object):
         task = pd.DataFrame.from_dict(data['task'].get(candidate, {}), orient='index')
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
         table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).merge(start, **args).sort_index()
-        table.reset_index(inplace=True)
+        return table.reset_index().rename(columns={'index': 'period'})
         # table.columns = ['rut', 'ret', 'state', 'task']
-        return table
+        # return table
 
 
 def clean_experiments(path, clean=True, regex=""):

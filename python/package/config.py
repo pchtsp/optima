@@ -16,13 +16,14 @@ class Config(object):
 
         default_options = {
             'timeLimit': 300
-            , 'gap': 0
+            , 'gap': None
             , 'solver': "GUROBI"
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
             , 'memory': None
             , 'writeMPS': False
             , 'writeLP': False
+            , 'gap_abs': None
         }
 
         # the following merges the two configurations (replace into):
@@ -35,12 +36,15 @@ class Config(object):
         self.solver = options['solver']
         self.solver_add_opts = options.get('solver_add_opts', [])
         self.mip_start = options.get('mip_start', False)
+        self.gap_abs = options['gap_abs']
+        self.log_path = self.path + 'results.log'
+        self.result_path = self.path + 'results.sol'
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
                 self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
             else: # windows
-                self.memory = 15000
+                self.memory = None
         else:
             self.memory = options['memory']
         self.writeMPS = options['writeMPS']
@@ -49,36 +53,53 @@ class Config(object):
     def config_cbc(self):
         if not os.path.exists(self.path):
             os.mkdir(self.path)
-        log_path = self.path + 'results.log'
+
+        params_eq  = \
+            dict(timeLimit="sec {}",
+                 gap = "ratio {}",
+                 gap_abs = 'allow {}',
+                 )
+        params = [v.format(getattr(self, k)) for k, v in params_eq.items()
+                  if getattr(self, k) is not None] + self.solver_add_opts
+
         return \
             ["presolve on",
              "gomory on",
              "knapsack on",
-             "probing on",
-             "ratio {}".format(self.gap),
-             "sec {}".format(self.timeLimit)] + self.solver_add_opts
+             "probing on"] + params + self.solver_add_opts
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
         if not os.path.exists(self.path):
             os.mkdir(self.path)
-        result_path = self.path + 'results.sol'
-        log_path = self.path + 'results.log'
-        return [('TimeLimit', self.timeLimit),
-                ('ResultFile', result_path),
-                ('LogFile', log_path),
-                ('MIPGap', self.gap)] + self.solver_add_opts
+
+        params_eq  = \
+            dict(log_path='LogFile',
+                 timeLimit='TimeLimit',
+                 gap = 'MIPGap',
+                 gap_abs = 'MIPGapAbs',
+                 result_path = 'ResultFile'
+                 )
+        return [(v, getattr(self, k)) for k, v in params_eq.items()
+             if getattr(self, k) is not None] + self.solver_add_opts
 
     def config_cplex(self):
         # CPLEX parameters: https://www.ibm.com/support/knowledgecenter/en/SSSA5P_12.6.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/tutorials/InteractiveOptimizer/settingParams.html
         if not os.path.exists(self.path):
             os.mkdir(self.path)
-        log_path = self.path + 'results.log'
-        return ['set logfile {}'.format(log_path),
-                'set timelimit {}'.format(self.timeLimit),
-                'set mip tolerances mipgap {}'.format(self.gap),
-                'set mip limits treememory {}'.format(self.memory),
-                ] + self.solver_add_opts
+
+        params_eq  = \
+            dict(log_path='set logFile {}',
+                 timeLimit='set timelimit {}',
+                 gap = 'set mip tolerances mipgap {}',
+                 gap_abs = 'set mip tolerances absmipgap {}',
+                 memory = 'set mip limits treememory {}'
+                 )
+        a = [v.format(getattr(self, k)) for k, v in params_eq.items()
+            if getattr(self, k) is not None] + \
+           self.solver_add_opts
+        # print(a)
+        return a
 
     def config_choco(self):
         # CHOCO parameters https://github.com/chocoteam/choco-parsers/blob/master/MPS.md

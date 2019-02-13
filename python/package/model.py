@@ -62,51 +62,52 @@ class Model(exp.Experiment):
         num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
         rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
+        fix = options.get('fix_start', False)
         if options.get('mip_start'):
-            main_starts = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
+            cp = self.instance.compare_tups
+            main_starts = self.solution.get_maintenance_periods(compare_tups=cp)
             min_usage = self.instance.get_param('min_usage_period')
 
             # Initialize values:
             for tup in start_M:
-                start_M[tup].varValue = 0
+                start_M[tup].setInitialValue(0, fix=fix)
 
             for tup in task:
-                task[tup].varValue = 0
+                task[tup].setInitialValue(0, fix=fix)
 
             for tup in start_T:
-                start_T[tup].varValue = 0
+                start_T[tup].setInitialValue(0, fix=fix)
 
             for a, t in l['at']:
-                usage[a, t].varValue = min_usage
-
+                usage[a, t].setInitialValue(min_usage, fix=fix)
 
             number_maint = 0
             for (a, t, t2) in main_starts:
                 if (a, t) in l['at_start']:
                     # we check this because of fixed maints
-                    start_M[a, t].varValue = 1
+                    start_M[a, t].setInitialValue(1, fix=fix)
                     number_maint += 1
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
-                    usage[a, p].varValue = 0
+                    usage[a, p].setInitialValue(0, fix=fix)
 
             start_periods = self.solution.get_task_periods()
             task_usage = self.instance.get_tasks('consumption')
             for (a, t, v, t2) in start_periods:
                 if (a, v, t) in start_T:
-                    start_T[a, v, t].varValue = 1
+                    start_T[a, v, t].setInitialValue(1, fix=fix)
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
                     if (a, v, p) in task:
-                        task[a, v, p].varValue = 1
-                    usage[a, p].varValue = task_usage[v]
+                        task[a, v, p].setInitialValue(1, fix=fix)
+                    usage[a, p].setInitialValue(task_usage[v], fix=fix)
 
             rut_data = self.set_remaining_usage_time('rut')
             for a, date_info in rut_data.items():
                 for t, v in date_info.items():
-                    rut[a, t].varValue = v
+                    rut[a, t].setInitialValue(v, fix=fix)
 
-            num_maint.varValue = number_maint
+            num_maint.setInitialValue(number_maint, fix=fix)
 
         # slack variables:
         slack_vt = {tup: 0 for tup in l['vt']}

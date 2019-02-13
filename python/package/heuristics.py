@@ -199,6 +199,8 @@ class GreedyByMission(test.Experiment):
         :param max_period: date when the resource can no longer have the maintenance
         :return:
         """
+        # a = self.get_status(resource)
+        # a[a.period>= periods_maint[0]][:8]
         if max_period is None:
             max_period = self.instance.get_param('end')
         horizon_end = self.instance.get_param('end')
