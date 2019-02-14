@@ -62,10 +62,8 @@ class Model(exp.Experiment):
         num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
         rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
-        fix = options.get('fix_start', False)
         if options.get('mip_start'):
-            cp = self.instance.compare_tups
-            main_starts = self.solution.get_maintenance_periods(compare_tups=cp)
+            main_starts = self.get_maintenance_periods()
             min_usage = self.instance.get_param('min_usage_period')
 
             # Initialize values:
@@ -85,29 +83,40 @@ class Model(exp.Experiment):
             for (a, t, t2) in main_starts:
                 if (a, t) in l['at_start']:
                     # we check this because of fixed maints
-                    start_M[a, t].setInitialValue(1, fix=fix)
+                    start_M[a, t].setInitialValue(1)
                     number_maint += 1
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
-                    usage[a, p].setInitialValue(0, fix=fix)
+                    if (a, p) in usage:
+                        # we check because of previous assignments
+                        usage[a, p].setInitialValue(0)
 
-            start_periods = self.solution.get_task_periods()
+            start_periods = self.get_task_periods()
             task_usage = self.instance.get_tasks('consumption')
             for (a, t, v, t2) in start_periods:
                 if (a, v, t) in start_T:
-                    start_T[a, v, t].setInitialValue(1, fix=fix)
+                    start_T[a, v, t].setInitialValue(1)
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
                     if (a, v, p) in task:
-                        task[a, v, p].setInitialValue(1, fix=fix)
-                    usage[a, p].setInitialValue(task_usage[v], fix=fix)
+                        task[a, v, p].setInitialValue(1)
+                    if (a, p) in usage:
+                        usage[a, p].setInitialValue(task_usage[v])
 
             rut_data = self.set_remaining_usage_time('rut')
             for a, date_info in rut_data.items():
                 for t, v in date_info.items():
-                    rut[a, t].setInitialValue(v, fix=fix)
+                    if (a, t) in rut:
+                        rut[a, t].setInitialValue(v)
 
-            num_maint.setInitialValue(number_maint, fix=fix)
+            num_maint.setInitialValue(number_maint)
+
+            if options.get('fix_start', False):
+                # vars_to_fix = [start_M]
+                vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
+                for _vars in vars_to_fix:
+                    for var in _vars.values():
+                        var.fixValue()
 
         # slack variables:
         slack_vt = {tup: 0 for tup in l['vt']}
@@ -200,7 +209,9 @@ class Model(exp.Experiment):
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
         # we need to fix the corresponding variable.
         for avt in l['at_mission_m']:
-            model += task[avt] == 1
+            if avt in task:
+                # sometimes the assignments are in the past
+                model += task[avt] == 1
 
         # ##################################
         # Clusters
@@ -308,8 +319,8 @@ class Model(exp.Experiment):
         _start.update(_start_M)
 
         _rut = {t: rut[t].value() for t in rut}
-
-        _state = {tup: 'M' for tup in l['at_maint']}
+        fixed_maints_horizon = l['at_maint'].filter_list_f(lambda x: first_period <= x[1] <= last_period)
+        _state = {tup: 'M' for tup in fixed_maints_horizon}
         _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
 
         solution_data_pre = {
@@ -401,12 +412,15 @@ class Model(exp.Experiment):
                     at_free_start: can start a maintenance              => 'start_M'
                 at_maint: maintenance is assigned (fixed)               => 'state' 
                     at_start: start of maintenance is assigned (fixed). => 'start_M'
+        These values should not be assumed to all fall inside the planning horizon.
+        There is also the initial values before it.
         """
 
         at = tl.TupList((a, t) for a in resources for t in periods)
         at0 = tl.TupList([(a, period_0) for a in resources] + at)
         at_mission_m = self.instance.get_fixed_tasks()
-        at_mission = tl.TupList((a, t) for (a, s, t) in at_mission_m)  # Fixed mission assignments.
+        at_mission_m_horizon = at_mission_m.filter_list_f(lambda x: first_period <= x[2] <= last_period )
+        at_mission = tl.TupList((a, t) for (a, s, t) in at_mission_m_horizon)  # Fixed mission assignments.
         at_start = []  # Fixed maintenances starts
         at_maint = self.instance.get_fixed_maintenances()  # Fixed maintenance assignments.
         at_free = tl.TupList((a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission))
@@ -427,7 +441,7 @@ class Model(exp.Experiment):
         avt = tl.TupList([(a, v, t) for a in resources for (v, t) in vt
                if a in candidates[v]
                if (a, t) in at_free] + \
-              at_mission_m)
+                         at_mission_m_horizon)
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
@@ -471,7 +485,7 @@ class Model(exp.Experiment):
         ,'avt'              :  avt
         ,'at'               :  at
         ,'at_maint'         :  at_maint
-        ,'at_mission_m'    : at_mission_m
+        ,'at_mission_m'     : at_mission_m
         ,'ast'              :  ast
         ,'at_start'         :  list(at_start + at_free_start)
         ,'at0'              :  at0

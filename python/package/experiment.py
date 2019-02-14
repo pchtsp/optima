@@ -164,7 +164,7 @@ class Experiment(object):
         # a[a.period>='2019-02'][:8]
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
         maintenances = aux.tup_to_dict(
-            self.solution.get_maintenance_periods(resource, compare_tups=self.instance.compare_tups)
+            self.get_maintenance_periods(resource)
             , result_col=[1, 2])
         if resource is None:
             resources = self.instance.get_resources()
@@ -193,8 +193,8 @@ class Experiment(object):
         It edits the aux part of the solution data
         :return: the dictionary that it assigns
         """
-        tasks_start = self.solution.get_task_periods()
-        states_start = self.solution.get_state_periods()
+        tasks_start = self.get_task_periods()
+        states_start = self.get_state_periods()
         all_starts = tasks_start + states_start
         starts = {(r, t): v for (r, t, v, _) in all_starts}
 
@@ -228,7 +228,7 @@ class Experiment(object):
         for resource in initial:
             self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rem))
 
-        maintenances = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
+        maintenances = self.get_maintenance_periods()
         for resource, start, end in maintenances:
             for period in self.instance.get_periods_range(start, end):
                 self.set_remainingtime(resource, period, time, max_rem)
@@ -284,9 +284,9 @@ class Experiment(object):
         max_assign = self.instance.get_max_assign()
 
         num_periods = self.instance.get_param('num_period')
-
+        ct = self.instance.compare_tups
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=self.instance.compare_tups)
+        all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=ct)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -305,11 +305,14 @@ class Experiment(object):
         return sd.SuperDict(incorrect)
 
     def check_fixed_assignments(self, **params):
+        first_period = self.instance.get_param('start')
+        last_period = self.instance.get_param('end')
         state_tasks = self.solution.get_state_tasks()
         fixed_states = self.instance.get_fixed_states()
+        fixed_states_h = fixed_states.filter_list_f(lambda x: first_period <= x[2] <= last_period)
         state_tasks_tab = pd.DataFrame.from_records(list(state_tasks),
                                                     columns=['resource', 'period', 'state'])
-        fixed_states_tab = pd.DataFrame.from_records(list(fixed_states),
+        fixed_states_tab = pd.DataFrame.from_records(list(fixed_states_h),
                                                      columns=['resource', 'state', 'period'])
         result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
         return sd.SuperDict({tuple(x): 1 for x in
@@ -323,7 +326,7 @@ class Experiment(object):
         resources = self.instance.get_resources().keys()
         c_candidates = self.instance.get_cluster_candidates()
         cluster_data = self.instance.get_cluster_constraints()
-        maint_periods = tl.TupList(self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)).\
+        maint_periods = tl.TupList(self.get_maintenance_periods()).\
             to_dict(result_col=[1, 2]).fill_with_default(keys=resources, default=[])
         max_candidates = cluster_data['num']
         num_maintenances = sd.SuperDict().fill_with_default(max_candidates.keys())
@@ -331,7 +334,8 @@ class Experiment(object):
             for candidate in candidates:
                 for maint_period in maint_periods[candidate]:
                     for period in self.instance.get_periods_range(*maint_period):
-                        num_maintenances[cluster, period] += 1
+                        if (cluster, period) in num_maintenances:
+                            num_maintenances[cluster, period] += 1
         over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
         return over_assigned.clean(func=lambda x: x < 0)
         # return over_assigned
@@ -363,7 +367,7 @@ class Experiment(object):
         checks if maintenances have the correct distance between them
         :return:
         """
-        maints = self.solution.get_maintenance_starts(compare_tups=self.instance.compare_tups)
+        maints = self.get_maintenance_starts()
         maints_res = tl.TupList(maints).to_dict(result_col=1)
         errors = {}
         duration = self.instance.get_param('maint_duration')
@@ -384,7 +388,7 @@ class Experiment(object):
 
     def check_maint_size(self, **params):
         tups_func = self.instance.compare_tups
-        maint_periods = self.solution.get_maintenance_periods(compare_tups=tups_func)
+        maint_periods = self.get_maintenance_periods()
         # we check if the size of the maintenance is equal to its duration
 
     def get_objective_function(self):
@@ -398,7 +402,7 @@ class Experiment(object):
         rut = self.set_remaining_usage_time(time='rut')
         ret = self.set_remaining_usage_time(time='ret')
         end = self.instance.get_param('end')
-        starts = self.solution.get_maintenance_periods(compare_tups=self.instance.compare_tups)
+        starts = self.get_maintenance_periods()
         return {
             'unavail': max(self.solution.get_unavailable().values())
             , 'maint': max(self.solution.get_in_maintenance().values())
@@ -417,6 +421,33 @@ class Experiment(object):
         table = table.pivot(index='resource', columns='period', values='state')
         table.to_excel(path, sheet_name=sheet_name)
         return table
+
+    def get_state_periods(self, resource=None):
+        # TODO: we're filtering too much here. Not all states are maints
+        # (although for now this is the case)
+        previous_states = self.instance.get_prev_states(resource).\
+            filter_list_f(lambda x: x[2]=='M')
+        states = self.solution.get_state(resource).to_tuplist()
+        previous_states.extend(states)
+        ct = self.instance.compare_tups
+        return previous_states.tup_to_start_finish(compare_tups=ct)
+
+    def get_maintenance_periods(self, resource=None):
+        result = self.get_state_periods(resource)
+        return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
+
+    def get_task_periods(self, resource=None):
+        tasks = set(self.instance.get_tasks().keys())
+        previous_tasks = self.instance.get_prev_states(resource). \
+            filter_list_f(lambda x: x[2] in tasks)
+        ct = self.instance.compare_tups
+        tasks_assigned = self.solution.get_tasks().to_tuplist()
+        previous_tasks.extend(tasks_assigned)
+        return previous_tasks.tup_to_start_finish(compare_tups=ct)
+
+    def get_maintenance_starts(self):
+        maintenances = self.get_maintenance_periods()
+        return [(r, s) for (r, s, e) in maintenances]
 
     def get_status(self, candidate):
         """

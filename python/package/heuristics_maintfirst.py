@@ -264,7 +264,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         """
         This function empties totally or partially the assignments
         (maintenances, tasks) made to a resource.
-        :param resource: resource to empty
+        :param candidate: a resource, date tuple
         :return:
         """
         # a = self.get_status(candidate[0])
@@ -444,7 +444,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         # we arrived here: we're assigning a maintenance:
         for period in periods_to_add:
-            self.set_maint(resource, period)
+            self.set_state(resource, period)
         self.update_time_maint(resource, periods_to_add, time='ret')
         self.update_time_maint(resource, periods_to_add, time='rut')
 

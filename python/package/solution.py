@@ -41,26 +41,6 @@ class Solution(object):
             data = data.filter(resource, check=False)
         return data.to_dictup()
 
-    def get_state_periods(self, resource=None, compare_tups=None):
-        return \
-            self.get_state(resource).\
-            to_tuplist().\
-            tup_to_start_finish(compare_tups=compare_tups)
-
-    def get_maintenance_periods(self, resource=None, compare_tups=None):
-        result = self.get_state_periods(resource, compare_tups)
-        return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
-
-    def get_task_periods(self, compare_tups=None):
-        return \
-            self.get_tasks().\
-            to_tuplist().\
-            tup_to_start_finish(compare_tups=compare_tups)
-
-    def get_maintenance_starts(self, compare_tups=None):
-        maintenances = self.get_maintenance_periods(compare_tups=compare_tups)
-        return [(r, s) for (r, s, e) in maintenances]
-
     def get_task_resources(self):
         task_solution = self.get_tasks()
         task_resources = aux.tup_to_dict(aux.dict_to_tup(task_solution), 0, is_list=True)

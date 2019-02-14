@@ -119,32 +119,40 @@ class GreedyByMission(test.Experiment):
         return
 
     def initialize_resource_states(self, resource):
-        last_period = self.instance.get_param('end')
+        """
+        Assign fixed states, and calculate ret and rut for resource
+        :param resource:
+        :return:
+        """
+
         period_0 = self.instance.get_prev_period(self.instance.get_param('start'))
-        periods_to_update = []
 
         # we preassign initial ruts and rets.
         for time in ['rut', 'ret']:
             initial_state = self.instance.get_initial_state(self.label_rt(time), resource=resource)
             self.set_remainingtime(resource, period_0, time, initial_state[resource])
 
-        # we preassign fixed maintenances:
-        fixed_maintenances = \
-            self.instance.get_fixed_maintenances(dict_key='resource', resource=resource)
-        for _, periods in fixed_maintenances.items():
-            periods_to_update = \
-                self.instance.get_periods_range(self.instance.get_next_period(periods[-1]), last_period)
+        # we pre-assign fixed maintenances:
+        fixed_states = self.instance.get_fixed_states(resource)
+        maint_periods = []
+        for _, state, period in fixed_states:
+            # if maintenance: we have a special treatment.
+            cat = 'task'
+            if state == 'M':
+                cat = 'state'
+                maint_periods.append(period)
+            self.set_state(resource, period, state, cat=cat)
 
-            for period in periods:
-                self.set_maint(resource, period)
-            self.update_time_maint(resource, periods, time='ret')
-            self.update_time_maint(resource, periods, time='rut')
+        self.update_time_maint(resource, maint_periods, time='ret')
+        self.update_time_maint(resource, maint_periods, time='rut')
 
-        if not len(fixed_maintenances.get(resource, [])):
-            periods_to_update = self.instance.get_periods()
-
-        for t in ['rut', 'ret']:
-            self.update_time_usage(resource, periods_to_update, time=t)
+        # we update non-maintenance periods
+        non_maintenances = self.get_non_maintenance_periods(resource)
+        times = ['rut', 'ret']
+        for _, start, end in non_maintenances:
+            periods = self.instance.get_periods_range(start, end)
+            for t in times:
+                self.update_time_usage(resource, periods, time=t)
 
     def fix_over_maintenances(self):
         # sometimes the solution includes a 12 period maintenance
@@ -241,7 +249,7 @@ class GreedyByMission(test.Experiment):
         if end_update_rt is None:
             end_update_rt = horizon_end
         for period in periods_maint:
-            self.set_maint(resource, period)
+            self.set_state(resource, period)
         self.update_time_maint(resource, periods_to_update, time='ret')
         self.update_time_maint(resource, periods_to_update, time='rut')
         # it doesn't make sense to assign a maintenance after a maintenance
@@ -405,12 +413,12 @@ class GreedyByMission(test.Experiment):
         if resource in self.solution.data['state']:
             return self.solution.data['state'][resource].pop(period, None)
 
-    def set_maint(self, resource, period, value='M'):
-        self.expand_resource_period(self.solution.data['state'], resource, period)
+    def set_state(self, resource, period, value='M', cat='state'):
+        self.expand_resource_period(self.solution.data[cat], resource, period)
         self.expand_resource_period(self.solution.data['aux']['rut'], resource, period)
         self.expand_resource_period(self.solution.data['aux']['ret'], resource, period)
 
-        self.solution.data['state'][resource][period] = value
+        self.solution.data[cat][resource][period] = value
         return True
 
     def get_maintenances(self, resource):
