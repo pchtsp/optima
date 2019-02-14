@@ -70,16 +70,16 @@ class Model(exp.Experiment):
 
             # Initialize values:
             for tup in start_M:
-                start_M[tup].setInitialValue(0, fix=fix)
+                start_M[tup].setInitialValue(0)
 
             for tup in task:
-                task[tup].setInitialValue(0, fix=fix)
+                task[tup].setInitialValue(0)
 
             for tup in start_T:
-                start_T[tup].setInitialValue(0, fix=fix)
+                start_T[tup].setInitialValue(0)
 
             for a, t in l['at']:
-                usage[a, t].setInitialValue(min_usage, fix=fix)
+                usage[a, t].setInitialValue(min_usage)
 
             number_maint = 0
             for (a, t, t2) in main_starts:
@@ -229,6 +229,9 @@ class Model(exp.Experiment):
             model += usage[at] >= task[avt] * consumption[v]
 
         for at in l['at']:
+            # if resource in maintenance at the start, we do not enforce this.
+            if at in l['at_maint']:
+                continue
             a, t = at
             t1_at2 = l['t1_at2'].get(at, [])
             model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) - slack_at[at]
@@ -414,7 +417,7 @@ class Model(exp.Experiment):
         at_free_start = [(a, t) for (a, t) in at_free]
         # at_free_start = [(a, t) for (a, t) in at_free if periods_pos[t] % 3 == 0]
         at_m_ini = [(a, t) for (a, t) in at_free_start
-                    if periods_pos[t] <= ret_init_adjusted[a]
+                    if periods_pos[t] < ret_init_adjusted[a]
                     ]
         at_m_ini_s = set(at_m_ini)
 
@@ -440,7 +443,7 @@ class Model(exp.Experiment):
                  ])
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
-                    if ret_init_adjusted[a] < periods_pos[t] <= ret_init[a]
+                    if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
                     ])
 
         a_t = at.to_dict(result_col=0, is_list=True)

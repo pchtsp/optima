@@ -366,7 +366,8 @@ class Experiment(object):
         maints = self.solution.get_maintenance_starts(compare_tups=self.instance.compare_tups)
         maints_res = tl.TupList(maints).to_dict(result_col=1)
         errors = {}
-        max_dist = self.instance.get_param('max_elapsed_time')
+        duration = self.instance.get_param('maint_duration')
+        max_dist = self.instance.get_param('max_elapsed_time') + duration
         size = self.instance.get_param('elapsed_time_size')
         min_dist = max_dist - size
 
