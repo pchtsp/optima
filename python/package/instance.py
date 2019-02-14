@@ -144,7 +144,7 @@ class Instance(object):
             previous_states = previous_states.filter(resource)
         return previous_states.to_dictup().to_tuplist()
 
-    def get_fixed_states(self, resource=None):
+    def get_fixed_states(self, resource=None, filter_horizon=False):
         """
         This function returns the fixed states in the beginning of the planning period
         They can be maintenances or mission assignments
@@ -172,8 +172,9 @@ class Instance(object):
              for f_assign in fixed_assignments_q for t in range(f_assign[2])]
             )
         previous_n = tl.TupList((r, s, t) for r, t, s in previous_states)
-        previous_n.extend(fixed_future)
-        return previous_n
+        if not filter_horizon:
+            fixed_future.extend(previous_n)
+        return fixed_future
 
     def get_fixed_maintenances(self, dict_key=None, resource=None):
         fixed_states = self.get_fixed_states(resource)

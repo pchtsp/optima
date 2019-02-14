@@ -429,8 +429,9 @@ class Experiment(object):
             filter_list_f(lambda x: x[2]=='M')
         states = self.solution.get_state(resource).to_tuplist()
         previous_states.extend(states)
+
         ct = self.instance.compare_tups
-        return previous_states.tup_to_start_finish(compare_tups=ct)
+        return previous_states.unique2().tup_to_start_finish(compare_tups=ct)
 
     def get_maintenance_periods(self, resource=None):
         result = self.get_state_periods(resource)

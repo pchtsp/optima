@@ -55,9 +55,10 @@ OPTIONS = {
     , 'num_change': [0.8, 0.1, 0.1]
     , 'temperature': 2
     , 'prob_ch_all': 0.1
-    , 'cooling': 0.998
-    , 'debug': True
+    , 'cooling': 0.9995
+    , 'debug': False
     , 'max_iters': 99999999
+    , 'prob_delete_maint': 0.8
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0

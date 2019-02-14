@@ -133,7 +133,7 @@ class GreedyByMission(test.Experiment):
             self.set_remainingtime(resource, period_0, time, initial_state[resource])
 
         # we pre-assign fixed maintenances:
-        fixed_states = self.instance.get_fixed_states(resource)
+        fixed_states = self.instance.get_fixed_states(resource, filter_horizon=True)
         maint_periods = []
         for _, state, period in fixed_states:
             # if maintenance: we have a special treatment.
@@ -150,6 +150,7 @@ class GreedyByMission(test.Experiment):
         non_maintenances = self.get_non_maintenance_periods(resource)
         times = ['rut', 'ret']
         for _, start, end in non_maintenances:
+            # print(resource, start, end)
             periods = self.instance.get_periods_range(start, end)
             for t in times:
                 self.update_time_usage(resource, periods, time=t)
