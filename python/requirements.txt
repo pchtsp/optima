@@ -16,6 +16,7 @@ et-xmlfile==1.0.1
 Flask==0.12.2
 ggplot==0.11.5
 idna==2.6
+ipet==0.0.9
 ipython==6.5.0
 ipython-genutils==0.2.0
 itsdangerous==0.24
@@ -31,7 +32,7 @@ matplotlib==3.0.2
 nbformat==4.4.0
 numpy==1.15.4
 openpyxl==2.5.1
-orloge==0.1
+https://github.com/pchtsp/orloge/archive/master.zip#egg=orloge
 palettable==3.1.0
 pandas==0.23.4
 parso==0.3.1
@@ -41,10 +42,10 @@ pickleshare==0.7.4
 plotly==2.2.3
 prompt-toolkit==1.0.15
 ptyprocess==0.6.0
--e git+https://github.com/pchtsp/pulp-or.git@e3b8e57781b2ddd72759a5cbc41beb06263c8caf#egg=PuLP
+https://github.com/pchtsp/pulp-or/archive/mip_start.zip#egg=PuLP
 Pygments==2.2.0
 pypandoc==1.4
-pyparsing==2.3.0
+pyparsing==2.3.1
 PyQt5==5.10.1
 python-dateutil==2.7.5
 pytz==2018.7
@@ -57,8 +58,11 @@ sip==4.19.8
 six==1.11.0
 statsmodels==0.9.0
 tabulate==0.8.2
+toposort==1.5
 tornado==4.5.2
 traitlets==4.3.2
+tzlocal==1.5.1
+ujson==1.35
 Unidecode==0.4.21
 urllib3==1.22
 wcwidth==0.1.7
