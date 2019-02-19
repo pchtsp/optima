@@ -138,16 +138,21 @@ class Instance(object):
                     return True
         return False
 
-    def get_fixed_states(self, resource=None):
-        """
-        This function returns the fixed states in the beginning of the planning period
-        They can be maintenances or mission assignments
-        :param resource: if given filters only for that resource
-        :return:
-        """
+    def get_prev_states(self, resource=None):
         previous_states = sd.SuperDict.from_dict(self.get_resources("states"))
         if resource is not None:
             previous_states = previous_states.filter(resource)
+        return previous_states.to_dictup().to_tuplist()
+
+    def get_fixed_states(self, resource=None, filter_horizon=False):
+        """
+        This function returns the fixed states in the beginning of the planning period
+        They can be maintenances or mission assignments
+        They include previous states too
+        :param resource: if given filters only for that resource
+        :return:
+        """
+        previous_states = self.get_prev_states(resource)
         first_period = self.get_param('start')
         period_0 = self.get_prev_period(first_period)
         min_assign = self.get_min_assign()
@@ -155,18 +160,21 @@ class Instance(object):
         # we turn them into a start-finish tuple
         # we filter it so we only take the start-finish periods that end before the horizon
         assignments = \
-            sd.SuperDict.from_dict(previous_states). \
-                to_dictup().to_tuplist().tup_to_start_finish(compare_tups=self.compare_tups).\
+            previous_states.tup_to_start_finish(compare_tups=self.compare_tups).\
                 filter_list_f(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \
             [(a[0], a[2], min_assign.get(a[2], 0) - len(self.get_periods_range(a[1], a[3])))
              for a in assignments if len(self.get_periods_range(a[1], a[3])) < min_assign.get(a[2], 0)]
 
-        return tl.TupList(
+        fixed_future = tl.TupList(
             [(f_assign[0], f_assign[1], self.shift_period(first_period, t))
              for f_assign in fixed_assignments_q for t in range(f_assign[2])]
             )
+        previous_n = tl.TupList((r, s, t) for r, t, s in previous_states)
+        if not filter_horizon:
+            fixed_future.extend(previous_n)
+        return fixed_future
 
     def get_fixed_maintenances(self, dict_key=None, resource=None):
         fixed_states = self.get_fixed_states(resource)
@@ -174,9 +182,9 @@ class Instance(object):
         if dict_key is None:
             return fixed_maints
         if dict_key == 'resource':
-            return aux.tup_to_dict(fixed_maints, result_col=1)
+            return fixed_maints.to_dict(result_col=1)
         if dict_key == 'period':
-            return aux.tup_to_dict(fixed_maints, result_col=0)
+            return fixed_maints.to_dict(result_col=0)
 
     def get_fixed_tasks(self):
         tasks = self.get_tasks()
@@ -185,7 +193,7 @@ class Instance(object):
 
     def get_fixed_periods(self):
         states = self.get_fixed_states()
-        return states.filter([0, 2]).unique()
+        return states.filter([0, 2])
         # return tl.TupList([(a, t) for (a, s, t) in states]).unique()
 
     def get_task_period_list(self, in_dict=False):

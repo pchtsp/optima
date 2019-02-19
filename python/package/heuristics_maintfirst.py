@@ -52,14 +52,16 @@ class MaintenanceFirst(heur.GreedyByMission):
         max_iters = options.get('max_iters', 99999999)
         max_time = options.get('timeLimit', 600)
         cooling = options.get('cooling', 0.995)
-        num_change_prob = options.get('num_change', [1])
-        temperature = self.options.get('temperature', 1)
-        num_change = [n + 1 for n, _ in enumerate(num_change_prob)]
+        num_change_probs = options.get('num_change', [1])
+        num_change_pos = [n + 1 for n, _ in enumerate(num_change_probs)]
         i = 0
-        best_solution = None
-        previous_solution = None
-        prev_errors = 10000
-        min_errors = 10000
+        self.best_solution = None
+        self.previous_solution = None
+        self.prev_errors = 10000
+        self.min_errors = 10000
+        self.temperature = self.options.get('temperature', 1)
+        status_worse = {2, 3}
+        status_accept = {0, 1, 2}
         time_init = time.time()
         while True:
             # 1. assign maints for all aircraft around horizon limits
@@ -72,49 +74,69 @@ class MaintenanceFirst(heur.GreedyByMission):
             self.over_assign_missions()
 
             # check quality of solution, store best.
-            error_cat = self.check_solution_count(recalculate=False)
-            log.debug("errors: {}".format(error_cat))
-            num_errors = sum(error_cat.values())
-            if num_errors < min_errors:
-                prev_errors = min_errors = num_errors
-                log.info('best solution found: {}'.format(num_errors))
-                best_solution = self.get_solution()
-            elif num_errors > prev_errors \
-                    and rn.random() > math.exp((prev_errors - num_errors)/temperature/50) \
-                    and previous_solution:
-                self.set_solution(previous_solution)
-                num_errors = prev_errors
-            else:
-                previous_solution = self.get_solution()
-                prev_errors = num_errors
-            # 3. check if feasible. If not, un-assign (some/ all)
-                # maintenances and go to 1
-            num_change_iter = rn.choices(num_change, num_change_prob)[0]
-            candidates = self.get_candidates(num_change_iter)
+            status, num_errors = self.analyze_solution(status_accept)
+
+            # 3. check if feasible. If not, un-assign (some/ all) or move maints
+            num_change = rn.choices(num_change_pos, num_change_probs)[0]
+            candidates = self.get_candidates(num_change)
             for candidate in candidates:
                 self.free_resource(candidate)
 
             # sometimes, we go back to the best solution found
-            if rn.random() < 0.01 and num_errors > min_errors and best_solution:
-                self.set_solution(best_solution)
-                num_errors = prev_errors = min_errors
-                log.info('back to best solution: {}'.format(min_errors))
+            if rn.random() < 0.01 and num_errors > self.min_errors and self.best_solution:
+                self.set_solution(self.best_solution)
+                num_errors = self.prev_errors = self.min_errors
+                log.info('back to best solution: {}'.format(self.min_errors))
 
-            temperature *= cooling
+            if status in status_worse:
+                self.temperature *= cooling
             clock = time.time()
             time_now = clock - time_init
-            # clock_fmt = time.strftime('%Y-%m-%d+%H%M%S', clock)
-            # prob_ch_all = self.options['prob_ch_all']
-            # self.options['prob_ch_all'] = prob_ch_all*cooling
 
             log.info("time={}, iteration={}, temperaure={}, errors={}, best={}".
-                     format(round(time_now), i, round(temperature, 4), num_errors, min_errors))
+                     format(round(time_now), i, round(self.temperature, 4), num_errors, self.min_errors))
             i += 1
 
-            if not min_errors or i >= max_iters or time_now > max_time:
+            if not self.min_errors or i >= max_iters or time_now > max_time:
                 break
 
-        return sol.Solution(best_solution)
+        return sol.Solution(self.best_solution)
+
+    def analyze_solution(self, status_accept):
+        """
+
+        :return: (status, errors)
+        """
+        error_cat = self.check_solution_count(recalculate=False)
+        log.debug("errors: {}".format(error_cat))
+        num_errors = sum(error_cat.values())
+        # status
+        # 0: best,
+        # 1: improved,
+        # 2: not-improved + undo,
+        # 3: not-improved + not undo.
+        if num_errors > self.prev_errors:
+            # solution worse than previous
+            status = 3
+            if self.previous_solution and rn.random() > \
+                    math.exp((self.prev_errors - num_errors) / self.temperature / 50):
+                # we were unlucky: we go back to the previous solution
+                status = 2
+                self.set_solution(self.previous_solution)
+                num_errors = self.prev_errors
+        else:
+            # solution better than previous
+            status = 1
+            if num_errors < self.min_errors:
+                # best solution found
+                status = 0
+                self.min_errors = num_errors
+                log.info('best solution found: {}'.format(num_errors))
+                self.best_solution = self.get_solution()
+        if status in status_accept:
+            self.previous_solution = self.get_solution()
+            self.prev_errors = num_errors
+        return status, num_errors
 
     def get_candidates(self, k=5):
         candidates_tasks = self.get_candidates_tasks()
@@ -242,7 +264,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         """
         This function empties totally or partially the assignments
         (maintenances, tasks) made to a resource.
-        :param resource: resource to empty
+        :param candidate: a resource, date tuple
         :return:
         """
         # a = self.get_status(candidate[0])
@@ -260,54 +282,55 @@ class MaintenanceFirst(heur.GreedyByMission):
                 if resource in pl:
                     pl[resource] = {}
             self.initialize_resource_states(resource=resource)
-        else:
-            log.debug('freeing resource: {}'.format(candidate))
-            if date is None:
-                # if no date, we create a random one
-                periods = self.instance.get_periods()
-                date = rn.choice(periods)
-            periods = self.get_random_periods(ref_period=date)
-            fixed_periods = self.instance.get_fixed_periods()
-
-            # deactivate tasks
-            delete_tasks = 0
-            if resource in data['task']:
-                for period in periods:
-                    if (resource, period) not in fixed_periods:
-                        data['task'][resource].pop(period, None)
-                        delete_tasks = 1
-
-            # we have several options for deactivating tasks:
-            # 1. we eliminate all existing maintenances.
-            # 2. we move existing maintenances
-            maint_found = None
-            if resource in data['state']:
-                maint_found = self.get_start_maints_period(resource, periods, fixed_periods)
-            if maint_found is not None:
-                duration = self.instance.get_param('maint_duration')
-                if rn.random() > 0.1:
-                    # We can directly take out the maintenances
-                    for period in self.instance.get_next_periods(maint_found, duration):
-                        data['state'][resource].pop(period, None)
-                else:
-                    # Or we can just move them
-                    maint_found = self.move_maintenance(resource, maint_found)
-
-            if not (delete_tasks or maint_found):
-                return 0
-            # only update remaining hours when no maintenances
-            # also, the ret since we're deactivating maintenances
-            non_maintenances = self.get_non_maintenance_periods(resource)
-            times = ['rut']
-            if maint_found:
-                times.append('ret')
-            for _, start, end in non_maintenances:
-                periods = self.instance.get_periods_range(start, end)
-                # if not len(periods):
-                #     a = 1
-                for t in times:
-                    self.update_time_usage(resource, periods, time=t)
             return 1
+
+        # Here we're doing a local edition of the resource
+        log.debug('freeing resource: {}'.format(candidate))
+        if date is None:
+            # if no date, we create a random one
+            periods = self.instance.get_periods()
+            date = rn.choice(periods)
+        periods = self.get_random_periods(ref_period=date)
+        fixed_periods = self.instance.get_fixed_periods()
+
+        # deactivate tasks
+        delete_tasks = 0
+        if resource in data['task']:
+            for period in periods:
+                if (resource, period) not in fixed_periods:
+                    data['task'][resource].pop(period, None)
+                    delete_tasks = 1
+
+        # we have several options for deactivating tasks:
+        # 1. we eliminate all existing maintenances.
+        # 2. we move existing maintenances
+        maint_found = None
+        if resource in data['state']:
+            maint_found = self.get_start_maints_period(resource, periods, fixed_periods)
+        if maint_found is not None:
+            duration = self.instance.get_param('maint_duration')
+            if rn.random() < self.options['prob_delete_maint']:
+                # We can directly take out the maintenances
+                for period in self.instance.get_next_periods(maint_found, duration):
+                    data['state'][resource].pop(period, None)
+            else:
+                # Or we can just move them
+                maint_found = self.move_maintenance(resource, maint_found)
+
+        # of we did not delete anything: we exit
+        if not (delete_tasks or maint_found):
+            return 0
+        # only update remaining hours where there is no maintenances
+        # also, the ret since we're deactivating maintenances
+        non_maintenances = self.get_non_maintenance_periods(resource)
+        times = ['rut']
+        if maint_found:
+            times.append('ret')
+        for _, start, end in non_maintenances:
+            periods = self.instance.get_periods_range(start, end)
+            for t in times:
+                self.update_time_usage(resource, periods, time=t)
+        return 1
 
 
     def assign_missing_maints_to_aircraft(self):
@@ -421,7 +444,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         # we arrived here: we're assigning a maintenance:
         for period in periods_to_add:
-            self.set_maint(resource, period)
+            self.set_state(resource, period)
         self.update_time_maint(resource, periods_to_add, time='ret')
         self.update_time_maint(resource, periods_to_add, time='rut')
 
