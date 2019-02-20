@@ -154,8 +154,8 @@ class Experiment(object):
 
     def get_non_maintenance_periods(self, resource=None):
         """
-        :return: a dictionary with the following structure:
-        resource: [(start_period1, end_period1), (start_period2, end_period2), ..., (start_periodN, end_periodN)]
+        :return: a tuplist with the following structure:
+        resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
         two consecutive periods being separated by a maintenance operation.
         It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
@@ -186,7 +186,7 @@ class Experiment(object):
             if last_maint_end != last:
                 start = self.instance.get_next_period(last_maint_end)
                 nonmaintenances.append((res, start, last))
-        return nonmaintenances
+        return tl.TupList(nonmaintenances)
 
     def set_start_periods(self):
         """

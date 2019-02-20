@@ -54,7 +54,8 @@ OPTIONS = {
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
     , 'temperature': 2
-    , 'prob_ch_all': 0.1
+    , 'prob_free_aircraft': 0.1
+    , 'prob_free_periods': 0.1
     , 'cooling': 0.9995
     , 'debug': False
     , 'max_iters': 99999999
