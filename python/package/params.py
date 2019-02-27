@@ -8,7 +8,7 @@ if 'GUROBI_HOME' in os.environ:
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
 path_base = r'/home'
-# path_base = r'C:\Users'
+path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
 path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
 path_project = path_root + "OPTIMA/"
@@ -73,6 +73,8 @@ OPTIONS = {
     , 'solver_add_opts': params_cplex
     , 'mip_start': False
     , 'fix_start': False
+    # TODO: this should go an be changed by capacity in each maintenance
+    , 'default_type2_capacity': 66
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
@@ -94,8 +96,50 @@ OPTIONS = {
         , 't_num_resource': (2, 5)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
+        , 'maintenances': {
+            # type=1 is unite based capacity.
+            # type=2 is time based capacity.
+            # M is being filled by defaults in Instance creation
+            'VG': {
+                'duration_periods': 0
+                ,'capacity_usage': 3
+                , 'max_used_time': None
+                , 'max_elapsed_time': 8
+                , 'elapsed_time_size': 1
+                , 'used_time_size': None
+                , 'type': 2
+                , 'capacity': 3
+                , 'depends_on': ['M']
+            }
+            ,'VI': {
+                'duration_periods': 0
+                ,'capacity_usage': 6
+                , 'max_used_time': None
+                , 'max_elapsed_time': 17
+                , 'elapsed_time_size': 2
+                , 'used_time_size': None
+                , 'type': 2
+                , 'capacity': 3
+                , 'depends_on': ['M']
+            }
+            ,'VS': {
+                'duration_periods': 0
+                , 'capacity_usage': 4
+                , 'max_used_time': 600
+                , 'max_elapsed_time': None
+                , 'elapsed_time_size': None
+                , 'used_time_size': 200
+                , 'type': 2
+                , 'capacity': 3
+                , 'depends_on': ['M']
+            }
+        }
     }
 }
+
+# TODO: generalize maintenance checks for all maintenances:
+# check_min_distance_maints,
+# TODO: change heuristics to check and assign all maintenance types
 
 # white_list = ['O1', 'O5']
 # black_list = []

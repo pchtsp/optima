@@ -214,7 +214,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         return candidates
 
     def get_candidates_rut(self, errors):
-        maints_probs_st = errors.get('usage', sd.SuperDict()).to_tuplist().tup_to_start_finish()
+        ct = self.instance.compare_tups
+        maints_probs_st = errors.get('usage', sd.SuperDict()).to_tuplist().tup_to_start_finish(ct=ct)
         candidates = [(r, d) for r, d, p, e in maints_probs_st]
         return candidates
 
@@ -383,25 +384,29 @@ class MaintenanceFirst(heur.GreedyByMission):
         return 1
 
 
-    def assign_missing_maints_to_aircraft(self):
+    def assign_missing_maints_to_aircraft(self, maint='M'):
         first = self.instance.get_param('start')
         last = self.instance.get_param('end')
-        duration = self.instance.get_param('maint_duration')
-        elapsed_time_size = self.instance.get_param('elapsed_time_size')
+        maint_data = self.instance.data['maintenances'][maint]
+        duration = maint_data['duration_periods']
+        # duration = self.instance.get_param('maint_duration')
+        elapsed_time_size = maint_data['elapsed_time_size']
+        # elapsed_time_size = self.instance.get_param('elapsed_time_size')
         errors = []
         while True:
-            rets = sd.SuperDict(self.solution.data['aux']['ret'])
+            rets = self.get_remainingtime(time='ret', maint='M')
             maint_candidates = []
             for res, info in rets.items():
                 if res in errors:
                     continue
                 for period, ret in info.items():
-                    if ret <= 0:
-                        tup = res, \
-                              max(first, self.instance.shift_period(period, -elapsed_time_size + 1)), \
-                              min(last, self.instance.shift_period(period, duration))
-                        maint_candidates.append(tup)
-                        break
+                    if ret > 0:
+                        continue
+                    tup = res, \
+                          max(first, self.instance.shift_period(period, -elapsed_time_size + 1)), \
+                          min(last, self.instance.shift_period(period, duration))
+                    maint_candidates.append(tup)
+                    break
             if not len(maint_candidates):
                 break
             maint_candidates.sort(key=lambda x: len(self.instance.get_periods_range(x[1], x[2])))
@@ -411,7 +416,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                                                       max_period=end,
                                                       which_maint='random')
                 if not result:
-                    # we failed miserably, don't continue
+                    # we failed miserably, don't continue to try this resource
                     errors.append(resource)
         return
 
@@ -463,7 +468,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         duration = self.instance.get_param('maint_duration')
         end = self.instance.shift_period(start, duration - 1)
         modif = rn.randint(-3, 3)
-        ret = self.solution.data['aux']['ret'][resource].get(start)
+        ret = self.get_remainingtime(resource, start, 'ret', maint='M')
         new_ret = ret + modif
         _max = self.instance.get_param('max_elapsed_time')
         _min = _max - self.instance.get_param('elapsed_time_size')

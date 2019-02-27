@@ -1,7 +1,10 @@
 # /usr/bin/python3
 import package.auxiliar as aux
+# TODO: take out dependency on aux
 import numpy as np
 import pandas as pd
+import dfply as dp
+from dfply import X
 import package.data_input as di
 import package.solution as sol
 import package.instance as inst
@@ -11,6 +14,7 @@ import os
 import shutil
 import re
 import orloge as ol
+
 
 class Experiment(object):
     """
@@ -54,6 +58,7 @@ class Experiment(object):
         return self.check_solution(**params).to_lendict()
 
     def check_solution(self, **params):
+        # TODO: take out capacity and rename capacity_2
         func_list = {
             'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
@@ -66,6 +71,7 @@ class Experiment(object):
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
             ,'dist_maints': self.check_min_distance_maints
+            ,'capacity_2': self.check_sub_maintenance_capacity
         }
         result = {k: v(**params) for k, v in func_list.items()}
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
@@ -73,6 +79,39 @@ class Experiment(object):
     def check_maintenance_capacity(self, **params):
         maints = self.solution.get_in_maintenance()
         return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
+
+    def check_sub_maintenance_capacity(self, **param):
+        # we get the capacity per month
+        capacity_calendar = self.instance.get_capacity_calendar().to_tuplist().to_list()
+        maintenances = self.instance.get_maintenances()
+        maints_info = [(k, v['capacity_usage'], v['type'])
+                       for k, v in maintenances.items()]
+        # we get the consumption per month
+        all_states_tuple = self.get_states().to_list()
+        period_state_q_tab = \
+            pd.DataFrame. \
+            from_records(all_states_tuple, columns=['resource', 'period', 'state']) >> \
+            dp.group_by(X.state, X.period) >> \
+            dp.summarize(number = dp.n(X.resource))
+        maints_tab = pd.DataFrame.\
+            from_records(maints_info, columns=['state', 'usage', 'type'])
+        calendar_tab = pd.DataFrame.\
+            from_records(capacity_calendar, columns=['type', 'period', 'capacity'])
+
+        result = \
+            period_state_q_tab >> \
+            dp.left_join(maints_tab, by=['state']) >> \
+            dp.left_join(calendar_tab, by=['period', 'type']) >> \
+            dp.mutate(consum = X.number * X.usage) >> \
+            dp.group_by(X.period, X.type) >> \
+            dp.summarize(consum = X.consum.sum(),
+                         capacity = dp.first(X.capacity)) >> \
+            dp.mutate(rem_capacity = X.capacity - X.consum) >>\
+            dp.filter_by(X.rem_capacity < 0) >> \
+            dp.select(X.type, X.period, X.rem_capacity)
+
+        return tl.TupList(result.to_records()).\
+            to_dict(result_col=2, is_list=False)
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
@@ -106,18 +145,30 @@ class Experiment(object):
         hours = self.instance.get_tasks("consumption")
         return {k: hours[v] for k, v in self.solution.get_tasks().items()}
 
-    def set_remainingtime(self, resource, period, time, value):
+    def set_remainingtime(self, resource, period, time, value, maint='M'):
         """
+        This procedure *updates* the remaining time in the aux property of the solution.
         :param resource:
         :param period:
         :param time: ret or rut
         :param value: remaining time
         :return: True
-        This procedure *updates* the remaining time in the aux property of the solution.
         """
-        self.expand_resource_period(self.solution.data['aux'][time], resource, period)
-        self.solution.data['aux'][time][resource][period] = value
+        tup = [time, maint, resource, period]
+        self.solution.data['aux'].tup_to_dicts(tup=tup, value=value)
         return True
+
+    def get_remainingtime(self, resource=None, period=None, time='rut', maint='M'):
+        try:
+            data = self.solution.data['aux'][time][maint]
+            if resource is None:
+                return data
+            data2 = data[resource]
+            if period is None:
+                return data2
+            return data2[period]
+        except KeyError:
+            return None
 
     def update_resource_all(self, resource):
         periods_to_update = self.instance.get_periods()
@@ -136,8 +187,8 @@ class Experiment(object):
         So the periods should be filled with a task or nothing.
         """
         if previous_value is None:
-            previous_value = self.solution.data['aux'][time][resource]\
-                [self.instance.get_prev_period(periods[0])]
+            _period = self.instance.get_prev_period(periods[0])
+            previous_value = self.get_remainingtime(resource, _period, time)
         for period in periods:
             value = previous_value - self.get_consumption_individual(resource, period, time)
             self.set_remainingtime(resource, period, time, value)
@@ -152,7 +203,7 @@ class Experiment(object):
             return self.instance.get_param('min_usage_period')
         return self.instance.data['tasks'].get(task, {}).get('consumption', 0)
 
-    def get_non_maintenance_periods(self, resource=None):
+    def get_non_maintenance_periods(self, resource=None, state_list=None):
         """
         :return: a tuplist with the following structure:
         resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
@@ -163,9 +214,9 @@ class Experiment(object):
         # a = self.get_status(resource)
         # a[a.period>='2019-02'][:8]
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
-        maintenances = aux.tup_to_dict(
-            self.get_maintenance_periods(resource)
-            , result_col=[1, 2])
+        maintenances = \
+            self.get_maintenance_periods(resource, state_list=state_list).\
+                to_dict(result_col=[1, 2])
         if resource is None:
             resources = self.instance.get_resources()
         else:
@@ -178,7 +229,8 @@ class Experiment(object):
             first_maint_start = maints[0][0]
             last_maint_end = maints[-1][1]
             if first_maint_start > first:
-                nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
+                first_maint_start_prev = self.instance.get_prev_period(first_maint_start)
+                nonmaintenances.append((res, first, first_maint_start_prev))
             for maint1, maint2 in zip(maints, maints[1:]):
                 start = self.instance.get_next_period(maint1[1])
                 end = self.instance.get_prev_period(maint2[0])
@@ -200,46 +252,52 @@ class Experiment(object):
         starts = {(r, t): v for (r, t, v, _) in all_starts}
 
         if 'aux' not in self.solution.data:
-            self.solution.data['aux'] = {'start': {}}
-        else:
-            self.solution.data['aux']['start'] = {}
-        self.solution.data['aux']['start'] = starts
+            self.solution.data['aux'] = sd.SuperDict.from_dict({'start': {}})
+        self.solution.data['aux']['start'] = sd.SuperDict.from_dict(starts)
 
         return starts
 
-    def set_remaining_usage_time(self, time="rut"):
+    def set_remaining_usage_time(self, time="rut", maint='M', resource=None):
         """
         This function remakes the rut and ret times for all resources.
         It assumes nothing of state or task.
         It edits the aux part of the solution data
         :param time: ret or rut
+        :param maint: type of maintenance
+        :param resource: optional filter of resources
         :return: the dictionary that's assigned
         """
         if 'aux' not in self.solution.data:
-            self.solution.data['aux'] = {'ret': {}, 'rut': {}}
+            self.solution.data['aux'] = sd.SuperDict.from_dict({'ret': {}, 'rut': {}})
         else:
-            self.solution.data['aux'][time] = {}
+            self.solution.data['aux'][time] = sd.SuperDict()
 
-        label = 'initial_' + self.label_rt(time)
         prev_month = self.instance.get_prev_period(self.instance.get_param('start'))
-        initial = self.instance.get_resources(label)
+        # initial = self.instance.get_resources(label)
+        initial = self.instance.get_initial_state(self.label_rt(time), maint=maint, resource=resource)
 
+        # we initialize values for the start of the horizon
         label = 'max_' + self.label_rt(time) + '_time'
-        max_rem = self.instance.get_param(label)
-        for resource in initial:
-            self.set_remainingtime(resource, prev_month, time, min(initial[resource], max_rem))
+        max_rem = self.instance.data['maintenances'][maint][label]
+        # max_rem = self.instance.get_param(label)
+        depends_on = self.instance.data['maintenances'][maint]['depends_on'] + [maint]
+        for _resource in initial:
+            self.set_remainingtime(_resource, prev_month, time, min(initial[_resource], max_rem))
 
-        maintenances = self.get_maintenance_periods()
-        for resource, start, end in maintenances:
+        # we update values during maintenances
+        maintenances = self.get_maintenance_periods(state_list=depends_on, resource=resource)
+        for _resource, start, end in maintenances:
             for period in self.instance.get_periods_range(start, end):
-                self.set_remainingtime(resource, period, time, max_rem)
+                self.set_remainingtime(_resource, period, time, max_rem)
 
-        non_maintenances = self.get_non_maintenance_periods()
-        for resource, start, end in non_maintenances:
+        # we update values in between maintenances
+        non_maintenances = self.get_non_maintenance_periods(resource=resource, state_list=depends_on)
+        for _resource, start, end in non_maintenances:
             # print(resource, start, end)
-            self.update_time_usage(resource, self.instance.get_periods_range(start, end), time=time)
+            periods = self.instance.get_periods_range(start, end)
+            self.update_time_usage(_resource, periods, time=time)
 
-        return self.solution.data['aux'][time]
+        return self.solution.data['aux'][time][maint]
 
     def check_usage_consumption(self, **params):
         return self.check_resource_consumption(time='rut', **params)
@@ -248,13 +306,21 @@ class Experiment(object):
         return self.check_resource_consumption(time='ret', **params)
 
     def check_resource_consumption(self, time='rut', recalculate=True, **params):
+        """
+        This function (calculates and) checks the "remaining time" for all maintenances
+        :param time: calculate rut or ret
+        :param recalculate: used cached rut and ret
+        :param params: optional. compatibility
+        :return: {(maint, resource, period): remaining time}
+        """
         if recalculate:
-            rt = self.set_remaining_usage_time(time)
+            maints = self.instance.get_maintenances()
+            rt_maint = {m: self.set_remaining_usage_time(time=time, maint=m) for m in maints}
         else:
-            rt = self.solution.data['aux'][time]
+            rt_maint = self.solution.data['aux'][time]
 
-        rt_tup = aux.dictdict_to_dictup(rt)
-        return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
+        return sd.SuperDict(rt_maint).to_dictup().clean(func=lambda x: x < 0)
+        # return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
 
     def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
@@ -287,7 +353,7 @@ class Experiment(object):
         num_periods = self.instance.get_param('num_period')
         ct = self.instance.compare_tups
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=ct)
+        all_states_periods = tl.TupList(all_states).tup_to_start_finish(ct=ct)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -339,8 +405,6 @@ class Experiment(object):
                             num_maintenances[cluster, period] += 1
         over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
         return over_assigned.clean(func=lambda x: x < 0)
-        # return over_assigned
-        # cluster_data.keys()
 
     def check_min_flight_hours(self, recalculate=True, **params):
         """
@@ -350,9 +414,9 @@ class Experiment(object):
         cluster_data = self.instance.get_cluster_constraints()
         min_hours = cluster_data['hours']
         if recalculate:
-            ruts = self.set_remaining_usage_time('rut')
+            ruts = self.set_remaining_usage_time(time='rut', maint='M')
         else:
-            ruts = self.solution.data['aux']['rut']
+            ruts = self.get_remainingtime(time='rut', maint='M')
         cluster_hours = sd.SuperDict().fill_with_default(min_hours.keys())
         for cluster, candidates in c_candidates.items():
             for candidate in candidates:
@@ -363,34 +427,64 @@ class Experiment(object):
         hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
         return hours_deficit.clean(func=lambda x: x < 0)
 
-    def check_min_distance_maints(self, **params):
+    def check_min_distance_maints(self, maint='M', **params):
         """
         checks if maintenances have the correct distance between them
         :return:
         """
-        maints = self.get_maintenance_starts()
-        maints_res = tl.TupList(maints).to_dict(result_col=1)
+        maint_depends = self.instance.get_maintenances('depends_on')
+        maints = self.instance.get_maintenances()
+        maint_start_m = {m: self.get_maintenance_starts([m]+maint_depends[m]) for m in maints}
+        maint_start_m2 = [(m, *t) for m, tup in maint_start_m.items() for t in tup]
+        maint_start_tab = pd.DataFrame.from_records(maint_start_m2, columns=['maint', 'resource', 'period'])
+        # data_maint = self.instance.data['maintenances']
+        maint_tab = \
+            pd.DataFrame.from_dict(maints, orient='index') >> \
+            dp.mutate(maint=X.index) >>\
+            dp.mutate(max_dist=X.max_elapsed_time + X.duration_periods) >> \
+            dp.mutate(min_dist=X.max_dist - X.elapsed_time_size) >> \
+            dp.select(X.maint, X.max_dist, X.min_dist)
+
+        @dp.make_symbolic
+        def is_not_na(series):
+            return ~pd.isna(series)
+        @dp.make_symbolic
+        def dist_periods(series, series2):
+            return [self.instance.get_dist_periods(p, p2) for p, p2 in zip(series, series2)]
+
+        maint_start_tab2 = \
+            maint_start_tab >> \
+            dp.arrange(X.maint, X.resource, X.period) >> \
+            dp.group_by(X.maint, X.resource) >> \
+            dp.mutate(period2 = dp.lead(X.period)) >> \
+            dp.filter_by(is_not_na(X.period2)) >> \
+            dp.mutate(dist = dist_periods(X.period, X.period2)) >> \
+            dp.left_join(maint_tab, on='maint') >> \
+            dp.filter_by(dp.between(X.dist, X.max_dist, X.min_dist))
+
+        maints_res = self.get_maintenance_starts().to_dict(result_col=1)
         errors = {}
-        duration = self.instance.get_param('maint_duration')
-        max_dist = self.instance.get_param('max_elapsed_time') + duration
-        size = self.instance.get_param('elapsed_time_size')
+
+        duration = data_maint['duration_periods']
+        max_dist = data_maint['max_elapsed_time'] + duration
+        size = data_maint['elapsed_time_size']
         min_dist = max_dist - size
 
         for res, periods in maints_res.items():
             periods.sort()
             for period1, period2 in zip(periods, periods[1:]):
                 dist = self.instance.get_dist_periods(period1, period2)
-                if dist < min_dist:
+                if min_dist is not None and dist < min_dist:
                     errors[res, period1, period2] = dist - min_dist
-                elif dist > max_dist:
+                elif max_dist is not None and dist > max_dist:
                     errors[res, period1, period2] = dist - max_dist
 
         return sd.SuperDict.from_dict(errors)
 
-    def check_maint_size(self, **params):
-        tups_func = self.instance.compare_tups
-        maint_periods = self.get_maintenance_periods()
-        # we check if the size of the maintenance is equal to its duration
+    # def check_maint_size(self, **params):
+    #     tups_func = self.instance.compare_tups
+    #     maint_periods = self.get_maintenance_periods()
+    #     # we check if the size of the maintenance is equal to its duration
 
     def get_objective_function(self):
         weight1 = self.instance.get_param("maint_weight")
@@ -423,20 +517,36 @@ class Experiment(object):
         table.to_excel(path, sheet_name=sheet_name)
         return table
 
-    def get_state_periods(self, resource=None):
-        # TODO: we're filtering too much here. Not all states are maints
+    def get_states(self, resource=None):
+        """
+        :param resource: optional filter
+        :return: (resource, period): state
+        """
+        # in the input data of the instance
         # (although for now this is the case)
+        maints_codes = self.instance.get_maintenances()
         previous_states = self.instance.get_prev_states(resource).\
-            filter_list_f(lambda x: x[2]=='M')
+            filter_list_f(lambda x: x[2] in maints_codes)
         states = self.solution.get_state(resource).to_tuplist()
         previous_states.extend(states)
+        return tl.TupList(previous_states).unique2()
 
+    def get_state_periods(self, resource=None):
+        """
+        :param resource: optional filter
+        :return: (resource, start, end): state
+        """
+        all_states = self.get_states(resource)
         ct = self.instance.compare_tups
-        return previous_states.unique2().tup_to_start_finish(compare_tups=ct)
+        return all_states.tup_to_start_finish(ct=ct)
 
-    def get_maintenance_periods(self, resource=None):
-        result = self.get_state_periods(resource)
-        return [(k[0], k[1], k[3]) for k in result if k[2] == 'M']
+    def get_maintenance_periods(self, resource=None, state_list=None):
+        if state_list is None:
+            state_list = set('M')
+        all_states = self.get_states(resource)
+        maintenances = tl.TupList([(k[0], k[1]) for k in all_states if k[2] in state_list])
+        ct = self.instance.compare_tups
+        return maintenances.tup_to_start_finish(ct=ct)
 
     def get_task_periods(self, resource=None):
         tasks = set(self.instance.get_tasks().keys())
@@ -445,11 +555,11 @@ class Experiment(object):
         ct = self.instance.compare_tups
         tasks_assigned = self.solution.get_tasks().to_tuplist()
         previous_tasks.extend(tasks_assigned)
-        return previous_tasks.tup_to_start_finish(compare_tups=ct)
+        return previous_tasks.tup_to_start_finish(ct=ct)
 
-    def get_maintenance_starts(self):
-        maintenances = self.get_maintenance_periods()
-        return [(r, s) for (r, s, e) in maintenances]
+    def get_maintenance_starts(self, state_list=None):
+        return self.get_maintenance_periods(state_list=state_list).filter([0, 1])
+        # return [(r, s) for (r, s, e) in maintenances]
 
     def get_status(self, candidate):
         """

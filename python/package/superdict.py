@@ -36,17 +36,33 @@ class SuperDict(dict):
         return dictdict
 
     def tup_to_dicts(self, tup, value):
+        """
+        recursive function to build a nested dictionary from a tuple dictionary
+        It is also very useful to initialize dictionaries with keys
+        :param tup: remaining tuple with keys
+        :param value: value to assign at the end of nested dictionary
+        :return:
+        """
         elem = tup[0]
         if elem not in self:
+            # initialize a new level of dictionary
             self[elem] = SuperDict()
         if len(tup) == 1:
+            # if on last level: assign value and return
             self[elem] = value
             return self
         else:
+            # if not on last level, continue with remaining keys in tuple
             self[elem].tup_to_dicts(tup[1:], value)
         return self
 
     def dicts_to_tup(self, keys, content):
+        """
+        recursive function to accumulate tuples from nested dictionaries
+        :param keys: already extracted keys (list dependant on current depth of nested dictionary)
+        :param content: posible dictionary to continue flatting
+        :return:
+        """
         if type(content) is not SuperDict:
             self[tuple(keys)] = content
             return self
@@ -57,7 +73,7 @@ class SuperDict(dict):
     def to_dictup(self):
         """
         Useful when reading a json and wanting to convert it to tuples.
-        Opposite to dicttup_to_dictdict
+        Opposite to to_dictdict
         :param self: a dictionary of dictionaries
         :return: a dictionary with tuples as keys
         """

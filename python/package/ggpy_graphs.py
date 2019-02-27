@@ -76,7 +76,7 @@ def progress_graph():
     ################################################
     # Progress
     ################################################
-    # TODO: correct this to new logging interface
+    # TODO: correct this to new logging library
     path = path_abs + '201801131817/results.log'
     result_log = log.LogFile(path)
     table = result_log.get_progress_cplex()

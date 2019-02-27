@@ -17,7 +17,7 @@ def empty_data():
             , 'unavail_weight': 0
             , 'max_used_time': 0
             , 'max_elapsed_time': 0
-            , 'min_elapsed_time': 0
+            , 'elapsed_time_size': 0
             , 'maint_duration': 0
             , 'maint_capacity': 0
             , 'start': '2018-01'
@@ -40,11 +40,25 @@ def empty_data():
             resource: {
                 'initial_used': 0
                 , 'initial_elapsed': 0
+                , 'initial': {m: {'used': 0, 'elapsed': 0} for m in range(0)}
+                # , 'initial': {m: {'used': 0, 'elapsed': 0} for m in range(0)}
                 , 'code': ''
                 , 'type': ''
                 , 'capacities': []
                 , 'states': {t: '' for t in range(0)}
             } for resource in range(1)
+        },
+        'maintenances': {
+            # TODO: update when decided
+            maint: {
+                'duration': 0
+                , 'max_used_time': 0
+                , 'usage_time_size': 0
+                , 'max_elapsed_time': 0
+                , 'elapsed_time_size': 0
+                , 'capacity': 0
+                , 'type': 1
+            } for maint in range(1)
         }
     }
 
@@ -54,6 +68,7 @@ def create_dataset(options):
 
     data_input = {}
     d_param = data_input['parameters'] = {**sim_data}
+    d_maints = data_input['maintenances'] = sim_data.get('maintenances', {})
     d_param['start'] = options['start']
     d_param['num_period'] = options['num_period']
     seed = sim_data.get('seed', None)
@@ -84,6 +99,9 @@ def create_dataset(options):
     d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
     last_period = d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
 
+    # #########################
+    # ############TASKS########
+    # #########################
     # Here we simulate the tasks along the planning horizon.
     # we need to guarantee there are num_parallel_tasks active task
     # at each time.
@@ -124,6 +142,9 @@ def create_dataset(options):
             } for t in t_start
         })
 
+    # #########################
+    # ############RESOURCES####
+    # #########################
     period_type_num_resource = {
         t: {p: 0 for p in aux.get_months(start_period, last_period)}
         for t in range(num_parallel_tasks)
@@ -228,15 +249,39 @@ def create_dataset(options):
     initial_elapsed_adj = {k: min(max(v, 0), max_elapsed_time) for k, v in initial_elapsed_adj.items()}
     initial_used = {k: math.ceil(v / max_elapsed_time * max_used_time) for k, v in initial_elapsed_adj.items()}
 
+    # We update the code to simulate other maints types too.
+    # Keeping it coherent with the big visits
+    d_maints = sd.SuperDict(d_maints)
+    max_elapsed_submaint = d_maints.get_property('max_elapsed_time')
+    max_used_submaint = d_maints.get_property('max_used_time')
+    _max_used_submaint = dict(max_used_submaint)
+    _max_elapsed_submaint = dict(max_elapsed_submaint)
+    for m in d_maints:
+        if _max_elapsed_submaint[m] is None:
+            _max_elapsed_submaint[m] = _max_used_submaint[m] / max_used_time * max_elapsed_time
+        elif _max_used_submaint[m] is None:
+            _max_used_submaint[m] = _max_elapsed_submaint[m] / max_elapsed_time * max_used_time
+
+    initial = {r: {} for r in resources}
+    for r in resources:
+        _init_elapsed = {k: init_elapsed[r] % v for k, v in _max_elapsed_submaint.items()}
+        _init_used = {k: initial_used[r] % v for k, v in _max_used_submaint.items()}
+        for m in _init_elapsed:
+            initial[r][m] = dict(elapsed=_init_elapsed[m], used=_init_used[m])
+
     # if resource is in maintenance: we have the status at the max.
     for res in res_in_maint:
         initial_used[res] = max_used_time
         initial_elapsed[res] = max_elapsed_time
+        for m in max_elapsed_submaint:
+            initial[res][m] = dict(elapsed=max_elapsed_submaint[res],
+                                   used=max_used_submaint[res])
 
     data_input['resources'] = {
         str(res): {
             'initial_elapsed': initial_elapsed[res]
             , 'initial_used': initial_used[res]
+            , 'initial': initial[res]
             , 'code': ''  # this is aesthetic
             , 'type': res_types[res]
             , 'capacities': list(res_capacities[res])

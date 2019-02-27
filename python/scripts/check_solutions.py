@@ -8,7 +8,10 @@ import package.superdict as sd
 import scripts.exec as exec
 import os
 import package.model as md
-import package.rpy_graphs as rg
+try:
+    import package.rpy_graphs as rg
+except:
+    print("No support for R graph functions!")
 import dfply as dp
 from dfply import X
 
@@ -60,18 +63,18 @@ def test4():
 def graph_check():
     path = PATHS['experiments'] + "201902061522/"
     path = PATHS['experiments'] + "201902111621/"
-    # path = PATHS['data'] + 'examples/201811231417/'
+    path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
     experiment = exp.Experiment.from_dir(path)
-    experiment.check_min_distance_maints()
-    status = experiment.get_status('9')
-    status.reset_index(inplace=True)
-    status.columns = ['period', 'rut', 'ret', 'state', 'task']
-    status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
+    # experiment.check_min_distance_maints()
+    # status = experiment.get_status('9')
+    # status.reset_index(inplace=True)
+    # status.columns = ['period', 'rut', 'ret', 'state', 'task']
+    # status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    rg.gantt_experiment(path)
+    # rg.gantt_experiment(path)
 
     experiment.check_solution()
 
@@ -164,5 +167,5 @@ def check_over_assignments():
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    test_rexecute()
+    graph_check()
     pass

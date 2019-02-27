@@ -5,6 +5,7 @@ import package.solution as sol
 import random as rn
 import package.tuplist as tl
 import logging as log
+import package.superdict as sd
 
 
 class GreedyByMission(test.Experiment):
@@ -29,35 +30,6 @@ class GreedyByMission(test.Experiment):
             self.initialize_resource_states(r)
 
         return
-
-    def solve(self, options):
-
-        self.options.update(options)
-
-        # 1. Choose a mission.
-        # 2. Choose candidates for that mission.
-        # 3. Start assigning candidates to the mission's months.
-            # Here the selection order could be interesting
-            #  Assign maintenances when needed to each aircraft.
-        # 4. When finished with the mission, repeat with another mission.
-        # solution = {}
-        # quality = {}
-        # for i in range(10):
-        check_candidates = self.instance.check_enough_candidates()
-        tasks_sorted = sorted(check_candidates.items(), key=lambda x: x[1][1])
-        # mission by mission: we find candidates and assign them
-        determinist = options.get('determinist', True)
-        for task, content in tasks_sorted:
-            self.fill_mission(task, determinist)
-        # at the end, there can be resources that need maintenance because of ret.
-        # for r in range(2):
-        needs = [k for k, v in self.check_elapsed_consumption().items() if v == -1]
-        for res, period in needs:
-            log.debug('resource {} needs a maintenance in {}'.format(res, period))
-            self.find_assign_maintenance(res, self.instance.shift_period(period, -1), which_maint='latest')
-        # solution[i] = copy.deepcopy(self.solution)
-        # quality[i] = self.check_solution()
-        return self.solution
 
     def fill_mission(self, task, assign_maints=True, max_iters=100, rem_resources=None):
         """
@@ -125,35 +97,20 @@ class GreedyByMission(test.Experiment):
         :return:
         """
 
-        period_0 = self.instance.get_prev_period(self.instance.get_param('start'))
-
-        # we preassign initial ruts and rets.
-        for time in ['rut', 'ret']:
-            initial_state = self.instance.get_initial_state(self.label_rt(time), resource=resource)
-            self.set_remainingtime(resource, period_0, time, initial_state[resource])
-
         # we pre-assign fixed maintenances:
         fixed_states = self.instance.get_fixed_states(resource, filter_horizon=True)
-        maint_periods = []
+        maintenances = self.instance.get_maintenances()
         for _, state, period in fixed_states:
             # if maintenance: we have a special treatment.
             cat = 'task'
-            if state == 'M':
+            if state in maintenances:
                 cat = 'state'
-                maint_periods.append(period)
             self.set_state(resource, period, state, cat=cat)
 
-        self.update_time_maint(resource, maint_periods, time='ret')
-        self.update_time_maint(resource, maint_periods, time='rut')
-
-        # we update non-maintenance periods
-        non_maintenances = self.get_non_maintenance_periods(resource)
-        times = ['rut', 'ret']
-        for _, start, end in non_maintenances:
-            # print(resource, start, end)
-            periods = self.instance.get_periods_range(start, end)
-            for t in times:
-                self.update_time_usage(resource, periods, time=t)
+        maints = self.instance.get_maintenances()
+        for time in ['rut', 'ret']:
+            for m in maints:
+                self.set_remaining_usage_time(time=time, maint=m, resource=resource)
 
     def fix_over_maintenances(self):
         # sometimes the solution includes a 12 period maintenance
@@ -283,11 +240,11 @@ class GreedyByMission(test.Experiment):
         next_maint = self.get_next_maintenance(resource, end)
         if next_maint is not None:
             before_maint = self.instance.shift_period(next_maint, -1)
-            rut = self.solution.data['aux']['rut'][resource][before_maint]
+            rut = self.get_remainingtime(resource, before_maint, 'rut', 'M')
         else:
-            rut = self.solution.data['aux']['rut'][resource][horizon_end]
-        # ret = self.solution.data['aux']['ret'][resource][end]
-        number_periods_ret = self.solution.data['aux']['ret'][resource][start] - 2
+            rut = self.get_remainingtime(resource, horizon_end, 'rut', 'M')
+        # TODO: check why -2 below
+        number_periods_ret = self.get_remainingtime(resource, start, 'ret', 'M') - 2
         number_periods_rut = int(rut // net_consumption)
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]
@@ -308,7 +265,7 @@ class GreedyByMission(test.Experiment):
                            self.get_free_periods_resource(resource))
         free = [(1, period) for period in periods_to_search
                 if min_period <= period <= max_period]
-        return tl.TupList(free).tup_to_start_finish(self.instance.compare_tups)
+        return tl.TupList(free).tup_to_start_finish(ct=self.instance.compare_tups)
 
     def get_random_maint(self, resource, min_period, max_period):
         """
@@ -401,13 +358,15 @@ class GreedyByMission(test.Experiment):
         if len(candidate_periods) == 0:
             return []
 
-        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish(self.instance.compare_tups)
+        ct = self.instance.compare_tups
+        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish(ct=ct)
         return startend.filter([1, 2])
 
-    def update_time_maint(self, resource, periods, time='rut'):
-        value = 'max_' + self.label_rt(time) + '_time'
+    def update_time_maint(self, resource, periods, time='rut', maint='M'):
+        key = 'max_' + self.label_rt(time) + '_time'
+        value = self.instance.get_param(key)
         for period in periods:
-            self.set_remainingtime(resource, period, time, self.instance.get_param(value))
+            self.set_remainingtime(resource, period, time, value, maint)
         return True
 
     def del_maint(self, resource, period):
@@ -415,15 +374,10 @@ class GreedyByMission(test.Experiment):
             return self.solution.data['state'][resource].pop(period, None)
 
     def set_state(self, resource, period, value='M', cat='state'):
+        # TODO: guarantee superdicts for all solution data.
         self.expand_resource_period(self.solution.data[cat], resource, period)
-        self.expand_resource_period(self.solution.data['aux']['rut'], resource, period)
-        self.expand_resource_period(self.solution.data['aux']['ret'], resource, period)
-
         self.solution.data[cat][resource][period] = value
         return True
-
-    def get_maintenances(self, resource):
-        return self.solution.data['state'].get(resource, {}).keys()
 
     def get_maintenance_periods_resource(self, resource):
         periods = [(1, k) for k, v in self.solution.data['state'].get(resource, {}).items() if v == 'M']

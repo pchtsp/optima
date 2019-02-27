@@ -20,6 +20,7 @@ class Solution(object):
 
     def __init__(self, solution):
         self.data = solution
+        self.data['aux'] = sd.SuperDict()
 
     def get_category(self, category, param):
         if param is None:
@@ -61,7 +62,7 @@ class Solution(object):
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.tup_to_start_finish(compare_tups)
+        result = statesMissions.tup_to_start_finish(ct=compare_tups)
         return result
 
     def get_unavailable(self):
