@@ -27,7 +27,7 @@ class Instance(object):
         self.data = model_data
         self.set_cache_horizon()
         for time_type in ['used', 'elapsed']:
-            self.fix_initial_state(time_type=time_type)
+            self.correct_initial_state(time_type=time_type)
         self.set_default_params()
         self.set_default_maintenances()
 
@@ -69,13 +69,16 @@ class Instance(object):
             maints.update(self.data['maintenances'])
         self.data['maintenances'] = maints
 
-        if 'initial' not in resources.keys_l()[0]:
+        if 'initial' not in resources.values_l()[0]:
             data_resources = sd.SuperDict(self.data['resources'])
             rut_init = data_resources.get_property('initial_used')
             ret_init = data_resources.get_property('initial_elapsed')
             for r in resources:
                 self.data['resources'][r]['initial'] = \
                     {'M': dict(elapsed=ret_init[r], used=rut_init[r])}
+        affects = sd.SuperDict(maints).get_property('depends_on').list_reverse()
+        for m, v in affects.items():
+            maints[m]['affects'] = v
         return
 
     def set_cache_horizon(self):
@@ -108,6 +111,9 @@ class Instance(object):
         result = {}
         for category, value in self.data.items():
             # if type(value) is dict:
+            if not len(value):
+                result[category] = []
+                continue
             elem = list(value.keys())[0]
             if type(value[elem]) is dict:
                 result[category] = list(value[elem].keys())
@@ -118,6 +124,8 @@ class Instance(object):
     def get_category(self, category, param=None, default_dict=None):
         assert category in self.data
         data = self.data[category]
+        if not data:
+            return {}
         if default_dict is not None:
             data = {k: {**default_dict, **v} for k, v in data.items()}
         if param is None:
@@ -137,7 +145,7 @@ class Instance(object):
     def get_maintenances(self, param=None):
         return self.get_category('maintenances', param)
 
-    def fix_initial_state(self, time_type):
+    def correct_initial_state(self, time_type):
         """
         Returns the correct initial states for resources.
         It corrects it using the max and whether it is in maintenance.
@@ -177,17 +185,21 @@ class Instance(object):
 
         initials = sd.SuperDict(self.get_resources('initial'))
         if resource is not None:
-            initials.filter(resource, check=False)
+            initials = initials.filter(resource, check=False)
         return sd.SuperDict({k: v[maint][time_type] for k, v in initials.items()})
 
     def get_min_assign(self):
         min_assign = dict(self.get_tasks('min_assign'))
-        min_assign['M'] = self.get_param('maint_duration')
+        min_assign.update(self.get_maintenances('duration_periods'))
         return min_assign
 
     def get_max_assign(self):
-        max_assign = dict(M = self.get_param('maint_duration'))
-        return sd.SuperDict(max_assign)
+        # max_assign = dict(M = self.get_param('maint_duration'))
+        return sd.SuperDict(self.get_maintenances('duration_periods'))
+
+    def get_max_remaining_time(self, time, maint):
+        time_label = 'max_' + self.label_rt(time) + '_time'
+        return self.data['maintenances'][maint][time_label]
 
     def compare_tups(self, tup1, tup2, pp):
         for n, (v1, v2) in enumerate(zip(tup1, tup2)):
@@ -462,17 +474,27 @@ class Instance(object):
         :return: capacity for each maintenance type and period
         indexed by tuples.
         """
+        # TODO merge capacities with defaults
+        # This should be replaced by reference to the correct maintenance data
         def_working_days = self.get_param('default_type2_capacity')
         def_capacity = self.get_param('maint_capacity')
-        # TODO merge capacities with defaults
-        base_capacity = {1: def_capacity,
-                         2: def_working_days}
+        base_capacity = {'1': def_capacity,
+                         '2': def_working_days}
 
         caps = {
             (t, p): base for p in self.get_periods()
             for t, base in base_capacity.items()
         }
         return sd.SuperDict(caps)
+
+    @staticmethod
+    def label_rt(time):
+        if time == "rut":
+            return 'used'
+        elif time == 'ret':
+            return 'elapsed'
+        else:
+            raise ValueError("time needs to be rut or ret")
 
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"

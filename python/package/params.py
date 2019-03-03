@@ -1,7 +1,6 @@
 import os
 import datetime as dt
 
-# TODO: TEMP not sure why python doesn't find the ENV VAR from bash.bashrc
 if 'GUROBI_HOME' in os.environ:
     if 'LD_LIBRARY_PATH' not in os.environ:
         os.environ['LD_LIBRARY_PATH'] = ""
@@ -39,10 +38,10 @@ params_cplex = \
 
 
 OPTIONS = {
-    'timeLimit': 600  # seconds
+    'timeLimit': 10  # seconds
     , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
-    , 'black_list': ['O8', 'O10', 'O6']
-    , 'white_list': []
+    , 'black_list': ['O8', 'O10', 'O6']  # only used to read from DGA Excel.
+    , 'white_list': []  # only used to read from DGA Excel.
     , 'start': '2018-01'
     , 'num_period': 90
     , 'path': os.path.join(
@@ -57,9 +56,10 @@ OPTIONS = {
     , 'prob_free_aircraft': 0.1
     , 'prob_free_periods': 0.1
     , 'cooling': 0.9995
-    , 'debug': False
+    , 'debug': True
     , 'max_iters': 99999999
-    , 'prob_delete_maint': 0.8
+    , 'prob_delete_maint': 1
+    , 'log_output': ['file', 'console']
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0
@@ -73,21 +73,21 @@ OPTIONS = {
     , 'solver_add_opts': params_cplex
     , 'mip_start': False
     , 'fix_start': False
-    # TODO: this should go an be changed by capacity in each maintenance
+    # TODO: this should go and be changed by capacity in each maintenance
     , 'default_type2_capacity': 66
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 1
+        , 'num_parallel_tasks': 0
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
         , 'min_usage_period': 0 # minimum consumption per period
         , 'perc_capacity': 0.15
-        , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
-        , 'min_avail_value': 1  # min num of available aircraft per type
-        , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
+        , 'min_avail_percent': 0  # min percentage of available aircraft per type
+        , 'min_avail_value': 0  # min num of available aircraft per type
+        , 'min_hours_perc': 0.05  # min percentage of maximum possible hours of fleet type
         , 'seed': 47
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
@@ -99,48 +99,64 @@ OPTIONS = {
         , 'maintenances': {
             # type=1 is unite based capacity.
             # type=2 is time based capacity.
-            # M is being filled by defaults in Instance creation
-            'VG': {
-                'duration_periods': 0
+            'M': {
+                'duration_periods': 4
+                , 'capacity_usage': 1
+                , 'max_used_time': 1000
+                , 'max_elapsed_time': 60
+                , 'elapsed_time_size': 3
+                , 'used_time_size': 1000
+                , 'type': '1'
+                , 'capacity': None  # right now this is not used
+                , 'depends_on': []
+                , 'affects': []  # this gets filled during initialization
+                , 'priority': 0  # the least, the sooner we assign
+            }
+            ,'VG': {
+                'duration_periods': 1
                 ,'capacity_usage': 3
                 , 'max_used_time': None
                 , 'max_elapsed_time': 8
-                , 'elapsed_time_size': 1
+                , 'elapsed_time_size': 2
                 , 'used_time_size': None
-                , 'type': 2
+                , 'type': '2'
                 , 'capacity': 3
                 , 'depends_on': ['M']
+                , 'affects': []
+                , 'priority': 10
             }
             ,'VI': {
-                'duration_periods': 0
+                'duration_periods': 1
                 ,'capacity_usage': 6
                 , 'max_used_time': None
                 , 'max_elapsed_time': 17
-                , 'elapsed_time_size': 2
+                , 'elapsed_time_size': 3
                 , 'used_time_size': None
-                , 'type': 2
+                , 'type': '2'
                 , 'capacity': 3
                 , 'depends_on': ['M']
+                , 'affects': []
+                , 'priority': 5
             }
-            ,'VS': {
-                'duration_periods': 0
-                , 'capacity_usage': 4
-                , 'max_used_time': 600
-                , 'max_elapsed_time': None
-                , 'elapsed_time_size': None
-                , 'used_time_size': 200
-                , 'type': 2
-                , 'capacity': 3
-                , 'depends_on': ['M']
-            }
+            # ,'VS': {
+            #     'duration_periods': 0
+            #     , 'capacity_usage': 4
+            #     , 'max_used_time': 600
+            #     , 'max_elapsed_time': None
+            #     , 'elapsed_time_size': None
+            #     , 'used_time_size': 200
+            #     , 'type': '2'
+            #     , 'capacity': 3
+            #     , 'depends_on': ['M']
+            #     , 'affects': []
+            #     , 'priority': 2
+            # }
         }
     }
 }
 
-# TODO: generalize maintenance checks for all maintenances:
-# check_min_distance_maints,
 # TODO: change heuristics to check and assign all maintenance types
-
+# TODO: how to assign multiple maintenances in same period??
 # white_list = ['O1', 'O5']
 # black_list = []
 # black_list = ['O10', 'O8', 'O6']

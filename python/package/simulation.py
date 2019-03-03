@@ -157,12 +157,16 @@ def create_dataset(options):
     # we want at least as many resources as the max requirement of any given month
     # for the rest, we randomly assign a type weighted by the needs
     max_res_need_type = sd.SuperDict({k: max(v.values()) for k, v in period_type_num_resource.items()})
-    res_types = [t for t, q in max_res_need_type.items() for r in range(q)]
-    res_types.extend(
-        rn.choices(max_res_need_type.keys_l(),
-                   k=len(resources) - len(res_types),
-                   weights=max_res_need_type.values_l())
-    )
+    if max_res_need_type:
+        res_types = [t for t, q in max_res_need_type.items() for r in range(q)]
+        res_types.extend(
+            rn.choices(max_res_need_type.keys_l(),
+                       k=len(resources) - len(res_types),
+                       weights=max_res_need_type.values_l())
+        )
+    else:
+        # probably no tasks exist
+        res_types = [1 for r in enumerate(resources)]
     res_types = sd.SuperDict({k: res_types[i] for i, k in enumerate(resources)})
 
     # we initialize the capacities with the types of resources
@@ -242,8 +246,8 @@ def create_dataset(options):
     # with a little random unbalance (initial_unbalance)
 
     # if resources is doing a mission, we need to give it a little more hours
-    init_elapsed = {r: 3 if not len(res_task_init[r]) else max_elapsed_time//2 for r in resources}
-    initial_elapsed = {r: rn.randrange(init_elapsed[r], max_elapsed_time) for r in resources}
+    min_init_elapsed = {r: initial_unbalance[1] if not len(res_task_init[r]) else max_elapsed_time//2 for r in resources}
+    initial_elapsed = {r: rn.randrange(min_init_elapsed[r], max_elapsed_time) for r in resources}
 
     initial_elapsed_adj = {k: v + rn.randint(*initial_unbalance) for k, v in initial_elapsed.items()}
     initial_elapsed_adj = {k: min(max(v, 0), max_elapsed_time) for k, v in initial_elapsed_adj.items()}
@@ -264,8 +268,8 @@ def create_dataset(options):
 
     initial = {r: {} for r in resources}
     for r in resources:
-        _init_elapsed = {k: init_elapsed[r] % v for k, v in _max_elapsed_submaint.items()}
-        _init_used = {k: initial_used[r] % v for k, v in _max_used_submaint.items()}
+        _init_elapsed = {k: initial_elapsed[r] - 1 % v + 1 for k, v in _max_elapsed_submaint.items()}
+        _init_used = {k: initial_used[r] - 1 % v + 1 for k, v in _max_used_submaint.items()}
         for m in _init_elapsed:
             initial[r][m] = dict(elapsed=_init_elapsed[m], used=_init_used[m])
 
@@ -274,8 +278,8 @@ def create_dataset(options):
         initial_used[res] = max_used_time
         initial_elapsed[res] = max_elapsed_time
         for m in max_elapsed_submaint:
-            initial[res][m] = dict(elapsed=max_elapsed_submaint[res],
-                                   used=max_used_submaint[res])
+            initial[res][m] = dict(elapsed=max_elapsed_submaint[m],
+                                   used=max_used_submaint[m])
 
     data_input['resources'] = {
         str(res): {

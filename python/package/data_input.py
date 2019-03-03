@@ -227,7 +227,7 @@ def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False
             pickle.dump(dictionary, f)
     if file_type == 'json':
         with open(path, 'w') as f:
-            json.dump(dictionary, f)
+            json.dump(dictionary, f, cls=MyEncoder)
     return True
 
 
@@ -270,6 +270,17 @@ def import_pie_solution(path_solution, path_input):
         'task': task_dict_f
     }
 
+
+class MyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(MyEncoder, self).default(obj)
 
 if __name__ == "__main__":
     # get_model_data()

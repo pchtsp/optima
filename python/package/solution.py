@@ -20,7 +20,7 @@ class Solution(object):
 
     def __init__(self, solution):
         self.data = solution
-        self.data['aux'] = sd.SuperDict()
+        # self.data['aux'] = sd.SuperDict()
 
     def get_category(self, category, param):
         if param is None:
@@ -75,14 +75,20 @@ class Solution(object):
         in_mission = {k: len(v) for k, v in aux.tup_to_dict(tasks, 1, is_list=True).items()}
         return aux.fill_dict_with_default(in_mission, self.get_periods())
 
-    def get_in_maintenance(self):
-        states = [(t, r) for (r, t), v in self.get_state().items() if v == 'M']
+    def get_in_maintenance(self, maint='M'):
+        states = [(t, r) for (r, t), v in self.get_state().items() if v == maint]
         in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
         # fixed maintenances should be included in the states already
         return aux.fill_dict_with_default(in_maint, self.get_periods())
 
     def get_number_maintenances(self, resource):
         return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
+
+    def get_period_state(self, resource, period, cat='state'):
+        try:
+            return self.data[cat][resource][period]
+        except KeyError:
+            return None
 
     def is_resource_free(self, resource, period):
         if self.data['task'].get(resource, {}).get(period) is not None:
