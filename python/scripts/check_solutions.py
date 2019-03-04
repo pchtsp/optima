@@ -59,21 +59,21 @@ def test4():
 
 def graph_check():
     path = PATHS['experiments'] + "201902061522/"
-    path = PATHS['experiments'] + "201902111621/"
+    path = PATHS['experiments'] + "201902141830/"
     # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
-    experiment = exp.Experiment.from_dir(path)
-    experiment.check_min_distance_maints()
-    status = experiment.get_status('9')
-    status.reset_index(inplace=True)
-    status.columns = ['period', 'rut', 'ret', 'state', 'task']
-    status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
+    # experiment = exp.Experiment.from_dir(path)
+    # experiment.check_min_distance_maints()
+    # status = experiment.get_status('9')
+    # status.reset_index(inplace=True)
+    # status.columns = ['period', 'rut', 'ret', 'state', 'task']
+    # status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
     rg.gantt_experiment(path)
 
-    experiment.check_solution()
+    # experiment.check_solution()
 
     # input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
 
@@ -81,17 +81,15 @@ def graph_check():
 
 
 def test_rexecute():
-    e = 'examples/201811240019/'
+    e = 'examples/201811230508/'
     path = PATHS['data'] + e
-    # path = "/home/pchtsp/Documents/projects/optima_results/experiments/201902131123/"
-
-    # new_options = {'solver': 'CPLEX', 'mip_start': True,
-    #                'path': path, 'timeLimit': 600, 'writeLP': False,
-    #                'gap': 0, 'noise_assignment': True}
+    # path = "/home/pchtsp/Documents/projects/optima_results/experiments/201902141810/"
 
     new_options = OPTIONS
-    new_options.update({'solver': 'HEUR_mf', 'mip_start': False})
-    # new_options.update({'solver': 'CPLEX', 'path': path, 'mip_start': False, 'fix_start': False})
+    add_options = {'solver': 'CPLEX', 'path': path,
+                        'mip_start': True, 'fix_start': False, 'writeLP': False}
+    add_options = {'solver': 'HEUR_mf', 'mip_start': False}
+    new_options.update(add_options)
     # new_options =  {'slack_vars': 'No', 'gap': 1}
     # new_options = None
     exec.re_execute_instance(path, new_options)
@@ -164,5 +162,6 @@ def check_over_assignments():
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    test_rexecute()
+    # test_rexecute()
+    graph_check()
     pass
