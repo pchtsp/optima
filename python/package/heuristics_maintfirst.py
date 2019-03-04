@@ -264,6 +264,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         """
         sol = self.solution
         delete_maint = []
+        if resource not in sol.data['state']:
+            return delete_maint
+
         for period in periods[1:]:
             if (resource, period) in fixed_periods:
                 continue
@@ -377,9 +380,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         # 1. we eliminate all existing maintenances.
         # 2. we move existing maintenances
         # TODO: adapt to more maints
-        maints_found = []
-        if resource in data['state']:
-            maints_found = self.get_start_maints_period(resource, periods, fixed_periods)
+        maints_found = self.get_start_maints_period(resource, periods, fixed_periods)
         for period, maint in maints_found:
             if rn.random() < self.options['prob_delete_maint']:
                 # We can directly take out the maintenances

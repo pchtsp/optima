@@ -19,7 +19,9 @@ class Solution(object):
     """
 
     def __init__(self, solution):
-        self.data = solution
+        data_default = {'state_m': {}, 'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
+        self.data = sd.SuperDict.from_dict(data_default)
+        self.data.update(solution)
         # self.data['aux'] = sd.SuperDict()
 
     def get_category(self, category, param):

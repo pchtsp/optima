@@ -7,7 +7,7 @@ if 'GUROBI_HOME' in os.environ:
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
 path_base = r'/home'
-path_base = r'C:\Users'
+# path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
 path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
 path_project = path_root + "OPTIMA/"
@@ -156,6 +156,7 @@ OPTIONS = {
 }
 
 # TODO: change heuristics to check and assign all maintenance types
+# TODO: permit moves
 # TODO: how to assign multiple maintenances in same period??
 # white_list = ['O1', 'O5']
 # black_list = []

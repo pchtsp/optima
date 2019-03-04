@@ -19,9 +19,8 @@ class GreedyByMission(test.Experiment):
             super().__init__(instance, solution)
             return
 
-        # if not, create a mock solution, initialize and fill
-        sol_data = {'state_m': {}, 'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
-        solution = sol.Solution(sd.SuperDict.from_dict(sol_data))
+        # if not, create a mock solution
+        solution = sol.Solution(sd.SuperDict())
         super().__init__(instance, solution)
 
         resources = list(self.instance.get_resources())
@@ -316,15 +315,14 @@ class GreedyByMission(test.Experiment):
         :param resource: resource code
         :return: periods (month)
         """
-        # resource = "A100"
-        # TODO: adapt to maints
-        dtype = 'U7'
+        # resource = "A100
+        dtype_date = 'U7'
         states = self.solution.data['state'].get(resource, {}).items()
-        periods_maint = np.array([], dtype = 'U7')
+        periods_maint = np.array([], dtype = dtype_date)
         if len(states):
             periods_maint, states = zip(*states)
-            periods_maint = np.asarray(periods_maint, dtype = 'U7')
-            states = np.asarray(states)
+            periods_maint = np.asarray(periods_maint, dtype = dtype_date)
+            states = np.asarray(states, dtype = 'U3')
             periods_maint = periods_maint[states=='M']
         # a = np.fromiter(, dtype=np.dtype('U7,U4'))
         # filter = np.asarray(['M'])
@@ -332,11 +330,11 @@ class GreedyByMission(test.Experiment):
 
         union = \
             np.union1d(
-            np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype),
+            np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype_date),
             periods_maint
         )
         return np.setdiff1d(
-            np.fromiter(self.instance.get_periods(), dtype=dtype),
+            np.fromiter(self.instance.get_periods(), dtype=dtype_date),
             union
         )
 
