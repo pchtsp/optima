@@ -583,9 +583,11 @@ class Experiment(object):
         # ret = pd.DataFrame.from_dict(data['aux']['ret']['M'].get(candidate, {}), orient='index')
         start = pd.DataFrame.from_dict(data['aux']['start'].get(candidate, {}), orient='index')
         state = pd.DataFrame.from_dict(data['state'].get(candidate, {}), orient='index')
+        state_m = pd.DataFrame.from_dict(data['state_m'].get(candidate, {}), orient='index')
         task = pd.DataFrame.from_dict(data['task'].get(candidate, {}), orient='index')
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
-        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).merge(start, **args).sort_index()
+        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).\
+            merge(start, **args).sort_index().merge(state_m, **args)
         return table.reset_index().rename(columns={'index': 'period'})
         # table.columns = ['rut', 'ret', 'state', 'task']
         # return table

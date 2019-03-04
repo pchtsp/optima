@@ -324,6 +324,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         return self.free_resource_periods(resource, periods)
 
     def free_periods(self, periods):
+        if not periods:
+            return 0
+
         # TODO: change maintenances too??
         data = self.solution.data
         first_period = periods[0]

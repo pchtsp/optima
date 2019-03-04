@@ -20,7 +20,7 @@ class GreedyByMission(test.Experiment):
             return
 
         # if not, create a mock solution, initialize and fill
-        sol_data = {'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
+        sol_data = {'state_m': {}, 'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
         solution = sol.Solution(sd.SuperDict.from_dict(sol_data))
         super().__init__(instance, solution)
 
@@ -171,11 +171,12 @@ class GreedyByMission(test.Experiment):
             # this means that we cannot assign tasks BUT
             # we cannot assign maintenance either :/
             # we should then take out the candidate:
-            log.debug("resource {} has no candidate periods for maintenance".format(resource))
+            log.debug("{} has no candidate for maint {}".
+                      format(resource, maint))
             return False
         maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
         periods_maint = self.instance.get_periods_range(maint_start, maint_end)
-        log.debug("resource {} will get a {} maintenance in periods {} -> {}".
+        log.debug("{} gets {} maint: {} -> {}".
                   format(resource, maint, maint_start, maint_end))
         for period in periods_maint:
             self.set_state(resource, period, value=maint)
@@ -251,9 +252,17 @@ class GreedyByMission(test.Experiment):
         """
         _usage = self.instance.data['maintenances'][maint]['capacity_usage']
         _type = self.instance.data['maintenances'][maint]['type']
-        periods_full = self.check_sub_maintenance_capacity(ref_compare=_usage, type_maint=_type)
-        periods_full = set(periods_full)
-        return tl.TupList(self.instance.get_periods()).filter_list_f(lambda x: x not in periods_full)
+        type_periods = self.check_sub_maintenance_capacity(ref_compare=_usage, type_maint=_type)
+        periods_full = set()
+        if len(type_periods):
+            types, periods = zip(*type_periods)
+            periods_full = set(periods)
+        periods_all = set(self.instance.get_periods())
+        return tl.TupList(periods_all - periods_full)
+        # if len(type_periods):
+        #     periods_full = np.array(type_periods.keys_l())[:, 1]
+        #     periods_full = set(periods_full)
+        # return tl.TupList(self.instance.get_periods()).filter_list_f(lambda x: x not in periods_full)
         # num_in_maint = aux.fill_dict_with_default(self.solution.get_in_maintenance(maint),
         #                                           )
         # return [p for p, num in num_in_maint.items() if
@@ -275,7 +284,6 @@ class GreedyByMission(test.Experiment):
         :param max_period: period (month) to end searching for start of maintenance
         :return: period (month) or none
         """
-        # TODO: adapt to multiple maints.
         last_period = self.instance.get_param('end')
         maint_data = self.instance.data['maintenances'][maint]
         duration = maint_data['duration_periods']
@@ -288,7 +296,6 @@ class GreedyByMission(test.Experiment):
             return None
         sizes = {st: len(self.instance.get_periods_range(st, end)) - duration
                  for (id, st, end) in start_to_finish}
-        # maint_options = [(pos, t) for pos, size in sizes.items() if size >= 0 for t in range(size+1)]
         # we get all the possible starts that can happen in each piece of available periods
         maint_options = [self.instance.shift_period(st, t) for st, size in sizes.items()
                          if size >= 0 for t in range(size + 1)]
@@ -296,11 +303,11 @@ class GreedyByMission(test.Experiment):
         if last_piece[-1] == last_period:
             incomplete_maints = self.instance.get_periods_range(last_piece[1], max_period)
             maint_options.extend(incomplete_maints)
-        # incomplete_maints = [(pos, 0) for pos, (id, st, end) in enumerate(start_to_finish)
-        #                      if end == last_period and sizes[pos] < 0]
         if not len(maint_options):
             return None
-        start = rn.choice(maint_options)
+        probs = np.array([(i+1) for i, _ in enumerate(maint_options)])
+        probs = probs / sum(probs)
+        start = np.random.choice(a=maint_options, p=probs)
         return start
 
     def get_free_periods_resource(self, resource):
@@ -312,10 +319,21 @@ class GreedyByMission(test.Experiment):
         # resource = "A100"
         # TODO: adapt to maints
         dtype = 'U7'
+        states = self.solution.data['state'].get(resource, {}).items()
+        periods_maint = np.array([], dtype = 'U7')
+        if len(states):
+            periods_maint, states = zip(*states)
+            periods_maint = np.asarray(periods_maint, dtype = 'U7')
+            states = np.asarray(states)
+            periods_maint = periods_maint[states=='M']
+        # a = np.fromiter(, dtype=np.dtype('U7,U4'))
+        # filter = np.asarray(['M'])
+        # a = a[np.in1d(a[:, 1], filter)][:,]
+
         union = \
             np.union1d(
             np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype),
-            np.fromiter(self.solution.data['state'].get(resource, {}), dtype=dtype)
+            periods_maint
         )
         return np.setdiff1d(
             np.fromiter(self.instance.get_periods(), dtype=dtype),
@@ -344,13 +362,20 @@ class GreedyByMission(test.Experiment):
 
     def del_maint(self, resource, period, maint='M'):
         try:
-            return self.solution.data['state'][resource].pop(period, None)
-        except:
-            return None
+            self.solution.data['state'][resource].pop(period, None)
+        except KeyError:
+            pass
+        try:
+            self.solution.data['state_m'][resource][period].pop(maint, None)
+        except KeyError:
+            pass
 
     def set_state(self, resource, period, value='M', cat='state'):
         tup = [resource, period]
         self.solution.data[cat].tup_to_dicts(tup=tup, value=value)
+        if cat == 'state':
+            tup.append(value)
+            self.solution.data['state_m'].tup_to_dicts(tup=tup, value=1)
         return True
 
     def get_maintenance_periods_resource(self, resource, maint='M'):
