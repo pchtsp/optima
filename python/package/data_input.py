@@ -8,7 +8,6 @@ import numpy as np
 import copy
 import json
 import pickle
-import package.superdict as sd
 
 
 def make_name(name):
@@ -271,80 +270,6 @@ def import_pie_solution(path_solution, path_input):
         'task': task_dict_f
     }
 
-def import_excel_template(path):
-    path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in.xlsx'
-    sheets = ['maintenances', 'etats_initiaux', 'avions', 'params']
-    tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
-    today = '2018-11'
-    equiv = {
-        'duree': 'duration_periods'
-        , 'BC': 'max_elapsed_time'
-        , 'BC_tol': 'elapsed_time_size'
-        , 'BH': 'max_used_time'
-        , 'BH_tol': 'used_time_size'
-        , 'capacite': 'capacity'
-    }
-    data = {}
-
-    params = tables['params'].set_index('Parametre').to_dict(orient='index')
-
-    tasks = data['tasks'] = {   }
-
-    maint_tab  =\
-        tables['maintenances']. \
-        rename(columns=equiv). \
-        replace({pd.np.nan: None})
-
-    maints = data['maintenances'] =\
-        maint_tab.\
-        set_index('maint').\
-        to_dict(orient='index')
-
-    equiv = {
-        'avion': 'resource'
-        , 'mois_derniere': 'elapsed'
-        , 'heures_derniere': 'used'
-    }
-
-    states = \
-        tables['etats_initiaux'].\
-        rename(columns=equiv)
-
-    equiv = {
-        'avion': 'resource'
-        , 'heures_derniere': 'hours'
-        , 'mois_derniere': 'period'
-    }
-
-    def elapsed_time_between_dates(value, series2):
-        return pd.Series(len(aux.get_months(p2, value)) for p2 in series2)
-
-    resources = \
-        tables['avions'].\
-        rename(columns=equiv). \
-        merge(states, on='resource').\
-        assign(used = lambda x: x.hours - x.used). \
-        assign(period=lambda x: x.period.str.slice(stop=7)). \
-        assign(elapsed=lambda x: x.elapsed.str.slice(stop=7)). \
-        assign(elapsed=lambda x: elapsed_time_between_dates(today, x.elapsed)). \
-        merge(maint_tab[['maint', 'max_elapsed_time', 'max_used_time']], on='maint'). \
-        assign(elapsed=lambda x: x.max_elapsed_time - x.elapsed). \
-        assign(used=lambda x: x.max_used_time - x.used). \
-        filter(['resource', 'maint', 'used', 'elapsed']). \
-        assign(initial='initial'). \
-        set_index(['resource', 'initial', 'maint']). \
-        to_dict(orient='index')
-
-    resources = data['resources'] = sd.SuperDict(resources).to_dictdict()
-
-    def_resources = {'type': '1', 'capacities': [], 'states': {}, 'code': ''}
-
-    for r in resources:
-        data['resources'][r].update(def_resources)
-
-
-
-    pass
 
 def export_excel_template(path):
     path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out.xlsx'
