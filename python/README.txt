@@ -1,61 +1,44 @@
- Python
-
-Here all the code related to python technology will be included.
-
-For example:
-
-* models done in `pulp`.
-* data wrangling scripts done with `pandas`.
-* applications done with `flask`.
-
-Code is organized as follows:
-
-* **scripts**: python scripts done for data wrangling.
-* **package**: core code with models, data proessing and main logic.
-* **desktop_app**: PyQt gui for app.
+# Python
 
 ## Get the software
 
 Steps to set up development environment:
 
-Windows:
-
-    git clone git@github.com:pchtsp/ROADEF2018.git
-    cd ROADEF2018\python
-    python3 -m venv venv
-    venv\Scripts\activate
-    pip install numpy
-    pip3 install -r requirements.txt
-
 Ubuntu:
 
-    git clone git@github.com:pchtsp/ROADEF2018.git
-    cd ROADEF2018/python
+    git clone git@github.com:pchtsp/optima.git
+    cd optima/python
     python3 -m venv venv
     source venv/bin/activate
     pip3 install -r requirements.txt
+
+Windows:
+
+Only difference is using `venv/Scripts/activate` instead of `source venv/bin/activate`.
 
 ## Requirements
 
 Requirements:
 
-* python >= 3.5
-* pip install virtualenv
+* python >= 3.6
+* R >= 3.5
+
+Recommended:
+
 * git
-* R
 * gurobipy => install manually.
 
 ### Ubuntu:
 
-    sudo apt-get install python3 r-core pip git r-base
-    pip install virtualenv --user
+    sudo apt-get install python3 r-core git r-base
 
 ### Windows
 
-    choco install python3 git r.project pip -y
-    pip install virtualenv --user
+    choco install python3 git r.project -y
 
 ## For installing requirements in Windows:
+
+Sometimes there are problems with using `pip` directly to install libraries.
 
 I only had to install `numpy` and the build tools 2017.
 
