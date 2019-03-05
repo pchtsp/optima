@@ -1,9 +1,10 @@
-import os
 import pandas as pd
 import package.auxiliar as aux
 import numpy as np
 import package.superdict as sd
 
+# TODO: depends_on for maints.
+# TODO: filtering before exporting all parameters
 
 def get_parameters(tables):
     return tables['params'].set_index('Parametre')['Valeur'].to_dict()
@@ -18,11 +19,6 @@ def get_equiv_maint():
         , 'BH_tol': 'used_time_size'
         , 'capacite': 'capacity'
     }
-
-
-def get_equiv_res():
-    pass
-
 
 def get_maintenance(tables):
     equiv = get_equiv_maint()
@@ -62,10 +58,13 @@ def get_resources(tables):
         , 'heures': 'hours'
     }
 
+    resources = tables['avions'].rename(columns=equiv)
+
+    resources.resource = resources.resource.astype(str)
+    states.resource = states.resource.astype(str)
+
     resources = \
-        tables['avions'].\
-        rename(columns=equiv). \
-        merge(states, on='resource').\
+        pd.merge(resources, states, on='resource').\
         assign(used = lambda x: x.hours - x.used). \
         assign(elapsed=lambda x: x.elapsed.str.slice(stop=7)). \
         assign(elapsed=lambda x: elapsed_time_between_dates(start, x.elapsed)). \
@@ -149,8 +148,7 @@ def export_input_template(path, data):
     equiv = {'elapsed': 'mois_derniere', 'used': 'heures_derniere', 'resource': 'avion'}
 
     resources_tab = res_t.rename(columns=equiv)
-    avions_tab = resources_tab[['avion']].assign(heures=0)
-
+    avions_tab = resources_tab[['avion']].drop_duplicates().assign(heures=0)
 
     to_write = dict(
         maintenances = maint_tab,
@@ -167,9 +165,106 @@ def export_input_template(path, data):
     return True
 
 
+def export_output_template(path, data):
+    """
+
+    :param path:
+    :param data: solution.data
+    :return:
+    """
+    columns = ['avion', 'mois', 'maint', 'aux']
+    sol_maints = \
+        sd.SuperDict.from_dict(data['state_m']).\
+        to_dictup().\
+        to_tuplist().\
+        to_df(columns=columns).\
+        drop('aux', axis=1)
+
+    columns = ['state', 'maint', 'avion', 'mois', 'rem']
+    rem_m = \
+        sd.SuperDict.from_dict(data['aux']).\
+            to_dictup().\
+            to_tuplist().\
+            to_df(columns=columns).\
+            set_index(columns[:-1]).\
+            unstack('state')
+
+    rem_m.columns = rem_m.columns.droplevel(0)
+    rem_m = rem_m.rename_axis(None, axis=1).reset_index()
+
+    result = sol_maints.merge(rem_m, on=['maint', 'avion', 'mois'], how='left')
+
+    to_write = {'sol_maints': result}
+
+    with pd.ExcelWriter(path) as writer:
+        for sheet, table in to_write.items():
+            table.to_excel(writer, sheet_name=sheet, index=False)
+        writer.save()
+
+    return True
+
+
+def import_output_template(path):
+
+    sheets = ['sol_maints']
+    tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
+    equiv = {'avion': 'resource', 'mois': 'period', 'maint':'maint'}
+    columns = list(equiv.values())
+    tables['sol_maints'].avion = tables['sol_maints'].avion.astype(str)
+
+    states_table = \
+        tables['sol_maints'].\
+        rename(columns=equiv).\
+        filter(columns).\
+        assign(value=1).\
+        set_index(columns)
+
+    states_m = \
+        sd.SuperDict(states_table['value'].to_dict()).\
+        to_dictdict()
+
+    states_table_n =\
+        states_table.\
+            reset_index().\
+            set_index(["resource", 'period'])
+
+    states = \
+        sd.SuperDict(states_table_n['maint'].to_dict()).\
+        to_dictdict()
+    states_table_n['maint'].to_dict()
+
+
+    data = dict(
+        state_m = states_m
+        ,state = states
+        , task = {}
+    )
+    return data
+
+
 if __name__ == '__main__':
     path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in.xlsx'
+    path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in_out.xlsx'
     data = import_input_template(path)
+    export_input_template(path, data)
 
-    path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in_out.xlsx'
-    export_input_template(path_out, data)
+    from package.params import PATHS, OPTIONS
+    import package.experiment as exp
+
+    path = PATHS['data'] + 'examples/201903041426/'
+    experiment = exp.Experiment.from_dir(path)
+
+    data = experiment.instance.data
+    export_input_template(path, data)
+
+    experiment.set_remaining_usage_time_all('rut')
+    experiment.set_remaining_usage_time_all('ret')
+
+    path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
+    data = experiment.solution.data
+    export_output_template(path_out, data)
+
+    path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
+    data = import_output_template(path_out)
+
+

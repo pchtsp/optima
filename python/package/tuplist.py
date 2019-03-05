@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class TupList(list):
@@ -123,3 +124,6 @@ class TupList(list):
 
     def to_list(self):
         return list(self)
+
+    def to_df(self, **kwargs):
+        return pd.DataFrame(self.to_list(), **kwargs)
