@@ -286,6 +286,10 @@ def import_excel_template(path):
     }
     data = {}
 
+    params = tables['params'].set_index('Parametre').to_dict(orient='index')
+
+    tasks = data['tasks'] = {   }
+
     maint_tab  =\
         tables['maintenances']. \
         rename(columns=equiv). \
@@ -331,20 +335,14 @@ def import_excel_template(path):
         set_index(['resource', 'initial', 'maint']). \
         to_dict(orient='index')
 
-    data['resources'] = sd.SuperDict(resources).to_dictdict()
+    resources = data['resources'] = sd.SuperDict(resources).to_dictdict()
+
+    def_resources = {'type': '1', 'capacities': [], 'states': {}, 'code': ''}
+
+    for r in resources:
+        data['resources'][r].update(def_resources)
 
 
-
-    """
-    'initial_used': 0
-    , 'initial_elapsed': 0
-    , 'initial': {m: {'used': 0, 'elapsed': 0} for m in range(0)}
-    # , 'initial': {m: {'used': 0, 'elapsed': 0} for m in range(0)}
-    , 'code': ''
-    , 'type': ''
-    , 'capacities': []
-    , 'states': {t: '' for t in range(0)}
-    """
 
     pass
 
