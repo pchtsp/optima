@@ -2,9 +2,9 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import importlib
 import argparse
-import package.superdict as sd
 import datetime as dt
 import json
+import package.superdict as sd
 import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
@@ -106,7 +106,11 @@ def execute_solve(model_data, options, solution_data=None):
     if options.get('graph', False):
         try:
             import package.rpy_graphs as rg
-            rg.gantt_experiment(options['path'])
+            possible_path = options['root'] + 'python/import_results.R'
+            if os.path.exists(possible_path):
+                rg.gantt_experiment(options['path'], possible_path)
+            else:
+                rg.gantt_experiment(options['path'])
         except:
             print("No support for R graph functions!")
 
@@ -130,9 +134,18 @@ if __name__ == "__main__":
     parser.add_argument('-id', '--input-template-dir', dest='input_template_dir')
 
     args = parser.parse_args()
-
     print('Using config file in {}'.format(args.file))
     params = importlib.import_module(args.file)
+
+    args = parser.parse_args()
+    if getattr(sys, 'frozen', False):
+        # we are running in a bundle
+        root = sys._MEIPASS + '/'
+    else:
+        # we are running in a normal Python environment
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + '/'
+
+    params.OPTIONS['root'] = root
 
     new_options = None
     if args.config_dict:
