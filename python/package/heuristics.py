@@ -156,7 +156,7 @@ class GreedyByMission(test.Experiment):
             max_period = self.instance.get_param('end')
         horizon_end = self.instance.get_param('end')
         maint_data = self.instance.data['maintenances'][maint]
-        affected_maints = maint_data['affects'] + [maint]
+        affected_maints = maint_data['affects']
         duration = maint_data['duration_periods']
         # duration = self.instance.get_param('maint_duration')
         maint_start = None
@@ -205,7 +205,7 @@ class GreedyByMission(test.Experiment):
         """
         horizon_end = self.instance.get_param('end')
         maint_data = self.instance.data['maintenances'][maint]
-        depends_on = maint_data['depends_on'] + [maint]
+        depends_on = maint_data['depends_on']
         end_update_rt = self.get_next_maintenance(resource, start_update_rt, maints=set(depends_on))
         if end_update_rt is None:
             end_update_rt = horizon_end
@@ -364,7 +364,11 @@ class GreedyByMission(test.Experiment):
         except KeyError:
             pass
         try:
-            self.solution.data['state_m'][resource][period].pop(maint, None)
+            periods = self.solution.data['state_m'][resource]
+            maints = periods[period]
+            maints.pop(maint, None)
+            if not len(maints):
+                periods.pop(period, None)
         except KeyError:
             pass
 

@@ -209,25 +209,26 @@ class MaintenanceFirst(heur.GreedyByMission):
         maints_probs = errors.get('elapsed', sd.SuperDict())
         if not len(maints_probs):
             return []
-        start_h = self.instance.get_param('start')
-        end_h = self.instance.get_param('end')
-        duration = self.instance.get_param('maint_duration')
-        resources = self.instance.get_resources().keys()
-        dates = [k[2] for k, v in maints_probs.items() if v == -1]
-        start = [max(start_h, self.instance.shift_period(d, -duration)) for d in dates]
-        end = [min(end_h, self.instance.shift_period(d, duration)) for d in dates]
-        periods = [d for (st, end) in zip(start, end) for d in self.instance.get_periods_range(st, end)]
+        inst = self.instance
+        sol = self.solution
+        dur = inst.get_maintenances('duration_periods')
+        start_h = inst.get_param('start')
+        end_h = inst.get_param('end')
+        resources = inst.get_resources().keys()
+        maint_dates = [(k[0], k[2]) for k, v in maints_probs.items() if v == -1]
+
+        # TODO: consider changing this to pandas or numpy
+        start = [(m, max(start_h, inst.shift_period(d, -dur[m]))) for m, d in maint_dates]
+        end = [(m, min(end_h, inst.shift_period(d, dur[m]))) for m, d in maint_dates]
+        periods = [(st[0], d) for (st, end) in zip(start, end) for d in inst.get_periods_range(st[1], end[1])]
         periods = sorted(set(periods))
-        data = self.solution.data
         candidates = []
         for res in resources:
-            for p in periods:
-                if data['state'].get(res, {}).get(p, '') == 'M':
+            for m, p in periods:
+                states = sol.get_period_state(res, p, 'state_m')
+                if states and m in states:
                     candidates.append((res, p))
                     break
-        # candidates = [res for p in periods for res in resources
-        #              if data['state'].get(res, {}).get(p, '') == 'M']
-        # pick 2?
         return candidates
 
     def get_candidates_rut(self, errors):
@@ -379,7 +380,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         # we have several options for deactivating tasks:
         # 1. we eliminate all existing maintenances.
         # 2. we move existing maintenances
-        # TODO: adapt to more maints
         maints_found = self.get_start_maints_period(resource, periods, fixed_periods)
         for period, maint in maints_found:
             if rn.random() < self.options['prob_delete_maint']:
@@ -405,30 +405,36 @@ class MaintenanceFirst(heur.GreedyByMission):
 
 
     def assign_missing_maints_to_aircraft(self, maint='M'):
-        first = self.instance.get_param('start')
-        last = self.instance.get_param('end')
-        maint_data = self.instance.data['maintenances'][maint]
-        duration = maint_data['duration_periods']
-        elapsed_time_size = maint_data['elapsed_time_size']
-        # elapsed_time_size = self.instance.get_param('elapsed_time_size')
+        inst = self.instance
+        first = inst.get_param('start')
+        maint_data = inst.data['maintenances'][maint]
+        max_ret = maint_data['max_elapsed_time']
+        remaining_time_size = maint_data['elapsed_time_size']
+        min_usage = inst.get_param('min_usage_period')
+        if not min_usage:
+            min_usage = 10
         errors = []
         while True:
-            rets = self.get_remainingtime(time='ret', maint=maint)
+            if max_ret:
+                remaining = self.get_remainingtime(time='ret', maint=maint)
+            else:
+                remaining = self.get_remainingtime(time='rut', maint=maint)
+                remaining_time_size = maint_data['used_time_size'] / min_usage
             maint_candidates = []
-            for res, info in rets.items():
+            for res, info in remaining.items():
                 if res in errors:
                     continue
                 for period, ret in info.items():
                     if ret > 0:
                         continue
                     tup = res, \
-                          max(first, self.instance.shift_period(period, -elapsed_time_size + 1)), \
+                          max(first, inst.shift_period(period, -remaining_time_size + 1)), \
                           period
                     maint_candidates.append(tup)
                     break
             if not len(maint_candidates):
                 break
-            maint_candidates.sort(key=lambda x: len(self.instance.get_periods_range(x[1], x[2])))
+            maint_candidates.sort(key=lambda x: len(inst.get_periods_range(x[1], x[2])))
             for resource, start, end in maint_candidates:
                 result = self.find_assign_maintenance(resource=resource,
                                                       maint_need=start,
@@ -480,7 +486,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         :param start: start of maintenance
         :return:
         """
-        # TODO: adapt to multiple maints
         # a = self.get_status(resource)
         # a[a.period >= '2021-03'][:8]
         first, last = [self.instance.get_param(p) for p in ['start', 'end']]

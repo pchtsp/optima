@@ -71,28 +71,30 @@ class Experiment(object):
                        for k, v in maintenances.items()]
         # we get the consumption per month
         all_states_tuple = self.get_states().to_list()
+        dtypes = [('resource', 'U4'), ('period', 'U7'), ('state', 'U3')]
         period_state_q_tab = \
-            pd.DataFrame. \
-            from_records(all_states_tuple, columns=['resource', 'period', 'state'])
+            pd.DataFrame(np.asarray(all_states_tuple, dtypes))
         period_state_q_tab = \
             period_state_q_tab.\
                 groupby(['state', 'period']).\
                 agg({'resource': 'count'}).\
                 rename(columns={'resource': 'number'}).\
                 reset_index()
+        if not len(period_state_q_tab):
+            return []
 
-        maints_tab = pd.DataFrame.\
-            from_records(maints_info, columns=['state', 'usage', 'type'])
+        # columns = ['state', 'usage', 'type']
+        # dtypes = [(np.dtype('U3'), np.dtype('int'), np.dtype('U1'))]
+        # dtypes = {'state': 'U3', 'usage': 'int', 'type': 'U1'}
+        # dtypes = [np.str_, np.int, np.str_]
+        dtypes = [('state', 'U3'), ('usage', 'int'), ('type', 'U1')]
+        maints_tab = pd.DataFrame(np.asarray(maints_info, dtype=dtypes))
         if type_maint is not None:
             maints_tab = maints_tab[maints_tab.type == type_maint]
 
-        calendar_tab = pd.DataFrame.\
-            from_records(capacity_calendar, columns=['type', 'period', 'capacity'])
+        dtypes = [('type', 'U1'), ('period', 'U7'), ('capacity', 'int')]
+        calendar_tab = pd.DataFrame(np.asarray(capacity_calendar, dtype=dtypes))
 
-        # result = \
-        #     period_state_q_tab >> \
-        #     dp.inner_join(maints_tab, by=['state']) >> \
-        #     dp.mutate(consum = X.number * X.usage)
         result = pd.merge(period_state_q_tab, maints_tab, on='state')
         result['consum'] = result.number * result.usage
 
@@ -285,29 +287,29 @@ class Experiment(object):
         :param resource: optional filter of resources
         :return: the dictionary that's assigned
         """
-
-        prev_month = self.instance.get_prev_period(self.instance.get_param('start'))
+        inst = self.instance
+        prev_month = inst.get_prev_period(self.instance.get_param('start'))
         # initial = self.instance.get_resources(label)
-        initial = self.instance.get_initial_state(self.instance.label_rt(time), maint=maint, resource=resource)
+        initial = inst.get_initial_state(self.instance.label_rt(time), maint=maint, resource=resource)
 
         # we initialize values for the start of the horizon
-        max_rem = self.instance.get_max_remaining_time(time=time, maint=maint)
+        max_rem = inst.get_max_remaining_time(time=time, maint=maint)
 
-        depends_on = self.instance.data['maintenances'][maint]['depends_on'] + [maint]
+        depends_on = inst.data['maintenances'][maint]['depends_on']
         for _res in initial:
             self.set_remainingtime(resource=_res, period=prev_month, time=time, value=initial[_res], maint=maint)
 
         # we update values during maintenances
         maintenances = self.get_maintenance_periods(state_list=depends_on, resource=resource)
         for _res, start, end in maintenances:
-            for period in self.instance.get_periods_range(start, end):
+            for period in inst.get_periods_range(start, end):
                 self.set_remainingtime(resource=_res, period=period, time=time, value=max_rem, maint=maint)
 
         # we update values in between maintenances
         non_maintenances = self.get_non_maintenance_periods(resource=resource, state_list=depends_on)
         for _res, start, end in non_maintenances:
             # print(resource, start, end)
-            periods = self.instance.get_periods_range(start, end)
+            periods = inst.get_periods_range(start, end)
             self.update_time_usage(resource=_res, periods=periods, time=time, maint=maint)
 
         return self.solution.data['aux'][time][maint]

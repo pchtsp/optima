@@ -7,7 +7,9 @@ import package.superdict as sd
 # TODO: filtering before exporting all parameters
 
 def get_parameters(tables):
-    return tables['params'].set_index('Parametre')['Valeur'].to_dict()
+    data = tables['params'].set_index('Parametre')['Valeur'].to_dict()
+    data['end'] = aux.shift_month(data['start'], data['num_period'] - 1)
+    return data
 
 
 def get_equiv_maint():
@@ -18,6 +20,7 @@ def get_equiv_maint():
         , 'BH': 'max_used_time'
         , 'BH_tol': 'used_time_size'
         , 'capacite': 'capacity'
+        , 'capacit_utili': 'capacity_usage'
     }
 
 def get_maintenance(tables):
@@ -27,10 +30,16 @@ def get_maintenance(tables):
         rename(columns=equiv). \
         replace({np.nan: None})
 
-    return \
-        maint_tab.\
-        set_index('maint').\
-        to_dict(orient='index')
+    data = \
+        maint_tab. \
+            set_index('maint'). \
+            to_dict(orient='index')
+    for k, v in data.items():
+        if v['depends_on']:
+            v['depends_on'] = [v['depends_on']]
+        else:
+            v['depends_on'] = []
+    return data
 
 
 def get_resources(tables):
@@ -192,7 +201,12 @@ def export_output_template(path, data):
     rem_m.columns = rem_m.columns.droplevel(0)
     rem_m = rem_m.rename_axis(None, axis=1).reset_index()
 
-    result = sol_maints.merge(rem_m, on=['maint', 'avion', 'mois'], how='left')
+    equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
+    result = \
+        sol_maints.\
+            merge(rem_m, on=['maint', 'avion', 'mois'], how='left'). \
+            rename(columns=equiv). \
+            sort_values(['avion', 'mois', 'maint'])
 
     to_write = {'sol_maints': result}
 
