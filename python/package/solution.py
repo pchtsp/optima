@@ -39,6 +39,7 @@ class Solution(object):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
 
     def get_state(self, resource=None):
+        # TODO: change state for state_m
         data = sd.SuperDict.from_dict(self.data['state'])
         if resource is not None:
             data = data.filter(resource, check=False)

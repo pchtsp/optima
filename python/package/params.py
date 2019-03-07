@@ -37,6 +37,12 @@ params_cplex = \
   ]
 
 
+temp_path = \
+    os.path.join(
+        PATHS['experiments'],
+        dt.datetime.now().strftime("%Y%m%d%H%M")
+    ) + '/'
+
 OPTIONS = {
     'timeLimit': 10  # seconds
     , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
@@ -44,11 +50,13 @@ OPTIONS = {
     , 'white_list': []  # only used to read from DGA Excel.
     , 'start': '2018-01'
     , 'num_period': 90
-    , 'path': os.path.join(
-        PATHS['experiments'],
-        dt.datetime.now().strftime("%Y%m%d%H%M")
-    ) + '/'
-    , 'simulate': True
+    , 'simulate': False
+    , 'template': True
+    , 'graph': True
+    # data
+    , 'path': temp_path
+    , 'input_template_path': temp_path + 'template_in.xlsx'
+    , 'output_template_path': temp_path + 'template_out.xlsx'
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
@@ -138,26 +146,28 @@ OPTIONS = {
                 , 'affects': []
                 , 'priority': 5
             }
-            # ,'VS': {
-            #     'duration_periods': 0
-            #     , 'capacity_usage': 4
-            #     , 'max_used_time': 600
-            #     , 'max_elapsed_time': None
-            #     , 'elapsed_time_size': None
-            #     , 'used_time_size': 200
-            #     , 'type': '2'
-            #     , 'capacity': 3
-            #     , 'depends_on': ['M']
-            #     , 'affects': []
-            #     , 'priority': 2
-            # }
+            ,'VS': {
+                'duration_periods': 0
+                , 'capacity_usage': 4
+                , 'max_used_time': 600
+                , 'max_elapsed_time': None
+                , 'elapsed_time_size': None
+                , 'used_time_size': 200
+                , 'type': '2'
+                , 'capacity': 3
+                , 'depends_on': ['M']
+                , 'affects': []
+                , 'priority': 2
+            }
         }
     }
 }
 
-# TODO: change heuristics to check and assign all maintenance types
 # TODO: permit moves
-# TODO: how to assign multiple maintenances in same period??
+# TODO: use state_m instead of state
+# TODO: favor grouping
+# TODO: grouping improves capacity
+
 # white_list = ['O1', 'O5']
 # black_list = []
 # black_list = ['O10', 'O8', 'O6']

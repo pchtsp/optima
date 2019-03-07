@@ -28,10 +28,10 @@ a = Analysis(['scripts/exec.py'],
              win_private_assemblies=False,
              cipher=block_cipher)
 
-dict_tree = Tree(get_pandas_path(), prefix='pandas', excludes=["*.pyc", "tests"])
-a.datas += dict_tree
+a.datas += Tree(get_pandas_path(), prefix='pandas', excludes=["*.pyc", "tests"])
 a.datas += Tree(get_palettable_path(), prefix='palettable', excludes=["*.pyc"])
 a.datas += Tree(get_dfply_path(), prefix='dfply', excludes=["*.pyc"])
+a.datas += [('import_results.R', 'import_results.R', 'DATA')]
 a.binaries = filter(lambda x: 'pandas' not in x[0], a.binaries)
 a.binaries = [x for x in a.binaries if not x[0].startswith("IPython")]
 a.binaries = [x for x in a.binaries if not x[0].startswith("zmq")]
@@ -49,10 +49,10 @@ a.binaries = a.binaries - TOC([
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 # for several files, keep the following two and comment the other one.
-exe = EXE(pyz, a.scripts, exclude_binaries=True, name='optima', debug=False, strip=False, upx=True, console=True)
-coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='optima')
+# exe = EXE(pyz, a.scripts, exclude_binaries=True, name='optima', debug=False, strip=False, upx=True, console=True)
+# coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='optima')
 
 # for one exe, replace the two above for.
-# exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name='optima', debug=False, strip=False, upx=True, runtime_tmpdir=None, console=True)
+exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name='optima', debug=False, strip=False, upx=True, runtime_tmpdir=None, console=True)
 
 # pyinstaller -y optima.spec

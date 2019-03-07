@@ -1,18 +1,16 @@
 from rpy2 import robjects
 from rpy2.robjects.vectors import IntVector, FloatVector, StrVector
-from rpy2.robjects.lib import grid
+# from rpy2.robjects.lib import grid
 from rpy2.robjects.packages import importr, data
 import rpy2.robjects.lib.ggplot2 as ggplot2
-# import rpy2.robjects.lib.latex2exp as l2p
 from rpy2.robjects import Formula, Environment, pandas2ri
 from rpy2.robjects.packages import STAP
 
-from rpy2.rinterface import RRuntimeError
-import warnings
-import math, datetime
-import rpy2.robjects as ro
+# from rpy2.rinterface import RRuntimeError
+# import warnings
+# import math, datetime
+# import rpy2.robjects as ro
 base = importr('base')
-l2p = importr('latex2exp')
 
 # rprint = robjects.globalenv.get("print")
 # grdevices = importr('grDevices')
@@ -36,6 +34,7 @@ def example():
          ggplot2.theme(**{'axis.text.x': ggplot2.element_text(angle=45)})
 
 def boxplot(table, x, y, xlab=None, ylab=None):
+    l2p = importr('latex2exp')
     pandas2ri.activate()
     if xlab is None:
         xlab = x
@@ -82,10 +81,9 @@ def bars(table, x, y, xlab=None, ylab=None):
     return plot
 
 
-def gantt_experiment(path_to_experiment):
-    # path_to_experiment = '/home/pchtsp/Documents/projects/OPTIMA/data/examples/201811092041/'
+def gantt_experiment(path_to_experiment, path_script='./../R/functions/import_results.R'):
 
-    with open('./../R/functions/import_results.R', 'r') as f:
+    with open(path_script, 'r') as f:
         string = f.read()
     import_results = STAP(string, "import_results")
 

@@ -1,3 +1,11 @@
+packs <- installed.packages()
+packages <- 
+    c('tidyverse', 'readxl', 'magrittr', 'stringr', 'zoo', 'data.table', 'lubridate', 'timevis', 'Hmisc', 'RColorBrewer', 'htmlwidgets', 'jsonlite')
+to_install <- !(packages %in% packs)
+for (p in packages[to_install]){
+    install.packages(p)
+}
+
 library(tidyverse)
 library(readxl)
 library(magrittr)

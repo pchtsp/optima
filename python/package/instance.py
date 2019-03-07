@@ -26,11 +26,11 @@ class Instance(object):
     def __init__(self, model_data):
         self.data = model_data
         self.set_cache_horizon()
+        self.set_default_params()
         for time_type in ['used', 'elapsed']:
             self.correct_initial_state(time_type=time_type)
-        self.set_default_params()
         self.set_default_maintenances()
-
+        self.prepare_maint_params()
 
     def set_default_params(self):
         # TODO: take out deprecated params
@@ -50,6 +50,9 @@ class Instance(object):
 
     def set_default_maintenances(self):
         params = self.data['parameters']
+        if 'maint_duration' not in params:
+            # we're using the new parameters, no need for defaults
+            return
         resources = sd.SuperDict(self.data['resources'])
 
         maints = {
@@ -76,10 +79,17 @@ class Instance(object):
             for r in resources:
                 self.data['resources'][r]['initial'] = \
                     {'M': dict(elapsed=ret_init[r], used=rut_init[r])}
-        affects = sd.SuperDict(maints).get_property('depends_on').list_reverse()
+        return
+
+    def prepare_maint_params(self):
+        maints = self.data['maintenances']
+        depends_on = sd.SuperDict(maints).get_property('depends_on')
+        for m in depends_on:
+            maints[m]['depends_on'].append(m)
+        affects = depends_on.list_reverse()
         for m, v in affects.items():
             maints[m]['affects'] = v
-        return
+        return maints
 
     def set_cache_horizon(self):
         """
@@ -157,7 +167,12 @@ class Instance(object):
 
         key_initial = "initial_" + time_type
         key_max = "max_" + time_type + "_time"
-        rt_read = self.get_resources(key_initial)
+        resources = sd.SuperDict(self.get_resources())
+        res1 = resources.keys_l()[0]
+        if key_initial not in res1:
+            # we're not using these parameters anymore
+            return
+        rt_read = resources.get_property(key_initial)
         rt_max = self.get_param(key_max)
 
         # we also check if the resources is currently in maintenance.

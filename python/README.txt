@@ -16,6 +16,8 @@ Windows:
 
 Only difference is using `venv/Scripts/activate` instead of `source venv/bin/activate`.
 
+Note: r packages are automatically installed when trying to run it for the first time.
+
 ## Requirements
 
 Requirements:
@@ -64,3 +66,33 @@ https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.or
     python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
     python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
 
+## Example of using the template
+
+If not loaded, the python environment needs to be loaded:
+
+    cd optima/python
+    source venv/bin/activate
+
+Then, the command to take a given `template_in.xlsx` file inside the directory `201902141830`. Additionally, an `options_in.json` file can be next to the template file.
+
+    python3 python/scripts -id /home/pchtsp/Documents/projects/OPTIMA/data/template/201902141830/
+
+## Output parameters
+
+The solving process creates several output files. Below a description of the files:
+
+**template_out.xlsx**:  output data following excel template.
+**output.log**:  solving process.
+**errors.json**:  best solution infeasibilities.
+**data_out.json**: complete solution in json format.
+**options_out.json**: all options used.
+**data_in.json**: input data in json format.
+**solution.html**: web gantt produced with the best found solution.
+
+## Building executable
+
+The following commands build the optima.exe:
+
+    cd optima/python
+    source venv/bin/activate
+    pyinstaller -y optima.spec

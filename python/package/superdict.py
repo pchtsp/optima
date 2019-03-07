@@ -79,6 +79,9 @@ class SuperDict(dict):
         """
         return SuperDict().dicts_to_tup([], self)
 
+    def reverse(self):
+        return SuperDict({v: k for k, v in self.items()})
+
     def list_reverse(self):
         """
         :param self: a dictionary with a list as a result
