@@ -1,3 +1,9 @@
+---
+title: "README.txt"
+author: "Franco Peschiera"
+date: "07 March, 2019"
+---
+
 # Python
 
 ## Get the software
@@ -58,24 +64,27 @@ https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.or
 * cx_freeze in github version, not pip.
 * specific configuration for windows?
 
-## Examples of using some scripts
-
-`exec_iteratively` and `exec.py` both accept json-styled options. They replace the default parameters.
-
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}" > log.txt &
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
-    python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
-
-## Example of using the template
+## Examples running from source
 
 If not loaded, the python environment needs to be loaded:
 
     cd optima/python
     source venv/bin/activate
 
+### Example of using the template
+
+
 Then, the command to take a given `template_in.xlsx` file inside the directory `201902141830`. Additionally, an `options_in.json` file can be next to the template file.
 
-    python3 python/scripts -id /home/pchtsp/Documents/projects/OPTIMA/data/template/201902141830/
+    python python/scripts/exec.py -id C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
+
+### Other more advanced examples
+
+`exec_iteratively` and `exec.py` both accept json-styled options. They replace the default parameters.
+
+    python python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}" > log.txt &
+    python python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
+    python python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
 
 ## Output parameters
 
@@ -84,9 +93,9 @@ The solving process creates several output files. Below a description of the fil
 **template_out.xlsx**:  output data following excel template.
 **output.log**:  solving process.
 **errors.json**:  best solution infeasibilities.
-**data_out.json**: complete solution in json format.
 **options_out.json**: all options used.
 **data_in.json**: input data in json format.
+**data_out.json**: complete solution in json format.
 **solution.html**: web gantt produced with the best found solution.
 
 ## Building executable
@@ -96,3 +105,9 @@ The following commands build the optima.exe:
     cd optima/python
     source venv/bin/activate
     pyinstaller -y optima.spec
+
+## Using the executable:
+
+It's equivalent to calling the `exec.py` script.
+
+    optima.exe -id C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
