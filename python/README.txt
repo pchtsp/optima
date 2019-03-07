@@ -14,13 +14,13 @@ Ubuntu:
 
     git clone git@github.com:pchtsp/optima.git
     cd optima/python
-    python3 -m venv venv
+    python -m venv venv
     source venv/bin/activate
     pip3 install -r requirements.txt
 
 Windows:
 
-Only difference is using `venv/Scripts/activate` instead of `source venv/bin/activate`.
+Only difference is using `venv\Scripts\activate` instead of `source venv/bin/activate`.
 
 Note: r packages are automatically installed when trying to run it for the first time.
 
@@ -48,21 +48,24 @@ Recommended:
 
 Sometimes there are problems with using `pip` directly to install libraries.
 
-I only had to install `numpy` and the build tools 2017.
+I only had to install `numpy` and the build tools 2017. But some other libraries may fail during pip installation (`rpy2`, for example). In order to solve them, the first option is going to where the binaries are and download the one corresponding to the python version (3.5, 3.6, 3.7) and system architecture (32 bits, 64 bits):
+https://www.lfd.uci.edu/~gohlke/pythonlibs and installing them manually:
+
+    cd optima/python
+    source venv/bin/activate
+    pip install rpy2-2.9.5-cp36-cp36m-win_amd64.whl
+
+Other resources below:
 
 Check: https://stackoverflow.com/a/32064281
-
 Check: https://wiki.python.org/moin/WindowsCompilers
-
 https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
-
 https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.org%2Fmoin%2FWindowsCompilers
 
 * Build Tools 2017: http://landinghub.visualstudio.com/visual-cpp-build-tools
 * numpy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy
-* Scipy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy
-* cx_freeze in github version, not pip.
-* specific configuration for windows?
+* scipy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy
+* rpy2 from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#rpy2
 
 ## Examples running from source
 
@@ -72,7 +75,6 @@ If not loaded, the python environment needs to be loaded:
     source venv/bin/activate
 
 ### Example of using the template
-
 
 Then, the command to take a given `template_in.xlsx` file inside the directory `201902141830`. Additionally, an `options_in.json` file can be next to the template file.
 
