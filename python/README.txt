@@ -113,3 +113,5 @@ The following commands build the optima.exe:
 It's equivalent to calling the `exec.py` script.
 
     optima.exe -id C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
+
+.

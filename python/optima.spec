@@ -1,5 +1,8 @@
 # -*- mode: python -*-
 
+import sys
+import os
+
 block_cipher = None
 
 def get_pandas_path():
@@ -15,9 +18,10 @@ def get_dfply_path():
     import dfply
     return dfply.__path__[0]
 
+path_main = os.path.dirname(os.path.abspath(sys.argv[2]))
 
 a = Analysis(['scripts/exec.py'],
-             pathex=['C:/Users/pchtsp/Documents/projects/optima/python'],
+             pathex=[path_main],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -38,12 +42,12 @@ a.binaries = [x for x in a.binaries if not x[0].startswith("zmq")]
 a.binaries = [x for x in a.binaries if not x[0].startswith("PyQt5")]
 a.binaries = [x for x in a.binaries if not x[0].startswith("Qt5")]
 a.binaries = a.binaries - TOC([
- #('sqlite3.dll', None, None),
+ ('sqlite3.dll', None, None),
  ('tcl85.dll', None, None),
  ('tk85.dll', None, None),
- #('_sqlite3', None, None),
+ ('_sqlite3', None, None),
  ('_ssl', None, None),
- #('_tkinter', None, None)
+ ('_tkinter', None, None)
  ])
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
