@@ -106,10 +106,15 @@ def execute_solve(model_data, options, solution_data=None):
     if options.get('graph', False):
         try:
             import package.rpy_graphs as rg
-            possible_path = options['root'] + 'python/import_results.R'
+            possible_path = options['root'] + 'R/functions/import_results.R'
+            # print('possible path for script: {}'.format(possible_path))
+            # os.listdir(options['root'] + 'python/')
+            # os.listdir(options['root'])
             if os.path.exists(possible_path):
+                # print('file exists')
                 rg.gantt_experiment(options['path'], possible_path)
             else:
+                # print('file doesnt exists')
                 rg.gantt_experiment(options['path'])
         except:
             print("No support for R graph functions!")

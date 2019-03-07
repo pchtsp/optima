@@ -31,7 +31,7 @@ a = Analysis(['scripts/exec.py'],
 a.datas += Tree(get_pandas_path(), prefix='pandas', excludes=["*.pyc", "tests"])
 a.datas += Tree(get_palettable_path(), prefix='palettable', excludes=["*.pyc"])
 a.datas += Tree(get_dfply_path(), prefix='dfply', excludes=["*.pyc"])
-a.datas += [('import_results.R', 'import_results.R', 'DATA')]
+a.datas += [('R/functions/import_results.R', '../R/functions/import_results.R', 'DATA')]
 a.binaries = filter(lambda x: 'pandas' not in x[0], a.binaries)
 a.binaries = [x for x in a.binaries if not x[0].startswith("IPython")]
 a.binaries = [x for x in a.binaries if not x[0].startswith("zmq")]
