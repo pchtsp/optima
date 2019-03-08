@@ -37,6 +37,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             seed = rn.random()*10000
             options['seed'] = seed
         rn.seed(seed)
+        np.random.seed(seed)
 
         level = log.INFO
         if options.get('debug', False):
