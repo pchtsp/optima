@@ -47,3 +47,10 @@ rsync -rav -e ssh --include '*/' --exclude='formulation.lp' f.peschiera@serv-clu
 ls -d -1 /tmp/f.peschiera/optima_results/clust1_20190114/base/*/formulation.mps > modelfile
 ls -d -1 /tmp/f.peschiera/optima_results/clust1_20190115/minusageperiod_5/*/formulation.mps > modelfile
 nohup python3 ./python/scripts/cplex_tuner.py > /tmp/f.peschiera/log_20190115.txt &
+
+# deploy src
+
+mkdir C:\Users\pchtsp\Downloads\src
+git archive --format=tar HEAD python | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
+git archive --format=tar HEAD R/functions/import_results.R | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
+git archive --format=tar HEAD data/template | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
