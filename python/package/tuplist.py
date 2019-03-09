@@ -75,7 +75,7 @@ class TupList(list):
     def unique2(self):
         return TupList(set(self))
 
-    def tup_to_start_finish(self, ct, pp=1):
+    def tup_to_start_finish(self, ct, pp=1, sort=True):
         """
         Takes a calendar tuple list of the form: (id, month) and
         returns a tuple list of the form (id, start_month, end_month)
@@ -95,8 +95,8 @@ class TupList(list):
             return False
         :return:
         """
-
-        self.sort(key=lambda x: (x[0], x[pp]))
+        if sort:
+            self.sort(key=lambda x: (x[0], x[pp]))
         res_start_finish = []
         last_tup = ()
         all_periods = []

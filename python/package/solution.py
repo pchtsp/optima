@@ -20,6 +20,7 @@ class Solution(object):
     """
 
     def __init__(self, solution):
+        # TODO: delete state
         data_default = {'state_m': {}, 'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
         self.data = sd.SuperDict.from_dict(data_default)
         self.data.update(solution)
@@ -39,9 +40,12 @@ class Solution(object):
     def get_tasks(self):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
 
+    def get_state_tuplist(self, resource=None):
+        states = self.get_state(resource)
+        return tl.TupList(states.keys())
+
     def get_state(self, resource=None):
-        # TODO: change state for state_m
-        data = sd.SuperDict.from_dict(self.data['state'])
+        data = sd.SuperDict.from_dict(self.data['state_m'])
         if resource is not None:
             data = data.filter(resource, check=False)
         return data.to_dictup()
@@ -56,7 +60,7 @@ class Solution(object):
         return {key: len(value) for key, value in task_resources.items()}
 
     def get_state_tasks(self):
-        statesMissions = self.get_state().to_tuplist() + self.get_tasks().to_tuplist()
+        statesMissions = self.get_state_tuplist() + self.get_tasks().to_tuplist()
         return tl.TupList(statesMissions)
 
     def get_schedule(self, compare_tups):
@@ -71,7 +75,7 @@ class Solution(object):
 
     def get_unavailable(self):
         num_tasks = self.get_in_task()
-        in_maint = self.get_in_maintenance()
+        in_maint = self.get_in_some_maintenance()
         return {k: in_maint[k] + num_tasks[k] for k in in_maint}  # in_maint has all periods already
 
     def get_in_task(self):
@@ -79,26 +83,24 @@ class Solution(object):
         in_mission = {k: len(v) for k, v in aux.tup_to_dict(tasks, 1, is_list=True).items()}
         return aux.fill_dict_with_default(in_mission, self.get_periods())
 
-    def get_in_maintenance(self, maint='M'):
-        states = [(t, r) for (r, t), v in self.get_state().items() if v == maint]
-        in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
-        # fixed maintenances should be included in the states already
-        return aux.fill_dict_with_default(in_maint, self.get_periods())
+    def get_in_some_maintenance(self):
+        raise ValueError("This is no longer supported")
+        # _states = self.get_state_tuplist()
+        # states = [(t, r) for r, t, v in _states if maint in v]
+        # in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
+        # # fixed maintenances should be included in the states already
+        # return aux.fill_dict_with_default(in_maint, self.get_periods())
 
-    def get_number_maintenances(self, resource):
-        return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
-
-    def get_period_state(self, resource, period, cat='state'):
+    def get_period_state(self, resource, period, cat):
         try:
             return self.data[cat][resource][period]
         except KeyError:
             return None
 
     def is_resource_free(self, resource, period):
-        if self.data['task'].get(resource, {}).get(period) is not None:
-            return False
-        if self.data['state'].get(resource, {}).get(period) is not None:
-            return False
+        for cat in ['task', 'state_m']:
+            if self.get_period_state(resource, period, cat) is not None:
+                return False
         return True
 
 if __name__ == "__main__":

@@ -47,20 +47,16 @@ class Experiment(object):
             ,'resources':   self.check_task_num_resources
             ,'usage':       self.check_usage_consumption
             ,'elapsed':     self.check_elapsed_consumption
-            # ,'capacity':    self.check_maintenance_capacity
             ,'min_assign':  self.check_min_max_assignment
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
             ,'dist_maints': self.check_min_distance_maints
             ,'capacity': self.check_sub_maintenance_capacity
+            ,'maint_size': self.check_maints_size
         }
         result = {k: v(**params) for k, v in func_list.items()}
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
-
-    def check_maintenance_capacity(self, **params):
-        maints = self.solution.get_in_maintenance()
-        return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
 
     # @profile
     def check_sub_maintenance_capacity(self, ref_compare=0, type_maint=None, **param):
@@ -71,12 +67,12 @@ class Experiment(object):
                        for k, v in maintenances.items()]
         # we get the consumption per month
         all_states_tuple = self.get_states().to_list()
-        dtypes = [('resource', 'U4'), ('period', 'U7'), ('state', 'U3')]
+        dtypes = [('resource', 'U4'), ('period', 'U7'), ('status', 'U3')]
         period_state_q_tab = \
             pd.DataFrame(np.asarray(all_states_tuple, dtypes))
         period_state_q_tab = \
             period_state_q_tab.\
-                groupby(['state', 'period']).\
+                groupby(['status', 'period']).\
                 agg({'resource': 'count'}).\
                 rename(columns={'resource': 'number'}).\
                 reset_index()
@@ -87,7 +83,7 @@ class Experiment(object):
         # dtypes = [(np.dtype('U3'), np.dtype('int'), np.dtype('U1'))]
         # dtypes = {'state': 'U3', 'usage': 'int', 'type': 'U1'}
         # dtypes = [np.str_, np.int, np.str_]
-        dtypes = [('state', 'U3'), ('usage', 'int'), ('type', 'U1')]
+        dtypes = [('status', 'U3'), ('usage', 'int'), ('type', 'U1')]
         maints_tab = pd.DataFrame(np.asarray(maints_info, dtype=dtypes))
         if type_maint is not None:
             maints_tab = maints_tab[maints_tab.type == type_maint]
@@ -95,7 +91,7 @@ class Experiment(object):
         dtypes = [('type', 'U1'), ('period', 'U7'), ('capacity', 'int')]
         calendar_tab = pd.DataFrame(np.asarray(capacity_calendar, dtype=dtypes))
 
-        result = pd.merge(period_state_q_tab, maints_tab, on='state')
+        result = pd.merge(period_state_q_tab, maints_tab, on='status')
         result['consum'] = result.number * result.usage
 
         result = result.groupby(['period', 'type']).agg({'consum': 'sum'})
@@ -338,12 +334,12 @@ class Experiment(object):
 
     def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
-        state_solution = self.solution.get_state()
+        state_solution = self.solution.get_state_tuplist().filter([0, 1])
 
         task_solution_k = np.fromiter(task_solution.keys(),
                                       dtype=[('A', '<U6'), ('T', 'U7')])
-        state_solution_k = np.fromiter(state_solution.keys(),
-                                       dtype=[('A', '<U6'), ('T', 'U7')])
+        state_solution_k = np.asarray(state_solution,
+                                      dtype=[('A', '<U6'), ('T', 'U7')])
         duplicated_states = \
             np.intersect1d(task_solution_k, state_solution_k)
 
@@ -358,7 +354,7 @@ class Experiment(object):
         """
         # TODO: do it with self.solution.get_schedule()
         tasks = self.solution.get_tasks().to_tuplist()
-        maints = self.solution.get_state().to_tuplist()
+        maints = self.solution.get_state_tuplist()
         previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
             to_dictup().to_tuplist()
         min_assign = self.instance.get_min_assign()
@@ -388,16 +384,20 @@ class Experiment(object):
     def check_fixed_assignments(self, **params):
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
-        state_tasks = self.solution.get_state_tasks()
+        state_tasks = self.solution.get_state_tasks().to_list()
         fixed_states = self.instance.get_fixed_states()
-        fixed_states_h = fixed_states.filter_list_f(lambda x: first_period <= x[2] <= last_period)
-        state_tasks_tab = pd.DataFrame.from_records(list(state_tasks),
-                                                    columns=['resource', 'period', 'state'])
-        fixed_states_tab = pd.DataFrame.from_records(list(fixed_states_h),
-                                                     columns=['resource', 'state', 'period'])
-        result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
-        return sd.SuperDict({tuple(x): 1 for x in
-                             result[result.state_x != result.state_y].to_records(index=False)})
+        fixed_states_h = fixed_states.\
+            filter_list_f(lambda x: first_period <= x[2] <= last_period).\
+            filter([0, 2, 1])
+        # state_tasks_tab = pd.DataFrame(state_tasks,
+        #                                columns=['resource', 'period', 'status'])
+        # fixed_states_tab = pd.DataFrame(fixed_states_h,
+        #                                 columns=['resource', 'status', 'period'])
+        diff_tups = set(fixed_states_h) - set(state_tasks)
+        # result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
+        return sd.SuperDict({k: 1 for k in diff_tups})
+        # return sd.SuperDict({tuple(x): 1 for x in
+        #                      result[result.state_x != result.state_y].to_records(index=False)})
 
 
     def check_min_available(self, **params):
@@ -440,81 +440,128 @@ class Experiment(object):
 
         hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
         return hours_deficit.clean(func=lambda x: x < 0)
+
+    def check_maints_size(self, **params):
+        maints = sd.SuperDict.from_dict(self.instance.get_maintenances())
+        duration = maints.get_property('duration_periods')
+        inst = self.instance
+        start, end = inst.get_param('start'), inst.get_param('end')
+        m_s_tab_r = pd.DataFrame.from_records(self.get_state_periods().to_list(),
+                                            columns=['resource', 'start', 'maint', 'end'])
+        def dist_periods(series, series2):
+            return pd.Series(self.instance.get_dist_periods(p, p2) for p, p2 in zip(series, series2))
+
+        inside = np.any([m_s_tab_r.start > start, m_s_tab_r.end < end], axis=0)
+        m_s_tab = m_s_tab_r[inside]
+        m_s_tab['dist'] = dist_periods(m_s_tab.start, m_s_tab.end) + 1
+        m_s_tab['duration'] = m_s_tab.maint.map(duration)
+        m_s_tab['value'] = m_s_tab.dist - m_s_tab.duration
+        error = m_s_tab[m_s_tab.value != 0]
+        result = error[['resource', 'start', 'value']].to_records(index=False)
+        return tl.TupList(result).to_dict(result_col=2, is_list=False)
+
     # @profile
     def check_min_distance_maints(self, **params):
         """
         checks if maintenances have the correct distance between them
         :return:
         """
-        maint_depends = self.instance.get_maintenances('depends_on')
-        maints = self.instance.get_maintenances()
-        maint_start_m = {m: self.get_maintenance_starts([m]+maint_depends[m]) for m in maints}
-        maint_start_m2 = [(m, *t) for m, tup in maint_start_m.items() for t in tup]
-        m_s_tab = pd.DataFrame.from_records(maint_start_m2, columns=['maint', 'resource', 'period'])
+        maints = sd.SuperDict.from_dict(self.instance.get_maintenances())
+        elapsed_time_size = maints.get_property('elapsed_time_size')
+        elapsed_time_size = {k: v if v is not None else 10000 for k, v in elapsed_time_size.items()}
+        rets = sd.SuperDict.from_dict(
+            {m: self.get_remainingtime(time='ret', maint=m) for m in maints}
+        ).\
+            to_dictup().to_tuplist()
 
-        maint_tab = pd.DataFrame.from_dict(maints, orient='index')
-        maint_tab['maint'] = maint_tab.index
-        maint_tab['max_dist'] = maint_tab.max_elapsed_time + maint_tab.duration_periods
-        maint_tab['min_dist'] = maint_tab.max_dist - maint_tab.elapsed_time_size
-        maint_tab = maint_tab[['maint', 'max_dist', 'min_dist']]
+        def add_periods(series, series2):
+            return pd.Series(self.instance.shift_period(p, p2) for p, p2 in zip(series, series2))
 
-        @dp.make_symbolic
-        def is_not_na(series):
-            return ~pd.isna(series)
-        @dp.make_symbolic
-        def dist_periods(series, series2):
-            return pd.Series(self.instance.get_dist_periods(p, p2) for p, p2 in zip(series, series2))
-        @dp.make_symbolic
-        def diff_bound(dist, bound, error, less_than=True):
-            if less_than:
-                one_clause = dist < bound
-            else:
-                one_clause = dist > bound
-            second_clause = is_not_na(bound)
-            return pd.Series(np.where(np.all([one_clause, second_clause], axis=0), dist - bound, error))
+        rets_tab = pd.DataFrame(rets.to_list(), columns=['maint', 'resource', 'before', 'rem'])
 
-        m_s_tab.sort_values(['maint', 'resource', 'period'], inplace=True)
+        m_s_tab = pd.DataFrame.from_records(self.get_state_periods().to_list(),
+                                            columns=['resource', 'start', 'maint', 'end'])
         maint_start_tab_agg = m_s_tab.groupby(['maint', 'resource'])
-        m_s_tab['period2'] = maint_start_tab_agg.period.shift(-1)
-        m_s_tab = m_s_tab[is_not_na(m_s_tab.period2)].copy().reset_index()
-        m_s_tab['dist'] = dist_periods(m_s_tab.period, m_s_tab.period2)
-        m_s_tab = pd.merge(m_s_tab, maint_tab, on='maint')
-        m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.min_dist, 0)
-        m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.max_dist, m_s_tab.error, False)
-        m_s_tab = m_s_tab[['maint', 'resource', 'period', 'period2', 'error']]
-        m_s_tab = m_s_tab[m_s_tab['error'] != 0]
+        m_s_tab['next'] = maint_start_tab_agg.start.shift(-1)
+        m_s_tab = m_s_tab[~pd.isna(m_s_tab.next)].copy().reset_index()
+        m_s_tab['dif'] = - 1
+        m_s_tab['before'] = add_periods(m_s_tab.start, m_s_tab.dif)
+        m_s_tab = pd.merge(m_s_tab, rets_tab , on=['resource', 'maint', 'before'])
+        m_s_tab = m_s_tab[~pd.isna(m_s_tab.rem)]
+        m_s_tab['max_size'] = m_s_tab.maint.map(elapsed_time_size)
+        rets_bad_min = m_s_tab[m_s_tab.rem > m_s_tab.max_size].copy().reset_index()  # negative
+        rets_bad_min['error'] = rets_bad_min.max_size - rets_bad_min.rem
+        rets_bad_max = m_s_tab[m_s_tab.rem <= 0].copy().reset_index()  # positive
+        rets_bad_max['error'] = - rets_bad_max.rem
+        result = pd.concat([rets_bad_min, rets_bad_max])
+        m_s_tab = result[['maint', 'resource', 'start', 'next', 'error']]
 
         return tl.TupList(m_s_tab.to_records(index=False)).\
             to_dict(result_col=4, is_list=False)
 
+        # self.get_maintenance_periods()
+        # maint_start_m = {m: self.get_maintenance_starts(set(m)) for m in maints}
+        #
+        # maint_start_m2 = [(m, *t) for m, tup in maint_start_m.items() for t in tup]
+        # m_s_tab = pd.DataFrame.from_records(maint_start_m2, columns=['maint', 'resource', 'period'])
+        #
+        # maint_tab = pd.DataFrame.from_dict(maints, orient='index')
+        # maint_tab['maint'] = maint_tab.index
+        # maint_tab['max_dist'] = maint_tab.max_elapsed_time + maint_tab.duration_periods
+        # maint_tab['min_dist'] = maint_tab.max_dist - maint_tab.elapsed_time_size
+        # maint_tab = maint_tab[['maint', 'max_dist', 'min_dist']]
+        #
+        # def is_not_na(series):
+        #     return ~pd.isna(series)
+        # def diff_bound(dist, bound, error, less_than=True):
+        #     if less_than:
+        #         one_clause = dist < bound
+        #     else:
+        #         one_clause = dist > bound
+        #     second_clause = is_not_na(bound)
+        #     return pd.Series(np.where(np.all([one_clause, second_clause], axis=0), dist - bound, error))
+        #
+        # m_s_tab.sort_values(['maint', 'resource', 'period'], inplace=True)
+        # m_s_tab['duration'] =  m_s_tab.maint.map(durations) - 1
+        # m_s_tab['end'] = add_periods(m_s_tab.period, m_s_tab.duration)
+        # maint_start_tab_agg = m_s_tab.groupby(['maint', 'resource'])
+        # m_s_tab['period2'] = maint_start_tab_agg.period.shift(-1)
+        # m_s_tab = m_s_tab[is_not_na(m_s_tab.period2)].copy().reset_index()
+        # m_s_tab['dist'] = dist_periods(m_s_tab.end, m_s_tab.period2)
+        # m_s_tab = pd.merge(m_s_tab, maint_tab, on='maint')
+        # m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.min_dist, 0)
+        # m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.max_dist, m_s_tab.error, False)
+        # m_s_tab = m_s_tab[['maint', 'resource', 'period', 'period2', 'error']]
+        # m_s_tab = m_s_tab[m_s_tab['error'] != 0]
+        #
+        # return tl.TupList(m_s_tab.to_records(index=False)).\
+        #     to_dict(result_col=4, is_list=False)
+
     def get_objective_function(self):
-        weight1 = self.instance.get_param("maint_weight")
-        weight2 = self.instance.get_param("unavail_weight")
-        unavailable = max(self.solution.get_unavailable().values())
-        in_maint = max(self.solution.get_in_maintenance().values())
-        return in_maint * weight1 + unavailable * weight2
+        raise ValueError("This is no longer supported")
 
     def get_kpis(self):
-        rut = self.set_remaining_usage_time(time='rut')
-        ret = self.set_remaining_usage_time(time='ret')
-        end = self.instance.get_param('end')
-        starts = self.get_maintenance_periods()
-        return {
-            'unavail': max(self.solution.get_unavailable().values())
-            , 'maint': max(self.solution.get_in_maintenance().values())
-            , 'rut_end': sum(v[end] for v in rut.values())
-            , 'ret_end': sum(v[end] for v in ret.values())
-            , 'maintenances': len(starts)
-        }
+        raise ValueError("This is no longer supported")
+        # rut = self.set_remaining_usage_time(time='rut')
+        # ret = self.set_remaining_usage_time(time='ret')
+        # end = self.instance.get_param('end')
+        # starts = self.get_maintenance_periods()
+        # return {
+        #     'unavail': max(self.solution.get_unavailable().values())
+        #     , 'maint': max(self.solution.get_in_maintenance().values())
+        #     , 'rut_end': sum(v[end] for v in rut.values())
+        #     , 'ret_end': sum(v[end] for v in ret.values())
+        #     , 'maintenances': len(starts)
+        # }
 
     def export_solution(self, path, sheet_name='solution'):
         tasks = aux.dict_to_tup(self.solution.get_tasks())
         hours = self.instance.get_tasks('consumption')
         tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))
                         for t in tasks]
-        statesMissions = aux.dict_to_tup(self.solution.get_state()) + tasks_edited
-        table = pd.DataFrame(statesMissions, columns=['resource', 'period', 'state'])
-        table = table.pivot(index='resource', columns='period', values='state')
+        statesMissions = self.solution.get_state_tuplist() + tasks_edited
+        table = pd.DataFrame(statesMissions, columns=['resource', 'period', 'status'])
+        table = table.pivot(index='resource', columns='period', values='status')
         table.to_excel(path, sheet_name=sheet_name)
         return table
 
@@ -528,7 +575,7 @@ class Experiment(object):
         maints_codes = self.instance.get_maintenances()
         previous_states = self.instance.get_prev_states(resource).\
             filter_list_f(lambda x: x[2] in maints_codes)
-        states = self.solution.get_state(resource).to_tuplist()
+        states = self.solution.get_state_tuplist(resource)
         previous_states.extend(states)
         return tl.TupList(previous_states).unique2()
 
@@ -539,7 +586,8 @@ class Experiment(object):
         """
         all_states = self.get_states(resource)
         ct = self.instance.compare_tups
-        return all_states.tup_to_start_finish(ct=ct)
+        all_states.sort(key=lambda x: (x[0], x[2], x[1]))
+        return all_states.tup_to_start_finish(ct=ct, sort=False)
 
     def get_maintenance_periods(self, resource=None, state_list=None):
         if state_list is None:
@@ -584,15 +632,13 @@ class Experiment(object):
         ret = pd.DataFrame.from_dict(_ret)
         # ret = pd.DataFrame.from_dict(data['aux']['ret']['M'].get(candidate, {}), orient='index')
         start = pd.DataFrame.from_dict(data['aux']['start'].get(candidate, {}), orient='index')
-        state = pd.DataFrame.from_dict(data['state'].get(candidate, {}), orient='index')
+        # state = pd.DataFrame.from_dict(data['state'].get(candidate, {}), orient='index')
         state_m = pd.DataFrame.from_dict(data['state_m'].get(candidate, {}), orient='index')
         task = pd.DataFrame.from_dict(data['task'].get(candidate, {}), orient='index')
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
-        table = rut.merge(ret, **args).merge(state, **args).merge(task, **args).\
+        table = rut.merge(ret, **args).merge(task, **args).\
             merge(start, **args).sort_index().merge(state_m, **args)
         return table.reset_index().rename(columns={'index': 'period'})
-        # table.columns = ['rut', 'ret', 'state', 'task']
-        # return table
 
 
 def clean_experiments(path, clean=True, regex=""):

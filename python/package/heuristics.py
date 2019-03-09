@@ -90,10 +90,11 @@ class GreedyByMission(test.Experiment):
         maintenances = self.instance.get_maintenances()
         for _, state, period in fixed_states:
             # if maintenance: we have a special treatment.
-            cat = 'task'
             if state in maintenances:
-                cat = 'state'
-            self.set_state(resource, period, state, cat=cat)
+                # self.set_state(resource, period, cat='state', value=state)
+                self.set_state(resource, period, state, cat='state_m', value=1)
+            else:
+                self.set_state(resource, period, cat='state', value=state)
 
         for time in ['rut', 'ret']:
             self.set_remaining_usage_time_all(time=time, resource=resource)
@@ -178,7 +179,14 @@ class GreedyByMission(test.Experiment):
         log.debug("{} gets {} maint: {} -> {}".
                   format(resource, maint, maint_start, maint_end))
         for period in periods_maint:
-            self.set_state(resource, period, value=maint)
+            # self.set_state(resource, period, cat='state', value=maint)
+            self.set_state(resource, period, maint, cat='state_m', value=1)
+        # Delete auxiliary maintenances if any in relevant periods
+        for m in affected_maints:
+            if m == maint:
+                continue
+            for period in periods_maint:
+                self.del_maint(resource, period, m)
         for m in affected_maints:
             self.update_time_maint(resource, periods_maint, time='ret', maint=m)
             self.update_time_maint(resource, periods_maint, time='rut', maint=m)
@@ -317,13 +325,15 @@ class GreedyByMission(test.Experiment):
         """
         # resource = "A100
         dtype_date = 'U7'
-        states = self.solution.data['state'].get(resource, {}).items()
+        states = self.solution.data['state_m'].get(resource, {}).items()
         periods_maint = np.array([], dtype = dtype_date)
         if len(states):
-            periods_maint, states = zip(*states)
+            periods_maint, maints = zip(*states)
             periods_maint = np.asarray(periods_maint, dtype = dtype_date)
-            states = np.asarray(states, dtype = 'U3')
-            periods_maint = periods_maint[states=='M']
+            # _maints = [d.keys() for d in maints]
+            filt = ['M' in d.keys() for d in maints]
+            # filt = np.any(_maints=='M', axis=1)
+            periods_maint = periods_maint[filt]
         # a = np.fromiter(, dtype=np.dtype('U7,U4'))
         # filter = np.asarray(['M'])
         # a = a[np.in1d(a[:, 1], filter)][:,]
@@ -358,30 +368,43 @@ class GreedyByMission(test.Experiment):
             self.set_remainingtime(resource, period, time, value, maint)
         return True
 
-    def del_maint(self, resource, period, maint='M'):
+    def del_maint(self, resource, period, maint=None):
+        """
+        removes a maintenance assign in a resource and a period
+        :param resource:
+        :param period:
+        :param maint: maint to delete. if None: delete all
+        :return:
+        """
         try:
+            # TODO: delete this
             self.solution.data['state'][resource].pop(period, None)
         except KeyError:
             pass
         try:
             periods = self.solution.data['state_m'][resource]
             maints = periods[period]
-            maints.pop(maint, None)
-            if not len(maints):
+            if maint is not None:
+                maints.pop(maint, None)
+            if not len(maints) or maint is None:
                 periods.pop(period, None)
         except KeyError:
             pass
 
-    def set_state(self, resource, period, value='M', cat='state'):
-        tup = [resource, period]
-        self.solution.data[cat].tup_to_dicts(tup=tup, value=value)
-        if cat == 'state':
-            tup.append(value)
-            self.solution.data['state_m'].tup_to_dicts(tup=tup, value=1)
+    def set_state(self, *args, value, cat):
+        """
+        :param value: can be the state, can be 1
+        :param cat: task, state, state_m
+        :param args: normally: [resource, period]. Can also be: [resource, period, maint]
+        :return:
+        """
+        # TODO: we should clean after adding M
+        self.solution.data[cat].tup_to_dicts(tup=args, value=value)
+
         return True
 
     def get_maintenance_periods_resource(self, resource, maint='M'):
-        periods = [(1, k) for k, v in self.solution.data['state'].get(resource, {}).items() if v == maint]
+        periods = [(1, k) for k, v in self.solution.data['state_m'].get(resource, {}).items() if maint in v]
         result = tl.TupList(periods).tup_to_start_finish(self.instance.compare_tups)
         return result.filter([1, 2])
 
@@ -391,8 +414,8 @@ class GreedyByMission(test.Experiment):
             maints = {'M'}
         period = min_start
         while period <= last:
-            maint = self.solution.get_period_state(resource, period)
-            if maint in maints:
+            states = self.solution.get_period_state(resource, period, 'state_m')
+            if states is not None and np.any(m in states for m in maints):
                 return period
             period = self.instance.get_next_period(period)
         return None

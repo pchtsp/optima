@@ -164,12 +164,15 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_tasks = self.get_candidates_tasks(errors)
         candidates_maints = self.get_candidates_maints(errors)
         candidates_cluster = self.get_candidates_cluster(errors)
-        candidates_dist_maints = self.get_candidates_bad_maints(errors)
+        candidates_dist_maints = self.get_candidates_dist_maints(errors)
+        candidates_size_maints = self.get_candidates_size_maints(errors)
         candidates_min_assign = self.get_candidates_min_max_assign(errors)
         candidates_rut = self.get_candidates_rut(errors)
+
         candidates = candidates_tasks + candidates_maints + \
                      candidates_cluster + candidates_dist_maints + \
-                     candidates_min_assign + candidates_rut
+                     candidates_min_assign + candidates_rut + \
+                     candidates_size_maints
         if not len(candidates):
             return []
         # we add a random resource.
@@ -202,9 +205,13 @@ class MaintenanceFirst(heur.GreedyByMission):
     def get_candidates_min_max_assign(self, errors):
         return errors.get('min_assign', sd.SuperDict()).to_tuplist().filter([0, 1])
 
-    def get_candidates_bad_maints(self, errors):
+    def get_candidates_dist_maints(self, errors):
         bad_maints = errors.get('dist_maints', sd.SuperDict())
         return [(r, t) for m, r, t1, t2 in bad_maints for t in [t1, t2]]
+
+    def get_candidates_size_maints(self, errors):
+        bad_maints = errors.get('maint_size', sd.SuperDict())
+        return bad_maints.keys_l()
 
     def get_candidates_maints(self, errors):
         maints_probs = errors.get('elapsed', sd.SuperDict())
@@ -265,16 +272,32 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return:
         """
         sol = self.solution
-        delete_maint = []
-        if resource not in sol.data['state']:
-            return delete_maint
+        if resource not in sol.data['state_m']:
+            return []
 
+        # We don't count the maintenances that are in the first period... for now
+        # but we register them as "found" so as not to
+        delete_maint = []
+        found = set()
+        first_period_states = sol.get_period_state(resource, periods[0], 'state_m')
+        if first_period_states is not None:
+            for m in first_period_states:
+                found.add(m)
+        # we start in the second period to guarantee
+        # that it's a maintenance start
+        # we check if maint starts at period
         for period in periods[1:]:
             if (resource, period) in fixed_periods:
                 continue
-            state = sol.get_period_state(resource, period)
-            if state is not None:
-                delete_maint.append((period, state))
+            states = sol.get_period_state(resource, period, 'state_m')
+            if states is not None:
+                # for each possible maint...
+                for m in states:
+                    # if we already registered it, don't bother
+                    if m in found:
+                        continue
+                    delete_maint.append((period, m))
+
         # If the first period is a maintenance: we are not sure it starts there
         # if delete_maint == periods[0]:
         #     prev_period = self.instance.get_prev_period(delete_maint)
@@ -282,6 +305,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         #     while data['state'][resource].get(prev_period) == 'M':
         #         delete_maint = prev_period
         #         prev_period = self.instance.get_prev_period(delete_maint)
+
         return delete_maint
 
     def free_resource(self, candidate):
@@ -294,7 +318,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         # a = self.get_status(candidate[0])
         # a[:50]
         data = self.solution.data
+        # TODO: delete state
         places = [
+            data['state_m'],
             data['state'],
             data['task'],
             data['aux']['start']
@@ -480,7 +506,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                 if added >= target:
                     break
 
-    def move_maintenance(self, resource, start):
+    def move_maintenance(self, resource, start, maint):
         """
         we move a maintenance that starts at start to the left or right
         :param resource:
@@ -524,13 +550,14 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         # we arrived here: we're assigning a maintenance:
         for period in periods_to_add:
-            self.set_state(resource, period)
+            # self.set_state(resource, period, cat='state', value=maint)
+            self.set_state(resource, period, maint, cat='state_m', value=1)
         self.update_time_maint(resource, periods_to_add, time='ret')
         self.update_time_maint(resource, periods_to_add, time='rut')
 
         # and deleting a maintenance, also:
         for period in periods_to_take:
-            self.del_maint(resource, period)
+            self.del_maint(resource, period, maint)
         return start
 
     def assign_missions(self):
