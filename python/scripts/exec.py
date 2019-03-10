@@ -41,6 +41,9 @@ def config_and_solve(options):
             tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
         model_data['tasks'] = tasks
 
+    if options.get('R_HOME'):
+        os.environ['R_HOME'] = options.get('R_HOME')
+
     execute_solve(model_data, options)
 
 
@@ -68,7 +71,7 @@ def execute_solve(model_data, options, solution_data=None):
     output_path = options['path']
     # print(output_path)
     di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=True)
-    di.export_data(output_path, options, name="options_out", file_type='json')
+    di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
     solver = options.get('solver', 'CPLEX')

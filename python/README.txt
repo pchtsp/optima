@@ -95,7 +95,7 @@ The solving process creates several output files. Below a description of the fil
 **template_out.xlsx**:  output data following excel template.
 **output.log**:  solving process.
 **errors.json**:  best solution infeasibilities.
-**options_out.json**: all options used.
+**options.json**: all options used.
 **data_in.json**: input data in json format.
 **data_out.json**: complete solution in json format.
 **solution.html**: web gantt produced with the best found solution.

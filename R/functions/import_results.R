@@ -3,7 +3,7 @@ packages <-
     c('tidyverse', 'readxl', 'magrittr', 'stringr', 'zoo', 'data.table', 'lubridate', 'timevis', 'Hmisc', 'RColorBrewer', 'htmlwidgets', 'jsonlite')
 to_install <- !(packages %in% packs)
 for (p in packages[to_install]){
-    install.packages(p)
+    install.packages(p, repos='https://cloud.r-project.org')
 }
 
 library(tidyverse)
@@ -149,17 +149,18 @@ get_states <- function(exp_directory, style_config=list()){
     input <- read_json(input_path)
     
     # maintenance colors
-    colors_maint <- 
-        data.table(state=c('VG', 'VI', 'VS', 'VX', 'M'), 
-                   color=c('#4cb33d', '#00c8c3', '#31c9ff', '#878787', '#D3D3D3'))
     maints_tab <- 
-        input %>% 
-        extract2('maintenances') %>% 
-        lapply("[[", 'priority') %>% 
-        bind_rows() %>% 
-        gather(key='state', value = 'hours') %>% 
-        mutate(hours=0) %>% 
-        inner_join(colors_maint)
+        data.table(state=c('VG', 'VI', 'VS', 'M', 'VG+VI', 'VG+VS', 'VG+VI+VS', 'VI+VS'), 
+                   color=c('#4cb33d', '#00c8c3', '#31c9ff', '#878787', rep('#EFCC00', 4))) %>% 
+        mutate(hours=0)
+    # maints_tab <- 
+    #     input %>% 
+    #     extract2('maintenances') %>% 
+    #     lapply("[[", 'priority') %>% 
+    #     bind_rows() %>% 
+    #     gather(key='state', value = 'hours') %>% 
+    #     mutate(hours=0) %>% 
+    #     right_join(colors_maint)
     
     # tasks colors
     task_hours <-
@@ -182,7 +183,7 @@ get_states <- function(exp_directory, style_config=list()){
         # merge with maintenances
         bind_rows(maints_tab)
     
-    # get tasks
+    # get task assignments
     tasks <- 
         solution %>% 
         extract2('task') %>% 
@@ -204,13 +205,36 @@ get_states <- function(exp_directory, style_config=list()){
         font_size <- '15px'
     }
 
-    # get maintenances
+    # get maintenance assignments
+    treat_maint <- function(res){
+        res %>% 
+            bind_rows(.id = "month") %>% 
+            gather(-month, key = 'state', value = 'ind') %>% 
+            filter(is.na(ind) %>% not) %>% 
+            select(month, state)
+    }
+
+    # solution %>% 
+    #     extract2('state_m') %>% 
+    #     lapply(treat_maint) %>% 
+    #     bind_rows(.id = "resource") %>% 
+    #     filter(state %>% is.na %>% not) %>% 
+    #     group_by(resource, month) %>% 
+    #     summarise(state = paste0(state, collapse = '+')) %>% 
+    #     mutate(num = n()) %>% 
+    #     filter(num > 1) %>% 
+    #     arrange(resource, month)
+
     states <- 
         solution %>% 
-        extract2('state') %>% 
+        extract2('state_m') %>% 
+        lapply(treat_maint) %>% 
         bind_rows(.id = "resource") %>% 
-        gather(key = 'month', value = 'state', -resource) %>% 
-        filter(state %>% is.na %>% not) %>% 
+        filter(state %>% is.na %>% not) %>%
+        arrange(resource, month, state) %>% 
+        group_by(resource, month) %>% 
+        summarise(state = paste0(state, collapse = '+')) %>% 
+        ungroup() %>% 
         # merge tasks
         bind_rows(tasks) %>% 
         # start finish format
