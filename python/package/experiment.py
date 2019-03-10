@@ -59,54 +59,32 @@ class Experiment(object):
         return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
 
     # @profile
-    def check_sub_maintenance_capacity(self, ref_compare=0, type_maint=None, **param):
+    def check_sub_maintenance_capacity(self, ref_compare=0, periods_to_check=None, **param):
         # we get the capacity per month
-        capacity_calendar = self.instance.get_capacity_calendar().to_tuplist().to_list()
-        maintenances = self.instance.get_maintenances()
-        maints_info = [(k, v['capacity_usage'], v['type'])
-                       for k, v in maintenances.items()]
-        # we get the consumption per month
-        all_states_tuple = self.get_states().to_list()
-        dtypes = [('resource', 'U4'), ('period', 'U7'), ('status', 'U3')]
-        period_state_q_tab = \
-            pd.DataFrame(np.asarray(all_states_tuple, dtypes))
-        period_state_q_tab = \
-            period_state_q_tab.\
-                groupby(['status', 'period']).\
-                agg({'resource': 'count'}).\
-                rename(columns={'resource': 'number'}).\
-                reset_index()
-        if not len(period_state_q_tab):
+        inst = self.instance
+        cap_cal_dict = inst.get_capacity_calendar(periods_to_check)
+        first, last = inst.get_param('start'), inst.get_param('end')
+        maintenances = sd.SuperDict(inst.get_maintenances())
+        types = maintenances.get_property('type')
+        usage = maintenances.get_property('capacity_usage')
+        all_states_tuple = self.get_states()
+        if periods_to_check is not None:
+            periods_to_check = set(periods_to_check)
+            all_states_tuple = all_states_tuple.filter_list_f(lambda x: x[1] in periods_to_check)
+        else:
+            all_states_tuple = all_states_tuple.filter_list_f(lambda x: last >= x[1] >= first)
+
+        if not len(all_states_tuple):
             return []
 
-        # columns = ['state', 'usage', 'type']
-        # dtypes = [(np.dtype('U3'), np.dtype('int'), np.dtype('U1'))]
-        # dtypes = {'state': 'U3', 'usage': 'int', 'type': 'U1'}
-        # dtypes = [np.str_, np.int, np.str_]
-        dtypes = [('status', 'U3'), ('usage', 'int'), ('type', 'U1')]
-        maints_tab = pd.DataFrame(np.asarray(maints_info, dtype=dtypes))
-        if type_maint is not None:
-            maints_tab = maints_tab[maints_tab.type == type_maint]
+        rem = cap_cal_dict
+        for res, period, maint in all_states_tuple:
+            _type = types[maint]
+            _usage = usage[maint]
+            rem[_type, period] -= _usage
 
-        dtypes = [('type', 'U1'), ('period', 'U7'), ('capacity', 'int')]
-        calendar_tab = pd.DataFrame(np.asarray(capacity_calendar, dtype=dtypes))
-
-        result = pd.merge(period_state_q_tab, maints_tab, on='status')
-        result['consum'] = result.number * result.usage
-
-        result = result.groupby(['period', 'type']).agg({'consum': 'sum'})
-        result = pd.merge(result, calendar_tab, on=['period', 'type'])
-        result['extra_cap'] = 0
         # TODO extra_cap= dp.n(X.consum) - 1)
-        if not len(result):
-            return []
-
-        result['rem_capacity'] = result.capacity + (result.type=='2') * result.extra_cap - result.consum
-        result = result[['type', 'period', 'rem_capacity']]
-        result = result[result.rem_capacity < ref_compare]
-
-        return tl.TupList(result.to_records(index=False)).\
-            to_dict(result_col=2, is_list=False)
+        return rem.clean(func=lambda x: x < ref_compare)
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')

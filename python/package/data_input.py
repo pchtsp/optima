@@ -227,7 +227,7 @@ def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False
             pickle.dump(dictionary, f)
     if file_type == 'json':
         with open(path, 'w') as f:
-            json.dump(dictionary, f, cls=MyEncoder)
+            json.dump(dictionary, f, cls=MyEncoder, indent=4)
     return True
 
 

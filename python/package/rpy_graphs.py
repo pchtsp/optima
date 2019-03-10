@@ -2,7 +2,6 @@ from rpy2 import robjects
 from rpy2.robjects.vectors import IntVector, FloatVector, StrVector
 # from rpy2.robjects.lib import grid
 from rpy2.robjects.packages import importr, data
-import rpy2.robjects.lib.ggplot2 as ggplot2
 from rpy2.robjects import Formula, Environment, pandas2ri
 from rpy2.robjects.packages import STAP
 
@@ -17,6 +16,7 @@ base = importr('base')
 # grid.activate()
 
 def example():
+    import rpy2.robjects.lib.ggplot2 as ggplot2
     stats = importr('stats')
     datasets = importr('datasets')
     mtcars = data(datasets).fetch('mtcars')['mtcars']
@@ -34,6 +34,7 @@ def example():
          ggplot2.theme(**{'axis.text.x': ggplot2.element_text(angle=45)})
 
 def boxplot(table, x, y, xlab=None, ylab=None):
+    import rpy2.robjects.lib.ggplot2 as ggplot2
     l2p = importr('latex2exp')
     pandas2ri.activate()
     if xlab is None:
@@ -61,6 +62,7 @@ def boxplot(table, x, y, xlab=None, ylab=None):
 
 # TODO: generalize
 def bars(table, x, y, xlab=None, ylab=None):
+    import rpy2.robjects.lib.ggplot2 as ggplot2
     pandas2ri.activate()
     if xlab is None:
         xlab = x

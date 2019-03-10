@@ -98,9 +98,11 @@ class Solution(object):
             return None
 
     def is_resource_free(self, resource, period):
-        for cat in ['task', 'state_m']:
-            if self.get_period_state(resource, period, cat) is not None:
-                return False
+        if self.get_period_state(resource, period, 'task') is not None:
+            return False
+        states = self.get_period_state(resource, period, 'state_m')
+        if states is not None and 'M' in states:
+            return False
         return True
 
 if __name__ == "__main__":

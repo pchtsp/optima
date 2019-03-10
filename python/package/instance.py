@@ -484,7 +484,7 @@ class Instance(object):
     #     usage =
     #     return {v: capacity[k] for k, v in types.items()}
 
-    def get_capacity_calendar(self):
+    def get_capacity_calendar(self, periods=None):
         """
         :return: capacity for each maintenance type and period
         indexed by tuples.
@@ -495,9 +495,10 @@ class Instance(object):
         def_capacity = self.get_param('maint_capacity')
         base_capacity = {'1': def_capacity,
                          '2': def_working_days}
-
+        if periods is None:
+            periods = self.get_periods()
         caps = {
-            (t, p): base for p in self.get_periods()
+            (t, p): base for p in periods
             for t, base in base_capacity.items()
         }
         return sd.SuperDict(caps)

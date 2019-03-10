@@ -159,7 +159,6 @@ class GreedyByMission(test.Experiment):
         maint_data = self.instance.data['maintenances'][maint]
         affected_maints = maint_data['affects']
         duration = maint_data['duration_periods']
-        # duration = self.instance.get_param('maint_duration')
         maint_start = None
         if which_maint == 'latest':
             raise NameError('not implemented')
@@ -252,20 +251,25 @@ class GreedyByMission(test.Experiment):
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]
 
-    def get_free_periods_maint(self, maint='M'):
+    # @profile
+    def get_non_free_periods_maint(self, maint='M', periods_to_check=None):
         """
         finds the periods where maintenance capacity is not full
         :return: list of periods (month)
         """
         _usage = self.instance.data['maintenances'][maint]['capacity_usage']
         _type = self.instance.data['maintenances'][maint]['type']
-        type_periods = self.check_sub_maintenance_capacity(ref_compare=_usage, type_maint=_type)
-        periods_full = set()
+        type_periods = self.check_sub_maintenance_capacity(
+            ref_compare=_usage, periods_to_check=periods_to_check
+        )
+        periods = []
         if len(type_periods):
             types, periods = zip(*type_periods)
-            periods_full = set(periods)
-        periods_all = set(self.instance.get_periods())
-        return tl.TupList(periods_all - periods_full)
+        return periods
+        # periods_all = set(self.instance.get_periods())
+        # return tl.TupList(periods_all - periods_full)
+
+
         # if len(type_periods):
         #     periods_full = np.array(type_periods.keys_l())[:, 1]
         #     periods_full = set(periods_full)
@@ -276,12 +280,15 @@ class GreedyByMission(test.Experiment):
         #                          num < self.instance.get_param('maint_capacity')]
 
     def get_maintenance_candidates(self, resource, min_period, max_period, maint):
-        periods_to_search = \
-            np.intersect1d(self.get_free_periods_maint(maint),
-                           self.get_free_periods_resource(resource))
-        free = [(1, period) for period in periods_to_search
-                if min_period <= period <= max_period]
-        return tl.TupList(free).tup_to_start_finish(ct=self.instance.compare_tups)
+        inst = self.instance
+        maint_needed = set(inst.get_periods_range(min_period, max_period))
+        maint_not_possible = set(self.get_non_free_periods_maint(maint, maint_needed))
+        resource_blocked = set(self.get_blocked_periods_resource(resource))
+
+        periods = maint_needed - maint_not_possible - resource_blocked
+
+        free = [(1, period) for period in periods]
+        return tl.TupList(free).tup_to_start_finish(ct=inst.compare_tups)
 
     def get_random_maint(self, resource, min_period, max_period, maint='M'):
         """
@@ -325,6 +332,14 @@ class GreedyByMission(test.Experiment):
         """
         # resource = "A100
         dtype_date = 'U7'
+        blocked = self.get_blocked_periods_resource(resource)
+        return np.setdiff1d(
+            np.fromiter(self.instance.get_periods(), dtype=dtype_date),
+            blocked
+        )
+
+    def get_blocked_periods_resource(self, resource):
+        dtype_date = 'U7'
         states = self.solution.data['state_m'].get(resource, {}).items()
         periods_maint = np.array([], dtype = dtype_date)
         if len(states):
@@ -334,19 +349,11 @@ class GreedyByMission(test.Experiment):
             filt = ['M' in d.keys() for d in maints]
             # filt = np.any(_maints=='M', axis=1)
             periods_maint = periods_maint[filt]
+        periods_task = np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype_date)
         # a = np.fromiter(, dtype=np.dtype('U7,U4'))
         # filter = np.asarray(['M'])
         # a = a[np.in1d(a[:, 1], filter)][:,]
-
-        union = \
-            np.union1d(
-            np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype_date),
-            periods_maint
-        )
-        return np.setdiff1d(
-            np.fromiter(self.instance.get_periods(), dtype=dtype_date),
-            union
-        )
+        return list(periods_maint) + list(periods_task)
 
     def get_free_starts(self, resource, periods):
         # dtype = 'U7'
@@ -415,7 +422,7 @@ class GreedyByMission(test.Experiment):
         period = min_start
         while period <= last:
             states = self.solution.get_period_state(resource, period, 'state_m')
-            if states is not None and np.any(m in states for m in maints):
+            if states is not None and len(np.intersect1d(states.keys(), maints)):
                 return period
             period = self.instance.get_next_period(period)
         return None

@@ -30,6 +30,8 @@ def get_maintenance(tables):
         rename(columns=equiv). \
         replace({np.nan: None})
 
+    maint_tab.type = maint_tab.type.astype(str)
+
     data = \
         maint_tab. \
             set_index('maint'). \
