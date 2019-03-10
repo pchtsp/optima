@@ -105,6 +105,10 @@ def execute_solve(model_data, options, solution_data=None):
 
     if options.get('template', False):
         td.export_output_template(options['output_template_path'], experiment.solution.data)
+        input_path = options['input_template_path']
+        # if it doesnt exist: we also export the input
+        if not os.path.exists(input_path):
+            td.export_input_template(input_path, experiment.instance.data)
 
     if options.get('graph', False):
         try:

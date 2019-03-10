@@ -92,13 +92,13 @@ Then, the command to take a given `template_in.xlsx` file inside the directory `
 
 The solving process creates several output files. Below a description of the files:
 
-**template_out.xlsx**:  output data following excel template.
-**output.log**:  solving process.
-**errors.json**:  best solution infeasibilities.
-**options.json**: all options used.
-**data_in.json**: input data in json format.
-**data_out.json**: complete solution in json format.
-**solution.html**: web gantt produced with the best found solution.
+* **template_out.xlsx**:  output data following excel template.
+* **output.log**:  solving process.
+* **errors.json**:  best solution infeasibilities.
+* **options.json**: all options used in the configuration.
+* **data_in.json**: input data in json format.
+* **data_out.json**: complete solution in json format.
+* **solution.html**: web gantt produced with the best found solution.
 
 ## Building executable
 
