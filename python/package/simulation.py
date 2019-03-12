@@ -268,8 +268,10 @@ def create_dataset(options):
 
     initial = {r: {} for r in resources}
     for r in resources:
-        _init_elapsed = {k: initial_elapsed[r] - 1 % v + 1 for k, v in _max_elapsed_submaint.items()}
-        _init_used = {k: initial_used[r] - 1 % v + 1 for k, v in _max_used_submaint.items()}
+        _init_elapsed = {k: ((initial_elapsed[r] - 1) % v) + 1 if  v is not None else None
+                         for k, v in max_elapsed_submaint.items()}
+        _init_used = {k: ((initial_used[r] - 1) % v) + 1 if  v is not None else None
+                      for k, v in max_used_submaint.items()}
         for m in _init_elapsed:
             initial[r][m] = dict(elapsed=_init_elapsed[m], used=_init_used[m])
 

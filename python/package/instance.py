@@ -85,7 +85,8 @@ class Instance(object):
         maints = self.data['maintenances']
         depends_on = sd.SuperDict(maints).get_property('depends_on')
         for m in depends_on:
-            maints[m]['depends_on'].append(m)
+            if m not in maints[m]['depends_on']:
+                maints[m]['depends_on'].append(m)
         affects = depends_on.list_reverse()
         for m, v in affects.items():
             maints[m]['affects'] = v

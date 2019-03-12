@@ -265,6 +265,7 @@ class GreedyByMission(test.Experiment):
         periods = []
         if len(type_periods):
             types, periods = zip(*type_periods)
+            periods = np.asarray(periods)[np.asarray(types) == _type]
         return periods
         # periods_all = set(self.instance.get_periods())
         # return tl.TupList(periods_all - periods_full)

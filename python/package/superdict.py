@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 class SuperDict(dict):
@@ -149,6 +150,9 @@ class SuperDict(dict):
         if get_list:
             return result.values_l()
         return result
+
+    def to_df(self, **kwargs):
+        return pd.DataFrame.from_dict(self, **kwargs)
 
     @classmethod
     def from_dict(cls, dictionary):

@@ -3,8 +3,6 @@ import package.auxiliar as aux
 import numpy as np
 import package.superdict as sd
 
-# TODO: depends_on for maints.
-# TODO: filtering before exporting all parameters
 
 def get_parameters(tables):
     data = tables['params'].set_index('Parametre')['Valeur'].to_dict()
@@ -122,14 +120,26 @@ def export_input_template(path, data):
     equiv = sd.SuperDict(get_equiv_maint()).reverse()
     equiv['index'] = 'maint'
 
+    for k, v in data['maintenances'].items():
+        v['depends_on'].remove(k)
+        if len(v['depends_on']):
+            v['depends_on'] = v['depends_on'][0]
+        else:
+            v['depends_on'] = ""
+
+    # maintenances
     maint_tab = \
-        pd.DataFrame.from_dict(data['maintenances'], orient='index'). \
+        pd.DataFrame.from_dict(data['maintenances'], orient='index').\
+            drop(['affects'], axis=1).\
             reset_index().\
             rename(columns=equiv)
 
+    # parameters
     param_tab = \
-        pd.DataFrame.from_dict(data['parameters'], orient='index').\
-        reset_index().\
+        sd.SuperDict(data['parameters']).\
+        clean(func=lambda x: type(x) in [int, str]).\
+        to_df(orient='index').\
+        reset_index(). \
         rename(columns={'index': 'Parametre', 0: 'Valeur'})
 
     maints = sd.SuperDict.from_dict(data['maintenances'])
@@ -137,12 +147,13 @@ def export_input_template(path, data):
     m_used = maints.get_property('max_used_time')
     start = data['parameters']['start']
 
+    # resources
     cols_res = ['resource', 'maint', 'status', 'val']
     resources_tups = \
         sd.SuperDict.from_dict(data['resources']).\
         get_property('initial').to_dictup().to_tuplist().to_list()
 
-    def date_add_value(values, date):
+    def date_add_value(date, values):
         return pd.Series(aux.shift_month(date, v) if not np.isnan(v) else np.nan for v in values)
 
     res_t = \
@@ -154,7 +165,7 @@ def export_input_template(path, data):
     res_t = res_t.rename_axis(None, axis=1).reset_index()
     res_t['elapsed'] = res_t['elapsed'] - res_t['maint'].map(m_elapsed)
     res_t['used'] = res_t['used'] - res_t['maint'].map(m_used)
-    res_t['elapsed'] = date_add_value(res_t['elapsed'], start)
+    res_t['elapsed'] = date_add_value(start, res_t['elapsed'])
 
     equiv = {'elapsed': 'mois_derniere', 'used': 'heures_derniere', 'resource': 'avion'}
 
@@ -259,6 +270,16 @@ def import_output_template(path):
 
 
 if __name__ == '__main__':
+
+    import package.experiment as exp
+    import package.params as pm
+
+    path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903101307/'
+    self = exp.Experiment.from_dir(path)
+    data = self.instance.data
+    export_input_template(path + 'template_in.xlsx', data)
+    stop
+
     path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in.xlsx'
     path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in_out.xlsx'
     data = import_input_template(path)
@@ -282,5 +303,3 @@ if __name__ == '__main__':
 
     path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
     data = import_output_template(path_out)
-
-

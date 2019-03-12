@@ -449,7 +449,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         if not min_usage:
             min_usage = 10
         errors = []
-        while True:
+        it = 0
+        while it < 1000:
+            it += 1
             if max_ret:
                 remaining = self.get_remainingtime(time='ret', maint=maint)
             else:
@@ -495,7 +497,9 @@ class MaintenanceFirst(heur.GreedyByMission):
             task_periods_t = set(task_periods[task])
 
             modifs = [-1, 1]
-            while len(modifs):
+            it = 0
+            while len(modifs) and it < 1000:
+                it += 1
                 modif = modifs.pop()
                 if modif > 0:
                     candidate_period = self.instance.shift_period(end, modif)
