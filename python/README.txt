@@ -112,6 +112,15 @@ The following commands build the optima.exe:
 
 It's equivalent to calling the `exec.py` script.
 
-    optima.exe -id C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
+    optima.exe -id "C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\"
+
+## Create a graph from a solution
+
+Executing the script needs an R installation (or R-portable).
+
+    cd optima/R
+    Rscript.exe scripts\graph_scenario.R C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
+
+
 
 .

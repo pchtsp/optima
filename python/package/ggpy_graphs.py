@@ -110,7 +110,7 @@ def maintenances_graph(maint=True):
     ################################################
     path = path_abs + '201802061201'
     experiment = exp.Experiment.from_dir(path)
-    data = experiment.solution.get_in_maintenance()
+    data = experiment.solution.get_in_some_maintenance()
     name = 'maintenances'
     if not maint:
         data = experiment.solution.get_unavailable()

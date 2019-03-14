@@ -1,4 +1,5 @@
 import os, sys
+import subprocess
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import importlib
 import argparse
@@ -24,6 +25,7 @@ def config_and_solve(options):
         model_data = sim.create_dataset(options)
     elif options.get('template', False):
         model_data = td.import_input_template(options['input_template_path'])
+        # TODO: read solution and give to algorithm
     else:
         model_data = di.get_model_data(options['PATHS']['input'])
         historic_data = di.generate_solution_from_source(options['PATHS']['hist'])
@@ -54,7 +56,7 @@ def re_execute_instance(directory, new_options=None):
     options = di.load_data(os.path.join(directory, 'options.json'))
     if new_options is not None:
         options.update(new_options)
-    warm_start = options.get('mip_start', False)
+    warm_start = options.get('warm_start', False)
     if warm_start:
         solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
     # print(options)
@@ -85,12 +87,13 @@ def execute_solve(model_data, options, solution_data=None):
         experiment = mf.MaintenanceFirst(instance, solution=solution)
         solution = experiment.solve(options)
         experiment = md.Model(instance, solution=solution)
-        options.update(dict(mip_start= True, solver='CPLEX'))
+        options.update(dict(warm_start= True, solver='CPLEX'))
     else:
         # model with solver
         experiment = md.Model(instance, solution=solution)
 
-    solution = experiment.solve(options)
+    if options.get('solve', True):
+        solution = experiment.solve(options)
 
     if solution is None:
         return None
@@ -110,10 +113,10 @@ def execute_solve(model_data, options, solution_data=None):
         if not os.path.exists(input_path):
             td.export_input_template(input_path, experiment.instance.data)
 
-    if options.get('graph', False):
+    possible_path = options['root'] + 'R/functions/import_results.R'
+    if options.get('graph', False) == 1:
         try:
             import package.rpy_graphs as rg
-            possible_path = options['root'] + 'R/functions/import_results.R'
             # print('possible path for script: {}'.format(possible_path))
             # os.listdir(options['root'] + 'python/')
             # os.listdir(options['root'])
@@ -125,6 +128,26 @@ def execute_solve(model_data, options, solution_data=None):
                 rg.gantt_experiment(options['path'])
         except:
             print("No support for R graph functions!")
+    elif options.get('graph', False) == 2:
+        # TODO: choose a better temp path
+        _file = copy_file_temp(possible_path)
+        rscript = options['R_HOME'] + '/bin/Rscript.exe'
+        a = subprocess.run([rscript, _file, options['path']], stdout=subprocess.PIPE)
+
+
+def copy_file_temp(path):
+    if not os.path.exists(path):
+        return None
+    path_dir = os.path.join(os.environ['TEMP'], 'OPA')
+    if not os.path.exists(path_dir):
+        os.mkdir(path_dir)
+    _file_name = os.path.basename(path)
+    filename = os.path.join(path_dir, _file_name)
+    with open(path) as f:
+        with open(filename, "w") as f1:
+            for line in f:
+                f1.write(line)
+    return filename
 
 
 def update_case_path(options, path):

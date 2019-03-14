@@ -154,7 +154,7 @@ def multi_get_info(path_comp):
 
     maint_weight = {k: v.instance.get_param('maint_weight') for k, v in experiments.items()}
     unavailable = {k: max(v.solution.get_unavailable().values()) for k, v in experiments.items()}
-    maint = {k: max(v.solution.get_in_maintenance().values()) for k, v in experiments.items()}
+    maint = {k: max(v.solution.get_in_some_maintenance().values()) for k, v in experiments.items()}
     gaps = aux.get_property_from_dic(exps, "gap_out")
 
 
@@ -279,7 +279,7 @@ def add_task_types():
 
     exp_complete = exp.Experiment.from_dir(path_to_compare)
     unavailables_complete = exp_complete.solution.get_unavailable()
-    maintenances_complete = exp_complete.solution.get_in_maintenance()
+    maintenances_complete = exp_complete.solution.get_in_some_maintenance()
 
     table_ref =\
         pd.merge(
@@ -290,7 +290,7 @@ def add_task_types():
 
     exps = {f: exp.Experiment.from_dir(os.path.join(path_types, f)) for f in os.listdir(path_types)}
     unavailables = {k: v.solution.get_unavailable() for k, v in exps.items()}
-    maintenances = {k: v.solution.get_in_maintenance() for k, v in exps.items()}
+    maintenances = {k: v.solution.get_in_some_maintenance() for k, v in exps.items()}
 
     table1 = pd.DataFrame.from_dict(unavailables, orient='index')
     table1 = table1.reset_index().melt(value_vars=table1.columns, id_vars='index').\

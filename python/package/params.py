@@ -7,7 +7,7 @@ if 'GUROBI_HOME' in os.environ:
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
 path_base = r'/home'
-# path_base = r'C:\Users'
+path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
 path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
 path_project = path_root + "OPTIMA/"
@@ -50,9 +50,12 @@ OPTIONS = {
     , 'white_list': []  # only used to read from DGA Excel.
     , 'start': '2018-01'
     , 'num_period': 90
-    , 'simulate': False
+    , 'simulate': True
     , 'template': True
-    , 'graph': True
+    , 'solve': True
+    , 'graph': 2
+    , 'warm_start': False
+    , 'R_HOME': r'C:\Users\pchtsp\Downloads\R-Portable\App\R-Portable'
     # data
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
@@ -62,11 +65,11 @@ OPTIONS = {
     , 'num_change': [0.8, 0.1, 0.1]
     , 'temperature': 2
     , 'prob_free_aircraft': 0.1
-    , 'prob_free_periods': 0.1
-    , 'cooling': 0.9995
-    , 'debug': True
+    , 'prob_free_periods': 0.5
+    , 'cooling': 0.999
+    , 'debug': False
     , 'max_iters': 99999999
-    , 'prob_delete_maint': 1
+    , 'prob_delete_maint': 0.5
     , 'log_output': ['file', 'console']
     # MIP params:
     , 'noise_assignment': True
@@ -79,7 +82,6 @@ OPTIONS = {
     , 'writeMPS': False
     , 'price_rut_end': 0
     , 'solver_add_opts': params_cplex
-    , 'mip_start': False
     , 'fix_start': False
     # TODO: this should go and be changed by capacity in each maintenance
     , 'default_type2_capacity': 66
@@ -91,8 +93,8 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'min_usage_period': 0 # minimum consumption per period
-        , 'perc_capacity': 0.15
+        , 'min_usage_period': 15 # minimum consumption per period
+        , 'perc_capacity': 0.3
         , 'min_avail_percent': 0  # min percentage of available aircraft per type
         , 'min_avail_value': 0  # min num of available aircraft per type
         , 'min_hours_perc': 0.05  # min percentage of maximum possible hours of fleet type
@@ -125,7 +127,7 @@ OPTIONS = {
                 ,'capacity_usage': 3
                 , 'max_used_time': None
                 , 'max_elapsed_time': 8
-                , 'elapsed_time_size': 2
+                , 'elapsed_time_size': 3
                 , 'used_time_size': None
                 , 'type': '2'
                 , 'capacity': 3
@@ -147,7 +149,7 @@ OPTIONS = {
                 , 'priority': 5
             }
             ,'VS': {
-                'duration_periods': 0
+                'duration_periods': 1
                 , 'capacity_usage': 4
                 , 'max_used_time': 600
                 , 'max_elapsed_time': None
@@ -163,8 +165,6 @@ OPTIONS = {
     }
 }
 
-# TODO: permit moves
-# TODO: use state_m instead of state
 # TODO: favor grouping
 # TODO: grouping improves capacity
 
