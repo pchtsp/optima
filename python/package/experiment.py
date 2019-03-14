@@ -452,29 +452,38 @@ class Experiment(object):
         ).\
             to_dictup().to_tuplist()
 
+        maint_equiv = \
+            maints.get_property('affects').\
+            to_df(orient='index').stack().\
+            reset_index().\
+                rename(columns={'level_0': 'maint', 0: 'maint2'}).\
+                filter(['maint', 'maint2'])
+
         def add_periods(series, series2):
             return pd.Series(self.instance.shift_period(p, p2) for p, p2 in zip(series, series2))
 
-        rets_tab = pd.DataFrame(rets.to_list(), columns=['maint', 'resource', 'before', 'rem'])
+        rets_tab = pd.DataFrame(rets.to_list(), columns=['maint2', 'resource', 'before', 'rem'])
 
         m_s_tab = pd.DataFrame.from_records(self.get_state_periods().to_list(),
                                             columns=['resource', 'start', 'maint', 'end'])
-        maint_start_tab_agg = m_s_tab.groupby(['maint', 'resource'])
-        m_s_tab['next'] = maint_start_tab_agg.start.shift(-1)
-        m_s_tab = m_s_tab[~pd.isna(m_s_tab.next)].copy().reset_index()
+        m_s_tab = m_s_tab.merge(maint_equiv, on='maint')
+        m_s_tab.sort_values(['resource', 'maint2', 'start'], inplace=True)
+        maint_start_tab_agg = m_s_tab.groupby(['maint2', 'resource'])
+        m_s_tab['prev'] = maint_start_tab_agg.start.shift(1)
+        m_s_tab = m_s_tab[~pd.isna(m_s_tab.prev)].copy().reset_index()
         m_s_tab['dif'] = - 1
         m_s_tab['before'] = add_periods(m_s_tab.start, m_s_tab.dif)
-        m_s_tab = pd.merge(m_s_tab, rets_tab , on=['resource', 'maint', 'before'])
+        m_s_tab = pd.merge(m_s_tab, rets_tab , on=['resource', 'maint2', 'before'])
         m_s_tab = m_s_tab[~pd.isna(m_s_tab.rem)]
-        m_s_tab['max_size'] = m_s_tab.maint.map(elapsed_time_size)
+        m_s_tab['max_size'] = m_s_tab.maint2.map(elapsed_time_size)
         rets_bad_min = m_s_tab[m_s_tab.rem > m_s_tab.max_size].copy().reset_index()  # negative
         rets_bad_min['error'] = rets_bad_min.max_size - rets_bad_min.rem
         rets_bad_max = m_s_tab[m_s_tab.rem <= 0].copy().reset_index()  # positive
         rets_bad_max['error'] = - rets_bad_max.rem
         result = pd.concat([rets_bad_min, rets_bad_max])
-        m_s_tab = result[['maint', 'resource', 'start', 'next', 'error']]
+        result = result[['maint2', 'resource', 'start', 'prev', 'error']]
 
-        return tl.TupList(m_s_tab.to_records(index=False)).\
+        return tl.TupList(result.to_records(index=False)).\
             to_dict(result_col=4, is_list=False)
 
         # self.get_maintenance_periods()
