@@ -352,3 +352,9 @@ if (FALSE){
     saveWidget(result, file = "/home/pchtsp/Downloads/test.html", selfcontained = FALSE)
 }
 
+args = commandArgs(trailingOnly = TRUE)
+
+if (length(args)==1){
+    exp_directory = args[1]
+    print_solution_and_print(exp_directory, width='100%')
+}
