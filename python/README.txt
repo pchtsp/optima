@@ -105,7 +105,7 @@ The solving process creates several output files. Below a description of the fil
 The following commands build the optima.exe:
 
     cd optima/python
-    source venv/bin/activate
+    venv\scripts\activate
     pyinstaller -y optima.spec
 
 ## Using the executable:

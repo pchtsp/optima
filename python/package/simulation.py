@@ -15,14 +15,12 @@ def empty_data():
         'parameters': {
             'maint_weight': 0
             , 'unavail_weight': 0
-            , 'max_used_time': 0
-            , 'max_elapsed_time': 0
-            , 'elapsed_time_size': 0
             , 'maint_duration': 0
             , 'maint_capacity': 0
             , 'start': '2018-01'
             , 'end': '2018-01'
             , 'min_usage_period': 0
+            , 'default_type2_capacity': 0
         },
         'tasks': {
             task: {
@@ -49,19 +47,20 @@ def empty_data():
             } for resource in range(1)
         },
         'maintenances': {
-            # TODO: update when decided
             maint: {
-                'duration': 0
-                , 'max_used_time': 0
-                , 'usage_time_size': 0
-                , 'max_elapsed_time': 0
-                , 'elapsed_time_size': 0
-                , 'capacity': 0
-                , 'type': 1
+                'duration_periods': 4
+                , 'capacity_usage': 1
+                , 'max_used_time': 1000
+                , 'max_elapsed_time': 60
+                , 'elapsed_time_size': 3
+                , 'used_time_size': 1000
+                , 'type': '1'
+                , 'depends_on': []
+                , 'affects': []
+                , 'priority': 0
             } for maint in range(1)
         }
     }
-
 
 def create_dataset(options):
     sim_data = options['simulation']
@@ -82,10 +81,9 @@ def create_dataset(options):
     start_period = d_param['start']
     num_resources = d_param['num_resources']
     maint_duration = d_param['maint_duration']
-    max_used_time = d_param['max_used_time']
-    max_elapsed_time = d_param['max_elapsed_time']
+    max_used_time = d_param['maintenances']['M']['max_used_time']
+    max_elapsed_time = d_param['maintenances']['M']['max_elapsed_time']
     resources = [str(r) for r in range(num_resources)]
-    # num_types = 3
 
     # The following are fixed options, not arguments for the scenario:
     t_min_assign = d_param['t_min_assign']
@@ -95,7 +93,6 @@ def create_dataset(options):
     perc_in_maint = d_param['perc_in_maint']
     initial_unbalance = d_param['initial_unbalance']
 
-    d_param['min_elapsed_time'] = max_elapsed_time - d_param['elapsed_time_size']
     d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
     last_period = d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
 

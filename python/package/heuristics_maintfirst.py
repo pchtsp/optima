@@ -144,6 +144,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                 # we were unlucky: we go back to the previous solution
                 status = 2
                 self.set_solution(self.previous_solution)
+                errs = self.check_solution(recalculate=False)
                 log.debug('back to previous solution: {}'.format(self.prev_errors))
                 num_errors = self.prev_errors
         else:
@@ -437,7 +438,6 @@ class MaintenanceFirst(heur.GreedyByMission):
             for t in times:
                 self.update_rt_until_next_maint(resource, first_period, m, t)
         return 1
-
 
     def assign_missing_maints_to_aircraft(self, maint='M'):
         inst = self.instance
