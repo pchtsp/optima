@@ -38,6 +38,8 @@ nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.pesc
 # clust1_20190115
 nohup python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/tmp/f.peschiera/optima_results/clust1_20190115/\"}" -d "{\"solver\": \"CPLEX\", \"num_period\": 90, \"timeLimit\": 0, \"writeMPS\": \"True\"}" -s "{\"seed\": 42}" -c "{\"min_usage_period\": [5, 15, 20]}" -q 10 > /tmp/f.peschiera/log.txt &
 
+nohup python3 python/scripts/exec.py -p "{\"experiments\": \"/tmp/f.peschiera/optima_results/\", \"results\": \"/tmp/f.peschiera/optima_results/clust1_20190115/\"}"
+
 # get files back:
 
 rsync -rav -e ssh --include '*/' --exclude='formulation.lp' f.peschiera@serv-cluster1:/home/disc/f.peschiera/Documents/projects/optima/results/* ./
@@ -54,3 +56,7 @@ mkdir C:\Users\pchtsp\Downloads\src
 git archive --format=tar HEAD python | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
 git archive --format=tar HEAD R/functions/import_results.R | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
 git archive --format=tar HEAD data/template | (cd C:/Users/pchtsp/Downloads/src/ && tar xf -)
+
+# deploy R portable code
+
+mkdir C:\Users\pchtsp\Downloads\R

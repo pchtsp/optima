@@ -60,10 +60,10 @@ def test4():
 
     pass
 
-def graph_check():
-    path = PATHS['experiments'] + "201902061522/"
-    path = PATHS['experiments'] + "201902111621/"
-    path = PATHS['data'] + 'examples/201811231417/'
+def graph_check(path):
+    # path = PATHS['experiments'] + "201902061522/"
+    # path = PATHS['experiments'] + "201902111621/"
+    # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
@@ -74,8 +74,10 @@ def graph_check():
     # status.columns = ['period', 'rut', 'ret', 'state', 'task']
     # status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    # rg.gantt_experiment(path)
+    # experiment.get_status('1')
 
+    # rg.gantt_experiment(path, './../../R/functions/import_results.R')
+    # experiment.check_maints_size()
     experiment.check_solution()
 
     # input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
@@ -167,5 +169,6 @@ def check_over_assignments():
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    graph_check()
+    path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
+    graph_check(path)
     pass
