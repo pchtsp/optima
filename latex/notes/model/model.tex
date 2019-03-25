@@ -23,6 +23,7 @@
 % \usepackage{aeguill}
 \usepackage[english]{babel}
 \usepackage{caption}
+\usepackage{pgfgantt}
 
 
 \setlength{\parskip}{2ex} \pagestyle{myheadings}
@@ -53,181 +54,190 @@
 
 \begin{document}
 
-\section{Optimization model}
+\section{Mathematical formulation}
   \label{sec:model}
 
-  \subsection{Basic sets}
+The following model provides a tight MIP formulation that solves the Military Flight and Maintenance Problem described in section \ref{sec:problem}. Maintenance operations will be referred as "checks".
 
-    \begin{tabular}{p{5mm}p{170mm}}
-        $\mathcal{I}$     &  resources. \\
-        $\mathcal{T}$     &  time periods inside planning horizon. \\
-        $\mathcal{J}$     &  tasks. \\
-        $\mathcal{K}$     &  cluster of resources that share the same capacities to do tasks. \\
+\subsection{Input data}
+    \subsubsection{Basic sets}
+
+        \begin{tabular}{p{5mm}p{120mm}}
+            $\mathcal{I}$     &  aircraft. \\
+            $\mathcal{T}$     &  time periods included in the planning horizon. \\
+            $\mathcal{J}$     &  missions. \\
+            $\mathcal{K}$     &  cluster of aircraft that share the same functionality. \\
+        \end{tabular}
+
+    \subsubsection{Parameters}
+
+        \begin{tabular}{p{10mm}p{115mm}}
+            $H_j$             & amount of flight time required by mission $j$. \\
+            $R_j$             & number of aircraft required by mission $j$. \\
+            $MT_j$            & minimum number of consecutive periods an aircraft has to be assigned to mission $j$. \\
+            $U^{min}$       & default aircraft flight time if it is not assigned to any mission nor in maintenance.\\
+            $M$               & check duration in number of periods. \\
+            $C^{max}$         & maximum number of simultaneous checks. \\
+            $E^M$         & maximum number of periods between two consecutive checks. \\
+            $E^m$         & minimum number of periods between two consecutive checks. \\
+            $H^M$               & remaining flight time after a check. \\
+            $N_t$             & number of aircraft known to be in maintenance in period $t$.\\
+            $N^K_{kt}$         & number of aircraft in cluster $k$ known to be in maintenance in period $t$.\\
+            $A^K_{kt}$         & maximum number of aircraft in cluster $k$ that can be simultaneously in maintenance in period $t$.\\
+            $H^K_{kt}$         & minimum number of total remaining flight time for cluster $k$ at period $t$.\\
+            $Rft^{Init}_i$  & remaining flight time for aircraft $i$ at the start of the planning horizon. \\
+            $Rct^{Init}_i$  & remaining calendar time for aircraft $i$ at the start of the planning horizon. \\
+        \end{tabular}
+
+    \subsubsection{Parametric sets}
+
+        \begin{tabular}{p{5mm}p{120mm}}
+            $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which mission $j$ is active. \\
+            $\mathcal{J}_t $    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
+            $\mathcal{I}_j$     &  aircraft $i \in \mathcal{I}$ that can be assigned to mission $j$. \\
+            $\mathcal{I}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
+            $\mathcal{O}_i$     &  missions $j \in \mathcal{J}$ for which aircraft $i$ can be used. \\
+            $\mathcal{A}^{init}_j$  & aircraft $i \in \mathcal{I}$ that have mission $j$ pre-assigned in the previous period to the start of the planning horizon. \\
+        \end{tabular}
+
+    \subsubsection{Time-related parametric sets}
+
+        Several intermediate sets have been defined based on the input data in order to simplify constraint formulation.
+
+        \begin{tabular}{p{8mm}p{117mm}}
+            $\mathcal{T}^s_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $\mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^m-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $\mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^M - M$ such that $t' \in \{ t + M + E^m-1 , ...,  t + M + E^M-1 \}$ (figure \ref{fig:gantt_windows}a). \\
+            $\mathcal{T}^{m_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^M + E^m \}}\}$ (figure \ref{fig:gantt_windows}b). \\
+            $\mathcal{T}^{M_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^M + E^m \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}b). \\
+            $\mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}c). \\
+            $\mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $(t_1, t_2), \in \mathcal{T}_j$ such that $t_2 \ge t_1 + MT_j-1$. \\
+        \end{tabular}
+
+    \begin{figure}
+        \centering
+        % \includegraphics[width=\linewidth]{img/gantt_timewindows_all.png}
+        \begin{tikzpicture}
+            \input{gantts/time_windows.tex}
+        \end{tikzpicture}
+        \begin{tikzpicture}
+            \input{gantts/time_windows_init.tex}
+        \end{tikzpicture}
+        \begin{tikzpicture}
+            \input{gantts/time_windows_mission.tex}
+        \end{tikzpicture}
+        \caption{Example showing the maintenance-related time-parametric sets for aircraft $i$. (a) $\mathcal{T}_{t'}^{s}$ refers to the previous $M$ periods to period $t'$. $\mathcal{T}_{t}^{m}$ refers to the periods where a check cannot be planned after starting a check in period $t$. Finally, $\mathcal{T}_{t}^{M}$ refers to the periods where a check needs to be scheduled, after starting a check in period $t$. (b) $Rct_{i}^{Init}$ is equal to 40, meaning a check has to be planned between months number 10 and 39. (c) $\mathcal{T}_{jt}^{MT}$ refers to the periods where the assignment of mission $j$ needs to be kept. In this case, the size is 6.} 
+        \label{fig:gantt_windows}
+    \end{figure}
+
+\subsection{Variables}
+
+    The following decision variables control the assignment of missions and checks to aircraft.
+
+    \begin{tabular}{p{8mm}p{117mm}}
+        $a_{jtt'i}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ in period $t$ and finishes it at period $t'$. \\  
+        $m_{it}$    &  =1 if aircraft $i \in I$ starts a check in period $t \in \mathcal{T}$, 0 otherwise. \\
     \end{tabular}
 
-  \subsection{Parameters}
+    The following decision variables control the used and remaining flight time in aircraft.
 
-    \begin{tabular}{p{8mm}p{167mm}}
-        $H_j$             & amount of resource time required by task $j$. \\
-        $R_j$             & number of resources required by task $j$. \\
-        $MT_j$            & minimum number of consecutive periods a resource can be assigned to task $j$. \\
-        $u^{min}$       & Absolut minimum usage time of resource when resources is not in maintenance.\\
-        % $aut_i$           & maximal absolute usage time for resource $i$. \\
-        % $aet_i$           & maximal absolute elapsed time for resource $i$. \\
-        $M$               & maintenance duration in number of periods. \\
-        $C^{max}$         & maximum number of simultaneous maintenance operations. \\
-        % $E$               & remaining elapsed time after a maintenance. \\
-        $E^{M}$         & maximum number of periods between two consecutive maintenances. \\
-        $E^{m}$         & minimum number of periods between two consecutive maintenances. \\
-        $H^{M}$               & remaining usage time after a maintenance. \\
-        % $S$               & Storage duration in number of periods. \\
-        % $W_1$             & weight of the first objective in the objective function. \\
-        % $W_2$             & weight of the second objective in the objective function. \\
-        $N_t$             & number of resources in already-planned maintenances in period $t$.\\
-        $N^{clust}_{kt}$         & number of resources in cluster $k$ in already-planned maintenances in period $t$.\\
-        % $D_t$             & number of resources to be assigned in total in period $t$. \\
-        $A^{clust}_{kt}$         & maximum number of resources in cluster $k$ that can be simultaneously under maintenance at period $t$.\\
-        $H^{clust}_{kt}$         & minimum number of total remaining usage time for cluster $k$ at period $t$.\\
-        $Rut^{Init}_{i}$  & remaining usage time for resource $i$ at the start of the planning horizon. \\
-        $Ret^{Init}_{i}$  & remaining elapsed time for resource $i$ at the start of the planning horizon. \\
-        % $Ret^{Init}_{sum}$& sum of remaining elapsed times at the start of the planning horizon. \\
-        % $Rut^{Init}_{sum}$& sum of remaining elapsed time at the start of the planning horizon. \\
+    \begin{tabular}{p{8mm}p{117mm}}
+        $u_{it}$    &  flown time (continuous) by aircraft $i \in I$ during period $t \in \mathcal{T}$. \\        
+        $rft_{it}$  &  remaining flight time (continuous) for aircraft $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
     \end{tabular}
 
-    \subsection{Parametric sets}
+    \paragraph{Fixed values}
 
-        \begin{tabular}{p{5mm}p{170mm}}
-        $\mathcal{T}_j$     &  time periods $t \in \mathcal{T}$ in which task $j$ is active. \\
-        $\mathcal{J}_t $    &  tasks $j \in \mathcal{J}$ to be realized in period $t$. \\
-        $\mathcal{I}_j$     &  resources $i \in \mathcal{I}$ that can be assigned to task $j$. \\
-        $\mathcal{I}_k$     &  resources $i \in \mathcal{I}$ that are included in cluster $k$. One resource can belong to more than one cluster. \\
-        $\mathcal{O}_i$     &  tasks $j \in \mathcal{J}$ for which resource $i$ can be used. \\
-        $\mathcal{T}^{s}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$. \\
-        % $\mathcal{T}^{st}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - S+1\}},  ..., {t}$\}. \\
-        $\mathcal{T}^{m}_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + E^{m}-1\}}\}$. \\
-        $\mathcal{T}^{M}_t$ &  time periods $t' \leq |\mathcal{T}| - E^{M}$ such that $t' \in \{ t + E^{m}-1 , ...,  t + E^{M}-1 \}$. \\
-        $\mathcal{T}^{m_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Ret^{Init}_{i} - E^M + E^m \}}\}$. \\
-        $\mathcal{T}^{M_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Ret^{Init}_{i} - E^M + E^m \}} , ...,  Ret^{Init}_{i} \}$. \\
-        $\mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$. \\
-        $\mathcal{A}^{init}_{j}$  & resources $i \in \mathcal{I}$ that have task $j$ pre-assigned in the previous period to the start of the horizon. \\
-    \end{tabular}
+    Note that $a_{jti}$ and $m_{it}$ are initially set up to 0 for all aircraft already in maintenance at the beginning of the planning horizon for the remaining time periods of the check. $N_{t}$ is calculated based on this information.
+Similarly, for aircraft that have not yet complied with their minimum mission assignment duration at the beginning of the planning horizon, $a_{jti}$ is fixed to comply with the constraints.
 
-  \subsection{Variables}
+\subsection{Objective function and constraints}
 
-     The following decision variables define a solution.
-    
-    \begin{tabular}{p{8mm}p{167mm}}
-        $a_{jti}$   &  =1 if task $j \in J$ in period $t \in \mathcal{T}_j$ is realized with resource $i \in \mathcal{I}_j$, 0 otherwise. \\  
-        $a^s_{jti}$ &  =1 if resource $i$ starts a new assignment to task $j$ in period $t$. If $a_{jti} = 1$ and $a_{j(t-1)i} = 0$. \\  
-        $m_{it}$    &  =1 if resource $i \in I$ starts a maintenance operation in period $t \in \mathcal{T}$, 0 otherwise. \\
-        $u_{it}$    &  usage time consumed for resource $i \in I$ during period $t \in \mathcal{T}$. \\        
-        % $s_{it}$    &  =1 if resource $i \in I$ starts a storage operation in period $t \in \mathcal{T}$, 0 otherwise. \\
-        $rut_{it}$  &  remaining usage time (continuous) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
-        % $ret_{it}$  &  remaining elapsed time (integer) for resource $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
-        % $u_{max}$   &  maximal number (integer) of unavailable resources in any period. \\
-        % $m_{max}$   &  maximal number (integer) of resources in maintenance in any period. \\
-    \end{tabular}
-    
-    Note that $a_{jti}$ and $m_{it}$ are initially set up to 0 for all resources already in maintenance at the beginning of the planning horizon for the remaining time periods of maintenance. The remaining usage time for each resource at the beginning of the planning horizon is used to initialize $rut_{i0}$. 
-
-  \subsection{Constraints}
-
-  % TODO: say something about fixed tasks at the beginning.
-  % TODO: say something about fixed maintenances at the beginning.
-
-
-    The objective is to minimize the total number of maintenances and, at the same time, maximize the end status of the resources.
+    Two objectives have been studied. Objective (\ref{eq:objective1}) minimizes the number of checks. (\ref{eq:objective2}) combines the first one with the goal of maximizing the final total flight hours potential of the fleet.
 
     \begin{align}
-        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H^{M} - \sum_{i \in \mathcal{I}} rut_{i|\mathcal{T}|}
+        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it}  \label{eq:objective1}\\
+        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H^M - \sum_{i \in \mathcal{I}} rft_{i|\mathcal{T}|} \label{eq:objective2}
     \end{align}
     
-    where the first expression counts all the usage hours given to resources via maintenances and the second expression measures the amount of remaining usage hours in the resources at the end of the planning horizon.
+    The first term counts all the flight hours given to aircraft following checks and the second term quantifies the amount of remaining flight hours for all aircraft at the end of the planning horizon. These two objectives have the same units, can be easily compared and ensure the aircraft are used in the most efficient way. %We will not penalize the maintenances that provide a better final state for aircraft.
 
-    We want to minimize the total number of maintenances and we want to maximize the final state measured. These two objectives have the same units, can be easily compared and they ensure the resource hours are used in the most efficient way possible.
-
-    The following constraints are used in the model:       
+    The following constraints are used in the model:
     \begin{align}
         % maximum capacity1:
-        & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq C^{max}
+        & \sum_{t' \in \mathcal{T}^s_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq C^{max}
           & t \in \mathcal{T} \label{eq:capacity1}\\
-        % & \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \leq C^{max} \label{eq:capacity1}\\
-        % availability
-       % & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t + D_t\leq u_{max} 
-       %  &t \in \mathcal{T} \label{eq:avalaibility1}\\
         % min assignments:
-        & \sum_{i \in \mathcal{I}_j} a_{jti} \geq R_j
-                & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:taskres}\\
+        & \sum_{i \in \mathcal{I}_j} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} \geq R_j
+                & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:missionres}\\
         % just doing one thing at any given time:
-        & \sum_{t' \in \mathcal{T}^{s}_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} \leq 1 
+        & \sum_{t' \in \mathcal{T}^s_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} \leq 1 
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
 
 
-    Maintenance capacity is controlled by (\ref{eq:capacity1}). Tasks' resource requirements are defined by (\ref{eq:taskres}). Constraints (\ref{eq:state}) guarantee that a resource can be used only for one task or a maintenance operation at the same period.  
+    Maintenance capacity is controlled by (\ref{eq:capacity1}). The aircraft requirements of missions are defined by (\ref{eq:missionres}). Constraints (\ref{eq:state}) ensure that an aircraft can only be used for one mission or undergo check in the same period.
+
+%     \begin{align}
+%         % if start mission => assign start
+%         & a^s_{jti} \geq a_{jti} - a_{j(t-1)i}
+%                 & t =1, ..., \mathcal{T}, j \in \mathcal{J}_t, i \in \mathcal{I}_j \label{eq:start1} \\
+%         & a^s_{j0i} \geq a_{j0i} - 1 \!1_{i \in \mathcal{A}^{init}_j}
+%                 & j \in \mathcal{J}_0, i \in \mathcal{I}_j \label{eq:start2} \\
+%         & \sum_{t' \in \mathcal{T}^{MT}_{jt}} a^s_{jt'i} \leq a_{jti} 
+%         & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start3}
+%     \end{align}
+
+%     Constraints (\ref{eq:start1}) captures period $t$ where aircraft $i$ is firstly assigned to mission $j$ i.e. it was not assigned to it in period ($t - 1$). Constraints (\ref{eq:start2}) are introduced for the first period in the planning horizon.
+% Constraints (\ref{eq:start3}) control the minimum duration of a consecutive mission assignment. If aircraft $i$ was firstly assigned to mission $j$ in period $t$, it has to be assigned to it during the following $t' \in \mathcal{T}_{jt}^{MT}$ periods. This is a stronger version of the constraint $a_{jt'i}^{s} \leq a_{jti}$.
+
+    % To our knowledge, these constraints have not been taken into account in previous military FMP problems.
 
     \begin{align}
-        % if start task => assign start
-        & a^s_{jti} \geq a_{jti} - a_{j(t-1)i}
-                & t =1, ..., \mathcal{T}, j \in \mathcal{J}_t, i \in \mathcal{I}_j \label{eq:start1} \\
-        & a^s_{j0i} \geq a_{j0i} - 1 \!1_{i \in \mathcal{A}^{init}_{j}}
-                & j \in \mathcal{J}_0, i \in \mathcal{I}_j \label{eq:start2} \\        
-      % # if we start a task, we need at least X periods of tasks assignments
-        % & a^s_{jt'i} \leq a_{jti}
-        % & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j, t' \in \mathcal{T}^{MT}_{jt} \label{eq:start2} \\
-        % better constraint:
-        & \sum_{t' \in \mathcal{T}^{MT}_{jt}} a^s_{jt'i} \leq a_{jti} 
-        & j \in \mathcal{J}, t \in \mathcal{T}_j, i \in \mathcal{I}_j \label{eq:start3}
+       & \sum_{t' \in \mathcal{T}^s_t} \sum_{i \in \mathcal{I}_k} m_{it'} + N^K_{kt} \leq A^K_{kt}
+        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster} \\
+       & \sum_{i \in \mathcal{I}_k} rft_{it} \geq H^K_{kt}
+        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:sustainability-cluster}
     \end{align}
 
-    Constraints (\ref{eq:start1}) control the definition of starting a consecutive assignment: the variable is active if a resource $i$ is assigned a task $j$ in period $t$ and was not assigned this same task in the previous period ($t-1$). Constraints (\ref{eq:start2}) are the particular case for the first period on the horizon where, the previous assignments are given.
-
-    Constraints (\ref{eq:start3}) control the minimum duration of a consecutive task assignment. If an assignment to task $j$ is started in period $t$, it needs to continue for the following $t' \in \mathcal{T}^{MT}_{jt}$ periods. They are a stronger version of the constraint $ a^s_{jt'i} \leq a_{jti}$.
-
-    \begin{align}
-       & \sum_{t' \in \mathcal{T}^{s}_t} \sum_{i \in \mathcal{I}_k} m_{it'} + N^{clust}_{kt} \leq A^{clust}_{kt}
-        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-cluster} \\
-       & \sum_{i \in \mathcal{I}_k} rut_{it} \geq H^{clust}_{kt}
-        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:avalaibility-hours-cluster}
-    \end{align}
-
-    Constraints (\ref{eq:avalaibility-cluster}) guarantee a minimum availability of resources for each cluster $k$. A cluster is defined by the biggest group of resources that is required, exclusively, by at least one task. Constraints (\ref{eq:avalaibility-hours-cluster}) guarantee that a minimum availability in terms of usage hours for each cluster $k$.
+    Constraints (\ref{eq:serviceability-cluster}) guarantee a minimum serviceability of aircraft for each cluster $k$. A cluster is defined by the largest group of aircraft that is required exclusively for at least one mission. Constraints (\ref{eq:sustainability-cluster}) ensure there is a minimum amount of remaining flight time for each cluster $k$.
 
     \begin{align}
         % remaining used time
-         & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} a_{jti} H_j 
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage1}\\
-         & u_{it} \geq u^{min} (1 - \sum_{t' \in \mathcal{T}^{s}_t} m_{it'})
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage2}\\
+         & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} H_j 
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight1}\\
+         & u_{it} \geq U^{min} (1 - \sum_{t' \in \mathcal{T}^s_t} m_{it'})
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight2}\\
          & u_{it} \in [0, \max_j{\{H_j\}}]
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:usage_lower}\\
-         & rut_{it} \leq rut_{i(t-1)} + H^{M} m_{it} - u_{it}
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rut_upper}\\
-        & rut_{i0} = Rut^{Init}_i
-               & i \in \mathcal{I} \label{eq:rut_initial}\\
-        & rut_{it} \geq H^{M} m_{it'}
-                & t \in \mathcal{T}, t' \in \mathcal{T}^{s}_t, i \in \mathcal{I}\label{eq:rut_lower}\\ 
-        & rut_{it} \in [0,H^{M}]
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight_lower}\\
+         & rft_{it} \leq rft_{i(t-1)} + H^M m_{it} - u_{it}
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
+        & rft_{i0} = Rft^{Init}_i
+               & i \in \mathcal{I} \label{eq:rft_initial}\\
+        & rft_{it} \geq H^M m_{it'}
+                & t \in \mathcal{T}, t' \in \mathcal{T}^s_t, i \in \mathcal{I}\label{eq:rft_lower}\\ 
+        & rft_{it} \in [0,H^M]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
     \end{align}
 
-        % These constraints calculate the balances of hours for each resource.
-    The usage time per resource and period is calculated in (\ref{eq:usage})-(\ref{eq:usage_lower}). The remaining usage time is defined by (\ref{eq:rut_upper})-(\ref{eq:rut_initial}) and its limits by (\ref{eq:rut_lower})-(\ref{eq:mu}). 
+        % These constraints calculate the balances of hours for each aircraft.
+    The flight time per aircraft and period is calculated in (\ref{eq:flight1})-(\ref{eq:flight_lower}). The remaining flight time is defined by (\ref{eq:rft_upper})-(\ref{eq:rft_initial}) and its limits by (\ref{eq:rft_lower})-(\ref{eq:mu}).
 
     \begin{align}
         & m_{it'} + m_{it} \leq 1
-          & t \in \mathcal{T}, t' \in \mathcal{T}^{m}_t, i \in \mathcal{I}\label{eq:ret_min}\\ 
-        & \sum_{t' \in \mathcal{T}^{M}_t} m_{it'} \geq  m_{it}
-          & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:ret_max}\\
+          & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\ 
+        & \sum_{t' \in \mathcal{T}^M_t} m_{it'} \geq  m_{it}
+          & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rct_max}\\
         & m_{it} = 0
-          & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:ret_min_init} \\
+          & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:rct_min_init} \\
         & \sum_{t \in \mathcal{T}^{M_{ini}}_i} m_{it} \geq  1 
-          & i \in \mathcal{I}\label{eq:ret_max_init}
+          & i \in \mathcal{I}\label{eq:rct_max_init}
     \end{align}
 
-    The minimum and maximum elapsed time are defined by (\ref{eq:ret_min}) and (\ref{eq:ret_max}) respectively. Constraints (\ref{eq:ret_min}) guarantee that if a maintenance is done in some period $t$, we know that another one cannot be done in the immediately consecutive $t' \in \mathcal{T}^{m}_t$ periods. Constraints (\ref{eq:ret_max}) guarantee that, if we have a maintenance in period $t$, we need to start at least one maintenance among periods $t' \in \mathcal{T}^{M}_t$. Constraints (\ref{eq:ret_min_init}) and (\ref{eq:ret_max_init}) control the minimum and maximum remaining elapsed time at the beginning of the planning period, respectively. They follow the same logic as constraints (\ref{eq:ret_min}) and (\ref{eq:ret_max}), respectively, for the particular case of the start of the planning horizon.
+    The minimum and maximum calendar times are defined by (\ref{eq:rct_min}) and (\ref{eq:rct_max}) respectively. Constraints (\ref{eq:rct_min}) guarantee that if a check is done in some period $t$, we know that another one cannot be done in the immediately consecutive $t' \in \mathcal{T}_{t}^{m}$ periods. Constraints (\ref{eq:rct_max}) ensure that if a check is planned in period $t$, we need to start at least one check in periods $t' \in \mathcal{T}_{t}^{M}$. Constraints (\ref{eq:rct_min_init}) and (\ref{eq:rct_max_init}) control the minimum and maximum remaining calendar times respectively at the beginning of the planning period. They follow the same logic as constraints (\ref{eq:rct_min}) and (\ref{eq:rct_max}), respectively.
 
-    % Finally, constraints \ref{eq:min_rut} guarantee that resources have, globally, the same amount of remaining used and elapsed times at the beginning and at the end of the planning horizon.
+    To our knowledge, these constraints have not been taken into account in previous military FMP problems.
+
 
 
 \end{document}
