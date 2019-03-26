@@ -50,8 +50,8 @@ class Model(exp.Experiment):
 
         # VARIABLES:
         # binary:
-        start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
-        task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        # task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
         start_M = pl.LpVariable.dicts(name="start_M", indexs=l['at_start'], lowBound=0, upBound=1, cat=pl.LpInteger)
 
         # numeric:
@@ -70,8 +70,8 @@ class Model(exp.Experiment):
             for tup in start_M:
                 start_M[tup].setInitialValue(0)
 
-            for tup in task:
-                task[tup].setInitialValue(0)
+            # for tup in task:
+            #     task[tup].setInitialValue(0)
 
             for tup in start_T:
                 start_T[tup].setInitialValue(0)
@@ -98,8 +98,8 @@ class Model(exp.Experiment):
                     start_T[a, v, t].setInitialValue(1)
                 periods = self.instance.get_periods_range(t, t2)
                 for p in periods:
-                    if (a, v, p) in task:
-                        task[a, v, p].setInitialValue(1)
+                    # if (a, v, p) in task:
+                    #     task[a, v, p].setInitialValue(1)
                     if (a, p) in usage:
                         usage[a, p].setInitialValue(task_usage[v])
 
@@ -113,7 +113,8 @@ class Model(exp.Experiment):
 
             if options.get('fix_start', False):
                 # vars_to_fix = [start_M]
-                vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
+                # vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
+                vars_to_fix = [start_T, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
                 for _vars in vars_to_fix:
                     for var in _vars.values():
                         var.fixValue()
@@ -151,7 +152,7 @@ class Model(exp.Experiment):
         model +=  num_maint * max_usage + \
                   - price_rut_end * rut_obj_var + \
                   1 * pl.lpSum(assign_st * price_assign[a, v]
-                               for (a, v, t), assign_st in start_T.items()) + \
+                               for (a, v, t, t2), assign_st in start_T.items()) + \
                   1000000 * pl.lpSum(slack_vt.values()) +\
                   1000 * pl.lpSum(slack_at.values()) +\
                   10000 * pl.lpSum(slack_kt_num.values()) + \
@@ -171,7 +172,7 @@ class Model(exp.Experiment):
             t1_at2 = l['t1_at2'].get(at, [])  # possible starts of maintenance to be in maintenance status at "at"
             if len(v_at) + len(t1_at2) == 0:
                 continue
-            model += pl.lpSum(task[a, v, t] for v in v_at) + \
+            model += pl.lpSum(start_T[a, v, t1, t2] for v in v_at for (t1, t2) in l['tt2_avt'][a, v, t]) + \
                      pl.lpSum(start_M[a, _t] for _t in t1_at2 if (a, _t) in l['at_start']) + \
                      (at in l['at_maint']) <= 1
 
@@ -181,39 +182,20 @@ class Model(exp.Experiment):
 
         # num resources:
         for (v, t), a_list in l['a_vt'].items():
-            model += pl.lpSum(task[a, v, t] for a in a_list) >= requirement[v] - slack_vt.get((v, t), 0)
+            model += pl.lpSum(start_T[a, v, t1, t2] for a in a_list for (t1, t2) in l['tt2_avt'][a, v, t]) \
+                     >= requirement[v] - slack_vt.get((v, t), 0)
 
-        # definition of task start:
-        # if we have a task now but we didn't before: we started it
-        for avt in l['avt']:
-            a, v, t = avt
-            avt_prev = a, v, l['previous'][t]
-            if t != first_period:
-                model += start_T[avt] >= task[avt] - task.get(avt_prev, 0)
-            else:
-                # we check if we have the assignment in the previous period.
-                # this is stored in the fixed_vars set.
-                model += start_T[avt] >= task[avt] - (avt_prev in l['at_mission_m'])
-
-        # definition of task start (2):
-        # if we start a task in at least one earlier period, we need to assign a task
-        for (a, v, t2), t1_list in l['t1_avt2'].items():
-            avt2 = a, v, t2
-            model += task.get(avt2, 0) >= \
-                     pl.lpSum(start_T.get((a, v, t1), 0) for t1 in t1_list)
-        # for (a, v, t1, t2) in l['avtt']:
-        #     avt2 = a, v, t2
-        #     avt1 = a, v, t1
-        #     model += task.get(avt2, 0) >= start_T.get(avt1, 0)
 
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
         # we need to fix the corresponding variable.
         for avt in l['at_mission_m']:
-            if avt in task:
-                # sometimes the assignments are in the past
-                model += task[avt] == 1
+            a, v, t = avt
+            if t < first_period:
+                continue
+            t1_t2_list = l['tt2_avt'][avt]
+            model += pl.lpSum(start_T[a, v, t1, t2] for t1, t2 in t1_t2_list) >= 1
 
-        # ##################################
+        # # ##################################
         # Clusters
         # ##################################
 
@@ -227,17 +209,19 @@ class Model(exp.Experiment):
         # Each cluster has a minimum number of usage hours to have
         # at each period.
         for (k, t), hours in cluster_data['hours'].items():
-            model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) >= hours - slack_kt_hours.get((k, t), 0)
+            model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) \
+                     >= hours - slack_kt_hours.get((k, t), 0)
 
         # ##################################
         # Usage time
         # ##################################
 
         # usage time calculation per month
-        for avt in l['avt']:
-            a, v, t = avt
-            at = a, t
-            model += usage[at] >= task[avt] * consumption[v]
+        for at in l['at']:
+            a, t = at
+            v_list = l['v_at'][at]
+            model += usage[at] >= pl.lpSum(start_T[a, v, t1, t2] * consumption[v]
+                                           for v in v_list for (t1, t2) in l['tt2_avt'][a, v, t])
 
         for at in l['at']:
             # if resource in maintenance at the start, we do not enforce this.
@@ -277,13 +261,6 @@ class Model(exp.Experiment):
         for (a, t1), t2_list in l['t_at_M'].items():
             model += pl.lpSum(start_M[a, t2] for t2 in t2_list) >= start_M[a, t1]
 
-        # if we have had a maintenance just before the planning horizon
-        # we cant't have one at the beginning:
-        # we can formulate this as constraining the combinations of maintenance variables.
-        # (already done)
-        # for at in l['at_m_ini']:
-        #     model += start_M[at] == 0
-
         # if we need a maintenance inside the horizon, we enforce it
         for a, t_list in l['t_a_M_ini'].items():
             model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
@@ -311,12 +288,18 @@ class Model(exp.Experiment):
             return None
         print('model solved correctly')
 
-        _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
+        _task = {}
+        task_periods = tl.TupList(aux.vars_to_tups(start_T))
+        for a, v, t1, t2 in task_periods:
+            for t in self.instance.get_periods_range(t1, t2):
+                _task[a, t] = v
 
         # we store the start of maintenances and tasks in the same place
-        _start = tl.TupList(aux.vars_to_tups(start_T)).to_dict(result_col=1, is_list=False)
+        _start = tl.TupList(aux.vars_to_tups(start_T)).filter([0, 1, 2]).to_dict(result_col=1, is_list=False)
         _start_M = {k: 'M' for k in aux.vars_to_tups(start_M)}
         _start.update(_start_M)
+
+        # aux.vars_to_tups(slack_kt_hours)
 
         _rut = {t: rut[t].value() for t in rut}
         fixed_maints_horizon = l['at_maint'].filter_list_f(lambda x: first_period <= x[1] <= last_period)
@@ -331,10 +314,11 @@ class Model(exp.Experiment):
                 'rut': _rut,
             }
         }
+        solution_data_pre = sd.SuperDict.from_dict(solution_data_pre)
 
-        solution_data = {k: aux.dicttup_to_dictdict(v)
+        solution_data = {k: v.to_dictdict()
                          for k, v in solution_data_pre.items() if k != "aux"}
-        solution_data['aux'] = {k: aux.dicttup_to_dictdict(v)
+        solution_data['aux'] = {k: v.to_dictdict()
                                 for k, v in solution_data_pre['aux'].items()}
         solution = sol.Solution(solution_data)
         self.solution = solution
@@ -438,6 +422,9 @@ class Model(exp.Experiment):
         at_free_start = tl.TupList(i for i in at_free_start if i not in at_m_ini_s)
 
         vt = tl.TupList((v, t) for v in tasks for t in periods if start_time[v] <= t <= end_time[v])
+        t_v = vt.to_dict(result_col=1)
+        # t_v = {k: sorted(v) for k, v in t_v.items()}
+        # last_v = {k: v[-1] for k, v in t_v.items()}
         avt = tl.TupList([(a, v, t) for a in resources for (v, t) in vt
                if a in candidates[v]
                if (a, t) in at_free] + \
@@ -445,8 +432,14 @@ class Model(exp.Experiment):
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
-        avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
+        avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
+                ])
+        avtt2 = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
+                (periods_pos[t2] >= periods_pos[t1] + min_assign[v] - 1) or
+                            (t2 == last_period) or
+                            (a, v, t1 in at_mission_m_horizon) or
+                            (a, v, t2 in at_mission_m_horizon)
                 ])
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
@@ -459,6 +452,10 @@ class Model(exp.Experiment):
                     if ret_init[a] <= len(periods)
                     if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
                     ])
+        avtt2t = tl.TupList(
+            [(a, v, t1, t2, t) for (a, v, t1, t2) in avtt2 for t in self.instance.get_periods_range(t1, t2)]
+        )
+        tt2_avt = avtt2t.to_dict(result_col=[2, 3]).fill_with_default(avt, [])
 
         a_t = at.to_dict(result_col=0, is_list=True)
         a_vt = avt.to_dict(result_col=0, is_list=True)
@@ -470,6 +467,7 @@ class Model(exp.Experiment):
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
         t_at_M = att_M.to_dict(result_col=2, is_list=True)
         t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
+
 
         return {
          'periods'          :  periods
@@ -500,6 +498,8 @@ class Model(exp.Experiment):
         ,'t2_avt1'          : t2_avt1
         ,'t1_avt2'          : t1_avt2
         ,'avtt'             : avtt
+        , 'avtt2'           : avtt2
+        , 'tt2_avt'         : tt2_avt
         , 'att_m'           : att_m
         , 't_at_M'          : t_at_M
         , 'at_m_ini'        : at_m_ini
