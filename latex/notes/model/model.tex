@@ -106,12 +106,14 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
         \begin{tabular}{p{8mm}p{117mm}}
             $\mathcal{T}^s_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
+            % $\mathcal{T}^S_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t},  ..., \min{\{|\mathcal{T}|, t + M-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
             $\mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^m-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
             $\mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^M - M$ such that $t' \in \{ t + M + E^m-1 , ...,  t + M + E^M-1 \}$ (figure \ref{fig:gantt_windows}a). \\
             $\mathcal{T}^{m_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^M + E^m \}}\}$ (figure \ref{fig:gantt_windows}b). \\
             $\mathcal{T}^{M_{ini}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^M + E^m \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}b). \\
             $\mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}c). \\
-            $\mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $(t_1, t_2), \in \mathcal{T}_j$ such that $t_2 \ge t_1 + MT_j-1$. \\
+            $\mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $t_1, t_2 \in \mathcal{T}_j$ such that $t_2 \ge t_1 + MT_j-1$ and $t \in \{t_1, ..., t_2\}$. \\
+            $\mathcal{T}\mathcal{T}\mathcal{T}_{t}$ & pairs of time periods $t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}$ such that $t_1 \in \mathcal{T}^s_{t} \lor t_2 \in \mathcal{T}^s_{t}$. \\
         \end{tabular}
 
     \begin{figure}
@@ -135,8 +137,8 @@ The following model provides a tight MIP formulation that solves the Military Fl
     The following decision variables control the assignment of missions and checks to aircraft.
 
     \begin{tabular}{p{8mm}p{117mm}}
-        $a_{jtt'i}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ in period $t$ and finishes it at period $t'$. \\  
-        $m_{it}$    &  =1 if aircraft $i \in I$ starts a check in period $t \in \mathcal{T}$, 0 otherwise. \\
+        $a_{ijtt'}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ in period $t$ and finishes it at period $t'$. \\  
+        $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check in period $t \in \mathcal{T}$ and then starts the next one at period $t'$, 0 otherwise. \\
     \end{tabular}
 
     The following decision variables control the used and remaining flight time in aircraft.
@@ -148,16 +150,17 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
     \paragraph{Fixed values}
 
-    Note that $a_{jti}$ and $m_{it}$ are initially set up to 0 for all aircraft already in maintenance at the beginning of the planning horizon for the remaining time periods of the check. $N_{t}$ is calculated based on this information.
-Similarly, for aircraft that have not yet complied with their minimum mission assignment duration at the beginning of the planning horizon, $a_{jti}$ is fixed to comply with the constraints.
+    Note that $a_{ijtt'}$ and $m_{itt'}$ are initially set up to 0 for all aircraft already in maintenance at the beginning of the planning horizon for the remaining time periods of the check. $N_{t}$ is calculated based on this information.
+Similarly, for aircraft that have not yet complied with their minimum mission assignment duration at the beginning of the planning horizon, $a_{ijtt'}$ is fixed to comply with the constraints.
 
 \subsection{Objective function and constraints}
 
     Two objectives have been studied. Objective (\ref{eq:objective1}) minimizes the number of checks. (\ref{eq:objective2}) combines the first one with the goal of maximizing the final total flight hours potential of the fleet.
 
+    % TODO: do not count maints that start at the end
     \begin{align}
-        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it}  \label{eq:objective1}\\
-        & \text{Min}\; \sum_{t \in \mathcal{T}, i \in \mathcal{I}} m_{it} \times H^M - \sum_{i \in \mathcal{I}} rft_{i|\mathcal{T}|} \label{eq:objective2}
+        & \text{Min}\; \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}, i \in \mathcal{I}} m_{it_1t_2}  \label{eq:objective1}\\
+        & \text{Min}\; \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}, i \in \mathcal{I}} m_{it_1t_2} \times H^M - \sum_{i \in \mathcal{I}} rft_{i|\mathcal{T}|} \label{eq:objective2}
     \end{align}
     
     The first term counts all the flight hours given to aircraft following checks and the second term quantifies the amount of remaining flight hours for all aircraft at the end of the planning horizon. These two objectives have the same units, can be easily compared and ensure the aircraft are used in the most efficient way. %We will not penalize the maintenances that provide a better final state for aircraft.
@@ -165,13 +168,13 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     The following constraints are used in the model:
     \begin{align}
         % maximum capacity1:
-        & \sum_{t' \in \mathcal{T}^s_t} \sum_{i \in \mathcal{I}} m_{it'} + N_t \leq C^{max}
+        & \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} \sum_{i \in \mathcal{I}} m_{it_1t_2} + N_t \leq C^{max}
           & t \in \mathcal{T} \label{eq:capacity1}\\
         % min assignments:
-        & \sum_{i \in \mathcal{I}_j} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} \geq R_j
+        & \sum_{i \in \mathcal{I}_j} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} \geq R_j
                 & j \in \mathcal{J}, t \in \mathcal{T}_j  \label{eq:missionres}\\
         % just doing one thing at any given time:
-        & \sum_{t' \in \mathcal{T}^s_t} m_{it'} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} \leq 1 
+        & \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} + \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} \leq 1 
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
     \end{align}
 
@@ -194,7 +197,7 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     % To our knowledge, these constraints have not been taken into account in previous military FMP problems.
 
     \begin{align}
-       & \sum_{t' \in \mathcal{T}^s_t} \sum_{i \in \mathcal{I}_k} m_{it'} + N^K_{kt} \leq A^K_{kt}
+       & \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} \sum_{i \in \mathcal{I}_k} m_{it_1t_2} + N^K_{kt} \leq A^K_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster} \\
        & \sum_{i \in \mathcal{I}_k} rft_{it} \geq H^K_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:sustainability-cluster}
@@ -204,18 +207,16 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
 
     \begin{align}
         % remaining used time
-         & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{jt_1t_2i} H_j 
+         & u_{it} \geq \sum_{j \in \mathcal{J}_t \cap \mathcal{O}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} H_j 
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight1}\\
-         & u_{it} \geq U^{min} (1 - \sum_{t' \in \mathcal{T}^s_t} m_{it'})
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight2}\\
-         & u_{it} \in [0, \max_j{\{H_j\}}]
+         & u_{it} \in [U^{min}, \max_j{\{H_j\}}]
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight_lower}\\
-         & rft_{it} \leq rft_{i(t-1)} + H^M m_{it} - u_{it}
+         & rft_{it} \leq rft_{i(t-1)} + H^M \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} - u_{it}
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
         & rft_{i0} = Rft^{Init}_i
                & i \in \mathcal{I} \label{eq:rft_initial}\\
-        & rft_{it} \geq H^M m_{it'}
-                & t \in \mathcal{T}, t' \in \mathcal{T}^s_t, i \in \mathcal{I}\label{eq:rft_lower}\\ 
+        & rft_{it} \geq H^M m_{it_1t_2}
+                &t \in \mathcal{T}, (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}, i \in \mathcal{I}\label{eq:rft_lower}\\
         & rft_{it} \in [0,H^M]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
     \end{align}
@@ -224,20 +225,16 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     The flight time per aircraft and period is calculated in (\ref{eq:flight1})-(\ref{eq:flight_lower}). The remaining flight time is defined by (\ref{eq:rft_upper})-(\ref{eq:rft_initial}) and its limits by (\ref{eq:rft_lower})-(\ref{eq:mu}).
 
     \begin{align}
-        & m_{it'} + m_{it} \leq 1
-          & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\ 
-        & \sum_{t' \in \mathcal{T}^M_t} m_{it'} \geq  m_{it}
-          & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rct_max}\\
-        & m_{it} = 0
-          & t \in \mathcal{T}^{m_{ini}}_i, i \in \mathcal{I}\label{eq:rct_min_init} \\
-        & \sum_{t \in \mathcal{T}^{M_{ini}}_i} m_{it} \geq  1 
+        % & m_{it'} + m_{it} \leq 1
+        %   & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\ 
+        % & \sum_{t' \in \mathcal{T}^M_t} m_{it'} \geq  m_{it}
+        %   & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rct_max}\\
+        & m_{it_1t_2} = 0
+          & t_1 \in \mathcal{T}^{m_{ini}}_i, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:rct_min_init} \\
+        & \sum_{t_1 \in \mathcal{T}^{M_{ini}}_i, t_2 \in \mathcal{T}^M_{t_1} \cup \{|\mathcal{T}|\} } m_{it_1t_2} \geq  1 
           & i \in \mathcal{I}\label{eq:rct_max_init}
     \end{align}
 
-    The minimum and maximum calendar times are defined by (\ref{eq:rct_min}) and (\ref{eq:rct_max}) respectively. Constraints (\ref{eq:rct_min}) guarantee that if a check is done in some period $t$, we know that another one cannot be done in the immediately consecutive $t' \in \mathcal{T}_{t}^{m}$ periods. Constraints (\ref{eq:rct_max}) ensure that if a check is planned in period $t$, we need to start at least one check in periods $t' \in \mathcal{T}_{t}^{M}$. Constraints (\ref{eq:rct_min_init}) and (\ref{eq:rct_max_init}) control the minimum and maximum remaining calendar times respectively at the beginning of the planning period. They follow the same logic as constraints (\ref{eq:rct_min}) and (\ref{eq:rct_max}), respectively.
-
-    To our knowledge, these constraints have not been taken into account in previous military FMP problems.
-
-
+    Constraints (\ref{eq:rct_min_init}) and (\ref{eq:rct_max_init}) control the minimum and maximum remaining calendar times respectively at the beginning of the planning period. 
 
 \end{document}
