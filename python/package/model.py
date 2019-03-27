@@ -431,15 +431,22 @@ class Model(exp.Experiment):
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
+        # start-assignment options for task assignments.
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
                 ])
-        # avtt2.filter_list_f(lambda x: x[0]=='4' and x[2]=='2022-04')
-        # TODO: open for initial fixed...
+        # Start-stop options for task assignments.
         avtt2 = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                             (periods_pos[t2] >= periods_pos[t1] + min_assign[v] - 1) or
                             (t2 == last_period)
                 ])
+        # For Start-stop options, during fixed periods, we do not care of the minimum time assignment.
+        avtt2_fixed = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
+                            (periods_pos[t2] >= periods_pos[t1]) and
+                            ((a, v, t1) in at_mission_m_horizon or
+                             (a, v, t2) in at_mission_m_horizon)
+                ])
+        avtt2.extend(avtt2_fixed)
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
