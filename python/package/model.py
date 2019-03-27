@@ -185,7 +185,6 @@ class Model(exp.Experiment):
             model += pl.lpSum(start_T[a, v, t1, t2] for a in a_list for (t1, t2) in l['tt2_avt'][a, v, t]) \
                      >= requirement[v] - slack_vt.get((v, t), 0)
 
-
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
         # we need to fix the corresponding variable.
         for avt in l['at_mission_m']:
@@ -435,19 +434,20 @@ class Model(exp.Experiment):
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
                 ])
+        # avtt2.filter_list_f(lambda x: x[0]=='4' and x[2]=='2022-04')
+        # TODO: open for initial fixed...
         avtt2 = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
-                (periods_pos[t2] >= periods_pos[t1] + min_assign[v] - 1) or
-                            (t2 == last_period) or
-                            (a, v, t1 in at_mission_m_horizon) or
-                            (a, v, t2 in at_mission_m_horizon)
+                            (periods_pos[t2] >= periods_pos[t1] + min_assign[v] - 1) or
+                            (t2 == last_period)
                 ])
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
-        att_M = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
-                 if periods_pos[t1] + max_elapsed < len(periods)
-                 if periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed
-                 ])
+        att_maints = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                                 if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
+                                 or (len(periods) - periods_pos[t1]) <= min_elapsed
+                                 ])
+        att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
                     if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
@@ -505,6 +505,7 @@ class Model(exp.Experiment):
         , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
+        , 'att_maints'      : att_maints
         }
 
 
