@@ -93,6 +93,8 @@ class Instance(object):
         :param resource: optional value to filter only one resource
         :return:
         """
+        first_period = self.get_param('start')
+        prev_first_period = self.get_prev_period(first_period)
         if time_type not in ["elapsed", "used"]:
             raise KeyError("Wrong type in time_type parameter: elapsed or used only")
 
@@ -107,15 +109,22 @@ class Instance(object):
 
         # we also check if the resources is currently in maintenance.
         # If it is: we assign the rt_max (according to convention).
-        res_in_maint = set([res for res, period
-                            in self.get_fixed_maintenances(resource=resource)])
-        rt_fixed = {a: rt_max for a in param_resources if a in res_in_maint}
+        res_maints = \
+            self.get_fixed_maintenances(resource=resource).\
+            filter_list_f(lambda x: x[1] >= prev_first_period).\
+            to_dict(result_col=1).\
+            to_lendict()
+
+        if time_type == 'elapsed':
+            rt_fixed = {k: rt_max + v - 1 for k, v in res_maints.items()}
+        else:
+            rt_fixed = {k: rt_max for k, v in res_maints.items()}
 
         rt_init = {a: rt_max for a in param_resources}
         rt_init.update(rt_read)
         rt_init.update(rt_fixed)
 
-        rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
+        # rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
 
         return rt_init
 
