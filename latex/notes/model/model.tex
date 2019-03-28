@@ -225,13 +225,16 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     The flight time per aircraft and period is calculated in (\ref{eq:flight1})-(\ref{eq:flight_lower}). The remaining flight time is defined by (\ref{eq:rft_upper})-(\ref{eq:rft_initial}) and its limits by (\ref{eq:rft_lower})-(\ref{eq:mu}).
 
     \begin{align}
+       % For now, we only want one or possibly two maintenances...
+        & \sum_{t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1} \cup \{|\mathcal{T}|\} } m_{it_1t_2} =  1 
+          & i \in \mathcal{I}\label{eq:num_maint} \\
         % & m_{it'} + m_{it} \leq 1
         %   & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\ 
         % & \sum_{t' \in \mathcal{T}^M_t} m_{it'} \geq  m_{it}
         %   & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rct_max}\\
         & m_{it_1t_2} = 0
           & t_1 \in \mathcal{T}^{m_{ini}}_i, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:rct_min_init} \\
-        & \sum_{t_1 \in \mathcal{T}^{M_{ini}}_i, t_2 \in \mathcal{T}^M_{t_1} \cup \{|\mathcal{T}|\} } m_{it_1t_2} \geq  1 
+        & \sum_{t_1 \in \mathcal{T}^{M_{ini}}_i, t_2 \in \mathcal{T}^M_{t_1} \cup \{|\mathcal{T}|\} } m_{it_1t_2} =  1 
           & i \in \mathcal{I}\label{eq:rct_max_init}
     \end{align}
 
