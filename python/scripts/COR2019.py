@@ -157,7 +157,7 @@ def get_preprocessing(table):
 # print(plot)
 
 # name = experiment1 + '_' + experiment
-    name = experiment
+#     name = experiment
 
 
 ############################ TEST:
