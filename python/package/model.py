@@ -52,14 +52,15 @@ class Model(exp.Experiment):
         # binary:
         start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1, cat=pl.LpInteger)
         # task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
-        start_M = pl.LpVariable.dicts(name="start_M", indexs=l['at_start'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        # start_M = pl.LpVariable.dicts(name="start_M", indexs=l['at_start'], lowBound=0, upBound=1, cat=pl.LpInteger)
 
         # numeric:
         rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
-        usage = pl.LpVariable.dicts(name="usage", indexs=l['at'], lowBound=0, upBound=ub['used_max'], cat=var_type)
+        usage = pl.LpVariable.dicts(name="usage", indexs=l['at'], lowBound=min_usage, upBound=ub['used_max'], cat=var_type)
 
         # objective function:
-        num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
+        # num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
         rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
         if options.get('mip_start'):
@@ -109,12 +110,10 @@ class Model(exp.Experiment):
                     if (a, t) in rut:
                         rut[a, t].setInitialValue(v)
 
-            num_maint.setInitialValue(number_maint)
-
             if options.get('fix_start', False):
                 # vars_to_fix = [start_M]
                 # vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
-                vars_to_fix = [start_T, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
+                vars_to_fix = [start_T, start_M, rut, usage, {0: rut_obj_var}]
                 for _vars in vars_to_fix:
                     for var in _vars.values():
                         var.fixValue()
@@ -144,12 +143,9 @@ class Model(exp.Experiment):
         model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
         # OBJECTIVE:
-        # if options.get('integer', False):
-        #     objective = pl.LpVariable(name="objective", cat=var_type)
-        #     model += objective
-        #     model += objective >= num_maint * max_usage - rut_obj_var
-        # else:
-        model +=  num_maint * max_usage + \
+        # maints
+        model += pl.lpSum(start_M[a, t1, t2]
+                          for a, t1, t2 in l['att_M']) * max_usage + \
                   - price_rut_end * rut_obj_var + \
                   1 * pl.lpSum(assign_st * price_assign[a, v]
                                for (a, v, t, t2), assign_st in start_T.items()) + \
@@ -169,11 +165,11 @@ class Model(exp.Experiment):
         for at in l['at']:
             a, t = at
             v_at = l['v_at'].get(at, [])  # possible missions for that "at"
-            t1_at2 = l['t1_at2'].get(at, [])  # possible starts of maintenance to be in maintenance status at "at"
-            if len(v_at) + len(t1_at2) == 0:
+            t1t2_list = l['tt_maints_at'].get(at, [])
+            if len(v_at) + len(t1t2_list) == 0:
                 continue
             model += pl.lpSum(start_T[a, v, t1, t2] for v in v_at for (t1, t2) in l['tt2_avt'][a, v, t]) + \
-                     pl.lpSum(start_M[a, _t] for _t in t1_at2 if (a, _t) in l['at_start']) + \
+                     pl.lpSum(start_M[a, t1, t2] for (t1, t2) in t1t2_list) + \
                      (at in l['at_maint']) <= 1
 
         # ##################################
@@ -191,8 +187,8 @@ class Model(exp.Experiment):
             a, v, t = avt
             if t < first_period:
                 continue
-            t1_t2_list = l['tt2_avt'][avt]
-            model += pl.lpSum(start_T[a, v, t1, t2] for t1, t2 in t1_t2_list) >= 1
+            t1t2_list = l['tt2_avt'][avt]
+            model += pl.lpSum(start_T[a, v, t1, t2] for t1, t2 in t1t2_list) >= 1
 
         # # ##################################
         # Clusters
@@ -201,9 +197,9 @@ class Model(exp.Experiment):
         # minimum availability per cluster and period
         for (k, t), num in cluster_data['num'].items():
             model += \
-                pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
-                         if (a, _t) in l['at_start']
-                         if a in c_candidates[k]) <= num + slack_kt_num.get((k, t), 0)
+                pl.lpSum(start_M[a, t1, t2] for a in c_candidates[k]
+                         for (t1, t2) in l['tt_maints_at'].get((a, t), [])
+                         ) <= num + slack_kt_num.get((k, t), 0)
 
         # Each cluster has a minimum number of usage hours to have
         # at each period.
@@ -222,22 +218,18 @@ class Model(exp.Experiment):
             model += usage[at] >= pl.lpSum(start_T[a, v, t1, t2] * consumption[v]
                                            for v in v_list for (t1, t2) in l['tt2_avt'][a, v, t])
 
-        for at in l['at']:
-            # if resource in maintenance at the start, we do not enforce this.
-            if at in l['at_maint']:
-                continue
-            a, t = at
-            t1_at2 = l['t1_at2'].get(at, [])
-            model += usage[at] >= min_usage * (1 - pl.lpSum(start_M[a, _t] for _t in t1_at2)) - slack_at[at]
-
         # remaining used time calculations:
         for at in l['at']:
             # apparently it's much faster NOT to sum the maintenances
             # in the two rut calculations below
             a, t = at
+            t1t2_list = l['tt_maints_at'].get(at, [])
             at_prev = a, l['previous'][t]
-            model += rut[at] <= rut[at_prev] - usage[at] + ub['rut'] * start_M.get(at, 0)
-            model += rut[at] >= ub['rut'] * start_M.get(at, 0)
+            model += rut[at] <= rut[at_prev] - usage[at] + \
+                     ub['rut'] * pl.lpSum(start_M.get((a, t1, t2), 0)
+                                          for (t1, t2) in t1t2_list)
+            model += rut[at] >= ub['rut'] * pl.lpSum(start_M.get((a, t1, t2), 0)
+                                                     for (t1, t2) in t1t2_list)
 
         # calculate the rut, only if it has a weight:
         if price_rut_end:
@@ -250,29 +242,18 @@ class Model(exp.Experiment):
         # Maintenances
         # ##################################
 
-        # # we cannot do two maintenances too close one from the other:
-        for att in l['att_m']:
-            a, t1, t2 = att
-            model += start_M[a, t1] + start_M[a, t2] <= 1
-
-        # we cannot do two maintenances too far apart one from the other:
-        # (we need to be sure that t2_list includes the whole horizon to enforce it)
-        for (a, t1), t2_list in l['t_at_M'].items():
-            model += pl.lpSum(start_M[a, t2] for t2 in t2_list) >= start_M[a, t1]
-
-        # if we need a maintenance inside the horizon, we enforce it
+         # if we need a maintenance inside the horizon, we enforce it
         for a, t_list in l['t_a_M_ini'].items():
-            model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1
-
-        # count the number of maintenances:
-        model += num_maint == pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at_start'])
+            model += pl.lpSum(start_M.get((a, t1, t2), 0)
+                              for t1 in t_list for t2 in l['t_at_M'][a, t1]) >= 1
 
         # max number of maintenances:
         for t in l['periods']:
-            model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
+            at1t1_list = l['att_maints_t'][t]
+            if not len(at1t1_list):
+                continue
+            model += pl.lpSum(start_M[a, t1, t2] for (a, t1, t2) in at1t1_list) + \
                      num_resource_maint[t] <= maint_capacity + slack_t.get(t, 0)
-
-        # model += start_M['1', '2018-01'] == 1
 
         # ##################################
         # SOLVING
@@ -431,6 +412,7 @@ class Model(exp.Experiment):
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
+        t2_at1 = att.to_dict(result_col=2, is_list=True)
         # start-assignment options for task assignments.
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                 periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
@@ -450,10 +432,17 @@ class Model(exp.Experiment):
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
+        # this is the domain for the maintenance m_itt variable
         att_maints = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                                  if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
-                                 or (len(periods) - periods_pos[t1]) <= min_elapsed
+                                 or (len(periods) - periods_pos[t1] <= min_elapsed and
+                                     periods_pos[t2] == last_period)
                                  ])
+        # this is the TTT_t set.
+        attt_maints = tl.TupList([(a, t1, t2, t) for a, t1, t2 in att_maints
+                                  for t in t2_at1.get((a, t1), []) + t2_at1.get((a, t2), []) if
+                                  t2 < last_period
+                       ])
         att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
@@ -469,11 +458,12 @@ class Model(exp.Experiment):
         v_at = avt.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
         at1_t2 = att.to_dict(result_col=[0, 1], is_list=True)
         t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
-        t2_at1 = att.to_dict(result_col=2, is_list=True)
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
         t_at_M = att_M.to_dict(result_col=2, is_list=True)
         t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
+        tt_maints_at = attt_maints.to_dict(result_col=[1, 2], is_list=True)
+        att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
 
 
         return {
@@ -509,11 +499,15 @@ class Model(exp.Experiment):
         , 'tt2_avt'         : tt2_avt
         , 'att_m'           : att_m
         , 't_at_M'          : t_at_M
+        , 'att_M'           : att_M
         , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
         , 'att_maints'      : att_maints
+        , 'tt_maints_at'    : tt_maints_at
+        , 'att_maints_t'    : att_maints_t
         }
+
 
 
 if __name__ == "__main__":

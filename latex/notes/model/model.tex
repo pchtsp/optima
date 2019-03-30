@@ -137,8 +137,8 @@ The following model provides a tight MIP formulation that solves the Military Fl
     The following decision variables control the assignment of missions and checks to aircraft.
 
     \begin{tabular}{p{8mm}p{117mm}}
-        $a_{ijtt'}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ in period $t$ and finishes it at period $t'$. \\  
-        $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check in period $t \in \mathcal{T}$ and then starts the next one at period $t'$, 0 otherwise. \\
+        $a_{ijtt'}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ at the beginning of period $t$ and finishes it at the end of period $t'$. \\  
+        $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check at the beginning of period $t \in \mathcal{T}$ and then starts the next one at the beginning of period $t'$, 0 otherwise. \\
     \end{tabular}
 
     The following decision variables control the used and remaining flight time in aircraft.
@@ -215,8 +215,8 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
             & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
         & rft_{i0} = Rft^{Init}_i
                & i \in \mathcal{I} \label{eq:rft_initial}\\
-        & rft_{it} \geq H^M m_{it_1t_2}
-                &t \in \mathcal{T}, (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}, i \in \mathcal{I}\label{eq:rft_lower}\\
+        & rft_{it} \geq H^M \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2}
+                &t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rft_lower}\\
         & rft_{it} \in [0,H^M]
                 & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
     \end{align}
