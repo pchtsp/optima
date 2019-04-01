@@ -101,6 +101,17 @@ def execute_solve(model_data, options, solution_data=None):
         di.export_data(output_path, errors, name='errors', file_type="json")
 
 
+def solve_errors(_options, path_instance):
+    try:
+        config_and_solve(_options)
+    except Exception as e:
+        if not os.path.exists(path_instance):
+            os.mkdir(path_instance)
+        str_fail = "Unexpected error in case: \n{}".format(repr(e))
+        with open(path_instance + 'failure.txt', 'w') as f:
+            f.write(str_fail)
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
