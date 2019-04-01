@@ -119,12 +119,6 @@ def dict_to_tup(dict_in):
     return tup_list
 
 
-def vars_to_tups(var):
-    # because of rounding approximations; we need to check if its bigger than half:
-    # return [tup for tup in var if var[tup].value()]
-    return [tup for tup in var if var[tup].value() > 0.5]
-
-
 def fill_dict_with_default(dict_in, keys, default=0):
     return {**{k: default for k in keys}, **dict_in}
 

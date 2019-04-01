@@ -245,7 +245,10 @@ class Model(exp.Experiment):
          # if we need a maintenance inside the horizon, we enforce it
         for a, t_list in l['t_a_M_ini'].items():
             model += pl.lpSum(start_M.get((a, t1, t2), 0)
-                              for t1 in t_list for t2 in l['t_at_M'][a, t1]) >= 1
+                              for t1 in t_list for t2 in l['t_at_M'][a, t1] + [last_period]) == 1
+
+        for a, tt_list in l['tt_maints_a'].items():
+            model += pl.lpSum(start_M[a, t1, t2] for t1, t2 in tt_list) == 1
 
         # max number of maintenances:
         for t in l['periods']:
@@ -269,14 +272,17 @@ class Model(exp.Experiment):
         print('model solved correctly')
 
         _task = {}
-        task_periods = tl.TupList(aux.vars_to_tups(start_T))
+        task_periods = tl.TupList(self.vars_to_tups(start_T))
         for a, v, t1, t2 in task_periods:
             for t in self.instance.get_periods_range(t1, t2):
                 _task[a, t] = v
 
         # we store the start of maintenances and tasks in the same place
-        _start = tl.TupList(aux.vars_to_tups(start_T)).filter([0, 1, 2]).to_dict(result_col=1, is_list=False)
-        _start_M = {k: 'M' for k in aux.vars_to_tups(start_M)}
+        _start = self.vars_to_tups(start_T).filter([0, 1, 2]).to_dict(result_col=1, is_list=False)
+        _start_M_aux = self.vars_to_tups(start_M)
+        starts1_M = _start_M_aux.filter([0, 1]).unique2()
+        starts2_M = _start_M_aux.filter_list_f(lambda x: x[2] != last_period).filter([0, 2]).unique2()
+        _start_M = {k: 'M' for k in starts1_M + starts2_M}
         _start.update(_start_M)
 
         # aux.vars_to_tups(slack_kt_hours)
@@ -329,6 +335,15 @@ class Model(exp.Experiment):
             'rut_end': math.ceil(rut_total)
             # 'used_min': math.ceil(min_usage)
         }
+
+    @staticmethod
+    def vars_to_tups(var):
+        # because of rounding approximations; we need to check if its bigger than half:
+        # we check if the var is None in case the solver doesn't return a value
+            # (this does not happen very often)
+        return tl.TupList(tup for tup in var if
+                          var[tup].value() is not None and
+                          var[tup].value() > 0.5)
 
     def get_domains_sets(self):
         states = ['M']
@@ -412,6 +427,7 @@ class Model(exp.Experiment):
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
+        # when I could have started maintenance (t2s) to be still in maintenance in period t1
         t2_at1 = att.to_dict(result_col=2, is_list=True)
         # start-assignment options for task assignments.
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
@@ -439,10 +455,11 @@ class Model(exp.Experiment):
                                      periods_pos[t2] == last_period)
                                  ])
         # this is the TTT_t set.
-        attt_maints = tl.TupList([(a, t1, t2, t) for a, t1, t2 in att_maints
-                                  for t in t2_at1.get((a, t1), []) + t2_at1.get((a, t2), []) if
-                                  t2 < last_period
-                       ])
+        attt_maints = tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t1), []))
+        attt_maints += tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t2), [])
+                                  if t2 < last_period)
+        attt_maints = attt_maints.unique2()
+
         att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
@@ -460,10 +477,11 @@ class Model(exp.Experiment):
         t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
-        t_at_M = att_M.to_dict(result_col=2, is_list=True)
+        t_at_M = att_M.to_dict(result_col=2, is_list=True).fill_with_default(at, [])
         t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
         tt_maints_at = attt_maints.to_dict(result_col=[1, 2], is_list=True)
         att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
+        tt_maints_a = att_maints.to_dict(result_col=[1, 2], is_list=True)
 
 
         return {
@@ -506,6 +524,7 @@ class Model(exp.Experiment):
         , 'att_maints'      : att_maints
         , 'tt_maints_at'    : tt_maints_at
         , 'att_maints_t'    : att_maints_t
+        , 'tt_maints_a'     : tt_maints_a
         }
 
 

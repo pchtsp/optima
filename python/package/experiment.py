@@ -72,7 +72,8 @@ class Experiment(object):
 
     def check_maintenance_capacity(self, **params):
         maints = self.solution.get_in_maintenance()
-        return {k: v for k, v in maints.items() if v > self.instance.get_param('maint_capacity')}
+        return sd.SuperDict({(k, ): v for k, v in maints.items()
+                                       if v > self.instance.get_param('maint_capacity')})
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
@@ -100,7 +101,7 @@ class Experiment(object):
             for (resource, period), task in task_solution.items()
             if resource not in task_candidates[task]
         }
-        return bad_assignment
+        return sd.SuperDict.from_dict(bad_assignment)
 
     def get_consumption(self):
         hours = self.instance.get_tasks("consumption")
@@ -267,7 +268,7 @@ class Experiment(object):
         duplicated_states = \
             np.intersect1d(task_solution_k, state_solution_k)
 
-        return [tuple(item) for item in duplicated_states]
+        return sd.SuperDict({tuple(item): 1 for item in duplicated_states})
 
     def check_min_max_assignment(self, **params):
         """
