@@ -50,6 +50,7 @@ OPTIONS = {
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
+    , 'multiprocess': None
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
@@ -96,9 +97,3 @@ OPTIONS = {
         , 'perc_in_maint': 0.07
     }
 }
-
-# white_list = ['O1', 'O5']
-# black_list = []
-# black_list = ['O10', 'O8', 'O6']
-# black_list = ['O8']  # this task has less candidates than what it asks.
-
