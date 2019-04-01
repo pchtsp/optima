@@ -1,5 +1,3 @@
-# /usr/bin/python3
-
 import os
 import package.auxiliar as aux
 import pulp as pl
@@ -37,8 +35,8 @@ class Config(object):
         self.solver_add_opts = options.get('solver_add_opts', [])
         self.mip_start = options.get('mip_start', False)
         self.gap_abs = options['gap_abs']
-        self.log_path = self.path + 'results.log'
-        self.result_path = self.path + 'results.sol'
+        self.log_path = os.path.join(self.path, 'results.log')
+        self.result_path = os.path.join(self.path, 'results.sol')
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
@@ -50,9 +48,10 @@ class Config(object):
         self.writeMPS = options['writeMPS']
         self.writeLP = options['writeLP']
 
-    def config_cbc(self):
         if not os.path.exists(self.path):
             os.mkdir(self.path)
+
+    def config_cbc(self):
 
         params_eq  = \
             dict(timeLimit="sec {}",
@@ -70,8 +69,6 @@ class Config(object):
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
-        if not os.path.exists(self.path):
-            os.mkdir(self.path)
 
         params_eq  = \
             dict(log_path='LogFile',
@@ -85,8 +82,6 @@ class Config(object):
 
     def config_cplex(self):
         # CPLEX parameters: https://www.ibm.com/support/knowledgecenter/en/SSSA5P_12.6.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/tutorials/InteractiveOptimizer/settingParams.html
-        if not os.path.exists(self.path):
-            os.mkdir(self.path)
 
         params_eq  = \
             dict(log_path='set logFile {}',
@@ -98,7 +93,6 @@ class Config(object):
         a = [v.format(getattr(self, k)) for k, v in params_eq.items()
             if getattr(self, k) is not None] + \
            self.solver_add_opts
-        # print(a)
         return a
 
     def config_choco(self):
@@ -109,9 +103,9 @@ class Config(object):
     def solve_model(self, model):
 
         if self.writeMPS:
-            model.writeMPS(filename=self.path + 'formulation.mps')
+            model.writeMPS(filename=os.path.join(self.path, 'formulation.mps'))
         if self.writeLP:
-            model.writeLP(filename=self.path + 'formulation.lp')
+            model.writeLP(filename=os.path.join(self.path, 'formulation.lp'))
 
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))

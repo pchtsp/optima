@@ -14,6 +14,7 @@ import package.heuristics_maintfirst as mf
 import package.simulation as sim
 import package.superdict as sd
 import datetime as dt
+import json
 
 
 def config_and_solve(options):
@@ -102,7 +103,6 @@ def execute_solve(model_data, options, solution_data=None):
 
 if __name__ == "__main__":
 
-    import json
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
     parser.add_argument('-c', dest='file', default="package.params",
                         help='config file (default: package.params)')
@@ -125,5 +125,4 @@ if __name__ == "__main__":
 
     options = params.OPTIONS
     options['PATHS'] = params.PATHS
-    # import package.params as params
     config_and_solve(options)

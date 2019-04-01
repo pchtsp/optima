@@ -7,6 +7,7 @@ import package.superdict as sd
 import argparse
 import re
 import copy
+import multiprocessing as multi
 
 if __name__ == "__main__":
 
@@ -58,6 +59,21 @@ if __name__ == "__main__":
                 [{'name': 'base'}]
 
     seed_backup = sim_data['seed']
+    multiproc = options.get('multiprocess')
+    results = []
+    if multiproc:
+        pool = multi.Pool(processes=multiproc)
+
+    def solve_errors(_options, path_instance):
+        try:
+            exec.config_and_solve(_options)
+        except Exception as e:
+            if not os.path.exists(path_instance):
+                os.mkdir(path_instance)
+            str_fail = "Unexpected error in case: \n{}".format(repr(e))
+            with open(path_instance + 'failure.txt', 'w') as f:
+                f.write(str_fail)
+
     for case in case_data:
         sim_data['seed'] = seed_backup
         path_exp = params.PATHS['experiments'] = \
@@ -84,12 +100,13 @@ if __name__ == "__main__":
                 _path_instance = path_instance + "_{}".format(num)
                 num += 1
             _options['path'] = path_instance = _path_instance + '/'
-            try:
-                exec.config_and_solve(_options)
-            except Exception as e:
-                if not os.path.exists(path_instance):
-                    os.mkdir(path_instance)
-                str_fail = "Unexpected error in case: \n{}".format(repr(e))
-                with open(path_instance + 'failure.txt', 'w') as f:
-                    f.write(str_fail)
+
+            if multiproc:
+                result = pool.apply_async(solve_errors, [_options, path_instance])
+                results.append(result)
+            else:
+                solve_errors(_options, path_instance)
             # time.sleep(60)
+
+    for result in results:
+        result.get(timeout=10000)
