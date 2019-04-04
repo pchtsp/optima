@@ -13,13 +13,18 @@
     time slot unit=month
 ]{2017-08-01}{2024-06-01}
     % \gantttitlecalendar{year} \\
-    \Dganttbar{(b)}{M}{2019-02-01}{2019-07-01}{bar/.append style={fill=color1}}
+    \Dganttbar{(b)}{M}{2020-10-01}{2021-03-01}{bar/.append style={fill=color1}}
+    % \Dganttbar{(b)}{M}{2020-10-01}{2021-03-01}{bar/.append style={fill=color1}}
+    \ganttvrule[]{\hspace{-150pt}$\mathcal{T}^{m_{ini}}_i$}{2019-08-01}
+    \ganttvrule[]{\hspace{-120pt}$\mathcal{T}^{M_{ini}}_i$}{2021-04-01}
     \ganttvrule[
-    vrule label node/.append style={anchor=north east}
-    ]{\hspace{-40pt}$\mathcal{T}^{m_{ini}}_i$}{2018-05-01}
+        vrule/.style={dotted, line width=0.7pt}
+    ]{$t$}{2020-09-01}
     \ganttvrule[
-    vrule label node/.append style={anchor=north east}
-    ]{\hspace{-80pt}$\mathcal{T}^{M_{ini}}_i$}{2020-01-01}
+        vrule/.style={dotted, line width=0.7pt}
+    ]{$t'$}{2024-06-01}
+    % {draw=black, fill=green!50}
+    % dashed, line width=1pt, very thick, blue
     % \ganttvrule[
     % vrule label node/.append style={anchor=north west}
     % ]{}{2020-02-01}
