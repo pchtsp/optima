@@ -28,12 +28,13 @@ class Config(object):
         self.path = options['path']
         self.timeLimit = options['timeLimit']
         self.solver = options.get('solver', 'GUROBI')
-        self.solver_add_opts = options.get('solver_add_opts', [])
+        self.solver_add_opts = options.get('solver_add_opts', {}).get(self.solver, [])
         self.mip_start = options.get('mip_start', False)
         self.gap_abs = options.get('gap_abs')
         self.log_path = self.path + 'results.log'
         self.result_path = self.path + 'results.sol'
         self.threads = options.get('threads')
+        self.solver_path = options.get('solver_path')
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
@@ -58,11 +59,7 @@ class Config(object):
         params = [v.format(getattr(self, k)) for k, v in params_eq.items()
                   if getattr(self, k) is not None] + self.solver_add_opts
 
-        return \
-            ["presolve on",
-             "gomory on",
-             "knapsack on",
-             "probing on"] + params + self.solver_add_opts
+        return params + self.solver_add_opts
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
@@ -109,19 +106,26 @@ class Config(object):
         if self.writeLP:
             model.writeLP(filename=self.path + 'formulation.lp')
 
+        solver = None
         if self.solver == "GUROBI":
-            return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
+            solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1)
         if self.solver == "CPLEX":
-            return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start))
+            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start)
         if self.solver == "CHOCO":
-            return model.solve(pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0))
+            solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0)
+        if solver is not None:
+            return model.solve(solver)
         if self.solver == "CBC":
+            if self.solver_path:
+                solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=1,
+                                     mip_start=self.mip_start, path=self.solver_path)
+            else:
+                solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1,
+                                         mip_start=self.mip_start)
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)
-                result = model.solve(
-                    pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1, mip_start=self.mip_start)
-                )
+                result = model.solve(solver)
                 dup2(orig_std_out, 1)
                 close(orig_std_out)
                 tmp_output.seek(0)

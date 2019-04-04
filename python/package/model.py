@@ -242,17 +242,23 @@ class Model(exp.Experiment):
         # Maintenances
         # ##################################
 
-         # if we need a maintenance inside the horizon, we enforce it
-        for a, t_list in l['t_a_M_ini'].items():
-            model += pl.lpSum(start_M.get((a, t1, t2), 0)
-                              for t1 in t_list for t2 in l['t_at_M'][a, t1] + [last_period]) == 1
+         # NOTE: we are now assuming one maintenance assignment (be it simple or double)
 
+         # if we need a maintenance inside the horizon, we enforce it
+        # this is already done by choosing the correct maintenance possibilities
+        # for a, t_list in l['t_a_M_ini'].items():
+        #     model += pl.lpSum(start_M.get((a, t1, t2), 0)
+        #                       for t1 in t_list for t2 in l['t_at_M'][a, t1] + [last_period]) == 1
+
+        # For small horizons, we want to add a an upper limit on maintenances
+        # in case the previous constraint is not active for that resource
         for a, tt_list in l['tt_maints_a'].items():
+            # if not l['t_a_M_ini'].get(a, []):
             model += pl.lpSum(start_M[a, t1, t2] for t1, t2 in tt_list) == 1
 
         # max number of maintenances:
         for t in l['periods']:
-            at1t1_list = l['att_maints_t'][t]
+            at1t1_list = l['att_maints_t'].get(t, [])
             if not len(at1t1_list):
                 continue
             model += pl.lpSum(start_M[a, t1, t2] for (a, t1, t2) in at1t1_list) + \
@@ -448,23 +454,37 @@ class Model(exp.Experiment):
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
+
+        # maintenance starts possibilities because of initial state of aircraft
+        at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
+                    if ret_init[a] <= len(periods)
+                    if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
+                    ])
+
         # this is the domain for the maintenance m_itt variable
-        att_maints = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
-                                 if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
-                                 or (len(periods) - periods_pos[t1] <= min_elapsed and
-                                     periods_pos[t2] == last_period)
-                                 ])
+        # we want all t1, t2 combinations such as t1 and t2 make possible cycle combinations.
+        # without using the last period as a start of a new cycle (as a convention)
+        # since we are only assuming max 1 assignment, we need to take out the possibilities that leave
+        # more than max_elapsed after it
+        att_maints = tl.TupList((a, t1, t2) for (a, t1) in at_free_start for t2 in periods
+                                if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
+                                and len(periods) - max_elapsed <= periods_pos[t2]
+                                )
+        # also, we want to permit incomplete cycles that finish in the last period.
+        att_maints += tl.TupList((a, t1, last_period) for (a, t1) in at_free_start if
+                                 len(periods) - min_elapsed <= periods_pos[t1]
+                                 )
+        # only allow maintenance starts that follow the initial state
+        _at_M_ini_s = set(at_M_ini)
+        att_maints = att_maints.filter_list_f(lambda x: (x[0], x[1]) in _at_M_ini_s)
         # this is the TTT_t set.
+        # periods that are maintenance periods because of having assign a maintenance
         attt_maints = tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t1), []))
         attt_maints += tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t2), [])
                                   if t2 < last_period)
         attt_maints = attt_maints.unique2()
 
         att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
-        at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
-                    if ret_init[a] <= len(periods)
-                    if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
-                    ])
         avtt2t = tl.TupList(
             [(a, v, t1, t2, t) for (a, v, t1, t2) in avtt2 for t in self.instance.get_periods_range(t1, t2)]
         )

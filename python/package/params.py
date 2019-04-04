@@ -37,6 +37,9 @@ params_cplex = \
 , 'set mip limits gomorypass 10'
   ]
 
+params_cbc = ["presolve on",
+             "gomory on",
+             "probing on"]
 
 OPTIONS = {
     'timeLimit': 600  # seconds
@@ -70,9 +73,11 @@ OPTIONS = {
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
-    , 'solver_add_opts': params_cplex
+    , 'solver_add_opts': {'CPLEX': params_cplex, 'CBC': params_cbc}
     , 'mip_start': False
     , 'fix_start': False
+    , 'threads': None
+    , 'solver_path': None
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
