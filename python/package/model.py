@@ -20,8 +20,10 @@ class Model(exp.Experiment):
             solution = sol.Solution({'state': {}, 'task': {}})
         super().__init__(instance, solution)
 
+        self.domains = {}
+
     def solve(self, options=None):
-        l = self.get_domains_sets()
+        self.domains = l = self.get_domains_sets()
         ub = self.get_bounds()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -49,6 +51,7 @@ class Model(exp.Experiment):
             var_type = pl.LpInteger
 
         # VARIABLES:
+
         # binary:
         start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
         task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=pl.LpInteger)
@@ -62,61 +65,21 @@ class Model(exp.Experiment):
         num_maint = pl.LpVariable(name="num_maint", lowBound=0, upBound=ub['num_maint'], cat=var_type)
         rut_obj_var = pl.LpVariable(name="rut_obj_var", lowBound=0, upBound=ub['rut_end'], cat=var_type)
 
+        vs = {
+            'start_T': start_T
+            , 'start_M': start_M
+            , 'task': task
+            , 'rut': rut
+            , 'usage': usage
+            , 'num_maint': num_maint
+        }
+
         if options.get('mip_start'):
-            main_starts = self.get_maintenance_periods()
-            min_usage = self.instance.get_param('min_usage_period')
-
-            # Initialize values:
-            for tup in start_M:
-                start_M[tup].setInitialValue(0)
-
-            for tup in task:
-                task[tup].setInitialValue(0)
-
-            for tup in start_T:
-                start_T[tup].setInitialValue(0)
-
-            for a, t in l['at']:
-                usage[a, t].setInitialValue(min_usage)
-
-            number_maint = 0
-            for (a, t, t2) in main_starts:
-                if (a, t) in l['at_start']:
-                    # we check this because of fixed maints
-                    start_M[a, t].setInitialValue(1)
-                    number_maint += 1
-                periods = self.instance.get_periods_range(t, t2)
-                for p in periods:
-                    if (a, p) in usage:
-                        # we check because of previous assignments
-                        usage[a, p].setInitialValue(0)
-
-            start_periods = self.get_task_periods()
-            task_usage = self.instance.get_tasks('consumption')
-            for (a, t, v, t2) in start_periods:
-                if (a, v, t) in start_T:
-                    start_T[a, v, t].setInitialValue(1)
-                periods = self.instance.get_periods_range(t, t2)
-                for p in periods:
-                    if (a, v, p) in task:
-                        task[a, v, p].setInitialValue(1)
-                    if (a, p) in usage:
-                        usage[a, p].setInitialValue(task_usage[v])
-
-            rut_data = self.set_remaining_usage_time('rut')
-            for a, date_info in rut_data.items():
-                for t, v in date_info.items():
-                    if (a, t) in rut:
-                        rut[a, t].setInitialValue(v)
-
-            num_maint.setInitialValue(number_maint)
-
+            vars_to_fix = None
             if options.get('fix_start', False):
                 # vars_to_fix = [start_M]
                 vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
-                for _vars in vars_to_fix:
-                    for var in _vars.values():
-                        var.fixValue()
+            self.fill_initial_solution(vs, vars_to_fix=vars_to_fix)
 
         # slack variables:
         slack_vt = {tup: 0 for tup in l['vt']}
@@ -143,11 +106,6 @@ class Model(exp.Experiment):
         model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
         # OBJECTIVE:
-        # if options.get('integer', False):
-        #     objective = pl.LpVariable(name="objective", cat=var_type)
-        #     model += objective
-        #     model += objective >= num_maint * max_usage - rut_obj_var
-        # else:
         model +=  num_maint * max_usage + \
                   - price_rut_end * rut_obj_var + \
                   1 * pl.lpSum(assign_st * price_assign[a, v]
@@ -311,6 +269,94 @@ class Model(exp.Experiment):
             return None
         print('model solved correctly')
 
+        self.solution = self.get_solution(variables=vs)
+
+        return self.solution
+
+    def fill_initial_solution(self, variables, vars_to_fix=None):
+        """
+        :param variables: variable dictionary to unpack
+        :param vars_to_fix: possible list of variables to fix. List of dicts assumed)
+        :return:
+        """
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        start_M = variables['start_M']
+        start_T = variables['start_T']
+        usage = variables['usage']
+        task = variables['task']
+        rut = variables['rut']
+        num_maint = variables['num_maint']
+
+        main_starts = self.get_maintenance_periods()
+        min_usage = self.instance.get_param('min_usage_period')
+
+        # Initialize values:
+        for tup in start_M:
+            start_M[tup].setInitialValue(0)
+
+        for tup in task:
+            task[tup].setInitialValue(0)
+
+        for tup in start_T:
+            start_T[tup].setInitialValue(0)
+
+        for a, t in l['at']:
+            usage[a, t].setInitialValue(min_usage)
+
+        number_maint = 0
+        for (a, t, t2) in main_starts:
+            if (a, t) in l['at_start']:
+                # we check this because of fixed maints
+                start_M[a, t].setInitialValue(1)
+                number_maint += 1
+            periods = self.instance.get_periods_range(t, t2)
+            for p in periods:
+                if (a, p) in usage:
+                    # we check because of previous assignments
+                    usage[a, p].setInitialValue(0, check=False)
+
+        start_periods = self.get_task_periods()
+        task_usage = self.instance.get_tasks('consumption')
+        for (a, t, v, t2) in start_periods:
+            if (a, v, t) in start_T:
+                start_T[a, v, t].setInitialValue(1)
+            periods = self.instance.get_periods_range(t, t2)
+            for p in periods:
+                if (a, v, p) in task:
+                    task[a, v, p].setInitialValue(1)
+                if (a, p) in usage:
+                    usage[a, p].setInitialValue(task_usage[v])
+
+        rut_data = self.set_remaining_usage_time('rut')
+        for a, date_info in rut_data.items():
+            for t, v in date_info.items():
+                if (a, t) in rut:
+                    rut[a, t].setInitialValue(v, check=False)
+
+        num_maint.setInitialValue(number_maint)
+
+        if vars_to_fix is not None:
+            for _vars in vars_to_fix:
+                for var in _vars.values():
+                    var.fixValue()
+        return True
+
+    def get_solution(self, variables):
+
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        start_M = variables['start_M']
+        start_T = variables['start_T']
+        task = variables['task']
+        rut = variables['rut']
+        first_period = self.instance.get_param('start')
+        last_period = self.instance.get_param('end')
+
         _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
 
         # we store the start of maintenances and tasks in the same place
@@ -332,14 +378,12 @@ class Model(exp.Experiment):
             }
         }
 
-        solution_data = {k: aux.dicttup_to_dictdict(v)
-                         for k, v in solution_data_pre.items() if k != "aux"}
-        solution_data['aux'] = {k: aux.dicttup_to_dictdict(v)
-                                for k, v in solution_data_pre['aux'].items()}
-        solution = sol.Solution(solution_data)
-        self.solution = solution
-        return solution
+        solution_data_pre = sd.SuperDict.from_dict(solution_data_pre)
 
+        solution_data = {k: v.to_dictdict() for k, v in solution_data_pre.items() if k != "aux"}
+        solution_data['aux'] = {k: v.to_dictdict() for k, v in solution_data_pre['aux'].items()}
+        solution = sol.Solution(solution_data)
+        return solution
 
     def get_bounds(self):
         param_data = self.instance.get_param()
