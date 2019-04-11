@@ -131,6 +131,14 @@ class SuperDict(dict):
             return result.values_l()
         return result
 
+    def apply(self, func):
+        """
+        applies a function to the dictionary and returns the result
+        :param func: function with two arguments: one for the key, another for the value
+        :return: new Superdict
+        """
+        return SuperDict({k: func(k, v) for k, v in self.items()})
+
     @classmethod
     def from_dict(cls, dictionary):
         if type(dictionary) is not dict:

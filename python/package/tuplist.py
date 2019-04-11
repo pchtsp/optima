@@ -75,6 +75,9 @@ class TupList(list):
     def unique2(self):
         return TupList(set(self))
 
+    def intersect(self, input_list):
+        return TupList(set(self) & set(input_list))
+
     def tup_to_start_finish(self, compare_tups=None, pp=1):
         """
         Takes a calendar tuple list of the form: (id, month) and
