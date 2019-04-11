@@ -279,7 +279,7 @@ def cuts_relaxation_comparison():
     boxplot_gaps(table_n, experiment)
 
 
-def statistics_relaxations(experiment):
+def statistics_relaxations(experiment, write=True):
     # experiment = "clust1_20181121"
     cols_rename = {
         'index': 'id', 'best_solution': 'best_solution',
@@ -322,10 +322,12 @@ def statistics_relaxations(experiment):
                   nodes = X.nodes_mean)
     cols = ['case'] + [c for c in table_nn.columns if c != 'case']
     table_nnn = table_nn >> dp.select(cols)
-    latex = table_nnn.to_latex(float_format='%.1f', escape=False, index=False)
-    file_path = os.path.join(path + 'tables/', '{}_cut_statistics.tex'.format(experiment))
-    with open(file_path, 'w') as f:
-        f.write(latex)
+    if write:
+        latex = table_nnn.to_latex(float_format='%.1f', escape=False, index=False)
+        file_path = os.path.join(path + 'tables/', '{}_cut_statistics.tex'.format(experiment))
+        with open(file_path, 'w') as f:
+            f.write(latex)
+    return table_nnn
 
 
 if __name__ == "__main__":
