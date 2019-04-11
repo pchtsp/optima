@@ -114,7 +114,12 @@ class Config(object):
         if self.solver == "CHOCO":
             solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0)
         if solver is not None:
-            return model.solve(solver)
+            try:
+                result = model.solve(solver, timeout=self.timeLimit + 60)
+            except pl.PulpSolverError:
+                # We usually get this because of CPLEX
+                result = 0
+            return result
         if self.solver == "CBC":
             if self.solver_path:
                 solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=1,
@@ -125,7 +130,7 @@ class Config(object):
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)
-                result = model.solve(solver)
+                result = model.solve(solver, timeout=self.timeLimit + 60)
                 dup2(orig_std_out, 1)
                 close(orig_std_out)
                 tmp_output.seek(0)
