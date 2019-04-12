@@ -154,12 +154,12 @@ The following model provides a tight MIP formulation that solves the Military Fl
         $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check at the beginning of period $t \in \mathcal{T}$ and then starts the next one at the beginning of period $t'$, 0 otherwise. \\
     \end{tabular}
 
-    The following decision variables control the used and remaining flight time in aircraft.
+    % The following decision variables control the used and remaining flight time in aircraft.
 
-    \begin{tabular}{p{8mm}p{117mm}}
-        $u_{it}$    &  flown time (continuous) by aircraft $i \in I$ during period $t \in \mathcal{T}$. \\        
-        $rft_{it}$  &  remaining flight time (continuous) for aircraft $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
-    \end{tabular}
+    % \begin{tabular}{p{8mm}p{117mm}}
+    %     $u_{it}$    &  flown time (continuous) by aircraft $i \in I$ during period $t \in \mathcal{T}$. \\        
+    %     $rft_{it}$  &  remaining flight time (continuous) for aircraft $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
+    % \end{tabular}
 
     \paragraph{Fixed values}
 
@@ -172,7 +172,7 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
 
     \begin{align}
         & \text{Min}\; \sum_{i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} - |\mathcal{T}|} m_{it_1t_2}  \label{eq:objective1}\\
-        & \text{Min}\; \sum_{i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1}} m_{it_1t_2} \times H^{max} - \sum_{i \in \mathcal{I}} rft_{i|\mathcal{T}|} \label{eq:objective2}
+        % & \text{Min}\; \sum_{i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1}} m_{it_1t_2} \times H^{max} - \sum_{i \in \mathcal{I}} rft_{i|\mathcal{T}|} \label{eq:objective2}
     \end{align}
     
     The first term counts all the flight hours given to aircraft following checks and the second term quantifies the amount of remaining flight hours for all aircraft at the end of the planning horizon. These two objectives have the same units, can be easily compared and ensure the aircraft are used in the most efficient way. %We will not penalize the maintenances that provide a better final state for aircraft.
@@ -210,37 +210,43 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     \begin{align}
        & \sum_{i \in \mathcal{IK}_k, (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} + N^{Clust}_{kt} \leq A^{Clust}_{kt}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster} \\
-       & \sum_{i \in \mathcal{IK}_k} rft_{it} \geq H^{Clust}_{kt}
-        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:sustainability-cluster}
+       % & \sum_{i \in \mathcal{IK}_k} rft_{it} \geq H^{Clust}_{kt}
+       %  &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:sustainability-cluster}
     \end{align}
 
     Constraints (\ref{eq:serviceability-cluster}) guarantee a minimum serviceability of aircraft for each cluster $k$. A cluster is defined by the largest group of aircraft that is required exclusively for at least one mission. Constraints (\ref{eq:sustainability-cluster}) ensure there is a minimum amount of remaining flight time for each cluster $k$.
 
     \begin{align}
         % remaining used time
-         & u_{it} \geq \sum_{j \in \mathcal{JT}_t \cap \mathcal{JI}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} H_j 
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight1}\\
-         & u_{it} \in [U^{min}, \max_j{\{H_j\}}]
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight_lower}\\
-         & rft_{it} \leq rft_{i(t-1)} + H^{max} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} - u_{it}
-            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
-        & rft_{i0} = Rft^{Init}_i
-               & i \in \mathcal{I} \label{eq:rft_initial}\\
-        & rft_{it} \geq H^{max} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2}
-                &t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rft_lower}\\
-        & rft_{it} \in [0,H^{max}]
-                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
+        %  & u_{it} \geq \sum_{j \in \mathcal{JT}_t \cap \mathcal{JI}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} H_j 
+        %     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight1}\\
+        %  & u_{it} \in [U^{min}, \max_j{\{H_j\}}]
+        %     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight_lower}\\
+        %  & rft_{it} \leq rft_{i(t-1)} + H^{max} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} - u_{it}
+        %     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
+        % & rft_{i0} = Rft^{Init}_i
+        %        & i \in \mathcal{I} \label{eq:rft_initial}\\
+        % & rft_{it} \geq H^{max} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2}
+        %         &t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rft_lower}\\
+        % & rft_{it} \in [0,H^{max}]
+        %         & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
+        & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{a1t_1}} a_{ijtt'} H'_{jtt'} + U^{min}_{1t_1} \leq Rft^{Init}_i + H^{max} (1 - m_{it_1t_2}) 
+                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours1}\\
+        & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{at_1t_2}} a_{ijtt'} H'_{jtt'} + U^{min}_{t_1t_2} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours2}\\
+        & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{at_2|\mathcal{T}|}} a_{ijtt'} H'_{jtt'} + U^{min}_{t_2|\mathcal{T}|} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours3}
     \end{align}
 
         % These constraints calculate the balances of hours for each aircraft.
-    The flight time per aircraft and period is calculated in (\ref{eq:flight1})-(\ref{eq:flight_lower}). The remaining flight time is defined by (\ref{eq:rft_upper})-(\ref{eq:rft_initial}) and its limits by (\ref{eq:rft_lower})-(\ref{eq:mu}).
+    % The flight time per aircraft and period is calculated in (\ref{eq:flight1})-(\ref{eq:flight_lower}). The remaining flight time is defined by (\ref{eq:rft_upper})-(\ref{eq:rft_initial}) and its limits by (\ref{eq:rft_lower})-(\ref{eq:mu}).
 
     \begin{align}
        % For now, we only want one or possibly two maintenances...
         & \sum_{t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \cup |\mathcal{T}| } m_{it_1t_2} =  1 
           & i \in \mathcal{I}\label{eq:num_maint} \\
         % & m_{it'} + m_{it} \leq 1
-        %   & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\ 
+        %   & t \in \mathcal{T}, t' \in \mathcal{T}^m_t, i \in \mathcal{I}\label{eq:rct_min}\\  
         % & \sum_{t' \in \mathcal{T}^M_t} m_{it'} \geq  m_{it}
         %   & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rct_max}\\
         % & m_{it_1t_2} = 0
