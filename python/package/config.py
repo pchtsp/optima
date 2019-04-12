@@ -110,7 +110,12 @@ class Config(object):
         if self.solver == "GUROBI":
             return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
         if self.solver == "CPLEX":
-            return model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start))
+            try:
+                result = model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start),
+                                     timeout=self.timeLimit + 60)
+            except pl.PulpSolverError:
+                result = 0
+            return result
         if self.solver == "CHOCO":
             return model.solve(pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0))
         if self.solver == "CBC":
