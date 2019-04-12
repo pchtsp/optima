@@ -20,16 +20,16 @@ Moreover, using the maximum and minimum distances between maintenances (min and 
 
 First, for each period $t$, and using the initial states of aicraft, we can calculate the minimum and maximum number of maintenances that an aircraft could have already done (*ended*) before the start of the period. We can then aggregate this for each aircraft type to obtain a lower and an upper bound on the number of maintenances that can be finished before period $t$.
 
-Secondly, we can calculate the number of maintenances we can fit until period $t$, by looking at missions requirements in terms of number of aircraft. This would be the sum of all the non-mission periods over all aircraft $i$ and all periods $t' < t$ over the duration of the maintenances ($M$). This would be another upper bound.
+Secondly, we can calculate the number of maintenances we can fit until period $t$, by looking at missions requirements in terms of number of aircraft. This would be done by aircraft type. We first take the sum of all the non-mission periods over all aircraft $i \in IK_k \forall k \in K$$ and all periods $t' < t$. Then, we divide this over the duration of the maintenances ($M$). This would an upper bound.
 
-Thirdly, we can sum all flight-hour needs of missions of type $k$ before time $t$. If we substract this from the initial remaining flight time of the group of aicraft, we are left with a number of hours that need to be obtained via maintenances. If we divide this number over the number of flight hours a maintenance gives, we get a lower bound on the number of maintenances we need to do for those aircraft of type $k$.
+Thirdly, we can sum all flight-hour needs of missions of type $k$ before time $t$. If we substract this from the initial remaining flight time of the group of aicraft, we are left with a number of hours that need to be obtained via maintenances. If we divide this number over the $H^{max}$ flight hours a maintenance gives, we get a lower bound on the number of maintenances we need to do for those aircraft of type $k$.
 
-So, in this way, we have two lower bounds and two upper bounds per period and aircraft type. We could just get the maximum and the minimum respectively to get some bounds on the number of maintenances each month.
+So, in this way, we have two lower bounds and two upper bounds per period and aircraft type. We could just get the maximum and the minimum respectively to get some bounds on the number of maintenances until period $t$.
 
 ## Mission assignment
 
 ### Mission assignment for initial periods
 
-Specially for the initial periods, and based on the initial state, mission hourly requirements and minimum assignment duration, it is possible to **precalculate which aircraft will not be able to start a mission in some periods**. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.
+Specially for the initial periods, and based on the initial state, missions' hourly requirements and minimum assignment duration, it is possible to **precalculate which aircraft will not be able to start a mission in some periods**. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.
 
 In the case of having a minimum consumption, this could be used to have some lower bounds too.
