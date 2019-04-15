@@ -111,6 +111,8 @@ class Config(object):
             solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1)
         if self.solver == "CPLEX":
             solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start)
+        if self.solver == "CPLEX_PY":
+            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path)
         if self.solver == "CHOCO":
             solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0)
         if solver is not None:
