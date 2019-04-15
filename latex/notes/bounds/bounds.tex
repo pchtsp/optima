@@ -1,0 +1,157 @@
+\documentclass[a4paper,onecolumn,fleqn]{article}
+\textwidth 17cm \textheight 247mm
+\topmargin -4mm
+\hoffset -9mm \voffset -14mm
+%\setlength{\topmargin}{-0.8truecm}
+\setlength{\oddsidemargin}{0.3cm}
+\setlength{\evensidemargin}{0.3cm}
+\setlength{\columnsep}{8mm}
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{-2.0ex}
+\setlength{\mathindent}{0mm}
+\flushbottom
+
+
+\usepackage{epsfig}
+%\usepackage{timesnew}
+% \usepackage{harvard}
+% \usepackage[]{natbib}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\usepackage[latin1]{inputenc}
+% \usepackage{aeguill}
+\usepackage[english]{babel}
+\usepackage{caption}
+\usepackage{pgfgantt}
+
+
+\setlength{\parskip}{2ex} \pagestyle{myheadings}
+% \markright{\hspace*{3.8cm} \textit{MOSIM18 - June 27-29, 2018 - Toulouse - France}}
+
+\renewcommand{\thepage}{}
+\renewcommand{\refname}{REFERENCES}
+
+
+
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\section{\@startsection{section}{2}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {2\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\textbf}}
+
+\renewcommand\section{\@startsection{section}{3}{\z@}%
+                       {-6\p@ \@plus -0\p@ \@minus -0\p@}%
+                       {1\p@ \@plus 0\p@ \@minus 0\p@}%
+                       {\normalsize\itshape\bfseries}}
+\makeatother
+
+
+\begin{document}
+
+The idea is to define ways with which we can understand the problem, based on the initial input data.
+
+\section{Input data}
+    \subsection{Basic sets}
+
+        \begin{tabular}{p{15mm}p{140mm}}
+            $i \in \mathcal{I}$     &  aircraft. \\
+            $t \in \mathcal{T}$     &  time periods included in the planning horizon. \\
+            $j \in \mathcal{J}$     &  missions. \\
+            $k \in \mathcal{K}$     &  cluster of aircraft that share the same functionality. \\
+        \end{tabular}
+
+    \subsection{Mission parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $H_j$             & amount of flight time required by mission $j$. & hours. \\
+            $R_j$             & number of aircraft required by mission $j$. & aircraft. \\
+            $MT_j$            & minimum number of consecutive periods an aircraft has to be assigned to mission $j$. & periods. \\
+            $U^{min}$         & default aircraft flight time if it is not assigned to any mission nor in maintenance.& hours \\
+            $M$               & check duration in number of periods. & periods. \\
+        \end{tabular}
+
+    \subsection{Maintenance parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $C^{max}$         & maximum number of simultaneous checks. & aircraft. \\
+            $E^{max}$         & maximum number of periods between two consecutive checks. & periods. \\
+            $E^{min}$         & minimum number of periods between two consecutive checks. & periods. \\
+            $H^{max}$         & remaining flight time after a check. & hours. \\
+        \end{tabular}
+
+    \subsection{Fleet parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $N_t$               & number of aircraft known to be in maintenance in period $t$. & aircraft. \\
+            $N^{Clust}_{kt}$    & number of aircraft in cluster $k$ known to be in maintenance in period $t$. & aircraft. \\
+            $A^{Clust}_{kt}$    & maximum number of aircraft in cluster $k$ that can be simultaneously in maintenance in period $t$. & aircraft. \\
+            $H^{Clust}_{kt}$    & minimum number of total remaining flight time for cluster $k$ at period $t$. & hours. \\
+            $Rft^{Init}_i$      & remaining flight time for aircraft $i$ at the start of the planning horizon.  & hours.  \\
+            $Rct^{Init}_i$      & remaining calendar time for aircraft $i$ at the start of the planning horizon.  & periods. \\
+        \end{tabular}
+
+    \subsection{Parametric sets}
+
+        \begin{tabular}{p{15mm}p{140mm}}
+            $t \in \mathcal{TJ}_j$     &  time periods $t \in \mathcal{T}$ in which mission $j$ is active. \\
+            $j \in \mathcal{JT}_t$    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
+            $i \in \mathcal{IJ}_j$     &  aircraft $i \in \mathcal{I}$ that can be assigned to mission $j$. \\
+            $i \in \mathcal{IK}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
+            $j \in \mathcal{JI}_i$     &  missions $j \in \mathcal{J}$ for which aircraft $i$ can be used. \\
+            $i \in \mathcal{A}^{Init}_j$  & aircraft $i \in \mathcal{I}$ that have mission $j$ pre-assigned in the previous period to the start of the planning horizon. \\
+        \end{tabular}
+
+    \subsection{Time-related parametric sets}
+
+        Several intermediate sets have been defined based on the input data in order to simplify constraint formulation.
+
+        \begin{tabular}{p{30mm}p{125mm}}
+            $t \in \mathcal{T}^s_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $t' \in \mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^{min}-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^{max} - M$ such that $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$ (figure \ref{fig:gantt_windows}a). \\
+            $t \in \mathcal{T}^{m_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}}\}$ (figure \ref{fig:gantt_windows}b). \\
+            $t \in \mathcal{T}^{M_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}b). \\
+            $t' \in \mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}c). \\
+            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $t_1, t_2 \in \mathcal{TJ}_j$ such that $t_2 \ge t_1 + MT_j-1$ and $t \in \{t_1, ..., t_2\}$. \\
+            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}$ & pairs of time periods $t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}$ such that $t_1 \in \mathcal{T}^s_{t} \lor t_2 \in \mathcal{T}^s_{t}$. \\
+            $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ & triplet composed of mission $j \in \mathcal{JI}_i$ and $t, t' \in \mathcal{TJ}_j$ such that $t' \ge t + MT_j-1$ and $t \ge t_1 + M$ and $t' < t_2$ \\
+        \end{tabular}
+
+
+
+% \section{Number and possible dates for maintenances}
+% \label{number-and-possible-dates-for-maintenances}
+
+% The aircraft initial state already conditions the first maintenance of each aircraft.
+
+% Moreover, using the maximum and minimum distances between maintenances (min and max size for maintenances cycles respectively), \textbf{we can precalculate the possible total number of maintenances that an aircraft will have in the horizon}. This number will probably be one of the following: {[}1{]}, {[}1, 2{]}, {[}2{]}, {[}1, 2, 3{]}. This will depend on the size of the horizon and maintenance conditions. 
+
+\section{Range of number of maintenances per period and cluster}
+\label{range-of-number-of-maintenances-per-period-and-cluster}
+
+First, for each period $t$, and using the initial states of aircraft, we can calculate the minimum and maximum number of maintenances that an aircraft could have already done (\emph{ended}) before the start of the period. We can then aggregate this for each aircraft type to obtain a lower and an upper bound on the number of maintenances that can be finished before period $t$. 
+
+
+\begin{align}
+
+	& t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \forall i \in \mathcal{I}, |\mathcal{T}|
+
+\end{align}
+
+Secondly, we can calculate the number of maintenances we can fit until period $t$, by looking at missions requirements in terms of number of aircraft. This would be done by aircraft type. We first take the sum of all the non-mission periods over all aircraft $i \in IK_k \forall k \in K$\$ and all periods $t' < t$. Then, we divide this over the duration of the maintenances ($M$). This would an upper bound. 
+
+ Thirdly, we can sum all flight-hour needs of missions of type $k$ before time $t$. If we substract this from the initial remaining flight time of the group of aircraft, we are left with a number of hours that need to be obtained via maintenances. If we divide this number over the $H^{max}$ flight hours a maintenance gives, we get a lower bound on the number of maintenances we need to do for those aircraft of type $k$.  So, in this way, we have two lower bounds and two upper bounds per period and aircraft type. We could just get the maximum and the minimum respectively to get some bounds on the number of maintenances until period $t$.  {% 
+
+
+\section{Mission assignment}\label{mission-assignment}}  {% 
+
+\section{Mission assignment for initial periods}\label{mission-assignment-for-initial-periods}} 
+
+Specially for the initial periods, and based on the initial state, missions' hourly requirements and minimum assignment duration, it is possible to \textbf{precalculate which aircraft will not be able to start a mission in some periods}. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.  In the case of having a minimum consumption, this could be used to have some lower bounds too. 
+\end{document}
