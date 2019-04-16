@@ -24,10 +24,10 @@
 \usepackage[english]{babel}
 \usepackage{caption}
 \usepackage{pgfgantt}
+\usepackage{multicol}
 
 
 \setlength{\parskip}{2ex} \pagestyle{myheadings}
-% \markright{\hspace*{3.8cm} \textit{MOSIM18 - June 27-29, 2018 - Toulouse - France}}
 
 \renewcommand{\thepage}{}
 \renewcommand{\refname}{REFERENCES}
@@ -63,7 +63,8 @@ The idea is to define ways with which we can understand the problem, based on th
             $i \in \mathcal{I}$     &  aircraft. \\
             $t \in \mathcal{T}$     &  time periods included in the planning horizon. \\
             $j \in \mathcal{J}$     &  missions. \\
-            $k \in \mathcal{K}$     &  cluster of aircraft that share the same functionality. \\
+            $y \in \mathcal{Y}$     &  types of mission or aircraft. \\
+            $k \in \mathcal{K}$     &  clusters of aircraft that share exactly the same functionality. \\
         \end{tabular}
 
     \subsection{Mission parameters}
@@ -74,6 +75,7 @@ The idea is to define ways with which we can understand the problem, based on th
             $MT_j$            & minimum number of consecutive periods an aircraft has to be assigned to mission $j$. & periods. \\
             $U^{min}$         & default aircraft flight time if it is not assigned to any mission nor in maintenance.& hours \\
             $M$               & check duration in number of periods. & periods. \\
+            $Y_j$             & type $y \in \mathcal{Y}$ for mission $j$. \\
         \end{tabular}
 
     \subsection{Maintenance parameters}
@@ -94,6 +96,7 @@ The idea is to define ways with which we can understand the problem, based on th
             $H^{Clust}_{kt}$    & minimum number of total remaining flight time for cluster $k$ at period $t$. & hours. \\
             $Rft^{Init}_i$      & remaining flight time for aircraft $i$ at the start of the planning horizon.  & hours.  \\
             $Rct^{Init}_i$      & remaining calendar time for aircraft $i$ at the start of the planning horizon.  & periods. \\
+            $Y_i$               & type $y \in \mathcal{Y}$ for aircraft $j$. \\
         \end{tabular}
 
     \subsection{Parametric sets}
@@ -102,6 +105,8 @@ The idea is to define ways with which we can understand the problem, based on th
             $t \in \mathcal{TJ}_j$     &  time periods $t \in \mathcal{T}$ in which mission $j$ is active. \\
             $j \in \mathcal{JT}_t$    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
             $i \in \mathcal{IJ}_j$     &  aircraft $i \in \mathcal{I}$ that can be assigned to mission $j$. \\
+            $i \in \mathcal{IY}_y$     &  aircraft $i \in \mathcal{I}$ that are included in type $y$. One aircraft cannot belong to more than one type. \\
+            $j \in \mathcal{JY}_y$     &  missions $j \in \mathcal{J}$ that are included in type $y$. One mission cannot belong to more than one type. \\
             $i \in \mathcal{IK}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
             $j \in \mathcal{JI}_i$     &  missions $j \in \mathcal{J}$ for which aircraft $i$ can be used. \\
             $i \in \mathcal{A}^{Init}_j$  & aircraft $i \in \mathcal{I}$ that have mission $j$ pre-assigned in the previous period to the start of the planning horizon. \\
@@ -112,46 +117,176 @@ The idea is to define ways with which we can understand the problem, based on th
         Several intermediate sets have been defined based on the input data in order to simplify constraint formulation.
 
         \begin{tabular}{p{30mm}p{125mm}}
-            $t \in \mathcal{T}^s_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
-            $t' \in \mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^{min}-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
-            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^{max} - M$ such that $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$ (figure \ref{fig:gantt_windows}a). \\
-            $t \in \mathcal{T}^{m_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}}\}$ (figure \ref{fig:gantt_windows}b). \\
-            $t \in \mathcal{T}^{M_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}b). \\
-            $t' \in \mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}c). \\
-            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $t_1, t_2 \in \mathcal{TJ}_j$ such that $t_2 \ge t_1 + MT_j-1$ and $t \in \{t_1, ..., t_2\}$. \\
-            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}$ & pairs of time periods $t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}$ such that $t_1 \in \mathcal{T}^s_{t} \lor t_2 \in \mathcal{T}^s_{t}$. \\
+            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^{max} - M$ such that $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$. \\
+            $t \in \mathcal{T}^{M_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$. \\
             $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ & triplet composed of mission $j \in \mathcal{JI}_i$ and $t, t' \in \mathcal{TJ}_j$ such that $t' \ge t + MT_j-1$ and $t \ge t_1 + M$ and $t' < t_2$ \\
         \end{tabular}
 
+\section{Range of number of maintenances until each period}
+\label{range-of-number-of-maintenances-per-period}
 
+First, for each period $t$, and using the initial states of aircraft, we can calculate the minimum and maximum number of maintenances that an aircraft could have already \emph{ended} before the start of the period. We can then aggregate this for each aircraft type to obtain a lower and an upper bound on the number of maintenances that can be finished before period $t$. 
 
-% \section{Number and possible dates for maintenances}
-% \label{number-and-possible-dates-for-maintenances}
+$TM1^{min}_i$ and $TM1^{max}_i$ represent, respectively, the minimum and maximum period for starting the first maintenance for aircraft $i$. Analogously, $TM2^{min}_i$ and $TM2^{max}_i$ represent the minimum and maximum period for starting the second maintenance for aircraft $i$.
 
-% The aircraft initial state already conditions the first maintenance of each aircraft.
+\paragraph{Note on the number of maintenances.} Here we are assuming a maximum number of maintenances of two. This is the case based on the size of the horizon we are studying (90 - 120 periods) and the minimum - maximum distance between maintenances (30 to 60 periods).
 
-% Moreover, using the maximum and minimum distances between maintenances (min and max size for maintenances cycles respectively), \textbf{we can precalculate the possible total number of maintenances that an aircraft will have in the horizon}. This number will probably be one of the following: {[}1{]}, {[}1, 2{]}, {[}2{]}, {[}1, 2, 3{]}. This will depend on the size of the horizon and maintenance conditions. 
+\begin{align}
+	& TM1^{min}_i = \min_t{\{t \in \mathcal{T}^{M_{Init}}_i\}} \\
+  & TM1^{max}_i = \max_t{\{t \in \mathcal{T}^{M_{Init}}_i\}} \\
+  & TM2^{min}_i = \min_t{\{t \in \mathcal{T}^M_{TM1^{min}_i}\}} \\
+  & TM2^{max}_i = \max_t{\{t \in \mathcal{T}^M_{TM1^{max}_i}\}} %\\
+\end{align}
 
-\section{Range of number of maintenances per period and cluster}
-\label{range-of-number-of-maintenances-per-period-and-cluster}
+Lower bounds and upper bounds for the number of maintenances possibly started ($NMS^{min}_{it}$, $NMS^{max}_{it}$) and finished ($NMF^{min}_{it}$, $NMF^{max}_{it}$) can be pre-calculated based on where the period is located in the planning horizon relative to the possible first and second maintenance possibilities and the maintenance duration.
 
-First, for each period $t$, and using the initial states of aircraft, we can calculate the minimum and maximum number of maintenances that an aircraft could have already done (\emph{ended}) before the start of the period. We can then aggregate this for each aircraft type to obtain a lower and an upper bound on the number of maintenances that can be finished before period $t$. 
+\begin{multicols}{2}
+\[
+ NMS^{min}_{it} = 
+  \begin{cases} 
+   0 & \text{if } t \le TM1^{max}_i\\
+   1 & \text{if } TM1^{max}_i < t \le TM2^{max}_i \\
+   2 & \text{if } t > TM2^{max}_i \\
+  \end{cases}
+\]
+
+\[
+ NMS^{max}_{it} = 
+  \begin{cases} 
+   0 & \text{if } t < TM1^{min}_i \\
+   1 & TM1^{min}_i \le t < TM2^{min}_i \\
+   2 & t \ge TM2^{min}_i \\
+  \end{cases}
+\]
+
+\columnbreak
+
+\[
+ NMF^{min}_{it} = 
+  \begin{cases} 
+   0 & \text{if } t \le TM1^{max}_i + M\\
+   1 & \text{if } TM1^{max}_i + M< t \le TM2^{max}_i + M\\
+   2 & \text{if } t > TM2^{max}_i + M \\
+  \end{cases}
+\]
+
+\[
+ NMF^{max}_{it} = 
+  \begin{cases} 
+   0 & \text{if } t < TM1^{min}_i + M\\
+   1 & TM1^{min}_i + M \le t < TM2^{min}_i + M\\
+   2 & t \ge TM2^{min}_i + M\\
+  \end{cases}
+\]
+
+\end{multicols}
+
+\section{Range of number of maintenances per aircraft type until each period}
+
+We can aggregate the previous values by type of fleet $y$, as can be seen in (\ref{eq:agg_maints_start}) - (\ref{eq:agg_maints_end}).
+
+\begin{align}
+  & NMSY^{b}_{yt} = \sum_{i \in \mathcal{IY}_y} NMS^{b}_{it} 
+      & t \in \mathcal{T}, y \in \mathcal{Y}, b \in \{min, max\} \label{eq:agg_maints_start} \\
+  & NMFY^{b}_{yt} = \sum_{i \in \mathcal{IY}_y} NMF^{b}_{it} 
+      & t \in \mathcal{T}, y \in \mathcal{Y}, b \in \{min, max\} \label{eq:agg_maints_end}
+\end{align}
+
+Secondly, we can pre-calculate the number of maintenances we can fit until period $t$, by looking at missions requirements in terms of number of aircraft. This would be done by aircraft type. We first take the sum of all the non-mission periods over all aircraft $i \in IK_k \forall k \in K$\$ and all periods $t' < t$. Then, we divide this over the duration of the maintenances ($M$). $JR^{Acc}_{jt}$ represents the accumulated required number of assignments of aircraft for mission $j$ until period $t$, including it. $YFN_{yt}$ represent the number of periods that are not assigned to a mission for all aircraft of type $y$. $NMFY'^{max}_{yt}$ is an upper bound on the number of maintenances that can be finished until period $t$ for all aircraft of type $y$.
+
+\begin{align}
+  & JR^{Acc}_{jt} = |\{t' \in \mathcal{TJ}_j \mid t' \le t\}| 
+      & t \in \mathcal{T}, y \in \mathcal{Y}\\
+  & YFN_{yt} = |IY_y| \times t -  \sum_{j \in \mathcal{JY}_y} R_j \times JR^{Acc}_{jt} 
+      & t \in \mathcal{T}, y \in \mathcal{Y}\\
+  & NMFY^{\prime max}_{yt} = \lfloor \frac{YFN_{yt}}{M} \rfloor 
+      & t \in \mathcal{T}, y \in \mathcal{Y}
+\end{align}
+
+Thirdly, we can sum all flight-hour needs of missions of type $k$ before time $t$. If we subtract this from the initial remaining flight time of the group of aircraft, we are left with a number of hours that need to be obtained via maintenances. If we divide this number over the $H^{max}$ flight hours a maintenance gives, we get a lower bound on the number of maintenances we need to do for those aircraft of type $k$.
+
+\begin{align}
+  & YH^{Acc}_{yt} =  \sum_{j \in \mathcal{JY}_y} H_j \times JR^{Acc}_{jt} 
+      & t \in \mathcal{T}, y \in \mathcal{Y}\\
+  & YH^{Init}_{yt} = \sum_{i \in IY_y} Rft^{Init}_i 
+      & t \in \mathcal{T}, y \in \mathcal{Y}\\
+  & NMFY^{\prime min}_{yt} =  \lceil \frac{YH^{Acc}_{yt} - YH^{Init}_{yt}}{H^{max}} \rceil
+      & t \in \mathcal{T}, y \in \mathcal{Y}
+\end{align}
+
+So, in this way, we have two lower bounds and two upper bounds per period and aircraft type. We could just get the maximum and the minimum respectively to get some bounds on the number of maintenances until period $t$. $NMFY^{\prime\prime b}_{yt}$ represents the bound $b$ in the number of total maintenances since the beginning of the planning horizon for all aircraft of type $y$ until period $t$.
+
+\begin{align}
+  & NMFY^{\prime\prime min}_{yt} = \max\{NMFY^{min}_{yt}, NMFY^{\prime min}_{yt}\} \\ 
+  & NMFY^{\prime\prime max}_{yt} = \min\{NMFY^{max}_{yt}, NMFY^{\prime max}_{yt}\}
+\end{align}
+
+This can be applied via a cut by the following way:
+
+\begin{align}
+  & NMFY^{\prime\prime min}_{yt} = \max\{NMFY^{min}_{yt}, NMFY^{\prime min}_{yt}\} \\ 
+  & NMFY^{\prime\prime max}_{yt} = \min\{NMFY^{max}_{yt}, NMFY^{\prime max}_{yt}\}
+\end{align}
+
+\[
+  QM^{num}_{tt'} = 
+  \begin{cases} 
+   1 & t' > t - M \\
+   2 & t' \le t - M \\
+  \end{cases} 
+\]
+
+$QM^{num}_{tt'}$ represents the possibility of counting two checks instead of one if both checks start before the period $t$, $t'$ representing the second one of those checks. 
+
+\begin{align}
+  & NMFY^{\prime\prime min}_{yt} \le \sum_{\substack{i \in \mathcal{IY}_y, \\ t_1 \in \{1, \ldots, t - M\}, \\ t_2 \in \mathcal{T}^M_{t_1}}} m_{it_1t_2} \times QM^{num}_{tt_2} \le NMFY^{\prime\prime max}_{yt}
+      & t \in \mathcal{T}, y \in \mathcal{Y} \label{eq:range_maints}
+\end{align}
+
+Cuts (\ref{eq:range_maints}) limit the starts of checks of aircraft of type $y$ in order to have the number of finished checks to fall between two ranges.
+
+\section{Number of checks at the end of the horizon per aircraft}
+
+If we evaluate the range of checks per aircraft at the last period ($\mathcal{T}$), we can get one of the three options. If we find ourselves in the cases where there is certainty on the number of checks, it is possible to force the variables to reflect this certainty with the following cuts.
+
+\[
+[NMS^{min}_{i|\mathcal{T}|}, NMS^{max}_{i|\mathcal{T}|}] :
+  \begin{cases} 
+   m_{it_1|\mathcal{T}|} =  1
+    \,\, \forall t_1 \in \mathcal{T}^{M_{Init}}_i, i \in \mathcal{I} & \text{if } [1, 1] \\
+   m_{it_1|\mathcal{T}|} =  0 \,\, \forall t_1 \in \mathcal{T}^{M_{Init}}_i, i \in \mathcal{I} & \text{if } [2, 2] 
+  \end{cases}
+\]
+
+\section{Mission assignment for initial periods}
+\label{mission-assignment-for-initial-periods}
+
+Specially for the initial periods, and based on the initial state, missions' hourly requirements and minimum assignment duration, it is possible to \textbf{precalculate which aircraft will not be able to start a mission in some periods}. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.  In the case of having a minimum consumption, this could be used to have some lower bounds too. 
+
+For each aircraft, we calculate the last period before being able to finish a maintenance ($t^{s}_i$). Before this period, the sum of all assigned misions and consummed flight hours need to be less than the initial remaining flight hours. This is similar to the already existing constraints when assigning maintenances.
 
 
 \begin{align}
-
-	& t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \forall i \in \mathcal{I}, |\mathcal{T}|
-
+    & U^{min}_{t_1t_2} = U^{min} \sum_{t=t_1}^{t_2} (t_2 - t) \notag \\
+    & H'_{jt_1t_2} = (H_j - U^{min}) (t_2 - t_1) \notag \\
+    & H''_{jt_1t_2t'} = \sum_{t=t_1}^{t_2} (H_j- U^{min}) (t' - t) \notag
 \end{align}
 
-Secondly, we can calculate the number of maintenances we can fit until period $t$, by looking at missions requirements in terms of number of aircraft. This would be done by aircraft type. We first take the sum of all the non-mission periods over all aircraft $i \in IK_k \forall k \in K$\$ and all periods $t' < t$. Then, we divide this over the duration of the maintenances ($M$). This would an upper bound. 
-
- Thirdly, we can sum all flight-hour needs of missions of type $k$ before time $t$. If we substract this from the initial remaining flight time of the group of aircraft, we are left with a number of hours that need to be obtained via maintenances. If we divide this number over the $H^{max}$ flight hours a maintenance gives, we get a lower bound on the number of maintenances we need to do for those aircraft of type $k$.  So, in this way, we have two lower bounds and two upper bounds per period and aircraft type. We could just get the maximum and the minimum respectively to get some bounds on the number of maintenances until period $t$.  {% 
 
 
-\section{Mission assignment}\label{mission-assignment}}  {% 
+\begin{align}
+  & t^{s}_i = TM1^{min}_i + M - 1&  \\
+  & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t^{s}_i}}} a_{ijtt'} H'_{jtt'} + U^{min}_{1t^{s}_i} \leq Rft^{Init}_i
+                  & i \in \mathcal{I}
+\end{align}
 
-\section{Mission assignment for initial periods}\label{mission-assignment-for-initial-periods}} 
+% Not sure if this is redundant or not.
+On top of that, some mission assignments can already be discarded because the equivalent flight hour consumption is more than the initial remaining time.
 
-Specially for the initial periods, and based on the initial state, missions' hourly requirements and minimum assignment duration, it is possible to \textbf{precalculate which aircraft will not be able to start a mission in some periods}. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.  In the case of having a minimum consumption, this could be used to have some lower bounds too. 
+\begin{align}
+  & a_{ijtt'} = 0 & i \in \mathcal{I}, (j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{i1t^{s}_i} \land Rft^{Init}_i < H'_{jt_1t_2}
+\end{align}
+
+
+
 \end{document}
