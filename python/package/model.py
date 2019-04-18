@@ -37,6 +37,21 @@ class Model(exp.Experiment):
         cluster_data = self.instance.get_cluster_constraints()
         c_candidates = self.instance.get_cluster_candidates()
 
+        # shortcut functions
+        def dist(t1, t2):
+            # t_2 - t_1 + 1
+            return self.instance.get_dist_periods(t1, t2) + 1
+
+        def acc_dist(t_1, t_2, tp=None):
+            if tp is None:
+                tp = t_2
+            # sum_{t = t_1 -1}^{t_2} tp - t
+            # return (t_2 - t_1 + 1) * (2 * tp - t_1 - t_2 + 2) / 2
+            return dist(t_1, t_2) * (dist(t_1, tp)  + dist(t_2, tp))/2
+
+        shift = self.instance.shift_period
+        prev = self.instance.get_prev_period
+
         # In order to break some symmetries, we're gonna give a
         # (different) price for each assignment:
         price_assign = {(a, v): 0 for v in l['tasks'] for a in l['candidates'][v]}
@@ -52,40 +67,14 @@ class Model(exp.Experiment):
 
         # VARIABLES:
         # binary:
+        # mission assignment
         start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        # maintenance cycle
         start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1, cat=pl.LpInteger)
 
-        # TODO: adapt initial values to new variables
-        if options.get('mip_start'):
-            main_starts = self.get_maintenance_periods()
-            min_usage = self.instance.get_param('min_usage_period')
-
-            # Initialize values:
-            for tup in start_M:
-                start_M[tup].setInitialValue(0)
-
-            for tup in start_T:
-                start_T[tup].setInitialValue(0)
-
-            number_maint = 0
-            for (a, t, t2) in main_starts:
-                if (a, t) in l['at_start']:
-                    # we check this because of fixed maints
-                    start_M[a, t].setInitialValue(1)
-                    number_maint += 1
-
-            start_periods = self.get_task_periods()
-            for (a, t, v, t2) in start_periods:
-                if (a, v, t) in start_T:
-                    start_T[a, v, t].setInitialValue(1)
-
-            if options.get('fix_start', False):
-                # vars_to_fix = [start_M]
-                # vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
-                vars_to_fix = [start_T, start_M]
-                for _vars in vars_to_fix:
-                    for var in _vars.values():
-                        var.fixValue()
+        # numeric:
+        # avg remaining usage hours in cycle
+        rem_M = pl.LpVariable.dicts(name="rem_M", indexs=l['att_cycles'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
         # slack variables:
         slack_vt = {tup: 0 for tup in l['vt']}
@@ -113,16 +102,16 @@ class Model(exp.Experiment):
 
         # OBJECTIVE:
         # maints
-        # TODO: adapt model to new variables (end state)
         model += pl.lpSum(start_M[a, t1, t2]
-                           for a, t1, t2 in l['att_maints_no_last']) * max_usage + \
-                  1 * pl.lpSum(assign_st * price_assign[a, v]
-                               for (a, v, t, t2), assign_st in start_T.items()) + \
-                  1000000 * pl.lpSum(slack_vt.values()) +\
-                  1000 * pl.lpSum(slack_at.values()) +\
-                  10000 * pl.lpSum(slack_kt_num.values()) + \
-                  1000 * pl.lpSum(slack_kt_hours.values()) + \
-                  1000000 * pl.lpSum(slack_t.values())
+                          for a, t1, t2 in l['att_maints_no_last']) * max_usage \
+                 + pl.lpSum(rem_M[a, pos] for a, pos in l['att_cycles'])/10 \
+                 + 1 * pl.lpSum(assign_st * price_assign[a, v]
+                                for (a, v, t, t2), assign_st in start_T.items()) + \
+                 1000000 * pl.lpSum(slack_vt.values()) + \
+                 1000 * pl.lpSum(slack_at.values()) + \
+                 10000 * pl.lpSum(slack_kt_num.values()) + \
+                 1000 * pl.lpSum(slack_kt_hours.values()) + \
+                 1000000 * pl.lpSum(slack_t.values())
 
         # CONSTRAINTS:
 
@@ -166,13 +155,6 @@ class Model(exp.Experiment):
                          for (t1, t2) in l['tt_maints_at'].get((a, t), [])
                          ) <= num + slack_kt_num.get((k, t), 0)
 
-        # TODO: replace this constraint with something similar.
-        # # Each cluster has a minimum number of usage hours to have
-        # # at each period.
-        # for (k, t), hours in cluster_data['hours'].items():
-        #     model += pl.lpSum(rut[a, t] for a in c_candidates[k] if (a, t) in l['at']) \
-        #              >= hours - slack_kt_hours.get((k, t), 0)
-        #
         # # ##################################
         # # Usage time
         # # ##################################
@@ -182,48 +164,42 @@ class Model(exp.Experiment):
         # 2. H flight hours between maint in t1 and maint in t2.
         # 3. H flight hours between the end of the second maint and the end
 
-        # we precalculate the number of periods between two periods
-        _dist_t1t2 = {(t1, t2): self.instance.get_dist_periods(t1, t2) + 1
-                      for pos1, t1 in enumerate(l['periods']) for t2 in l['periods'][pos1:]}
         for a, t1, t2 in l['att_maints']:
             # t1 and t2 cut the horizon in three parts
             # we're going to calculate the three ranges
-            part2_first = self.instance.shift_period(t1, duration)
-            part2_last = self.instance.get_prev_period(t2)
-            part3_first = self.instance.shift_period(t2, duration)
+            part1 = first_period, prev(t1), rut_init[a]  # before the first maintenance
+            part2 = shift(t1, duration), prev(t2), ub['rut']  # in between maintenances
             if t2 == last_period:
-                part2_last = last_period
-            part1_last = self.instance.get_prev_period(t1)
-            part1_first = first_period
-            part3_last = last_period
+                part2 = shift(t1, duration), last_period, ub['rut']
+            part3 = shift(t2, duration), last_period, ub['rut']  # after the second maintenance
 
-            # An assignment splits the horizon in (at most) three parts:
-            parts_config = [
-                (part1_first, part1_last, rut_init[a]),  # before the first maintenance
-                (part2_first, part2_last, ub['rut']),  # in between maintenances
-                (part3_first, part3_last, ub['rut'])  # after the second maintenance
-            ]
             # Each part of the horizon needs to satisfy max hour consumption
-            for period_1, period_2, limit in parts_config:
-                if period_1 > period_2:
+            for pos, (p1, p2, limit) in enumerate([part1, part2, part3]):
+                if p1 > p2:
                     continue
-                _vtt2 = l['vtt2_between_att'][a, period_1, period_2]
-
-                # The following should be the constraint but is to slow to do it this way:
-                # model += pl.lpSum(start_T[a, v, t11, t22] * _dist_t1t2[t11, t22] * (consumption[v] - min_usage) \
-                #                   for v, t11, t22 in _vtt2) + \
-                #          min_usage * _dist_t1t2[period_1, period_2] \
-                #          <= limit + ub['rut'] * (1 - start_M[a, t1, t2])
-
-                # Reformulation to reduce constraint construction times:
-                vars_tup = [
+                _vtt2 = l['vtt2_between_att'][a, p1, p2]
+                # shorter version of the number of periods between p1 and p2, inclusive
+                d_p1_p2 = dist(p1, p2)
+                # Max hours in between maintenances:
+                _vars_tup = [
                     (start_T[a, v, t11, t22],
-                    _dist_t1t2[t11, t22] * (consumption[v] - min_usage)
+                     dist(t11, t22) * (consumption[v] - min_usage)
                      )
                     for v, t11, t22 in _vtt2]
-                vars_tup.append((start_M[a, t1, t2], ub['rut']))
-                _constant = min_usage * _dist_t1t2[period_1, period_2] - limit - ub['rut']
-                model += pl.LpAffineExpression(vars_tup, constant=_constant) <= 0
+                _vars_tup.append((start_M[a, t1, t2], ub['rut']))
+                _constant = min_usage * d_p1_p2 - limit - ub['rut']
+                model += pl.LpAffineExpression(_vars_tup, constant=_constant) <= 0
+
+                # Count the mean remaining hours at each cycle
+                _vars_tup = [
+                    (start_T[a, v, t11, t22],
+                     acc_dist(t11, t22, p2) * (consumption[v] - min_usage)
+                     )
+                    for v, t11, t22 in _vtt2]
+                _vars_tup.append((start_M[a, t1, t2], d_p1_p2 * limit))
+                _vars_tup.append((rem_M[a, pos], -d_p1_p2))
+                _constant = min_usage * acc_dist(p1, p2, p2) - d_p1_p2 *  limit
+                model += pl.LpAffineExpression(_vars_tup, constant=_constant) <= 0
 
         # ##################################
         # Maintenances
@@ -273,6 +249,8 @@ class Model(exp.Experiment):
         _start.update(_start_M)
 
         _rut = {}
+        _rem = sd.SuperDict.from_dict(rem_M).apply(lambda k, v: v.value())
+        # _rem = {}
         fixed_maints_horizon = l['at_maint'].filter_list_f(lambda x: first_period <= x[1] <= last_period)
         _state = {tup: 'M' for tup in fixed_maints_horizon}
         _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
@@ -283,6 +261,7 @@ class Model(exp.Experiment):
             'aux': {
                 'start': _start,
                 'rut': _rut,
+                'rem': _rem,
             }
         }
         solution_data_pre = sd.SuperDict.from_dict(solution_data_pre)
@@ -459,6 +438,11 @@ class Model(exp.Experiment):
                                 periods_pos[t1] + min_elapsed <= periods_pos[_t2] < periods_pos[t1] + max_elapsed
                                 )
         att_maints = tl.TupList(att_maints)
+
+        # at_cycles are three times for each combination of maints possibility
+        # to represent the "before, during and after" of the maintenance cycles
+        att_cycles = tl.TupList((a, n) for a in resources for n in range(3))
+
         att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
         # this is the TTT_t set.
         # periods that are maintenance periods because of having assign a maintenance
@@ -529,6 +513,7 @@ class Model(exp.Experiment):
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
         , 'att_maints'      : att_maints
+        , 'att_cycles'      : att_cycles
         , 'att_maints_no_last': att_maints_no_last
         , 'tt_maints_at'    : tt_maints_at
         , 'att_maints_t'    : att_maints_t
@@ -539,4 +524,5 @@ class Model(exp.Experiment):
 
 
 if __name__ == "__main__":
+    pass
     pass

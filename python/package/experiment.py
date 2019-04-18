@@ -161,33 +161,8 @@ class Experiment(object):
         It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
         """
-        # a = self.get_status(resource)
-        # a[a.period>='2019-02'][:8]
-        first, last = self.instance.get_param('start'), self.instance.get_param('end')
-        maintenances = aux.tup_to_dict(
-            self.get_maintenance_periods(resource)
-            , result_col=[1, 2])
-        if resource is None:
-            resources = self.instance.get_resources()
-        else:
-            resources = [resource]
-        # we initialize nomaint periods for resources that do not have a single maintenance:
-        nonmaintenances = [(r, first, last) for r in resources if r not in maintenances]
-        # now, we iterate over all maintenances to add the before and the after
-        for res in maintenances:
-            maints = sorted(maintenances[res], key=lambda x: x[0])
-            first_maint_start = maints[0][0]
-            last_maint_end = maints[-1][1]
-            if first_maint_start > first:
-                nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
-            for maint1, maint2 in zip(maints, maints[1:]):
-                start = self.instance.get_next_period(maint1[1])
-                end = self.instance.get_prev_period(maint2[0])
-                nonmaintenances.append((res, start, end))
-            if last_maint_end != last:
-                start = self.instance.get_next_period(last_maint_end)
-                nonmaintenances.append((res, start, last))
-        return tl.TupList(nonmaintenances)
+        cycles_dict = self.get_all_maintenance_cycles(resource)
+        return cycles_dict.to_tuplist()
 
     def set_start_periods(self):
         """
@@ -451,6 +426,67 @@ class Experiment(object):
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
         return [(r, s) for (r, s, e) in maintenances]
+
+    def get_maintenance_cycles(self, maint_start_stops):
+
+        first, last = (self.instance.get_param(p) for p in ['start', 'end'])
+        _shift = self.instance.shift_period
+        _next = self.instance.get_next_period
+        _prev = self.instance.get_prev_period
+
+        if not len(maint_start_stops):
+            return [(first, last)]
+
+        cycles = []
+        first_maint_start = maint_start_stops[0][0]
+        last_maint_end = maint_start_stops[-1][-1]
+
+        if first_maint_start > first:
+            cycles.append((first, _prev(first_maint_start)))
+
+        for (start1, end1), (start2, end2) in zip(maint_start_stops, maint_start_stops[1:]):
+            cycles.append((_next(end1), _prev(start2)))
+
+        if last_maint_end != last:
+            cycles.append((_next(last_maint_end), last))
+
+        return cycles
+
+    def get_all_maintenance_cycles(self, resource=None):
+        """
+        gets all periods in between maintenances for all resources
+        :return: dictionary indexed by resource of a list of tuples.
+        {resource: [(start1, stop1), (start2, stop2)]}
+        """
+        starts_stops = self.get_maintenance_periods(resource=resource)
+        if resource is None:
+            resources = self.instance.get_resources()
+        else:
+            resources = [resource]
+        return \
+            tl.TupList(starts_stops).\
+            to_dict(result_col=[1, 2]).\
+            apply(lambda k, v: sorted(v)).\
+            fill_with_default(keys=resources, default=[]).\
+            apply(lambda k, v: self.get_maintenance_cycles(v))
+
+    def get_acc_consumption(self):
+        _range = self.instance.get_periods_range
+        _dist = self.instance.get_dist_periods
+        _prev = self.instance.get_prev_period
+        maint_cycle = self.get_all_maintenance_cycles()
+
+        rut = sd.SuperDict.from_dict(self.set_remaining_usage_time('rut'))
+        rem_hours_cycle = sd.SuperDict()
+        for k, cycles in maint_cycle.items():
+            for pos, (start, stop) in enumerate(cycles):
+                limit = rut[k][_prev(start)]  # should be initial_rut or max_rut
+                _periods = _range(start, stop)
+                rem_hours_cycle[k, start, stop] = \
+                    limit * (_dist(start, stop) + 1) - \
+                    sum(rut[k].filter(_periods).values())
+
+        return rem_hours_cycle
 
     def get_status(self, candidate):
         """

@@ -79,6 +79,7 @@ class SuperDict(dict):
     def to_tuplist(self):
         """
         The last element of the returned tuple was the dict's value.
+        We try really hard to expand the tuples so it's a flat tuple list.
         :param self: dictionary indexed by tuples
         :return: a list of tuples.
         """
@@ -86,14 +87,26 @@ class SuperDict(dict):
 
         tup_list = tl.TupList()
         for key, value in self.items():
-            if type(key) is tuple:
-                tup_list.append(tuple(list(key) + [value]))
+            if type(value) is not list:
+                value = [value]
+            if type(key) is not tuple:
+                key = [key]
             else:
-                tup_list.append(tuple([key, value]))
+                key = list(key)
+            # now we assume key is a list and value is a list of values.
+            for val in value:
+                if type(val) is tuple:
+                    val = list(val)
+                else:
+                    val = [val]
+                # we also assume val is a list
+                tup_list.append(tuple(key + val))
         return tup_list
 
     def fill_with_default(self, keys, default=0):
-        return SuperDict({**{k: default for k in keys}, **self})
+        _dict = {k: default for k in keys}
+        _dict.update(self)
+        return SuperDict(_dict)
 
     def get_property(self, property):
         return SuperDict({key: value[property] for key, value in self.items() if property in value})
