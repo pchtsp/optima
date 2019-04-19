@@ -60,8 +60,6 @@ class Model(exp.Experiment):
         if options.get('noise_assignment', True):
             price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
 
-        price_rut_end = options.get('price_rut_end', 1)
-
         # Sometimes we want to force variables to be integer.
         var_type = pl.LpContinuous
         if options.get('integer', False):
@@ -101,9 +99,9 @@ class Model(exp.Experiment):
         price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(slots)}
 
         # TODO: get better upBounds
-        ub['slack_ks'] = {(k, s): v*(p+4) for k, v in c_hours.items() for p, s in enumerate(slots)}
-        ub['slack_ts'] = {s: 1+p for p, s in enumerate(slots)}
-        ub['slack_kts'] = {s: (p+1)*2 for p, s in enumerate(slots)}
+        ub['slack_ks'] = {(k, s): v*(p+10) for k, v in c_hours.items() for p, s in enumerate(slots)}
+        ub['slack_ts'] = {s: 0 for p, s in enumerate(slots)}
+        ub['slack_kts'] = {s: 0 for p, s in enumerate(slots)}
         slack_ks, slack_ts, slack_kts = {}, {}, {}
         for tup in l['kts']:
             k, t, s = tup
@@ -142,8 +140,8 @@ class Model(exp.Experiment):
                  + pl.lpSum(price_slack_ks[s] * slack for (k, s), slack in slack_ks.items()) \
                  + pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
                  + 1000000 * pl.lpSum(slack_vt.values()) \
-                 + 1000 * pl.lpSum(slack_at.values()) \
- \
+                 + 1000 * pl.lpSum(slack_at.values())
+
         # CONSTRAINTS:
 
         # max one task per period or unavailable state:
