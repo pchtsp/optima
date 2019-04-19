@@ -27,7 +27,6 @@
 
 
 \setlength{\parskip}{2ex} \pagestyle{myheadings}
-% \markright{\hspace*{3.8cm} \textit{MOSIM18 - June 27-29, 2018 - Toulouse - France}}
 
 \renewcommand{\thepage}{}
 \renewcommand{\refname}{REFERENCES}
@@ -109,8 +108,9 @@ The following model provides a tight MIP formulation that solves the Military Fl
     \subsubsection{Objective function weights}
 
         \begin{tabular}{p{15mm}p{125mm}p{15mm}}
-            $PA^{Clust}_s$   & unit penalty for violating serviceability constraint in slot $s$. & \\
-            $PH^{Clust}_s$   & unit penalty for violating sustainability constraint in slot $s$. & \\
+            $PA_s$   & unit penalty for violating serviceability constraint in slot $s$. & \\
+            $PH_s$   & unit penalty for violating sustainability constraint in slot $s$. & \\
+            $PC_s$           & unit penalty for violating capacity constraint in slot $s$. & \\
         \end{tabular}
 
     \subsubsection{Parametric sets}
@@ -185,8 +185,9 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
     \begin{tabular}{p{8mm}p{147mm}}
         $h_{in}$  &  Continuous, positive. Sum of the accumulated monthly consumption in flight hours for aircraft $i \in I$ for maintenance cycle $n$. \\
-        $e^{AClust}_{kts}$ & Continuous, positive. Elastic variable for serviceability constraint. \\
-        $e^{HClust}_{kts}$ & Continuous, positive. Elastic variable for sustainability constraint. \\
+        $e^{A}_{kts}$ & Continuous, positive. Elastic variable for serviceability constraint (\ref{eq:serviceability-cluster}). \\
+        $e^{H}_{kts}$ & Continuous, positive. Elastic variable for sustainability constraint (\ref{eq:sustainability-cluster}). \\
+        $e^{C}_{ts}$ & Continuous, positive. Elastic variable for capacity constraint (\ref{eq:capacity1}). \\
     \end{tabular}
 
     \paragraph{Fixed values}
@@ -196,27 +197,27 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
 
 \subsection{Objective function and constraints}
 
-    Objective (\ref{eq:objective1}) minimizes the number of checks while at the same time maximizing the monthly total flight hours potential of the fleet.
+    Objective (\ref{eq:objective1}) minimizes the deviations number of checks while at the same time maximizing the monthly total flight hours potential of the fleet.
 
     \begin{align}
         & \text{Min}\; 
-        \sum_{\substack{i \in \mathcal{I}, \\ 
-            t_1 \in \mathcal{T}^{M_{Init}}_i, \\ 
-            t_2 \in \mathcal{T}^M_{t_1} - |\mathcal{T}|}
-            }  
-            m_{it_1t_2} \times H^{max} 
-        + \sum_{k \in \mathcal{K}, t \in \mathcal{T}, s \in \mathcal{S}} PA^{Clust}_s e^{AClust}_{kts} 
-        + \sum_{k \in \mathcal{K}, n \in \mathcal{N}, s \in \mathcal{S}} PH^{Clust}_s e^{HClust}_{kns}
+        \sum_{\substack{
+                k \in \mathcal{K}, \\ t \in \mathcal{T}, \\ s \in \mathcal{S}
+                }
+            } PA_s e^{A}_{kts} 
+        + \sum_{\substack{
+                k \in \mathcal{K}, \\ n \in \mathcal{N}, \\ s \in \mathcal{S}
+                } 
+            } PH_s e^{H}_{kns}
+        + \sum_{t \in \mathcal{T}, s \in \mathcal{S}} PC_s e^{C}_{ts}
         \label{eq:objective1}
     \end{align}
-    
-    The first term counts all the remaining flight hours given to aircraft following checks and the second term quantifies the amount of remaining flight hours for all aircraft at each period. These two objectives have the same units, can be easily compared and ensure the aircraft are used in the most efficient way.
 
     The following constraints are used in the model:
     \begin{align}
         % maximum capacity1:
-        & \sum_{\substack{i \in \mathcal{I}, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N_t \leq C^{max}
-          & t \in \mathcal{T} \label{eq:capacity1}\\
+        & \sum_{\substack{i \in \mathcal{I}, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N_t \leq C^{max} + \sum_{s \in \mathcal{S}} e^{C}_{ts}
+                & t \in \mathcal{T} \label{eq:capacity1}\\
         % min assignments:
         & \sum_{\substack{i \in \mathcal{IJ}_j, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}}} a_{ijt_1t_2} \geq R_j
                 & j \in \mathcal{J}, t \in \mathcal{TJ}_j  \label{eq:missionres}\\
@@ -248,9 +249,9 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     \end{align}
 
     \begin{align}
-       & \sum_{\substack{i \in \mathcal{IK}_k, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N^{Clust}_{kt} \leq A^{Clust}_{kt} + \sum_{s \in \mathcal{S}} e^{AClust}_{kts}
+       & \sum_{\substack{i \in \mathcal{IK}_k, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N^{Clust}_{kt} \leq A^{Clust}_{kt} + \sum_{s \in \mathcal{S}} e^{A}_{kts}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster}\\
-       & \sum_{i \in \mathcal{IK}_k} h_{in} \leq |{IK}_k| H^{Clust}_{kn} + \sum_{s \in \mathcal{S}} e^{HClust}_{kns}
+       & \sum_{i \in \mathcal{IK}_k} h_{in} \leq |{IK}_k| H^{Clust}_{kn} + \sum_{s \in \mathcal{S}} e^{H}_{kns}
         &k \in \mathcal{K}, n \in \mathcal{N} \label{eq:sustainability-cluster}
     \end{align}
 
