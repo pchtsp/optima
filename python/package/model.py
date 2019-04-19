@@ -178,7 +178,11 @@ class Model(exp.Experiment):
                 if p1 > p2:
                     continue
                 _vtt2 = l['vtt2_between_att'][a, p1, p2]
+
                 # shorter version of the number of periods between p1 and p2, inclusive
+                # TODO: extract fix periods if maintenance. Count consumption if a mission
+                # this applies for both constraints.
+
                 d_p1_p2 = dist(p1, p2)
                 # Max hours in between maintenances:
                 _vars_tup = [
@@ -210,7 +214,6 @@ class Model(exp.Experiment):
         # For small horizons, we want to add a an upper limit on maintenances
         # in case the previous constraint is not active for that resource
         for a, tt_list in l['tt_maints_a'].items():
-            # if not l['t_a_M_ini'].get(a, []):
             model += pl.lpSum(start_M[a, t1, t2] for t1, t2 in tt_list) == 1
 
         # max number of maintenances:
