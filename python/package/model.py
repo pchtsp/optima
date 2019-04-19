@@ -26,10 +26,12 @@ class Model(exp.Experiment):
         ub = self.get_bounds()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
-        consumption = self.instance.get_tasks('consumption')
+        consumption = sd.SuperDict.from_dict(self.instance.get_tasks('consumption'))
         requirement = self.instance.get_tasks('num_resource')
         rut_init = self.instance.get_initial_state("used")
-        num_resource_maint = aux.fill_dict_with_default(self.instance.get_total_fixed_maintenances(), l['periods'])
+        num_resource_maint = \
+            sd.SuperDict.from_dict(self.instance.get_total_fixed_maintenances()).\
+            fill_with_default(keys=l['periods'])
         maint_capacity = self.instance.get_param('maint_capacity')
         max_usage = self.instance.get_param('max_used_time')
         min_usage = self.instance.get_param('min_usage_period')
@@ -58,8 +60,6 @@ class Model(exp.Experiment):
         if options.get('noise_assignment', True):
             price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
 
-        price_rut_end = options.get('price_rut_end', 1)
-
         # Sometimes we want to force variables to be integer.
         var_type = pl.LpContinuous
         if options.get('integer', False):
@@ -77,41 +77,70 @@ class Model(exp.Experiment):
         rem_M = pl.LpVariable.dicts(name="rem_M", indexs=l['att_cycles'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
         # slack variables:
+
+        # get all demand for flight hours for k
+        # TODO: this goes to instance
+        c_hours = \
+            sd.SuperDict(self.instance.get_clusters()).\
+            apply(lambda k, v: [v]).\
+            list_reverse().\
+            apply(lambda k, v: sum(consumption.filter(v).values()))
+
+        # TODO: pass all this preprocess to bounds and domains
+        l['slots'] = slots = [str(s) for s in range(3)]
+        l['k'] = c_hours.keys_l()
+        l['kts'] = [(k, t, s) for k, t in l['kt'] for s in slots]
+        l['ks'] = [(k, s) for k in l['k'] for s in slots]
+        l['ts'] = [(t, s) for t in l['periods'] for s in slots]
+
+        # TODO: get better weights.
+        price_slack_kts = {s: (p+1)*2*10 for p, s in enumerate(slots)}
+        price_slack_ks = {s: (p+1)*10 for p, s in enumerate(slots)}
+        price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(slots)}
+
+        # TODO: get better upBounds
+        ub['slack_ks'] = {(k, s): v*(p+10) for k, v in c_hours.items() for p, s in enumerate(slots)}
+        ub['slack_ts'] = {s: 0 for p, s in enumerate(slots)}
+        ub['slack_kts'] = {s: 0 for p, s in enumerate(slots)}
+        slack_ks, slack_ts, slack_kts = {}, {}, {}
+        for tup in l['kts']:
+            k, t, s = tup
+            slack_kts[tup] = pl.LpVariable(name="slack_kts_{}".format(tup), lowBound=0,
+                                           upBound=ub['slack_kts'][s], cat=var_type)
+        for tup in l['ks']:
+            k, s = tup
+            slack_ks[tup] = pl.LpVariable(name="slack_ks_{}".format(tup), lowBound=0,
+                                          upBound=ub['slack_ks'][k, s], cat=var_type)
+        for tup in l['ts']:
+            t, s = tup
+            slack_ts[tup] = pl.LpVariable(name="slack_ts_{}".format(tup), lowBound=0,
+                                          upBound=ub['slack_ts'][s], cat=var_type)
+
         slack_vt = {tup: 0 for tup in l['vt']}
         slack_at = {tup: 0 for tup in l['at']}
-        slack_kt_hours = {tup: 0 for tup in l['kt']}
-        slack_kt_num = {tup: 0 for tup in l['kt']}
-        slack_t = {tup: 0 for tup in l['periods']}
 
         slack_p = options.get('slack_vars')
         if slack_p == 'Yes':
             slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
             slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
-            slack_kt_hours = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=l['kt'], cat=var_type)
         elif slack_p is int:
             # first X months only
             first_months = self.instance.get_next_periods(first_period, slack_p)
             _vt = [(v, t) for v, t in l['vt'] if t in first_months]
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
             slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=var_type)
-            slack_t = pl.LpVariable.dicts(name="slack_t", lowBound=0, indexs=first_months, cat=var_type)
-            slack_kt_num = pl.LpVariable.dicts(name="slack_kt", lowBound=0, indexs=_kt, cat=var_type)
 
         # MODEL
         model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
         # OBJECTIVE:
         # maints
-        model += pl.lpSum(start_M[a, t1, t2]
-                          for a, t1, t2 in l['att_maints_no_last']) * max_usage \
-                 + pl.lpSum(rem_M[a, pos] for a, pos in l['att_cycles'])/10 \
-                 + 1 * pl.lpSum(assign_st * price_assign[a, v]
-                                for (a, v, t, t2), assign_st in start_T.items()) + \
-                 1000000 * pl.lpSum(slack_vt.values()) + \
-                 1000 * pl.lpSum(slack_at.values()) + \
-                 10000 * pl.lpSum(slack_kt_num.values()) + \
-                 1000 * pl.lpSum(slack_kt_hours.values()) + \
-                 1000000 * pl.lpSum(slack_t.values())
+        model += pl.lpSum(price_assign[a, v] * task for (a, v, t, t2), task in start_T.items()) + \
+                 + pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
+                 + pl.lpSum(price_slack_ks[s] * slack for (k, s), slack in slack_ks.items()) \
+                 + pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
+                 + 1000000 * pl.lpSum(slack_vt.values()) \
+                 + 1000 * pl.lpSum(slack_at.values())
 
         # CONSTRAINTS:
 
@@ -153,7 +182,13 @@ class Model(exp.Experiment):
             model += \
                 pl.lpSum(start_M[a, t1, t2] for a in c_candidates[k]
                          for (t1, t2) in l['tt_maints_at'].get((a, t), [])
-                         ) <= num + slack_kt_num.get((k, t), 0)
+                         ) <= num + pl.lpSum(slack_kts.get((k, t, s), 0) for s in slots)
+
+        # minimum accumulated usage per cluster and cycle
+        for k in l['k']:
+            model += \
+                pl.lpSum(rem_M[a, n] for a in c_candidates[k] for n in l['cycles']) \
+                <= c_hours[k]*2 + pl.lpSum(slack_ks.get((k, s), 0) for s in slots)
 
         # # ##################################
         # # Usage time
@@ -175,6 +210,7 @@ class Model(exp.Experiment):
 
             # Each part of the horizon needs to satisfy max hour consumption
             for pos, (p1, p2, limit) in enumerate([part1, part2, part3]):
+                cycle = l['cycles'][pos]
                 if p1 > p2:
                     continue
                 _vtt2 = l['vtt2_between_att'][a, p1, p2]
@@ -201,7 +237,7 @@ class Model(exp.Experiment):
                      )
                     for v, t11, t22 in _vtt2]
                 _vars_tup.append((start_M[a, t1, t2], d_p1_p2 * limit))
-                _vars_tup.append((rem_M[a, pos], -d_p1_p2))
+                _vars_tup.append((rem_M[a, cycle], -d_p1_p2))
                 _constant = min_usage * acc_dist(p1, p2, p2) - d_p1_p2 *  limit
                 model += pl.LpAffineExpression(_vars_tup, constant=_constant) <= 0
 
@@ -222,7 +258,8 @@ class Model(exp.Experiment):
             if not len(at1t1_list):
                 continue
             model += pl.lpSum(start_M[a, t1, t2] for (a, t1, t2) in at1t1_list) + \
-                     num_resource_maint[t] <= maint_capacity + slack_t.get(t, 0)
+                     num_resource_maint[t] <= \
+                     maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in slots)
 
         # ##################################
         # SOLVING
@@ -444,7 +481,8 @@ class Model(exp.Experiment):
 
         # at_cycles are three times for each combination of maints possibility
         # to represent the "before, during and after" of the maintenance cycles
-        att_cycles = tl.TupList((a, n) for a in resources for n in range(3))
+        cycles = [str(n) for n in range(3)]
+        att_cycles = tl.TupList((a, n) for a in resources for n in cycles)
 
         att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
         # this is the TTT_t set.
@@ -517,6 +555,7 @@ class Model(exp.Experiment):
         , 'kt'              : kt
         , 'att_maints'      : att_maints
         , 'att_cycles'      : att_cycles
+        , 'cycles'          : cycles
         , 'att_maints_no_last': att_maints_no_last
         , 'tt_maints_at'    : tt_maints_at
         , 'att_maints_t'    : att_maints_t
@@ -527,5 +566,5 @@ class Model(exp.Experiment):
 
 
 if __name__ == "__main__":
-    pass
+
     pass
