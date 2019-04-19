@@ -304,13 +304,15 @@ class Instance(object):
         group = {}
         capacities = self.get_tasks('capacities')
         for task1, cap1 in capacities.items():
-            if task1 not in group:
-                group[task1] = present_group
-                present_group += 1
+            if task1 in group:
+                continue
+            group[task1] = str(present_group)
+            present_group += 1
             for task2, cap2 in capacities.items():
-                if task2 not in group:
-                    if len(set(cap1).symmetric_difference(set(cap2))) == 0:
-                        group[task2] = group[task1]
+                if task2 in group:
+                    continue
+                if len(set(cap1).symmetric_difference(set(cap2))) == 0:
+                    group[task2] = group[task1]
         return group
 
     def get_cluster_needs(self):
