@@ -115,10 +115,10 @@ The first section is a description of the input data. The following sections are
   These limits are obtained in the following way:
 
   \begin{align}
-  	& TM1^{min}_i = \min_t{\{t \in \mathcal{T}^{M_{Init}}_i\}}   \notag\\
-    & TM1^{max}_i = \max_t{\{t \in \mathcal{T}^{M_{Init}}_i\}}   \notag \\
+  	& TM1^{min}_i = \min_t{\{t \in \mathcal{T}^{M_{Init}}_i\}} \notag\\
+    & TM1^{max}_i = \min \{ \max_t{\{t \in \mathcal{T}^{M_{Init}}_i\}}, \lfloor Rft^{Init}_i \div U^{min} \rfloor \}   \notag \\
     & TM2^{min}_i = \min_t{\{t \in \mathcal{T}^M_{TM1^{min}_i}\}}\notag \\
-    & TM2^{max}_i = \max_t{\{t \in \mathcal{T}^M_{TM1^{max}_i}\}}\notag %\\
+    & TM2^{max}_i = \min \{ \max_t{\{t \in \mathcal{T}^M_{TM1^{max}_i}\}}, TM1^{max}_i + \lfloor H^{max} \div U^{min} \rfloor \}   \notag \\
   \end{align}
 
   Lower and upper bounds for the accumulate number of checks started ($M^{Acc}S^{min}_{it}$, $M^{Acc}S^{max}_{it}$) and finished ($M^{Acc}F^{min}_{it}$, $M^{Acc}F^{max}_{it}$) can be pre-calculated based on where the period is located in the planning horizon relative to the possible first and second check ranges and the check duration. We will name the range $M^{Acc}S^{b}_{it}$ to represent both the lower level and upper level of the range of accumulated starts by replacing the terms $min$ and $max$ by $b$, as in $bound$.
@@ -171,8 +171,8 @@ The first section is a description of the input data. The following sections are
    If we find ourselves in a case where there is certainty on the number of checks, it is possible to force the variables to reflect this certainty with the following cuts.
 
   \begin{align}
-    & I^{1M} = \{i \in \mathcal{I} \mid M^{Acc}S^{min}_{i|\mathcal{T}|} = M^{Acc}S^{max}_{i|\mathcal{T}|} = 1\} \notag \\
-    & I^{2M} = \{i \in \mathcal{I} \mid M^{Acc}S^{min}_{i|\mathcal{T}|} = M^{Acc}S^{max}_{i|\mathcal{T}|} = 2\} \notag
+    & I^{1M} = \{i \in \mathcal{I} \mid M^{Acc}S^{max}_{i|\mathcal{T}|} = 1\} \notag \\
+    & I^{2M} = \{i \in \mathcal{I} \mid M^{Acc}S^{min}_{i|\mathcal{T}|} = 2\} \notag
   \end{align}
 
   \begin{align}
@@ -238,11 +238,11 @@ The first section is a description of the input data. The following sections are
         & t \in \mathcal{T}, y \in \mathcal{Y}\notag\\
     & IR^{Acc}_{yt} = |IY_y| \times t -  \sum_{j \in \mathcal{JY}_y} R_j \times JR^{Acc}_{jt} 
         & t \in \mathcal{T}, y \in \mathcal{Y}\notag\\
-    & YM^{Acc}F^{\prime max}_{yt} = \lfloor \frac{YFN_{yt}}{M} \rfloor 
+    & YM^{Acc}F^{\prime max}_{yt} = \lfloor \frac{IR^{Acc}_{yt}}{M} \rfloor 
         & t \in \mathcal{T}, y \in \mathcal{Y}\notag
   \end{align}
 
-  By using the mission required flight hours over time, we can calculate how many checks we need until period $t$. We can sum all flight-hour needs of missions of type $y$ until the end of period $t$ ($YH^{Acc}_{yt}$). This demand of flight hours can be subtracted this from the initial remaining flight time of the group of aircraft and then divided over the $H^{max}$ flight hours a check gives. Thus, we get a lower bound $YM^{Acc}F^{\prime min}_{yt}$ on the number of checks we need to do for those aircraft of type $y$ until period $t$.
+  By using the mission required flight hours over time, we can calculate how many checks we need until period $t$. We can sum all flight-hour needs of missions of type $y$ until the end of period $t$ ($YH^{Acc}_{yt}$). This demand of flight hours can be subtracted from the initial remaining flight time of the group of aircraft and then divided over the $H^{max}$ flight hours each check provides. Thus, we get a lower bound $YM^{Acc}F^{\prime min}_{yt}$ on the number of checks we need to do for those aircraft of type $y$ until period $t$.
 
   \begin{align}
     & YH^{Acc}_{yt} =  \sum_{j \in \mathcal{JY}_y} H_j \times JR^{Acc}_{jt} 
@@ -279,19 +279,19 @@ The first section is a description of the input data. The following sections are
 
 \section{Bounds on accumulated checks per period}
   
-  The bounds on accumulated checks by type and period defined in \ref{sec:rangecheckstype} can be aggregated into the whole fleet.
+  The bounds on accumulated checks by type and period defined in section \ref{sec:rangecheckstype} can be aggregated into the whole fleet.
 
   \begin{align}
-    & M^{Acc}S^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}S^{\prime\prime b}_{yt}
+    & TM^{Acc}S^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}S^{\prime\prime b}_{yt}
         & t \in \mathcal{T}, b \in \{min, max\}  \notag\\
-    & M^{Acc}F^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}F^{\prime\prime b}_{yt}
+    & TM^{Acc}F^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}F^{\prime\prime b}_{yt}
         & t \in \mathcal{T}, b \in \{min, max\}  \notag
   \end{align}
 
   Additionally, the maintenance capacity together with the maintenance duration offer an upper bound on the maximum number of checks that can be finished until a given period $t$.
 
   \begin{align}
-    & M^{Acc}F^{\prime max}_{t} = \lfloor \frac{t}{M} \rfloor \times C^{max}
+    & TM^{Acc}F^{\prime max}_{t} = \lfloor \frac{t}{M} \rfloor \times C^{max}
         & t \in \mathcal{T} \notag
   \end{align}
 
