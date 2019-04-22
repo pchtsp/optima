@@ -120,6 +120,7 @@ The following model provides a tight MIP formulation that solves the Military Fl
             $j \in \mathcal{JT}_t$    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
             $i \in \mathcal{IJ}_j$     &  aircraft $i \in \mathcal{I}$ that can be assigned to mission $j$. \\
             $i \in \mathcal{IK}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
+            $j \in \mathcal{JK}_k$     &  missions $j \in \mathcal{I}$ that are included in cluster $k$. One mission can only belong to one cluster. \\
             $j \in \mathcal{JI}_i$     &  missions $j \in \mathcal{J}$ for which aircraft $i$ can be used. \\
             $i \in \mathcal{A}^{Init}_j$  & aircraft $i \in \mathcal{I}$ that have mission $j$ pre-assigned in the previous period to the start of the planning horizon. \\
         \end{tabular}
@@ -168,7 +169,8 @@ The following model provides a tight MIP formulation that solves the Military Fl
         & U^{\prime}_{t_1t_2} = U^{min} (t_2 - t_1+1) \notag \\
         & U^{\prime\prime}_{t_1t_2} = U^{min} \sum_{t=t_1-1}^{t_2} (t_2 - t) = U^{min} (t_2 - t_1+1) (t_2 - t_1) \div 2  \notag \\
         & H^\prime_{jt_1t_2} = (H_j - U^{min}) (t_2 - t_1+1) \notag \\
-        & H^{\prime\prime}_{jt_1t_2t'} = (H_j- U^{min}) \sum_{t=t_1-1}^{t_2} (t' - t) = (H_j- U^{min}) (t_2 - t_1 + 1) (2 t' - t_1 - t_2) \div 2 \notag
+        & H^{\prime\prime}_{jt_1t_2t'} = (H_j- U^{min}) \sum_{t=t_1-1}^{t_2} (t' - t) = (H_j- U^{min}) (t_2 - t_1 + 1) (2 t' - t_1 - t_2) \div 2 \notag \\
+        & H^{Clust}_{k} = \sum_{j \in \mathcal{JK}_k} H_j
     \end{align}
 
 
@@ -186,7 +188,7 @@ The following model provides a tight MIP formulation that solves the Military Fl
     \begin{tabular}{p{8mm}p{147mm}}
         $h_{in}$  &  Continuous, positive. Sum of the accumulated monthly consumption in flight hours for aircraft $i \in I$ for maintenance cycle $n$. \\
         $e^{A}_{kts}$ & Continuous, positive. Elastic variable for serviceability constraint (\ref{eq:serviceability-cluster}). \\
-        $e^{H}_{kts}$ & Continuous, positive. Elastic variable for sustainability constraint (\ref{eq:sustainability-cluster}). \\
+        $e^{H}_{ks}$ & Continuous, positive. Elastic variable for sustainability constraint (\ref{eq:sustainability-cluster}). \\
         $e^{C}_{ts}$ & Continuous, positive. Elastic variable for capacity constraint (\ref{eq:capacity1}). \\
     \end{tabular}
 
@@ -206,9 +208,9 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
                 }
             } PA_s e^{A}_{kts} 
         + \sum_{\substack{
-                k \in \mathcal{K}, \\ n \in \mathcal{N}, \\ s \in \mathcal{S}
+                k \in \mathcal{K}, \\ s \in \mathcal{S}
                 } 
-            } PH_s e^{H}_{kns}
+            } PH_s e^{H}_{ks}
         + \sum_{t \in \mathcal{T}, s \in \mathcal{S}} PC_s e^{C}_{ts}
         \label{eq:objective1}
     \end{align}
@@ -251,8 +253,8 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     \begin{align}
        & \sum_{\substack{i \in \mathcal{IK}_k, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N^{Clust}_{kt} \leq A^{Clust}_{kt} + \sum_{s \in \mathcal{S}} e^{A}_{kts}
         &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster}\\
-       & \sum_{i \in \mathcal{IK}_k} h_{in} \leq |{IK}_k| H^{Clust}_{kn} + \sum_{s \in \mathcal{S}} e^{H}_{kns}
-        &k \in \mathcal{K}, n \in \mathcal{N} \label{eq:sustainability-cluster}
+       & \sum_{i \in \mathcal{IK}_k, n \in \mathcal{N}} h_{in} \leq H^{Clust}_{k} + \sum_{s \in \mathcal{S}} e^{H}_{ks}
+        &k \in \mathcal{K} \label{eq:sustainability-cluster}
     \end{align}
 
     Constraints (\ref{eq:serviceability-cluster}) guarantee a minimum serviceability of aircraft for each cluster $k$. A cluster is defined by the largest group of aircraft that is required exclusively for at least one mission. 
