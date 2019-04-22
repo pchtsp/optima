@@ -15,15 +15,13 @@
     time slot format=isodate,
     time slot unit=month
 ]{2017-08-01}{2024-06-01}
-    % \gantttitlecalendar{year} \\
     \Dganttbar{(b)}{M}{2018-03-01}{2018-08-01}{bar/.append style={fill=color1}}
     \Dganttbar{(b)}{M}{2023-07-01}{2023-12-01}{bar/.append style={fill=color1}}
+    \Dganttbar{(b)}{$j$}{2019-02-01}{2020-07-01}{bar/.append style={fill=color1}}
     \ganttvrule[]{$t_1$}{2018-02-01}
     \ganttvrule[]{$t_2$}{2023-06-01}
     \ganttvrule[]{\hspace{-30pt} $\mathcal{T}_A$}{2018-08-01}
     \ganttvrule[]{\hspace{-30pt}$\mathcal{T}_B$}{2023-12-01}
-    % \ganttvrule[
-    % vrule label node/.append style={anchor=north west}
-    % ]{\hspace{50pt} $\mathcal{T}_t^M$}{2021-02-01}
-    % \ganttvrule[]{}{2023-08-01}
+    \ganttvrule[]{$t$}{2019-01-01}
+    \ganttvrule[]{$t'$}{2020-07-01}
 \end{ganttchart}
