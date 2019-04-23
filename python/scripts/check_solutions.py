@@ -5,6 +5,7 @@ import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
 import package.superdict as sd
+import package.tuplist as tl
 import scripts.exec as exec
 import os
 import package.model as md
@@ -58,13 +59,14 @@ def test4():
     pass
 
 def graph_check():
-    path = PATHS['experiments'] + "201902061522/"
-    path = PATHS['experiments'] + "201902111621/"
+    # path = PATHS['experiments'] + "201902061522/"
+    path = PATHS['experiments'] + "201903251641/"
     # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
     experiment = exp.Experiment.from_dir(path)
+    experiment.check_solution()
     experiment.check_min_distance_maints()
     status = experiment.get_status('9')
     status.reset_index(inplace=True)
@@ -143,7 +145,7 @@ def check_over_assignments():
         return [os.path.join(d, f) for f in os.listdir(d)]
 
     exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/') for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
-    exp_scenario = {os.path.basename(e): os.path.basename(p) for p in listdir_fullpath(path_exps) for e in             listdir_fullpath(p)}
+    exp_scenario = {os.path.basename(e): os.path.basename(p) for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
     checks = {e: v.check_task_num_resources(strict=True) for e, v in exps.items() if v is not None}
 
 
@@ -161,8 +163,56 @@ def check_over_assignments():
     return result
 
 
+def check_rem_calculation(experiment):
+    path_exp = PATHS['experiments'] + experiment
+    self = exp.Experiment.from_dir(path_exp)
+    acc_consumption = self.get_acc_consumption()
+    cycles = tl.TupList(acc_consumption).to_dict(result_col=[1, 2])
+    acc_consumption = acc_consumption.clean(default_value=0)
+    # add one pos to cycles that start a maint_duration just at the start
+    # (because it means they have a previous 0 length period)
+    _shift = self.instance.shift_period
+    first = self.instance.get_param('start')
+    duration = self.instance.get_param('maint_duration')
+    extra_pos = cycles.apply(lambda k, v: (_shift(first, duration) == v[0][0])+0)
+    cycles_pos = cycles.apply(lambda k, v: sd.SuperDict({str(kk+extra_pos[k]): vv for kk, vv in enumerate(v)})).to_dictup()
+
+    _range = self.instance.get_dist_periods
+
+    # I need to clean the auxiliary cycle info to be able to compare it.
+    acc_consumption_aux = \
+        sd.SuperDict.from_dict(self.solution.data['aux']['rem']).\
+        to_dictup(). \
+        clean(default_value=0)
+
+    # key exchange:
+    acc_consumption_aux2 = {(k1, *cycles_pos[k1, k2]): v for (k1, k2), v in acc_consumption_aux.items()}
+    acc_consumption_aux2 = \
+        sd.SuperDict.from_dict(acc_consumption_aux2).\
+            apply(lambda k, v: (_range(k[1], k[2])+1) * v)
+    acc_consumption.apply(lambda k, v: v - acc_consumption_aux2[k]).clean(func=lambda v: abs(v) > 0.1)
+    acc_consumption_aux2.apply(lambda k, v: v - acc_consumption[k]).clean(func=lambda v: abs(v) > 0.1)
+
+    rut = self.set_remaining_usage_time('rut')
+
+    def dist(t1, t2):
+        # t_2 - t_1 + 1
+        return self.instance.get_dist_periods(t1, t2) + 1
+
+    def acc_dist(t_1, t_2, tp):
+        # sum_{t = t_1 -1}^{t_2} tp - t
+        # return (t_2 - t_1 + 1) * (2 * tp - t_1 - t_2) / 2
+        return dist(t_1, t_2) * (dist(t_1, tp) + dist(t_2, tp)) / 2
+
+    # conclusion: some deviations with fixed assignments at the beginning of the planning period.
+    # that are not taken into account in the model to calculate the average accumulated consumption.
+    pass
+
+
+
 if __name__ == '__main__':
+    check_rem_calculation('201904181142')
     # check_over_assignments()
     # test_rexecute()
-    test_rexecute()
+    # graph_check()
     pass

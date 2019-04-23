@@ -271,6 +271,21 @@ def import_pie_solution(path_solution, path_input):
     }
 
 
+def re_make_paths(path_to_experiment, scenario_instances):
+    scenario_paths = {s: os.path.join(path_to_experiment, s) for s in scenario_instances}
+    instances_paths = {s: {i: os.path.join(scenario_paths[s], i) for i in instances}
+                       for s, instances in scenario_instances.items()}
+    return scenario_paths, instances_paths
+
+
+def experiment_to_instances(path_to_experiment):
+    scenarios = os.listdir(path_to_experiment)
+    scenario_paths = {s: os.path.join(path_to_experiment, s) for s in scenarios}
+    scenario_instances = {s: os.listdir(v) for s, v in scenario_paths.items()}
+    scenario_paths_in, instances_paths_in = re_make_paths(path_to_experiment, scenario_instances)
+    return instances_paths_in
+
+
 if __name__ == "__main__":
     # get_model_data()
     path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
