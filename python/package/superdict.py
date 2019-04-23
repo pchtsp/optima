@@ -14,6 +14,9 @@ class SuperDict(dict):
             func = lambda x: x != default_value
         return SuperDict({key: value for key, value in self.items() if func(value)})
 
+    def len(self):
+        return len(self)
+
     def filter(self, indices, check=True):
         if type(indices) is not list:
             indices = [indices]

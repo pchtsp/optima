@@ -4,18 +4,25 @@ import pandas as pd
 import dfply as dp
 from dfply import X
 
-input = [('0', 'dell_20190327_cbc_old'),
-         ('1', 'dell_20190327_cbc_new'),
-         ('2', 'dell_20190402_cbc_new_new'),
-         ('3', 'dell_20190404_new_new_cbc210_6months'),
-         ('4', 'dell_20190410_new_new_cbc_sanshours')]
-input = [('0', 'dell_20190326_cplex_old'),
+import os
+
+
+# input = [('0', 'dell_20190327_cbc_old'),
+#          ('1', 'dell_20190327_cbc_new'),
+#          ('2', 'dell_20190402_cbc_new_new'),
+#          ('3', 'dell_20190404_new_new_cbc210_6months'),
+#          ('4', 'dell_20190410_new_new_cbc_sanshours')]
+input = [('0', 'dell_20190326_cplex_old_only5'),
          ('1', 'dell_20190327_cplex_new_only5'),
-         ('2', 'dell_20190403_maintenances_cplex'),
+         ('2', 'dell_20190403_new_new_cplex'),
          ('3', 'dell_20190408_new_new_cplex_6months'),
-         ('4', 'dell_20190410_new_new_cplex_sanshours')]
-file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_cut_comparison.html'
-file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison.html'
+         ('4', 'dell_20190410_new_new_cplex_sanshours'),
+         ('5', 'dell_20190419_new_new_cplex_newobjs_sanshours'),
+         ('6', 'dell_20190419_new_new_cplex_newobjs'),
+         ('7', 'dell_20190422_new_new_cplex_newobjs_rut')
+         ]
+# file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_cut_comparison.html'
+# file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison.html'
 file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_comparison.html'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_vs_cbc.html'
 # input = [('new', 'dell_20190401_maintenances'), ('old', 'dell_20190327_cbc_old')]
@@ -25,8 +32,10 @@ file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_comparison.html'
 results_dict = {}
 for name, exp in input:
     table = rep.get_simulation_results(exp)
+    table_errors = rep.get_experiment_errors(exp)
     results_dict[name] = \
         table >> \
+        dp.left_join(table_errors, by=['scenario', 'instance']) >> \
         dp.mutate(gap_abs = X.objective - X.bound) >> \
             dp.rename(t= 'time_out', g = 'gap_abs') >> \
             dp.group_by(X.scenario) >> \
@@ -42,7 +51,8 @@ for name, exp in input:
                          vars = X.vars.mean(),
                          non_0 = X.nonzeros.mean(),
                          no_int = X.no_int.sum(),
-                         inf = dp.first(X.sizet) - dp.n(X.t)
+                         inf = dp.first(X.sizet) - dp.n(X.t),
+                         errs = X.errors.sum()
                     )
 
 results = pd.concat(results_dict)
@@ -60,21 +70,21 @@ with open(file_path, 'w') as f:
 #####################
 # RELAXATIONS
 
-results_dict = {}
-for name, exp in input:
-    results_dict[name] = cor.statistics_relaxations(exp, write=False)
-
-results = pd.concat(results_dict)
-
-results2 = results.reset_index().drop(['level_1'], axis=1).\
-    rename(columns=dict(level_0='experiment'))
-
-html = results2.set_index(['case', 'experiment']).\
-    unstack(1).to_html(float_format='%.1f')
-
-with open(file_path, 'w') as f:
-    f.write(html)
-
+# results_dict = {}
+# for name, exp in input:
+#     results_dict[name] = cor.statistics_relaxations(exp, write=False)
+#
+# results = pd.concat(results_dict)
+#
+# results2 = results.reset_index().drop(['level_1'], axis=1).\
+#     rename(columns=dict(level_0='experiment'))
+#
+# html = results2.set_index(['case', 'experiment']).\
+#     unstack(1).to_html(float_format='%.1f')
+#
+# with open(file_path, 'w') as f:
+#     f.write(html)
+#
 
 #####################
 

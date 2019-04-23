@@ -2,6 +2,7 @@ import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
 import package.experiment as exp
+import package.superdict as sd
 import os
 import numpy as np
 import package.data_input as di
@@ -473,6 +474,30 @@ def print_table_md(table):
 
 def col_names_collapsed(table):
     return ['.'.join(reversed(col)).strip() for col in table.columns.values]
+
+def get_experiment_errors(experiment):
+    path_exps = path_results + experiment
+    exp_inst = di.experiment_to_instances(path_exps)
+    errors_f = \
+        sd.SuperDict.from_dict(exp_inst).to_dictup().\
+            apply(lambda k, v: os.path.join(v, 'errors.json')).\
+            apply(lambda k, v: sd.SuperDict.from_dict(di.load_data(v)) if os.path.exists(v) else sd.SuperDict()).\
+            apply(lambda k, v: v.to_dictup().len()).\
+            to_dictdict()
+    table = pd.DataFrame.from_dict(errors_f, orient='index').\
+        stack().\
+        reset_index().\
+        rename(columns={'level_0': 'scenario', 'level_1':'instance_name', 0: 'errors'}).\
+        sort_values(['scenario', 'instance_name']).\
+        reset_index(drop=True).\
+        reset_index().\
+        rename(columns={'index': 'instance'})
+
+    table['instance'] = table.groupby('scenario').\
+        apply(func=lambda x: x.instance - x.instance.min()).\
+        reset_index(drop=True)
+
+    return table
 
 if __name__ == "__main__":
 
