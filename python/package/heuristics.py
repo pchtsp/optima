@@ -1,9 +1,9 @@
-import package.auxiliar as aux
 import numpy as np
 import package.experiment as test
 import package.solution as sol
 import random as rn
 import package.tuplist as tl
+import package.superdict as sd
 import logging as log
 
 
@@ -297,8 +297,9 @@ class GreedyByMission(test.Experiment):
         finds the periods where maintenance capacity is not full
         :return: list of periods (month)
         """
-        num_in_maint = aux.fill_dict_with_default(self.solution.get_in_maintenance(),
-                                                  self.instance.get_periods())
+        num_in_maint = \
+            sd.SuperDict.from_dict(self.solution.get_in_maintenance()).\
+            fill_with_default(self.instance.get_periods())
         return [p for p, num in num_in_maint.items() if
                                  num < self.instance.get_param('maint_capacity')]
 

@@ -1,6 +1,5 @@
 import math
 import pulp as pl
-import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
 import package.experiment as exp
@@ -30,7 +29,10 @@ class Model(exp.Experiment):
         consumption = self.instance.get_tasks('consumption')
         requirement = self.instance.get_tasks('num_resource')
         rut_init = self.instance.get_initial_state("used")
-        num_resource_maint = aux.fill_dict_with_default(self.instance.get_total_fixed_maintenances(), l['periods'])
+        num_resource_maint = \
+            sd.SuperDict.from_dict(
+                self.instance.get_total_fixed_maintenances()
+            ).fill_with_default(l['periods'])
         maint_capacity = self.instance.get_param('maint_capacity')
         max_usage = self.instance.get_param('max_used_time')
         min_usage = self.instance.get_param('min_usage_period')
@@ -357,11 +359,11 @@ class Model(exp.Experiment):
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
 
-        _task = aux.tup_to_dict(aux.vars_to_tups(task), result_col=1, is_list=False)
-
+        _task = self.vars_to_tups(task).to_dict(result_col=1, is_list=False)
         # we store the start of maintenances and tasks in the same place
-        _start = tl.TupList(aux.vars_to_tups(start_T)).to_dict(result_col=1, is_list=False)
-        _start_M = {k: 'M' for k in aux.vars_to_tups(start_M)}
+        _start = self.vars_to_tups(start_T).to_dict(result_col=1, is_list=False)
+        # _start = tl.TupList(self.vars_to_tups(start_T)).to_dict(result_col=1, is_list=False)
+        _start_M = {k: 'M' for k in self.vars_to_tups(start_M)}
         _start.update(_start_M)
 
         _rut = {t: rut[t].value() for t in rut}
@@ -387,13 +389,13 @@ class Model(exp.Experiment):
 
     def get_bounds(self):
         param_data = self.instance.get_param()
-        task_data = self.instance.get_tasks()
+        task_data = sd.SuperDict.from_dict(self.instance.get_tasks())
 
         # maximal bounds on continuous variables:
         max_used_time = param_data['max_used_time']  # mu. in hours of usage
         maint_duration = param_data['maint_duration']
         max_elapsed_time = param_data['max_elapsed_time'] + maint_duration # me. in periods
-        consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
+        consumption = task_data.get_property('consumption')  # rh. hours per period.
         num_resources = len(self.instance.get_resources())
         num_periods = len(self.instance.get_periods())
         max_num_maint = num_resources*num_periods/maint_duration
@@ -430,7 +432,6 @@ class Model(exp.Experiment):
         end_time = self.instance.get_tasks('end')
         min_assign = self.instance.get_tasks('min_assign')
         candidates = self.instance.get_task_candidates()
-        # candidates = aux.get_property_from_dic(task_data, 'candidates')
 
         # resources
         resources_data = self.instance.get_resources()
@@ -438,9 +439,6 @@ class Model(exp.Experiment):
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
         min_elapsed = param_data['min_elapsed_time'] + duration
-        # previous_states = \
-        #     sd.SuperDict.from_dict(aux.get_property_from_dic(resources_data, 'states')).\
-        #         to_dictup().to_tuplist().tup_to_start_finish()
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
         kt = sd.SuperDict(self.instance.get_cluster_constraints()['num']).keys_l()
@@ -550,6 +548,15 @@ class Model(exp.Experiment):
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
         }
+
+    @staticmethod
+    def vars_to_tups(var):
+        # because of rounding approximations; we need to check if its bigger than half:
+        # we check if the var is None in case the solver doesn't return a value
+            # (this does not happen very often)
+        return tl.TupList(tup for tup in var if
+                          var[tup].value() is not None and
+                          var[tup].value() > 0.5)
 
 
 if __name__ == "__main__":
