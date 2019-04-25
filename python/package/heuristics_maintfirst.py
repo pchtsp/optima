@@ -10,7 +10,7 @@ import math
 import ujson
 import time
 import logging as log
-
+import orloge as ol
 
 class MaintenanceFirst(heur.GreedyByMission):
 
@@ -509,6 +509,17 @@ class MaintenanceFirst(heur.GreedyByMission):
         rn.shuffle(tasks)
         for task in tasks:
             self.fill_mission(task, assign_maints=False, max_iters=5, rem_resources=rem_resources)
+
+
+def parse_log_file(path):
+    # path = r'C:\Users\pchtsp\Documents\borrar\clust1_20190408\minusageperiod_5\201904090442_1/output.log'
+    logfile = ol.LogFile(path=path)
+    regex = 'INFO:time={}, iteration={}, temperaure={}, errors={}, best={}'.\
+        format(*[logfile.numberSearch]*5)
+    keys = ['time', 'iters', 'temperature', 'errors', 'best']
+    last_info = logfile.apply_regex(regex=regex, num=-1, content_type='float')
+    return dict(zip(keys, last_info))
+
 
 if __name__ == "__main__":
     import package.params as pm
