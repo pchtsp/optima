@@ -2,7 +2,6 @@ from rpy2 import robjects
 from rpy2.robjects.vectors import IntVector, FloatVector, StrVector
 from rpy2.robjects.lib import grid
 from rpy2.robjects.packages import importr, data
-import rpy2.robjects.lib.ggplot2 as ggplot2
 # import rpy2.robjects.lib.latex2exp as l2p
 from rpy2.robjects import Formula, Environment, pandas2ri
 from rpy2.robjects.packages import STAP
@@ -12,15 +11,18 @@ import warnings
 import math, datetime
 import rpy2.robjects as ro
 base = importr('base')
-l2p = importr('latex2exp')
 
 # rprint = robjects.globalenv.get("print")
 # grdevices = importr('grDevices')
 # grid.activate()
 
+# in windows you need to copy to R installation folder
+# , lib_loc=r'\\luq\franco.peschiera.fr$\MyDocs\R\win-library\3.5/'
+
 def example():
     stats = importr('stats')
     datasets = importr('datasets')
+    ggplot2 = importr('ggplot2')
     mtcars = data(datasets).fetch('mtcars')['mtcars']
     rnorm = stats.rnorm
     dataf_rnorm = robjects.DataFrame({'value': rnorm(300, mean=0) + rnorm(100, mean=3),
@@ -36,6 +38,8 @@ def example():
          ggplot2.theme(**{'axis.text.x': ggplot2.element_text(angle=45)})
 
 def boxplot(table, x, y, xlab=None, ylab=None):
+    ggplot2 = importr('ggplot2')
+    l2p = importr('latex2exp')
     pandas2ri.activate()
     if xlab is None:
         xlab = x
@@ -62,6 +66,7 @@ def boxplot(table, x, y, xlab=None, ylab=None):
 
 # TODO: generalize
 def bars(table, x, y, xlab=None, ylab=None):
+    ggplot2 = importr('ggplot2')
     pandas2ri.activate()
     if xlab is None:
         xlab = x

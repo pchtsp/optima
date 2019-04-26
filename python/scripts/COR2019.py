@@ -15,7 +15,7 @@ import package.heuristics_maintfirst as heur
 import package.data_input as di
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
-path = r'C:\Users\pchtsp\Documents\projects\COR2019/'
+path = r'H:\MyDocs\projects\COR2019/'
 
 def boxplot_times(table, experiment):
     str_tup = 'time_out', 'Solving time', '_times'
@@ -346,6 +346,52 @@ def table_heuristic(experiment):
 
     return results
 
+
+def model_vs_heuristic_vs_remake(table_solver, table_remake, table_heur):
+
+    table_mhr = table_solver.\
+        merge(table_heur, on=['scenario', 'id'], how='inner'). \
+        merge(table_remake, on=['scenario', 'id'], how='inner')
+
+    table_mhr['gap_abs_heur'] = table_mhr.best_solution - table_mhr.objective_x
+    table_mhr['gap_rel_heur'] = table_mhr.gap_abs_heur / table_mhr.objective_x * 100
+
+    # table_mhr = table_mh
+    table_mhr['gap_abs_rem'] = table_mhr.objective_y - table_mhr.objective_x
+    table_mhr['gap_rel_rem'] = table_mhr.gap_abs_rem / table_mhr.objective_x * 100
+
+    agg_total = table_solver.groupby('scenario').agg({'sol_code': lambda x: len(x)})
+
+    renames = dict(time_out_x='timeM',
+                   time_out_y='timeHM',
+                   time='timeH',
+                   no_int_y='numH',
+                   sol_code='numM',
+                   gap_out_x='gapM',
+                   gap_out_y='gapHM')
+
+    results_agg = \
+        table_mhr.\
+        groupby('scenario').\
+        agg({'time_out_x': 'mean',
+             'time_out_y': 'mean',
+             'gap_rel_heur': 'mean',
+             'gap_rel_rem': 'mean',
+             'no_int_y': 'count',
+             'time': 'mean',
+             'gap_out_x': 'mean',
+             'gap_out_y': 'mean'}). \
+        merge(agg_total, on='scenario').\
+        rename(columns=renames)
+
+    return results_agg
+
+
+def correct_date(series):
+    aux = series.str.split('_', expand=True)
+    return aux[0] + '_' + aux[1].fillna("").str.pad(width=3, fillchar='0')
+
+
 if __name__ == "__main__":
     ####################
     # Scenario analysis
@@ -366,7 +412,7 @@ if __name__ == "__main__":
     # cut_comparison()
 
     ####################
-    # Heuristic vs model
+    # Get model results
     ####################
     cols_rename = {
         'time': 'time_out', 'index': 'id', 'best_solution': 'objective',
@@ -376,93 +422,85 @@ if __name__ == "__main__":
     # make  get_first_solution return time, nodes. Same for first_relax.
     table_solver = rep.get_simulation_results(experiment='clust1_20190322',
                                               cols_rename=cols_rename)
-    table_solver.sort_values(['scenario', 'date'], inplace=True)
+
+    table_solver['date2'] = correct_date(table_solver.date)
+    table_solver.sort_values(['scenario', 'date2'], inplace=True)
     table_solver['id'] = \
         table_solver.groupby('scenario')['date'].\
         transform(lambda x: range(len(x)))
 
+    # we get only feasible instances
+    feasible = table_solver.sol_code.isin([ol.LpSolutionOptimal, ol.LpSolutionIntegerFeasible])
+    table_solver = table_solver[feasible].copy()
+
+    names = na.config_to_latex(table_solver.scenario)
+
+    ####################
+    # Get heuristic results
+    ####################
+
     table_heur = table_heuristic('clust1_20190408')
-    table_heur.sort_values(['scenario', 'date'], inplace=True)
+    table_heur['date2'] = correct_date(table_heur.date)
+    # table_heur['date2'] = table_heur.date.apply(len).apply(str) + table_heur.date
+    table_heur.sort_values(['scenario', 'date2'], inplace=True)
     table_heur['id'] = \
         table_heur.groupby('scenario')['date'].\
         transform(lambda x: range(len(x)))
+    table_heur = table_heur[~table_heur.no_int]
 
-    table_mh = table_solver.merge(table_heur, on=['scenario', 'id'], how='inner')
+    ##DELETE
+    # check why clust1_20190408\numparalleltasks_3\201904090442_16 is infeasible in the model.
+    # table_solver[['scenario', 'date2', 'id', 'sol_code']].query("scenario=='numparalleltasks_3'")
+    # table_heur[['scenario', 'date2', 'id']]
+    # ttt = table_solver.merge(table_heur, on=['scenario', 'id'], how='inner')
+    # feasible = ttt.sol_code.isin([ol.LpSolutionOptimal, ol.LpSolutionIntegerFeasible])
+    # ttt[~feasible][['scenario', 'date_x', 'date_y', 'id']]
+    ##
 
-    table_mh['gap_abs_heur'] = table_mh.best_solution - table_mh.objective
-    table_mh['gap_rel_heur'] = table_mh.gap_abs_heur / table_mh.objective * 100
+    ####################
+    # Get remake results
+    ####################
 
-    # we get only feasible instances
-    feasible = table_mh.sol_code.isin([ol.LpSolutionOptimal, ol.LpSolutionIntegerFeasible])
-    table_filt = table_mh[feasible].copy()
-    table_filt['known'] = table_filt.groupby('scenario')['sol_code'].transform(func=lambda x: len(x))
+    table_remake = rep.get_simulation_results(experiment='clust1_20190408_remake',
+                                              cols_rename=cols_rename)
+    table_remake['date2'] = correct_date(table_remake.date)
+    table_remake.sort_values(['scenario', 'date2'], inplace=True)
+    table_remake['id'] = table_remake.groupby('scenario')['date'].transform(lambda x: range(len(x)))
 
-    # now, we count how many we found an initial solution
 
-    heur_stats = \
-        table_filt[~table_mh.no_int_y].\
-        groupby('scenario').\
-        agg({'no_int_y':'count', 'time': 'mean'}).\
-        rename(columns={'no_int_y': 'initial', 'time': 'timeH'})
+    # ###################
+    # formatting
+    # ###################
 
-    # Index(['scenario', 'instance', 'time_out', 'id', 'objective', 'gap_out',
-    #        'bound', 'status', 'sol_code', 'status_code', 'matrix', 'cons', 'vars',
-    #        'nonzeros', 'case', 'name_x', 'code', 'no_int_x', 'inf', 'name_y',
-    #        'time', 'iters', 'temperature', 'errors', 'best', 'no_int_y',
-    #        'best_solution', 'gap_abs_heur', 'gap_rel_heur'],
-    #       dtype='object')
-    names = na.config_to_latex(table_filt.scenario)
+    table_HMR = model_vs_heuristic_vs_remake(table_solver, table_remake, table_heur)
 
-    results_agg = \
-        table_filt.\
-            groupby('scenario').\
-            agg({'time_out': 'mean', 'known': 'first', 'gap_rel_heur': 'mean'}).\
-            rename(columns={'time_out': 'timeM', 'gap_rel_heur': 'gap'}).\
-            merge(heur_stats, on='scenario').\
-            merge(names, on='scenario')
-    results_agg['perc_init'] = results_agg.initial / results_agg.known * 100
-    for col in ['perc_init', 'timeH', 'timeM', 'gap']:
-        results_agg[col] = round(results_agg[col], 1)
-    results_agg = results_agg.filter(['case', 'timeH', 'timeM', 'perc_init', 'gap'])
-    latex = results_agg.to_latex(bold_rows=True, index=False, float_format='%.1f')
-    file_path = os.path.join(path + 'tables/', 'heuristic_comp.tex')
-    rep.print_table_md(results_agg)
+    ####################
+    # only one table
+    ####################
+    table_HMR['perc_init'] = table_HMR.numH / table_HMR.numM * 100
+    renames =  [
+               ('case', 'case')
+    		   ,('timeM', '$t^{avg}_M$')
+               ,('timeH', '$t^{avg}_H$')
+               ,('timeHM', '$t^{avg}_{M+H}$')
+               ,('gapM', '$g^{avg}_M$')
+               ,('gapHM', '$g^{avg}_{M+H}$')
+               , ('gap_rel_heur', '$\%Dif_H$')
+               ,('perc_init', '$\%Init_H$')
+               ]
+    _, new_names = zip(*renames)
+    result =\
+        table_HMR.\
+        round(1).\
+        rename(columns=dict(renames)). \
+        merge(names, on='scenario'). \
+        filter(new_names)
 
+    # result.columns
+    latex = result.to_latex(float_format='%.1f', escape=False, index=False)
+
+    file_path = os.path.join(path + 'tables/', 'remake_comp.tex')
     with open(file_path, 'w') as f:
         f.write(latex)
 
-    # ###################
-    # remake vs model
-    # ###################
-    # table_solver and table_heur from above
-    table_remake = rep.get_simulation_results(experiment='clust1_20190408_remake',
-                                              cols_rename=cols_rename)
-
-    table_remake.sort_values(['scenario', 'date'], inplace=True)
-    table_remake['id'] = table_remake.groupby('scenario')['date'].transform(lambda x: range(len(x)))
-
-    table_solver['experiment'] = 'mip'
-    table_remake['experiment'] = 'remake'
-    table_m_r = pd.concat([table_solver, table_remake])
-
-    # filter only cases when given a real initial solution:
-    key = ['scenario', 'id']
-    key2 = ['experiment', 'scenario']
-    heur_has_init = table_heur[~table_heur.no_int][key]
-    table_filt = table_m_r.merge(heur_has_init, on=key, how='inner')
-    # table = table_solver.merge(table_remake, on=['scenario', 'id'])
-    # table.columns
-    num_sols = heur_has_init.groupby('scenario').agg(lambda x: len(x))
-    table_filt.no_int += 0
-
-    results_agg = \
-        table_filt.\
-            groupby(['experiment', 'scenario']).\
-            agg({'time_out': 'mean',
-                 'gap_out': 'mean',
-                 'no_int': 'sum'}).round(1)
-    results_agg2 = \
-        results_agg.unstack(0).\
-        merge(num_sols, on='scenario', how='left')
-
-    rep.print_table_md(results_agg2)
+    rep.print_table_md(table_HMR)
