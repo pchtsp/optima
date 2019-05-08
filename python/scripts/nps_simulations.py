@@ -10,6 +10,12 @@ import re
 import copy
 import multiprocessing as multi
 
+# Windows workaround for python 3.7 (sigh...)
+import _winapi
+import multiprocessing.spawn
+multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
+#################
+
 def merge_resources(model_data, initial_data):
     model_data = sd.SuperDict.from_dict(model_data)
     initial_data = sd.SuperDict.from_dict(initial_data)
@@ -25,6 +31,23 @@ def merge_resources(model_data, initial_data):
             v['initial_used'] = init_used[k]
 
     return model_data
+
+
+def solve_errors(initial_data, _option):
+    try:
+        # print('entered solve_errors')
+        print('path is : {}'.format(_option['path']))
+        model_data = sim.create_dataset(_option)
+        model_data = merge_resources(model_data, initial_data)
+        # print('actually solving instance')
+        exec.execute_solve(model_data, _option)
+        # print('solved!')
+    except Exception as e:
+        # print('some exception!')
+        str_fail = "Unexpected error in case: \n{}".format(repr(e))
+        path_out = os.path.join(_option['path'], 'failure.txt')
+        with open(path_out, 'w') as f:
+            f.write(str_fail)
 
 if __name__ == "__main__":
 
@@ -80,10 +103,12 @@ if __name__ == "__main__":
             os.mkdir(path_exp)
 
         case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
-        _options = copy.deepcopy(options)
-        _options.update(case_opt)
+        case_opt = {k: v for k, v in case_opt.items()}
+        _option = copy.deepcopy(options)
+        _option.update(case_opt)
         case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
-        _sim_data = _options['simulation']
+        case_sim = {k: v for k, v in case_sim.items()}
+        _sim_data = _option['simulation']
         _sim_data.update(case_sim)
         # this needs to be enforced so feasible instances can be obtained:
         _sim_data['num_resources'] = 15 * _sim_data['num_parallel_tasks']
@@ -95,23 +120,27 @@ if __name__ == "__main__":
             if _sim_data['seed']:
                 _sim_data['seed'] += 1
 
-            _path_instance = path_instance = _options['path'] = \
+            _path_instance = path_instance = _option['path'] = \
                 os.path.join(path_exp, dt.datetime.now().strftime("%Y%m%d%H%M"))
             num = 1
 
             while os.path.exists(_path_instance):
                 _path_instance = path_instance + "_{}".format(num)
                 num += 1
-            _options['path'] = path_instance = _path_instance + '/'
+            _option['path'] = path_instance = _path_instance + '/'
 
+            if not os.path.exists(_path_instance):
+                os.mkdir(_path_instance)
 
-            try:
-                model_data = sim.create_dataset(_options)
-                model_data = merge_resources(model_data, initial_data)
-                exec.execute_solve(model_data, _options)
-            except Exception as e:
-                if not os.path.exists(path_instance):
-                    os.mkdir(path_instance)
-                str_fail = "Unexpected error in case: \n{}".format(repr(e))
-                with open(path_instance + 'failure.txt', 'w') as f:
-                    f.write(str_fail)
+            args = [initial_data, copy.deepcopy(_option)]
+            if multiproc:
+                # print('create poolasync')
+                results[pos] = pool.apply_async(solve_errors, args)
+                pos += 1
+            else:
+                solve_errors(*args)
+
+    for pos, result in results.items():
+        # print('actually running functions')
+        result.get(timeout=1000)
+
