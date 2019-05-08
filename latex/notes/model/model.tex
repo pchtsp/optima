@@ -56,7 +56,7 @@
 \section{Mathematical formulation}
   \label{sec:model}
 
-The following model provides a tight MIP formulation that solves the Military Flight and Maintenance Problem. Maintenance operations will be referred as "checks".
+The following model provides a tight MIP formulation that solves the Military Flight and Maintenance Problem. Maintenance operations will be referred as "checks". Missions are assumed to require a constant amount of flight hours per period and a constant amount of aircraft per period, when active. Maintenance capacity is constant overall the planning horizon.
 
 \subsection{Input data}
     \subsubsection{Basic sets}
@@ -71,17 +71,18 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
         \begin{tabular}{p{15mm}p{140mm}}
             $k \in \mathcal{K}$     &  cluster of aircraft that share the same functionality. \\
-            $n \in \mathcal{N}$     &  maintenance cycles for aircraft. Up to 3. \\
+            $n \in \mathcal{N}$     &  maintenance cycles for aircraft. Between 2 and 3. \\
             $s \in \mathcal{S}$     &  slots for elastic variables. \\
         \end{tabular}
 
     \subsubsection{Mission parameters}
 
         \begin{tabular}{p{15mm}p{125mm}p{15mm}}
-            $H_j$             & amount of flight time required by mission $j$. & hours. \\
-            $R_j$             & number of aircraft required by mission $j$. & aircraft. \\
-            $MT_j$            & minimum number of consecutive periods an aircraft has to be assigned to mission $j$. & periods. \\
-            $U^{min}$         & default aircraft flight time if it is not assigned to any mission nor in maintenance.& hours \\
+            $H_j$             & amount of flight hours required per period by mission $j$. & hours. \\
+            $R_j$             & number of aircraft required per period by mission $j$. & aircraft. \\
+            $MT^{min}_j$      & minimum number of consecutive periods an aircraft can be assigned to mission $j$. & periods. \\
+            $MT^{max}_j$      & maximum number of consecutive periods an aircraft can be assigned to mission $j$. & periods. \\
+            $U^{min}$         & default aircraft flight hours if it is not assigned to any mission nor in maintenance.& hours \\
             $M$               & check duration in number of periods. & periods. \\
         \end{tabular}
 
@@ -89,9 +90,9 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
         \begin{tabular}{p{15mm}p{125mm}p{15mm}}
             $C^{max}$         & maximum number of simultaneous checks. & aircraft. \\
-            $E^{max}$         & maximum number of periods between two consecutive checks. & periods. \\
             $E^{min}$         & minimum number of periods between two consecutive checks. & periods. \\
-            $H^{max}$         & remaining flight time after a check. & hours. \\
+            $E^{max}$         & maximum number of periods between two consecutive checks. & periods. \\
+            $H^{max}$         & remaining flight hours for any aircraft after a check. & hours. \\
         \end{tabular}
 
     \subsubsection{Fleet parameters}
@@ -100,9 +101,9 @@ The following model provides a tight MIP formulation that solves the Military Fl
             $N_t$               & number of aircraft known to be in maintenance in period $t$. & aircraft. \\
             $N^{Clust}_{kt}$    & number of aircraft in cluster $k$ known to be in maintenance in period $t$. & aircraft. \\
             $A^{Clust}_{kt}$    & maximum number of aircraft in cluster $k$ that can be simultaneously in maintenance in period $t$. & aircraft. \\
-            $H^{Clust}_{kn}$    & maximum number of mean accumulated flight time for cluster $k$ at maintenance cycle $n$. & hours. \\
-            $Rft^{Init}_i$      & remaining flight time for aircraft $i$ at the start of the planning horizon.  & hours.  \\
-            $Rct^{Init}_i$      & remaining calendar time for aircraft $i$ at the start of the planning horizon.  & periods. \\
+            $H^{Clust}_{kt}$    & maximum number of mean accumulated flight hours for cluster $k$ at maintenance cycle $n$. & hours. \\
+            $Rft^{Init}_i$      & remaining flight hours for aircraft $i$ at the start of the planning horizon.  & hours.  \\
+            $Rct^{Init}_i$      & remaining calendar time until reaching $E^{max}$ for aircraft $i$ at the start of the planning horizon.  & periods. \\
         \end{tabular}
 
     \subsubsection{Objective function weights}
@@ -129,16 +130,16 @@ The following model provides a tight MIP formulation that solves the Military Fl
         Several intermediate sets have been defined based on the input data in order to simplify constraint formulation.
 
         \begin{tabular}{p{30mm}p{125mm}}
-            $t \in \mathcal{T}^s_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $t' \in \mathcal{T}^s_t$ & time periods $t' \in \mathcal{T}$ during which a check that ends in $t'$ is active, i.e. $t' \in \{ \max{\{1, t - M+1\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}a). \\
             % $\mathcal{T}^S_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t},  ..., \min{\{|\mathcal{T}|, t + M-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
-            $t' \in \mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^{min}-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
-            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^{max} - M$ such that $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$ (figure \ref{fig:gantt_windows}a). \\
-            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}$ & pairs of time periods $t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}$ such that $t_1 \in \mathcal{T}^s_{t} \lor t_2 \in \mathcal{T}^s_{t}$  (figure \ref{fig:gantt_windows}b). \\
-            $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ & triplet composed of mission $j \in \mathcal{JI}_i$ and $t, t' \in \mathcal{TJ}_j$ such that $t' \ge t + MT_j-1$ and $t \ge t_1 + M$ and $t' < t_2$  (figure \ref{fig:gantt_windows}b).\\
-            $t \in \mathcal{T}^{m_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}}\}$ (figure \ref{fig:gantt_windows}c). \\
-            $t \in \mathcal{T}^{M_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}c). \\
-            $t' \in \mathcal{T}^{MT}_{jt}$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}d). \\
-            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $t_1, t_2 \in \mathcal{TJ}_j$ such that $t_2 \ge t_1 + MT_j-1$ and $t \in \{t_1, ..., t_2\}$ (figure \ref{fig:gantt_windows}d). \\
+            % $t' \in \mathcal{T}^m_t$ &  time periods $t' \in \mathcal{T}$ such that $t' \in \{ {t}, ..., \min{\{|\mathcal{T}|, t + M + E^{min}-1\}}\}$ (figure \ref{fig:gantt_windows}a). \\
+            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq \mathcal{T}$ during which a second check can start, given that the first check started in $t$, i.e. $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$ (figure \ref{fig:gantt_windows}a). \\
+            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}$ & pairs of time periods $t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}$ when a check can start such that it is active in $t$, i.e. $t_1 \in \mathcal{T}^s_{t} \lor t_2 \in \mathcal{T}^s_{t}$  (figure \ref{fig:gantt_windows}b). \\
+            $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ & all possible assignments for mission $j$ in between two checks starting at $t_1$ and $t_2$. Formally: triplet composed of mission $j \in \mathcal{JI}_i$ and $t, t' \in \mathcal{TJ}_j$ such that $t' \ge t + MT^{min}_j-1$ and $t \ge t_1 + M$ and $t' < t_2$  (figure \ref{fig:gantt_windows}b).\\
+            % $t \in \mathcal{T}^{m_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ 1, ..., \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}}\}$ (figure \ref{fig:gantt_windows}c). \\
+            $t \in \mathcal{T}^{M_{Init}}_i$ & possible time periods $t \in \mathcal{T}$ during which aircraft $i$ can have its first check, i.e. $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$ (figure \ref{fig:gantt_windows}c). \\
+            % $t' \in \mathcal{T}^{MT}_{jt}$ & time periods $t' \in \mathcal{T}$ such that $t' \in \{ \max{\{1, t - MT^{min}_j\}},  ..., {t}\}$ (figure \ref{fig:gantt_windows}d). \\
+            $(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}$ & pairs of time periods $t_1, t_2 \in \mathcal{TJ}_j$ when a mission $j$ active during $t$ can be assigned, i.e. $t_2 \ge t_1 + MT^{min}_j-1$ and $t \in \{t_1, ..., t_2\}$ (figure \ref{fig:gantt_windows}d). \\
         \end{tabular}
 
     \begin{figure}
@@ -153,20 +154,20 @@ The following model provides a tight MIP formulation that solves the Military Fl
         \begin{tikzpicture}
             \input{gantts/time_windows_init.tex}
         \end{tikzpicture}
-        \begin{tikzpicture}
-            \input{gantts/time_windows_mission.tex}
-        \end{tikzpicture}
+        % \begin{tikzpicture}
+        %     \input{gantts/time_windows_mission.tex}
+        % \end{tikzpicture}
         \caption{Examples showing the maintenance-related time-parametric sets for aircraft $i$. (a) $\mathcal{T}_{t'}^{s}$ refers to the previous $M$ periods to period $t'$. $\mathcal{T}_{t}^{m}$ refers to the periods where a check cannot be planned after starting a check in period $t$. Finally, $\mathcal{T}_{t}^{M}$ refers to the periods where a check needs to be scheduled, after starting a check in period $t$. (b) The maintenance assignment for aicraft $i$ is $m_{it_1t_2}=1$. $\mathcal{T}_A \cup \mathcal{T}_B$ represents the set of periods $t$ for which $(t_1, t_2) \in \mathcal{TTT}_t$. Also, $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ since the assignment is bounded by $t_1 + M$ and $t_2$. (c) $Rct_{i}^{Init}$ is equal to 55, meaning a check has to be planned between months number 25 and 54. The maintenance assignment for aircraft $i$ is $m_{it_1t_2}=1$ and, since it includes the last period, it only represents one operation. (d) $\mathcal{T}_{jt}^{MT}$ refers to the periods where the assignment of mission $j$ needs to be kept. In this case, the size is 6. The mission assignments for aircraft $i$ to mission $j$ are $a_{ijt_1t_2}=1$ and $a_{ijt'_1t'_2}=1$ and $(t'_1, t'_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt''}$.}
         \label{fig:gantt_windows}
     \end{figure}
 
     \subsubsection{Consumption derived parameters}\label{subsubsec:consumption}
 
-    The following parameters are derived from the basic input parameters. They are used in constraints (\ref{eq:cycle_hours1}) - (\ref{eq:cycle_rem_hours3}). They are transformations of the default and mission flight hours consumption under different time circumstances.
+    The following parameters are derived from the basic input parameters. They are used in constraints (\ref{eq:cycle_hours1}) - (\ref{eq:cycle_hours3}). They are transformations of the default and mission flight hours consumption under different time circumstances.
 
     \begin{align}
         & U^{\prime}_{t_1t_2} = U^{min} (t_2 - t_1+1) \notag \\
-        & U^{\prime\prime}_{t_1t_2} = U^{min} \sum_{t=t_1-1}^{t_2} (t_2 - t) = U^{min} (t_2 - t_1+1) (t_2 - t_1) \div 2  \notag \\
+        % & U^{\prime\prime}_{t_1t_2} = U^{min} \sum_{t=t_1-1}^{t_2} (t_2 - t) = U^{min} (t_2 - t_1+1) (t_2 - t_1) \div 2  \notag \\
         & H^\prime_{jt_1t_2} = (H_j - U^{min}) (t_2 - t_1+1) \notag \\
         & H^{\prime\prime}_{jt_1t_2t'} = (H_j- U^{min}) \sum_{t=t_1-1}^{t_2} (t' - t) = (H_j- U^{min}) (t_2 - t_1 + 1) (2 t' - t_1 - t_2) \div 2 \notag
     \end{align}
@@ -178,13 +179,13 @@ The following model provides a tight MIP formulation that solves the Military Fl
 
     \begin{tabular}{p{8mm}p{147mm}}
         $a_{ijtt'}$ &  =1 if aircraft $i$ starts a new assignment to mission $j$ at the beginning of period $t$ and finishes it at the end of period $t'$. \\  
-        $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check at the beginning of period $t \in \mathcal{T}$ and then starts the next one at the beginning of period $t'$, 0 otherwise. \\
+        $m_{itt'}$  &  =1 if aircraft $i \in I$ starts a check at the beginning of period $t \in \mathcal{T}^{M_{Init}}_i$ and then starts the next one at the beginning of period $t' \in \mathcal{T}^M_{t}$, 0 otherwise. \\
     \end{tabular}
 
     Auxiliary variables control the status of each aircraft or group of aircraft.
 
     \begin{tabular}{p{8mm}p{147mm}}
-        $h_{in}$  &  Continuous, positive. Sum of the accumulated monthly consumption in flight hours for aircraft $i \in I$ for maintenance cycle $n$. \\
+        $rft_{it}$  &  remaining flight time (continuous) for aircraft $i \in I$ at the end of period $t \in \mathcal{T}$. \\  
         $e^{A}_{kts}$ & Continuous, positive. Elastic variable for serviceability constraint (\ref{eq:serviceability-cluster}). \\
         $e^{H}_{kts}$ & Continuous, positive. Elastic variable for sustainability constraint (\ref{eq:sustainability-cluster}). \\
         $e^{C}_{ts}$ & Continuous, positive. Elastic variable for capacity constraint (\ref{eq:capacity1}). \\
@@ -206,9 +207,9 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
                 }
             } PA_s e^{A}_{kts} 
         + \sum_{\substack{
-                k \in \mathcal{K}, \\ n \in \mathcal{N}, \\ s \in \mathcal{S}
+                k \in \mathcal{K}, \\ t \in \mathcal{T}, \\ s \in \mathcal{S}
                 } 
-            } PH_s e^{H}_{kns}
+            } PH_s e^{H}_{kts}
         + \sum_{t \in \mathcal{T}, s \in \mathcal{S}} PC_s e^{C}_{ts}
         \label{eq:objective1}
     \end{align}
@@ -229,36 +230,39 @@ Similarly, for aircraft that have not yet complied with their minimum mission as
     Maintenance capacity is controlled by (\ref{eq:capacity1}). The aircraft requirements of missions are defined by (\ref{eq:missionres}). Constraints (\ref{eq:state}) ensure that an aircraft can only be used for one mission or undergo check in the same period.
 
     \begin{align}
-        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t_1}}} a_{ijtt'} H'_{jtt'} + U^{\prime}_{1t_1} \leq Rft^{Init}_i + H^{max} (1 - m_{it_1t_2}) 
-                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours1}\\
-        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}}} a_{ijtt'} H'_{jtt'} + U^{\prime}_{t_1t_2} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
-                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours2}\\
-        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_2|\mathcal{T}|}}} a_{ijtt'} H'_{jtt'} + U^{\prime}_{t_2|\mathcal{T}|} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
-                & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_hours3}
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t_1}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{1t_1} \leq Rft^{Init}_i + H^{max} (1 - m_{it_1t_2}) 
+                & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \label{eq:cycle_hours1}\\
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{t_1t_2} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+                & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \label{eq:cycle_hours2}\\
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_2|\mathcal{T}|}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{t_2|\mathcal{T}|} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+                & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^M_{t_1} \label{eq:cycle_hours3}
     \end{align}
 
         Constraints (\ref{eq:cycle_hours1}) - (\ref{eq:cycle_hours3}) limit the total flight hours of any given aircraft between checks. Constraints (\ref{eq:cycle_hours1}) takes into account periods since the beginning of the planning horizon until the first check, \ref{eq:cycle_hours2} takes into account periods between the first and second check and \ref{eq:cycle_hours3} takes into account periods between the second check and the end of the planning horizon.
 
     \begin{align}
-        & h_{i1} (t_1 - 1) \geq (t_1 - 1) H^{max} (m_{it_1t_2} -1) + \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t_1}}} a_{ijtt'} H''_{jtt't_1} + U^{\prime\prime}_{1t_1} 
-            & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_rem_hours1}\\
-        & h_{i2} (t_2 - t_1) \geq (t_2 - t_1) H^{max} (m_{it_1t_2} -1) + \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}}} a_{ijtt'} H''_{jtt't_2} + U^{\prime\prime}_{t_1t_2}
-            &t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_rem_hours2}\\
-        & h_{i3} (|\mathcal{T}|- t_2) \geq (|\mathcal{T}|- t_2) H^{max} (m_{it_1t_2} -1) + \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_2|\mathcal{T}|}}} a_{ijtt'} H''_{jtt'|\mathcal{T}|} + U^{\prime\prime}_{t_2|\mathcal{T}|}
-            & t_1 \in \mathcal{T}, t_2 \in \mathcal{T}^M_{t_1}, i \in \mathcal{I}\label{eq:cycle_rem_hours3}
-    \end{align}
-
-    \begin{align}
        & \sum_{\substack{i \in \mathcal{IK}_k, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} + N^{Clust}_{kt} \leq A^{Clust}_{kt} + \sum_{s \in \mathcal{S}} e^{A}_{kts}
-        &k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster}\\
-       & \sum_{i \in \mathcal{IK}_k} h_{in} \leq |{IK}_k| H^{Clust}_{kn} + \sum_{s \in \mathcal{S}} e^{H}_{kns}
-        &k \in \mathcal{K}, n \in \mathcal{N} \label{eq:sustainability-cluster}
+            & k \in \mathcal{K}, t \in \mathcal{T} \label{eq:serviceability-cluster}\\
+       & \sum_{i \in \mathcal{IK}_k} rft_{it} \geq H^{Clust}_{kt} + \sum_{s \in \mathcal{S}} e^{H}_{kts}
+            & k \in \mathcal{K}, t \in \mathcal{T} \label{eq:sustainability-cluster}
     \end{align}
 
     Constraints (\ref{eq:serviceability-cluster}) guarantee a minimum serviceability of aircraft for each cluster $k$. A cluster is defined by the largest group of aircraft that is required exclusively for at least one mission. 
-    Constraints (\ref{eq:sustainability-cluster}) ensure there is a minimum amount of remaining flight time for each cluster $k$.
+    Constraints (\ref{eq:sustainability-cluster}) ensure there is a minimum amount of remaining flight hours for each cluster $k$.
 
-    Constraints (\ref{eq:cycle_rem_hours1}) - (\ref{eq:cycle_rem_hours3}) define the sum of remaining flight hours each aircraft has in between checks. Similarly to (\ref{eq:cycle_hours1}) - (\ref{eq:cycle_hours3}), their difference lies in the three possible intervals produced by assigning at most two checks. The derived parameters used in these constraints can be found in section \ref{subsubsec:consumption}.
+    \begin{align}
+        % remaining flight time
+         & rft_{it} \leq rft_{i(t-1)} + H^M \sum_{\substack{(t_1, t_2) \in \\ \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2} - U^{min} - \sum_{\substack{j \in \mathcal{J}_t \cap \mathcal{O}_i, \\ (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}}} a_{ijt_1t_2} (H_j - U^{min})
+            & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:rft_upper}\\
+        & rft_{i0} = Rft^{Init}_i
+               & i \in \mathcal{I} \label{eq:rft_initial}\\
+        & rft_{it} \geq H^M \sum_{\substack{(t_1, t_2) \in \\ \mathcal{T}\mathcal{T}\mathcal{T}_{t}}} m_{it_1t_2}
+                & t \in \mathcal{T}, i \in \mathcal{I}\label{eq:rft_lower}\\ 
+        & rft_{it} \in [0,H^M]
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:mu}
+    \end{align}
+
+    Constraints (\ref{eq:rft_upper}) - (\ref{eq:mu}) define the remaining flight time in each aircraft based on the planned missions and maintenances.
 
     \begin{align}
        % For now, we only want one or possibly two maintenances...
