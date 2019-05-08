@@ -18,7 +18,7 @@ class SuperDict(dict):
         return len(self)
 
     def filter(self, indices, check=True):
-        if type(indices) is not list:
+        if not isinstance(indices, list):
             indices = [indices]
         if not check:
             return SuperDict({k: self[k] for k in indices if k in self})
@@ -50,7 +50,7 @@ class SuperDict(dict):
         return self
 
     def dicts_to_tup(self, keys, content):
-        if type(content) is not SuperDict:
+        if not isinstance(content, dict):
             self[tuple(keys)] = content
             return self
         for key, value in content.items():
@@ -90,15 +90,15 @@ class SuperDict(dict):
 
         tup_list = tl.TupList()
         for key, value in self.items():
-            if type(value) is not list:
+            if not isinstance(value, list):
                 value = [value]
-            if type(key) is not tuple:
+            if not isinstance(key, tuple):
                 key = [key]
             else:
                 key = list(key)
             # now we assume key is a list and value is a list of values.
             for val in value:
-                if type(val) is tuple:
+                if isinstance(val, tuple):
                     val = list(val)
                 else:
                     val = [val]
@@ -155,11 +155,41 @@ class SuperDict(dict):
         """
         return SuperDict({k: func(k, v) for k, v in self.items()})
 
+    def vapply(self, func):
+        """
+        same as apply but not using the key
+        :param func:
+        :return:
+        """
+        return SuperDict({k: func(v) for k, v in self.items()})
+
+    def _update(self, dict):
+        """
+        like the dict update but it returns the result
+        without modifying the input
+        :return: Superdict
+        """
+        return SuperDict.from_dict({**self, **dict})
+
+    # def to_dict(self):
+    #     return self._to_dict(self)
+    #
+    # def _to_dict(self, dictionary):
+    #     if not isinstance(dictionary, SuperDict):
+    #         return dictionary
+    #     for key, value in dictionary.items():
+    #         dictionary[key] = dictionary._to_dict(value)
+    #     dictionary = dict(dictionary)
+    #     return dictionary
+
     @classmethod
     def from_dict(cls, dictionary):
-        if type(dictionary) is not dict:
+        if not isinstance(dictionary, dict):
             return dictionary
         dictionary = cls(dictionary)
         for key, value in dictionary.items():
             dictionary[key] = cls.from_dict(value)
         return dictionary
+
+    def sorted(self, **kwargs):
+        return sorted(self, **kwargs)
