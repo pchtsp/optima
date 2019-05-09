@@ -79,6 +79,7 @@ def create_dataset(options):
     t_duration = d_param['t_duration']
     perc_in_maint = d_param['perc_in_maint']
     initial_unbalance = d_param['initial_unbalance']
+    perc_add_capacity = d_param['perc_add_capacity']
 
     d_param['min_elapsed_time'] = max_elapsed_time - d_param['elapsed_time_size']
     d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
@@ -107,7 +108,7 @@ def create_dataset(options):
     t_capacites = {k: {v} for k, v in t_type.items()}
     optionals = list(st.ascii_uppercase)[::-1]
     for _task in t_capacites:
-        if rn.random() < 0.10:
+        if rn.random() < perc_add_capacity:
             t_capacites[_task].add(optionals.pop())
 
 

@@ -31,10 +31,11 @@ class Config(object):
         self.solver_add_opts = options.get('solver_add_opts', {}).get(self.solver, [])
         self.mip_start = options.get('mip_start', False)
         self.gap_abs = options.get('gap_abs')
-        self.log_path = self.path + 'results.log'
-        self.result_path = self.path + 'results.sol'
+        self.log_path = os.path.join(self.path, 'results.log')
+        self.result_path = os.path.join( self.path, 'results.sol')
         self.threads = options.get('threads')
         self.solver_path = options.get('solver_path')
+        self.keepfiles = options.get('keepfiles', 1)
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
@@ -108,26 +109,27 @@ class Config(object):
 
         solver = None
         if self.solver == "GUROBI":
-            solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1)
+            solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=self.keepfiles)
         if self.solver == "CPLEX":
-            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start)
+            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=self.keepfiles, mip_start=self.mip_start)
         if self.solver == "CPLEX_PY":
             solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path)
         if self.solver == "CHOCO":
-            solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0)
+            solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=self.keepfiles, msg=0)
         if solver is not None:
             try:
                 result = model.solve(solver, timeout=self.timeLimit + 60)
-            except pl.PulpSolverError:
-                # We usually get this because of CPLEX
+            except pl.PulpSolverError as e:
+                print(e)
+                # We usually get this because of CPLEX not ending when it should
                 result = 0
             return result
         if self.solver == "CBC":
             if self.solver_path:
-                solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=1,
+                solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
                                      mip_start=self.mip_start, path=self.solver_path)
             else:
-                solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1,
+                solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
                                          mip_start=self.mip_start)
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)

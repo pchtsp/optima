@@ -53,6 +53,7 @@ OPTIONS = {
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
+    , 'exclude_aux': True
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
@@ -78,6 +79,7 @@ OPTIONS = {
     , 'fix_start': False
     , 'threads': None
     , 'solver_path': None
+    , 'keepfiles': 0
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
@@ -99,6 +101,7 @@ OPTIONS = {
         , 't_num_resource': (2, 5)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
+        , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission
     }
 }
 

@@ -7,6 +7,7 @@ import pandas as pd
 import math
 import package.superdict as sd
 import package.tuplist as tl
+import arrow
 
 
 class Instance(object):
@@ -39,8 +40,11 @@ class Instance(object):
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
         self.data['aux'] = {}
+
+        begin = aux.month_to_arrow(start).shift(months=-50)
+        end = aux.month_to_arrow(start).shift(months=num_periods+50)
         self.data['aux']['period_e'] = {
-            k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
+            k- 50:  r.format("YYYY-MM") for k, r in enumerate(arrow.Arrow.range('month', begin, end))
         }
         self.data['aux']['period_i'] = {
             v: k for k, v in self.data['aux']['period_e'].items()
@@ -60,7 +64,7 @@ class Instance(object):
         for category, value in self.data.items():
             # if type(value) is dict:
             elem = list(value.keys())[0]
-            if type(value[elem]) is dict:
+            if isinstance(value[elem], dict):
                 result[category] = list(value[elem].keys())
             else:
                 result[category] = list(value.keys())
