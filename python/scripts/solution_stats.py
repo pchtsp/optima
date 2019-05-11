@@ -6,11 +6,16 @@ import package.tuplist as tl
 import os
 import numpy as np
 import package.rpy_graphs as rpyg
-from rpy2.robjects import pandas2ri
 import package.reports as rep
+import package.data_input as di
+import package.model_upper_bound as mub
+
+import orloge as ol
+
+from rpy2.robjects import pandas2ri
 import rpy2.robjects.lib.ggplot2 as ggplot2
 import rpy2.robjects as ro
-import package.data_input as di
+# from importlib import reload
 
 pandas2ri.activate()
 
@@ -23,9 +28,6 @@ path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
 os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
 
 experiments = [os.path.join(path, i) for i in os.listdir(path)]
-
-# e = experiments[0]
-# case = exp.Experiment.from_dir(e)
 
 
 def min_assign_consumption(case):
@@ -68,6 +70,7 @@ def get_rel_consumptions(case):
     dates, values = zip(*tasks_tt)
     return pd.Series(values)
 
+
 def get_consumptions(case, hours=True):
 
     ranged = case.instance.get_periods_range
@@ -109,10 +112,42 @@ def get_geomean(consumption):
     return result
 
 
+def cycle_sizes():
+    cycles =[get_cycle_sizes(case) for case in cases if case is not None]
+    all_cycles = np.asarray(cycles).flatten()
+
+    plot = ggplot2.ggplot(pd.DataFrame(all_cycles, columns=['cycle'])) + \
+           ggplot2.aes_string(x='cycle') + \
+           ggplot2.geom_bar(position="identity") + \
+           ggplot2.theme_minimal()
+
+    path_out = path_graphs + r'hist_{}_{}.png'.format('all_cycles', name)
+    plot.save(path_out)
+
+
+def instance_status(experiments):
+    log_paths = sd.SuperDict({os.path.basename(e): os.path.join(e, 'results.log')
+                              for e in experiments})
+    ll = \
+        log_paths.\
+        clean(func=os.path.exists).\
+        vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=False)). \
+        vapply(lambda x: {var: x[var] for var in ['sol_code', 'status_code', 'time']})
+
+    master = \
+        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal, ol.LpSolutionInfeasible],
+                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible']})
+    return \
+        pd.DataFrame.\
+        from_dict(ll, orient='index').\
+        rename_axis('name').\
+        reset_index().merge(master, on='sol_code')
+
 result = []
-for e in experiments:
+cases = [exp.Experiment.from_dir(e) for e in experiments]
+for p, e in enumerate(experiments):
     # print(e)
-    case = exp.Experiment.from_dir(e)
+    case = cases[p]
     # we clean errors.
     if case is None:
         continue
@@ -175,7 +210,13 @@ result_tab_summ = \
     agg({'mean_dist': ['mean', 'var'],
          'maints': ['mean', 'var']})
 
-# result_tab.columns
+status_df = instance_status(experiments)
+remakes = status_df[status_df.sol_code==ol.LpSolutionIntegerFeasible].name.tolist()
+remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190507_remakes/index.txt'
+
+with open(remakes_path, 'w') as f:
+    f.write('\n'.join(remakes))
+
 #####################
 # EXPORT THINGS
 #####################
@@ -200,13 +241,14 @@ for var in ['maints', 'mean_dist', 'max_dist', 'min_dist']:
     draw_hist(var)
 
 #####################
-var = 'mean_consum_vs_mean_dist_by_pos_consum'
+var = 'mean_consum_vs_mean_dist'
 #####################
 def test1():
     plot = ggplot2.ggplot(result_tab) + \
            ggplot2.aes_string(x='mean_consum', y='mean_dist') + \
            ggplot2.geom_point(alpha=0.8) + \
-           ggplot2.geom_smooth(method = 'lm') + \
+           ggplot2.geom_smooth(method = 'loess') + \
+           ggplot2.facet_grid(ro.Formula('init_cut ~ .')) + \
            ggplot2.theme_minimal()
 
     path_out = path_graphs + r'{}_{}.png'.format(var, name)
@@ -217,8 +259,9 @@ def test1():
 #####################
 var = 'consumption_vs_maints'
 def test2():
-    plot = ggplot2.ggplot(result_tab) + \
-           ggplot2.aes_string(x='mean_consum', y='maints') + \
+    table = result_tab.merge(status_df, on=['name'], how='left')
+    plot = ggplot2.ggplot(table) + \
+           ggplot2.aes_string(x='mean_consum', y='maints', color='status') + \
            ggplot2.geom_jitter(alpha=0.8, height=0.2) + \
            ggplot2.geom_smooth(method = 'loess') + \
            ggplot2.facet_grid(ro.Formula('init_cut ~ .'))+\
@@ -293,13 +336,21 @@ def test5():
 # x='mean_consum', y='mean_dist'
 
 ####################
-# Trees
-# #
+# Lineal regression
+####################
+
+####################
+# Forecasting
+####################
 
 from sklearn import tree
+from sklearn import linear_model
 import graphviz
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+
 # from sklearn.tree import export_graphviz
 # from sklearn import preprocessing
 
@@ -325,25 +376,96 @@ aux_take_out = [col for col in result_tab.columns
 other_out = ['maints', 'name']
 # aux_take_out = [col for col in result_tab.columns if col.endswith('_cut') or col.startswith('pos_consum')]
 X = result_tab.drop(other_out, axis=1).drop(aux_take_out, axis=1).drop(var, errors='ignore', axis=1)
-Y = result_tab[var]
-X.columns[18]
-X.columns[14]
-X.columns[0]
-X.columns[1]
-X.columns[18]
-X.columns[20]
+Y = result_tab['maints']
+
+def create_X_Y(x_vars, y_var):
+    X = result_tab[x_vars].copy()
+    X['mean_consum_2'] = X.mean_consum ** 2
+    # X['mean_consum_3'] = X.mean_consum**3
+    Y = result_tab[y_var]
+    # 70% training and 30% test
+    return \
+        train_test_split(X, Y, test_size=0.3, random_state=1)
+    # return
+
+result_tab.columns
+# X.columns[18]
+# X.columns[14]
+# X.columns[0]
+# X.columns[1]
+# X.columns[18]
+# X.columns[20]
 
 # X.init
-# 70% training and 30% test
-X_train, X_test, y_train, y_test = \
-    train_test_split(X, Y, test_size=0.3, random_state=1)
 
+def decision_tree(x_vars, y_var):
+    clf = tree.DecisionTreeRegressor(max_depth=10)
+    X_train, X_test, y_train, y_test = create_X_Y(x_vars, y_var)
+    clf.fit(X=X_train, y=y_train)
+    y_pred = clf.predict(X_test)
+    metrics.mean_absolute_error(y_test, y_pred)
+    metrics.mean_squared_error(y_test, y_pred)
 
-clf = tree.DecisionTreeRegressor(max_depth=10)
-clf.fit(X=X_train, y=y_train)
-y_pred = clf.predict(X_test)
-metrics.mean_absolute_error(y_test, y_pred)
-metrics.mean_squared_error(y_test, y_pred)
+def regression(x_vars, y_var):
+    # clf = linear_model.LassoCV()
+    # clf.fit(X, Y)
+    X_train, X_test, y_train, y_test = create_X_Y(x_vars, y_var)
+    clf = linear_model.LinearRegression()
+    clf.fit(X=X_train, y=y_train)
+    print(clf.coef_)
+    y_pred = clf.predict(X_test)
+    args = (y_test, y_pred)
+    metrics.mean_absolute_error(*args)
+    metrics.mean_squared_error(*args)
+    return metrics.r2_score(*args)
+
+regression(['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
+regression(['mean_consum', 'init', 'geomean_cons'], 'maints')
+
+# ['name', 'init', 'mean_consum', 'max_consum', 'var_consum', 'mean_airc',
+#        'max_airc', 'var_airc', 'maints', 'cons_min_mean', 'cons_min_max',
+#        'quant5w', 'quant75w', 'quant9w', 'pos_consum5', 'pos_consum75',
+#        'pos_consum9', 'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
+#        'geomean_cons', 'geomean_airc', 'num_errors', 'mean_dist', 'max_dist',
+#        'min_dist', 'mean_consum_cut', 'mean_consum_cut_2', 'init_cut',
+#        'quant75w_cut', 'quant9w_cut', 'quant5w_cut', 'var_consum_cut',
+#        'cons_min_mean_cut', 'pos_consum5_cut', 'pos_consum9_cut']
+
+def plotting(data_frame, x_name, y_name, y_pred_name, graph_name):
+    # Plot!
+    # result = pd.DataFrame(x_test)
+    # result['y_test'] = y_test
+    # result['y_pred'] = y_pred
+    plot = ggplot2.ggplot(data_frame) + \
+           ggplot2.aes_string(x=x_name, y=y_name) + \
+           ggplot2.geom_jitter(alpha=0.8, height=0.1) + \
+           ggplot2.geom_line(ggplot2.aes_string(y=y_pred_name), color='blue') + \
+           ggplot2.theme_minimal()
+
+    path_out = path_graphs + r'{}_{}.png'.format(graph_name, name)
+    plot.save(path_out)
+
+    # plot = ggplot2.ggplot(result) + \
+    #        ggplot2.aes_string(x='init', y='y_test') + \
+    #        ggplot2.geom_jitter(alpha=0.8, height=0.1) + \
+    #        ggplot2.geom_line(ggplot2.aes_string(y='y_pred'), color='blue') + \
+    #        ggplot2.theme_minimal()
+    #
+    # path_out = path_graphs + r'{}_{}.png'.format(var, name)
+    # plot.save(path_out)
+
+# X = result_tab.copy()
+X = result_tab[['mean_consum']].copy()
+Y = result_tab['mean_dist']
+X['mean_consum2'] = X.mean_consum**2
+X['mean_consum3'] = X.mean_consum**3
+coef0, coefs = mub.regression_VaR(X, Y)
+X_out = X.copy()
+X_out['mean_dist'] = Y
+X_out['pred'] = np.sum([v*X[k] for k, v in coefs.items()], axis=0) + coef0
+graph_name = 'regression_mean_consum_mean_dist'
+plotting(X_out, 'mean_consum', 'mean_dist', 'pred', graph_name)
+
 
 def classify():
     clf = tree.DecisionTreeClassifier(max_depth=4)
