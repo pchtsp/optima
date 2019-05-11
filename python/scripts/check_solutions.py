@@ -1,3 +1,6 @@
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import package.experiment as exp
 import pprint as pp
 from package.params import PATHS, OPTIONS
@@ -7,11 +10,17 @@ import pandas as pd
 import package.superdict as sd
 import package.tuplist as tl
 import scripts.exec as exec
-import os
 import package.model as md
 import package.rpy_graphs as rg
 import dfply as dp
 from dfply import X
+import multiprocessing as multi
+
+# Windows workaround for python 3.7 (sigh...)
+import _winapi
+import multiprocessing.spawn
+multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
+#################
 
 def test2():
     # e = '201809121711'
@@ -83,20 +92,51 @@ def graph_check():
 
 
 def test_rexecute():
-    e = 'examples/201811240019/'
-    path = PATHS['data'] + e
+    e = r'dell_20190507\base\201905071826/'
+    path = PATHS['results'] + e
+    path_out = os.path.join(PATHS['experiments'], 'test_remake/')
     # path = "/home/pchtsp/Documents/projects/optima_results/experiments/201902131123/"
 
     # new_options = {'solver': 'CPLEX', 'mip_start': True,
-    #                'path': path, 'timeLimit': 600, 'writeLP': False,
+    #                'path': path, 'instances': 600, 'writeLP': False,
     #                'gap': 0, 'noise_assignment': True}
 
-    new_options = OPTIONS
-    new_options.update({'solver': 'HEUR_mf', 'mip_start': False})
+    # new_options = OPTIONS
+    # new_options = di.load_data(os.path.join(path, 'options.json'))
+    new_options = dict(timeLimit=3600*10, path=path_out, mip_start=True)
     # new_options.update({'solver': 'CPLEX', 'path': path, 'mip_start': False, 'fix_start': False})
     # new_options =  {'slack_vars': 'No', 'gap': 1}
     # new_options = None
     exec.re_execute_instance(path, new_options)
+
+def test_rexecute_many():
+
+    # pool = multi.Pool(processes=1)
+    def_options = dict(timeLimit=3600, mip_start=True)
+
+    origin_path = os.path.join(PATHS['results'], 'dell_20190507/base')
+    destination_path = os.path.join(PATHS['results'], 'dell_20190507_remakes/base')
+    remakes_path = os.path.join(destination_path, 'index.txt')
+    with open(remakes_path, 'r') as f:
+        instances = f.readlines()
+
+    instances = tl.TupList(instances).apply(lambda x: x.strip())
+    path_ins = instances.apply(lambda x: os.path.join(origin_path, x))
+    path_outs = instances.apply(lambda x: os.path.join(destination_path, x))
+
+    # results = {}
+    for pos, path_in in enumerate(path_ins):
+        path_out = path_outs[pos]
+        args = [path_in, {**def_options, **{'path': path_out}}]
+        try:
+            exec.re_execute_instance(*args)
+        except:
+            pass
+        # results[pos] = pool.apply_async(exec.re_execute_instance, args)
+
+    # for pos, result in results.items():
+    #     result.get(timeout=3600+100)
+
 
 def test3():
     path_abs = PATHS['experiments']
@@ -211,7 +251,9 @@ def check_rem_calculation(experiment):
 
 
 if __name__ == '__main__':
-    check_rem_calculation('201904181142')
+    # check_rem_calculation('201904181142')
+    # test_rexecute()
+    test_rexecute_many()
     # check_over_assignments()
     # test_rexecute()
     # graph_check()

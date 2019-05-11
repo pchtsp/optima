@@ -44,7 +44,8 @@ def config_and_solve(options):
 
 
 def re_execute_instance(directory, new_options=None):
-
+    if not os.path.exists(directory):
+        raise ValueError('path {} does not exist'.format(directory))
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
     solution_data = None
     options = di.load_data(os.path.join(directory, 'options.json'))
@@ -52,8 +53,9 @@ def re_execute_instance(directory, new_options=None):
         options.update(new_options)
     warm_start = options.get('mip_start', False)
     if warm_start:
-        solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
-    # print(options)
+        solution_path = os.path.join(directory, 'data_out.json')
+        if os.path.exists(solution_path):
+            solution_data = di.load_data(solution_path)
     execute_solve(model_data, options, solution_data)
 
 
