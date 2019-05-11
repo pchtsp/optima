@@ -425,7 +425,7 @@ class Experiment(object):
 
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()
-        return [(r, s) for (r, s, e) in maintenances]
+        return tl.TupList([(r, s) for (r, s, e) in maintenances])
 
     def get_maintenance_cycles(self, maint_start_stops):
 

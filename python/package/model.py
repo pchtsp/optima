@@ -21,8 +21,10 @@ class Model(exp.Experiment):
             solution = sol.Solution({'state': {}, 'task': {}})
         super().__init__(instance, solution)
 
+        self.domains = {}
+
     def solve(self, options=None):
-        l = self.get_domains_sets()
+        self.domains = l = self.get_domains_sets()
         ub = self.get_bounds()
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -44,13 +46,6 @@ class Model(exp.Experiment):
             # t_2 - t_1 + 1
             return self.instance.get_dist_periods(t1, t2) + 1
 
-        def acc_dist(t_1, t_2, tp=None):
-            if tp is None:
-                tp = t_2
-            # sum_{t = t_1 -1}^{t_2} tp - t
-            # return (t_2 - t_1 + 1) * (2 * tp - t_1 - t_2 + 2) / 2
-            return dist(t_1, t_2) * (dist(t_1, tp)  + dist(t_2, tp))/2
-
         shift = self.instance.shift_period
         prev = self.instance.get_prev_period
 
@@ -62,7 +57,8 @@ class Model(exp.Experiment):
 
         # Sometimes we want to force variables to be integer.
         var_type = pl.LpContinuous
-        if options.get('integer', False):
+        integer_problem = options.get('integer', False)
+        if integer_problem:
             var_type = pl.LpInteger
 
         # VARIABLES:
@@ -73,9 +69,6 @@ class Model(exp.Experiment):
         start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1, cat=pl.LpInteger)
 
         # numeric:
-        # avg remaining usage hours in cycle
-        # acc_H = pl.LpVariable.dicts(name="rem_M", indexs=l['att_cycles'], lowBound=0, upBound=ub['rut'], cat=var_type)
-        # acc_H = {k: ub['rut'] for k in l['att_cycles']}
         # remaining flight hours per period
         rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
@@ -98,7 +91,6 @@ class Model(exp.Experiment):
 
         # TODO: get better weights.
         price_slack_kts = {s: (p+1)*50 for p, s in enumerate(slots)}
-        # price_slack_ks = {s: (p+1)*10 for p, s in enumerate(slots)}
         price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(slots)}
         price_slack_kts_h = {s: (p + 2)**2 for p, s in enumerate(slots)}
 
@@ -107,11 +99,8 @@ class Model(exp.Experiment):
         ub['slack_kts_h'] = {(k, s): (p + 1) * len(cands)*100 if s != 2 else ub['rut']*len(cands)
                              for p, s in enumerate(slots)
                              for k, cands in c_cand.items()}
-        # ub['slack_ks'] = {(k, s):
-        #                       (p+1)*v*2*len(c_cand[k]) if s != 2 else
-        #                       ub['rut']*len(c_cand[k])*len(l['periods'])
-        #                   for k, v in c_hours.items() for p, s in enumerate(slots)}
         ub['slack_ts'] = {s: (p+1)*2 for p, s in enumerate(slots)}
+
         slack_kts_h, slack_ts, slack_kts = {}, {}, {}
         for tup in l['kts']:
             k, t, s = tup
@@ -121,10 +110,6 @@ class Model(exp.Experiment):
             k, t, s = tup
             slack_kts_h[tup] = pl.LpVariable(name="slack_kts_h_{}".format(tup), lowBound=0,
                                           upBound=ub['slack_kts_h'][k, s], cat=var_type)
-        # for tup in l['ks']:
-        #     k, s = tup
-        #     slack_ks[tup] = pl.LpVariable(name="slack_ks_{}".format(tup), lowBound=0,
-        #                                   upBound=ub['slack_ks'][k, s], cat=var_type)
         for tup in l['ts']:
             t, s = tup
             slack_ts[tup] = pl.LpVariable(name="slack_ts_{}".format(tup), lowBound=0,
@@ -144,17 +129,43 @@ class Model(exp.Experiment):
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
             slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=var_type)
 
+        vs = {
+            'start_T': start_T
+            , 'start_M': start_M
+            , 'rut': rut
+            , 'slack_kts_h': slack_kts_h
+            , 'slack_ts': slack_ts
+            , 'slack_kts': slack_kts
+        }
+
+        if options.get('mip_start'):
+            self.fill_initial_solution(vs, vars_to_fix=None)
+
         # MODEL
         model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
 
+        # TODO: temporal!!
+        # try to make the second maintenance the most late possible
+        period_pos = self.instance.data['aux']['period_i']
+        # - pl.lpSum(start_M[a, t1, t2] * period_pos[t2] for a, t1, t2 in l['att_maints'])\
+
         # OBJECTIVE:
         # maints
-        model += pl.lpSum(price_assign[a, v] * task for (a, v, t, t2), task in start_T.items()) + \
-                 + pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
-                 + pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
-                 + pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
-                 + 1000000 * pl.lpSum(slack_vt.values()) \
-                 + 1000 * pl.lpSum(slack_at.values())
+        objective = \
+            pl.lpSum(price_assign[a, v] * task for (a, v, t, t2), task in start_T.items()) + \
+            + 10*pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
+            + 10*pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
+            + 10*pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
+            - pl.lpSum(start_M[a, t1, t2] * period_pos[t2] for a, t1, t2 in l['att_maints'])\
+            + 1000000 * pl.lpSum(slack_vt.values()) \
+            + 1000 * pl.lpSum(slack_at.values())
+
+        if not integer_problem:
+            model += objective
+        else:
+            objective *= 100
+            objective_r = objective.roundCoefs()
+            model += objective_r
 
         # CONSTRAINTS:
 
@@ -210,9 +221,8 @@ class Model(exp.Experiment):
         # # ##################################
 
         # remaining used time calculations:
+        # TODO: what about, if task assigned from X to Y, I know the relationship between period Y and X
         for at in l['at']:
-            # apparently it's much faster NOT to sum the maintenances
-            # in the two rut calculations below
             a, t = at
             v_at = l['v_at'].get(at, [])  # possible missions for that "at"
             t1t2_list = l['tt_maints_at'].get(at, [])
@@ -261,17 +271,6 @@ class Model(exp.Experiment):
                 _constant = min_usage * d_p1_p2 - limit - ub['rut']
                 model += pl.LpAffineExpression(_vars_tup, constant=_constant) <= 0
 
-                # # Count the mean remaining hours at each cycle
-                # _vars_tup = [
-                #     (start_T[a, v, t11, t22],
-                #      acc_dist(t11, t22, p2) * (consumption[v] - min_usage)
-                #      )
-                #     for v, t11, t22 in _vtt2]
-                # _vars_tup.append((start_M[a, t1, t2], d_p1_p2 * limit))
-                # _vars_tup.append((acc_H[a, cycle], -d_p1_p2))
-                # _constant = min_usage * acc_dist(p1, p2, p2) - d_p1_p2 *  limit
-                # model += pl.LpAffineExpression(_vars_tup, constant=_constant) <= 0
-
         # ##################################
         # Maintenances
         # ##################################
@@ -305,6 +304,114 @@ class Model(exp.Experiment):
             return None
         print('model solved correctly')
 
+        self.solution = self.get_solution(variables=vs)
+
+        return self.solution
+
+    def fill_initial_solution(self, variables, vars_to_fix=None):
+        """
+        :param variables: variable dictionary to unpack
+        :param vars_to_fix: possible list of variables to fix. List of dicts assumed)
+        :return:
+        """
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        first = self.instance.get_param('start')
+        last = self.instance.get_param('end')
+
+        start_M = variables['start_M']
+        start_T = variables['start_T']
+        rut = variables['rut']
+
+        # TODO: try to fix these values??
+        slack_kts_h = variables['slack_kts_h']
+        slack_kts = variables['slack_kts']
+        slack_ts = variables['slack_ts']
+
+        _next = self.instance.get_next_period
+        _prev = self.instance.get_prev_period
+
+        # we need to get the starts of the potentially two maintenances.
+        # first we calculate the maintenances that start at the first period:
+        fixed_maints = \
+            self.instance.get_fixed_maintenances(dict_key='resource').\
+            clean(func=lambda x: first in x).keys_l()
+
+        # by filtering the maintenances that start in the first period:
+        # we are not including the fixed maintenances (that start in a previous period)
+        maint_starts = \
+            tl.TupList(self.get_maintenance_starts()).\
+            to_dict(result_col=1).\
+            clean(func=lambda x: first in x).\
+            clean(func=lambda x: x not in fixed_maints).\
+            vapply(lambda x: [first])
+
+        # then we get the two starts of cycles
+        # we add the maintenance at the beginning if exists
+        maint_cycles = \
+            self.get_all_maintenance_cycles().\
+            vapply(lambda x: [_next(ii) for i, ii in x if _next(ii) <=last][:2]).\
+            apply(lambda k, v: maint_starts.get(k, []) + v)
+        # if the resource has only one maintenance: we add one at the end (by convention)
+        only_one = maint_cycles.to_lendict().clean(default_value=2).vapply(lambda x: [last])
+        maints = maint_cycles.apply(lambda k, v: v + only_one.get(k, []))
+
+        # task assignment only take into account assignments during the planning period:
+        # start_periods = self.get_task_periods()
+        ct = self.instance.compare_tups
+        start_periods = self.solution.get_tasks().to_tuplist().tup_to_start_finish(compare_tups=ct)
+
+        # Initialize values:
+        for tup in start_M:
+            start_M[tup].setInitialValue(0)
+
+        for tup in start_T:
+            start_T[tup].setInitialValue(0)
+
+        for a, (t, t2) in maints.items():
+            if (a, t, t2) in start_M:
+                # we check this because of fixed maints
+                start_M[a, t, t2].setInitialValue(1)
+            else:
+                print('fail fixing maintenance in {}'.format(a, t, t2))
+
+        for (a, t, v, t2) in start_periods:
+            if (a, v, t, t2) in start_T:
+                start_T[a, v, t, t2].setInitialValue(1)
+            else:
+                print('fail fixing task assginment in {}'.format(a, v, t, t2))
+
+        rut_data = self.set_remaining_usage_time('rut')
+        for a, date_info in rut_data.items():
+            for t, v in date_info.items():
+                if (a, t) in rut:
+                    rut[a, t].setInitialValue(v, check=False)
+
+        if vars_to_fix is not None:
+            for _vars in vars_to_fix:
+                for var in _vars.values():
+                    var.fixValue()
+        return True
+
+
+    def get_solution(self, variables):
+
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        start_M = variables['start_M']
+        start_T = variables['start_T']
+        rut = variables['rut']
+        slack_kts_h = variables['slack_kts_h']
+        slack_kts = variables['slack_kts']
+        slack_ts = variables['slack_ts']
+
+        first_period = self.instance.get_param('start')
+        last_period = self.instance.get_param('end')
+
         _task = {}
         task_periods = tl.TupList(self.vars_to_tups(start_T))
         for a, v, t1, t2 in task_periods:
@@ -319,9 +426,6 @@ class Model(exp.Experiment):
         _start_M = {k: 'M' for k in starts1_M + starts2_M}
         _start.update(_start_M)
 
-        # _rut = {}
-        # _acc_H = sd.SuperDict.from_dict(acc_H).apply(lambda k, v: v.value())
-        # _acc_H = {}
         fixed_maints_horizon = l['at_maint'].filter_list_f(lambda x: first_period <= x[1] <= last_period)
         _state = {tup: 'M' for tup in fixed_maints_horizon}
         _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
@@ -331,12 +435,11 @@ class Model(exp.Experiment):
             'task': _task,
             'aux': {
                 'start': _start,
-                'rut': sd.SuperDict.from_dict(rut).apply(lambda k, v: v.value()).clean(),
+                'rut': self.vars_to_dicts(rut),
                 'rem': {},
-                # 'rem': sd.SuperDict.from_dict(acc_H).apply(lambda k, v: v.value()),
-                'slack_kts_h': sd.SuperDict(slack_kts_h).apply(lambda k, v: v.value()).clean(),
-                'slack_kts': sd.SuperDict(slack_kts).apply(lambda k, v: v.value()).clean(),
-                'slack_ts': sd.SuperDict(slack_ts).apply(lambda k, v: v.value()).clean(),
+                'slack_kts_h': self.vars_to_dicts(slack_kts_h),
+                'slack_kts': self.vars_to_dicts(slack_kts),
+                'slack_ts': self.vars_to_dicts(slack_ts)
             }
         }
         solution_data_pre = sd.SuperDict.from_dict(solution_data_pre)
@@ -346,7 +449,6 @@ class Model(exp.Experiment):
         solution_data['aux'] = {k: v.to_dictdict()
                                 for k, v in solution_data_pre['aux'].items()}
         solution = sol.Solution(solution_data)
-        self.solution = solution
         return solution
 
 
@@ -382,6 +484,12 @@ class Model(exp.Experiment):
         return tl.TupList(tup for tup in var if
                           var[tup].value() is not None and
                           var[tup].value() > 0.5)
+
+    @staticmethod
+    def vars_to_dicts(var):
+        return sd.SuperDict.from_dict(var).\
+            apply(lambda k, v: v.value()).\
+            clean()
 
     def get_domains_sets(self):
         states = ['M']
