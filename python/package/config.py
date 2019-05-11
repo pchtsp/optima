@@ -37,7 +37,7 @@ class Config(object):
         self.solver_path = options.get('solver_path')
         self.keepfiles = options.get('keepfiles', 1)
 
-        if options['memory'] is None:
+        if 'memory' in options and options['memory'] is None:
             if hasattr(os, "sysconf"):
                 self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
             else: # windows
