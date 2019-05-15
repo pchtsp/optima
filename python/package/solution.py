@@ -1,8 +1,8 @@
 # /usr/bin/python3
 
 import package.auxiliar as aux
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 
 class Solution(object):
     """
@@ -61,7 +61,7 @@ class Solution(object):
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.tup_to_start_finish(compare_tups)
+        result = statesMissions.to_start_finish(compare_tups)
         return result
 
     def get_unavailable(self):

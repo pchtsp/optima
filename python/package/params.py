@@ -11,6 +11,7 @@ path_base = r'/home'
 # path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
 path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
+path_results = r'C:\Users\franco.peschiera.fr\Documents\optima_results/'
 path_project = path_root + "OPTIMA/"
 
 PATHS = {
@@ -43,7 +44,7 @@ params_cbc = ["presolve on",
 
 OPTIONS = {
     'timeLimit': 600  # seconds
-    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
+    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
@@ -53,7 +54,7 @@ OPTIONS = {
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
     , 'simulate': True
-    , 'exclude_aux': True
+    , 'exclude_aux': False
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]

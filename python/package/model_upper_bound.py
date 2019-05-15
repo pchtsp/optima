@@ -1,5 +1,5 @@
 import pulp as pl
-import package.superdict as sd
+import pytups.superdict as sd
 import math
 import pandas as pd
 

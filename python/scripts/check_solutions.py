@@ -7,8 +7,8 @@ from package.params import PATHS, OPTIONS
 import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 import scripts.exec as exec
 import package.model as md
 import package.rpy_graphs as rg
@@ -92,7 +92,7 @@ def graph_check():
 
 
 def test_rexecute():
-    e = r'dell_20190507\base\201905071826/'
+    e = r'dell_20190507_all\base\201905081456_367/'
     path = PATHS['results'] + e
     path_out = os.path.join(PATHS['experiments'], 'test_remake/')
     # path = "/home/pchtsp/Documents/projects/optima_results/experiments/201902131123/"
@@ -103,7 +103,7 @@ def test_rexecute():
 
     # new_options = OPTIONS
     # new_options = di.load_data(os.path.join(path, 'options.json'))
-    new_options = dict(timeLimit=3600*10, path=path_out, mip_start=True)
+    new_options = dict(timeLimit=3600*10, path=path_out, mip_start=True, keepfiles=True)
     # new_options.update({'solver': 'CPLEX', 'path': path, 'mip_start': False, 'fix_start': False})
     # new_options =  {'slack_vars': 'No', 'gap': 1}
     # new_options = None
@@ -111,11 +111,11 @@ def test_rexecute():
 
 def test_rexecute_many():
 
-    # pool = multi.Pool(processes=1)
-    def_options = dict(timeLimit=3600, mip_start=True)
+    pool = multi.Pool(processes=2)
+    def_options = dict(timeLimit=7200, mip_start=True, exclude_aux=False)
 
-    origin_path = os.path.join(PATHS['results'], 'dell_20190507/base')
-    destination_path = os.path.join(PATHS['results'], 'dell_20190507_remakes/base')
+    origin_path = os.path.join(PATHS['results'], 'dell_20190507_all/base')
+    destination_path = os.path.join(PATHS['results'], 'dell_20190507_remakes2/base')
     remakes_path = os.path.join(destination_path, 'index.txt')
     with open(remakes_path, 'r') as f:
         instances = f.readlines()
@@ -124,18 +124,14 @@ def test_rexecute_many():
     path_ins = instances.apply(lambda x: os.path.join(origin_path, x))
     path_outs = instances.apply(lambda x: os.path.join(destination_path, x))
 
-    # results = {}
+    results = {}
     for pos, path_in in enumerate(path_ins):
         path_out = path_outs[pos]
         args = [path_in, {**def_options, **{'path': path_out}}]
-        try:
-            exec.re_execute_instance(*args)
-        except:
-            pass
-        # results[pos] = pool.apply_async(exec.re_execute_instance, args)
+        results[pos] = pool.apply_async(exec.re_execute_instance, args)
 
-    # for pos, result in results.items():
-    #     result.get(timeout=3600+100)
+    for pos, result in results.items():
+        result.get(timeout=7200+100)
 
 
 def test3():

@@ -1,4 +1,4 @@
-import package.superdict as sd
+import pytups.superdict as sd
 import os
 import package.data_input as di
 import numpy as np
@@ -171,7 +171,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return []
-        clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
+        clust_hours = clust_hours.to_tuplist().to_start_finish(self.instance.compare_tups)
         c_cand = self.instance.get_cluster_candidates()
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
@@ -214,7 +214,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         return candidates
 
     def get_candidates_rut(self, errors):
-        maints_probs_st = errors.get('usage', sd.SuperDict()).to_tuplist().tup_to_start_finish()
+        maints_probs_st = errors.get('usage', sd.SuperDict()).to_tuplist().to_start_finish()
         candidates = [(r, d) for r, d, p, e in maints_probs_st]
         return candidates
 

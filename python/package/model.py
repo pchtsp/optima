@@ -4,8 +4,8 @@ import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
 import package.experiment as exp
-import package.tuplist as tl
-import package.superdict as sd
+import pytups.tuplist as tl
+import pytups.superdict as sd
 import random as rn
 import numpy as np
 
@@ -367,7 +367,7 @@ class Model(exp.Experiment):
         # task assignment only take into account assignments during the planning period:
         # start_periods = self.get_task_periods()
         ct = self.instance.compare_tups
-        start_periods = self.solution.get_tasks().to_tuplist().tup_to_start_finish(compare_tups=ct)
+        start_periods = self.solution.get_tasks().to_tuplist().to_start_finish(compare_tups=ct)
 
         # Initialize values:
         for tup in start_M:
@@ -521,9 +521,7 @@ class Model(exp.Experiment):
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
         min_elapsed = param_data['min_elapsed_time'] + duration
-        # previous_states = \
-        #     sd.SuperDict.from_dict(aux.get_property_from_dic(resources_data, 'states')).\
-        #         to_dictup().to_tuplist().tup_to_start_finish()
+
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
         kt = sd.SuperDict(self.instance.get_cluster_constraints()['num']).keys_l()

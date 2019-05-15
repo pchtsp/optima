@@ -2,7 +2,7 @@ import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
 import package.experiment as exp
-import package.superdict as sd
+import pytups.superdict as sd
 import os
 import numpy as np
 import package.data_input as di

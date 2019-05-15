@@ -5,8 +5,8 @@ import pandas as pd
 import package.data_input as di
 import package.solution as sol
 import package.instance as inst
-import package.tuplist as tl
-import package.superdict as sd
+import pytups.tuplist as tl
+import pytups.superdict as sd
 import os
 import shutil
 import re
@@ -263,7 +263,7 @@ class Experiment(object):
         num_periods = self.instance.get_param('num_period')
         ct = self.instance.compare_tups
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).tup_to_start_finish(compare_tups=ct)
+        all_states_periods = tl.TupList(all_states).to_start_finish(compare_tups=ct)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -408,7 +408,7 @@ class Experiment(object):
         previous_states.extend(states)
 
         ct = self.instance.compare_tups
-        return previous_states.unique2().tup_to_start_finish(compare_tups=ct)
+        return previous_states.unique2().to_start_finish(compare_tups=ct)
 
     def get_maintenance_periods(self, resource=None):
         result = self.get_state_periods(resource)
@@ -421,7 +421,7 @@ class Experiment(object):
         ct = self.instance.compare_tups
         tasks_assigned = self.solution.get_tasks().to_tuplist()
         previous_tasks.extend(tasks_assigned)
-        return previous_tasks.tup_to_start_finish(compare_tups=ct)
+        return previous_tasks.to_start_finish(compare_tups=ct)
 
     def get_maintenance_starts(self):
         maintenances = self.get_maintenance_periods()

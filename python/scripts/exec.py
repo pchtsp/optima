@@ -12,7 +12,7 @@ import argparse
 import package.heuristics as heur
 import package.heuristics_maintfirst as mf
 import package.simulation as sim
-import package.superdict as sd
+import pytups.superdict as sd
 import datetime as dt
 
 

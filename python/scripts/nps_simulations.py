@@ -3,7 +3,7 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import scripts.exec as exec
 import datetime as dt
-import package.superdict as sd
+import pytups.superdict as sd
 import package.simulation as sim
 import argparse
 import re

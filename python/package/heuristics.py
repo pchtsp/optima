@@ -3,7 +3,7 @@ import numpy as np
 import package.experiment as test
 import package.solution as sol
 import random as rn
-import package.tuplist as tl
+import pytups.tuplist as tl
 import logging as log
 
 
@@ -308,7 +308,7 @@ class GreedyByMission(test.Experiment):
                            self.get_free_periods_resource(resource))
         free = [(1, period) for period in periods_to_search
                 if min_period <= period <= max_period]
-        return tl.TupList(free).tup_to_start_finish(self.instance.compare_tups)
+        return tl.TupList(free).to_start_finish(self.instance.compare_tups)
 
     def get_random_maint(self, resource, min_period, max_period):
         """
@@ -401,7 +401,7 @@ class GreedyByMission(test.Experiment):
         if len(candidate_periods) == 0:
             return []
 
-        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish(self.instance.compare_tups)
+        startend = tl.TupList([(1, p) for p in candidate_periods]).to_start_finish(self.instance.compare_tups)
         return startend.filter([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut'):
@@ -427,7 +427,7 @@ class GreedyByMission(test.Experiment):
 
     def get_maintenance_periods_resource(self, resource):
         periods = [(1, k) for k, v in self.solution.data['state'].get(resource, {}).items() if v == 'M']
-        result = tl.TupList(periods).tup_to_start_finish(self.instance.compare_tups)
+        result = tl.TupList(periods).to_start_finish(self.instance.compare_tups)
         return result.filter([1, 2])
 
     def get_next_maintenance(self, resource, min_start, previous=False):

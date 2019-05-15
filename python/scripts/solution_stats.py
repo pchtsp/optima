@@ -1,8 +1,8 @@
 import package.experiment as exp
 import pandas as pd
 import package.params as params
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 import os
 import numpy as np
 import package.rpy_graphs as rpyg
