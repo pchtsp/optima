@@ -141,7 +141,7 @@ class Model(exp.Experiment):
         if options.get('mip_start'):
             self.fill_initial_solution(vs)
             vars_to_fix = []
-            vars_to_fix = [start_M, start_T]
+            # vars_to_fix = [start_M, start_T]
             if vars_to_fix is not None:
                 for _vars in vars_to_fix:
                     for var in _vars.values():
