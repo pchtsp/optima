@@ -18,7 +18,7 @@ def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95):
     y = Y.tolist()
     X_in = X
 
-    x = X_in.to_dict(orient='index')
+    x = X_in.reset_index().to_dict(orient='index')
     len_points, len_variables = X_in.shape
     points = range(len_points)
     variables = list(X_in.columns)

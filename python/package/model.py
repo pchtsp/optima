@@ -139,7 +139,13 @@ class Model(exp.Experiment):
         }
 
         if options.get('mip_start'):
-            self.fill_initial_solution(vs, vars_to_fix=None)
+            self.fill_initial_solution(vs)
+            vars_to_fix = []
+            vars_to_fix = [start_M, start_T]
+            if vars_to_fix is not None:
+                for _vars in vars_to_fix:
+                    for var in _vars.values():
+                        var.fixValue()
 
         # MODEL
         model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
@@ -308,7 +314,7 @@ class Model(exp.Experiment):
 
         return self.solution
 
-    def fill_initial_solution(self, variables, vars_to_fix=None):
+    def fill_initial_solution(self, variables):
         """
         :param variables: variable dictionary to unpack
         :param vars_to_fix: possible list of variables to fix. List of dicts assumed)
@@ -389,10 +395,6 @@ class Model(exp.Experiment):
                 if (a, t) in rut:
                     rut[a, t].setInitialValue(v, check=False)
 
-        if vars_to_fix is not None:
-            for _vars in vars_to_fix:
-                for var in _vars.values():
-                    var.fixValue()
         return True
 
 
@@ -591,6 +593,8 @@ class Model(exp.Experiment):
                              (a, v, t2) in at_mission_m_horizon)
                 ])
         avtt2.extend(avtt2_fixed)
+        # we had a repetition problem:
+        avtt2 = avtt2.unique2()
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
                  ])
@@ -635,6 +639,7 @@ class Model(exp.Experiment):
                                   if t2 < last_period)
         attt_maints = attt_maints.unique2()
 
+        # all possible mission assignments (a, v, t1, t2) with their respective specific affected periods t
         avtt2t = tl.TupList(
             [(a, v, t1, t2, t) for (a, v, t1, t2) in avtt2 for t in self.instance.get_periods_range(t1, t2)]
         )
