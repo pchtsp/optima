@@ -75,31 +75,9 @@ class Model(exp.Experiment):
         # slack variables:
 
         # get all demand for flight hours for k
-        # TODO: this goes to instance
-        c_hours = \
-            sd.SuperDict(self.instance.get_clusters()).\
-            apply(lambda k, v: [v]).\
-            list_reverse().\
-            apply(lambda k, v: sum(consumption.filter(v).values()))
-
-        # TODO: pass all this preprocess to bounds and domains
-        l['slots'] = slots = [str(s) for s in range(3)]
-        l['k'] = c_hours.keys_l()
-        l['kts'] = [(k, t, s) for k, t in l['kt'] for s in slots]
-        # l['ks'] = [(k, s) for k in l['k'] for s in slots]
-        l['ts'] = [(t, s) for t in l['periods'] for s in slots]
-
-        # TODO: get better weights.
-        price_slack_kts = {s: (p+1)*50 for p, s in enumerate(slots)}
-        price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(slots)}
-        price_slack_kts_h = {s: (p + 2)**2 for p, s in enumerate(slots)}
-
-        # TODO: get better upBounds
-        ub['slack_kts'] = {s: (p+1)**2 for p, s in enumerate(slots)}
-        ub['slack_kts_h'] = {(k, s): (p + 1) * len(cands)*100 if s != 2 else ub['rut']*len(cands)
-                             for p, s in enumerate(slots)
-                             for k, cands in c_cand.items()}
-        ub['slack_ts'] = {s: (p+1)*2 for p, s in enumerate(slots)}
+        price_slack_kts = {s: (p+1)*50 for p, s in enumerate(l['slots'])}
+        price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(l['slots'])}
+        price_slack_kts_h = {s: (p + 2)**2 for p, s in enumerate(l['slots'])}
 
         slack_kts_h, slack_ts, slack_kts = {}, {}, {}
         for tup in l['kts']:
@@ -213,13 +191,13 @@ class Model(exp.Experiment):
             model += \
                 pl.lpSum(start_M[a, t1, t2] for a in c_cand[k]
                          for (t1, t2) in l['tt_maints_at'].get((a, t), [])
-                         ) <= num + pl.lpSum(slack_kts[k, t, s] for s in slots)
+                         ) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
 
         # Each cluster has a minimum number of usage hours to have
         # at each period.
         for (k, t), hours in cluster_data['hours'].items():
             model += pl.lpSum(rut[a, t] for a in c_cand[k] if (a, t) in l['at']) >= hours - \
-                     pl.lpSum(slack_kts_h[k, t, s] for s in slots)
+                     pl.lpSum(slack_kts_h[k, t, s] for s in l['slots'])
 
 
         # # ##################################
@@ -295,7 +273,7 @@ class Model(exp.Experiment):
                 continue
             model += pl.lpSum(start_M[a, t1, t2] for (a, t1, t2) in at1t1_list) + \
                      num_resource_maint[t] <= \
-                     maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in slots)
+                     maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in l['slots'])
 
         # ##################################
         # SOLVING
@@ -455,6 +433,9 @@ class Model(exp.Experiment):
 
 
     def get_bounds(self):
+        l = self.domains
+        if not (l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
         param_data = self.instance.get_param()
         task_data = self.instance.get_tasks()
 
@@ -462,14 +443,15 @@ class Model(exp.Experiment):
         max_used_time = param_data['max_used_time']  # mu. in hours of usage
         maint_duration = param_data['maint_duration']
         max_elapsed_time = param_data['max_elapsed_time'] + maint_duration # me. in periods
-        consumption = aux.get_property_from_dic(task_data, 'consumption')  # rh. hours per period.
+        consumption = sd.SuperDict(task_data).get_property('consumption')  # rh. hours per period.
         num_resources = len(self.instance.get_resources())
         num_periods = len(self.instance.get_periods())
         max_num_maint = num_resources*num_periods/maint_duration
         ret_total = max_elapsed_time*num_resources
         rut_total = max_used_time*num_resources
+        c_cand = self.instance.get_cluster_candidates()
 
-        return {
+        ub = {
             'ret': math.floor(max_elapsed_time),
             'rut': math.floor(max_used_time),
             'used_max': math.ceil(max(consumption.values())),
@@ -477,6 +459,14 @@ class Model(exp.Experiment):
             'ret_end': math.ceil(ret_total),
             'rut_end': math.ceil(rut_total)
         }
+
+        ub['slack_kts'] = {s: (p+1)**2 for p, s in enumerate(l['slots'])}
+        ub['slack_kts_h'] = {(k, s): (p + 1) * len(cands)*100 if s != 2 else ub['rut']*len(cands)
+                             for p, s in enumerate(l['slots'])
+                             for k, cands in c_cand.items()}
+        ub['slack_ts'] = {s: (p+1)*2 for p, s in enumerate(l['slots'])}
+
+        return ub
 
     @staticmethod
     def vars_to_tups(var):
@@ -662,6 +652,11 @@ class Model(exp.Experiment):
         vtt2_between_att = {(a, t1, t2): vtt2_a_after_t[a, t1].intersect(vtt2_a_before_t[a, t2])
                             for a in resources for pos1, t1 in enumerate(periods) for t2 in periods[pos1:]}
 
+        slots = [str(s) for s in range(3)]
+        k = tl.TupList(kt).filter(0).unique2()
+        kts = [(k, t, s) for k, t in kt for s in slots]
+        ts = [(t, s) for t in periods for s in slots]
+
         return {
          'periods'          :  periods
         ,'period_0'         :  period_0
@@ -699,6 +694,10 @@ class Model(exp.Experiment):
         , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
+        , 'slots': slots
+        , 'k': k
+        , 'kts': kts
+        , 'ts': ts
         , 'att_maints'      : att_maints
         , 'att_cycles'      : att_cycles
         , 'cycles'          : cycles
