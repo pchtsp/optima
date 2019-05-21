@@ -1,11 +1,10 @@
 # /usr/bin/python3
 
 import os
-import package.auxiliar as aux
 import pulp as pl
 import tempfile
+import datetime
 from os import dup, dup2, close
-import package.params as params
 
 
 class Config(object):
@@ -16,8 +15,7 @@ class Config(object):
 
         default_options = {
             'timeLimit': 300
-            , 'path':
-                os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
+            , 'path': get_timestamp() + '/'
         }
 
         # the following merges the two configurations (replace into):
@@ -72,7 +70,8 @@ class Config(object):
                  timeLimit='TimeLimit',
                  gap = 'MIPGap',
                  gap_abs = 'MIPGapAbs',
-                 result_path = 'ResultFile'
+                 result_path = 'ResultFile',
+                 threads = 'Threads'
                  )
         return [(v, getattr(self, k)) for k, v in params_eq.items()
              if getattr(self, k) is not None] + self.solver_add_opts
@@ -87,7 +86,8 @@ class Config(object):
                  timeLimit='set timelimit {}',
                  gap = 'set mip tolerances mipgap {}',
                  gap_abs = 'set mip tolerances absmipgap {}',
-                 memory = 'set mip limits treememory {}'
+                 memory = 'set mip limits treememory {}',
+                 threads = 'set threads {}'
                  )
         a = [v.format(getattr(self, k)) for k, v in params_eq.items()
             if getattr(self, k) is not None] + \
@@ -145,3 +145,6 @@ class Config(object):
             return result
         return 0
 
+
+def get_timestamp(form="%Y%m%d%H%M"):
+    return datetime.datetime.now().strftime(form)
