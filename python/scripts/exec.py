@@ -5,7 +5,6 @@ import package.data_input as di
 import package.instance as inst
 import package.solution as sol
 import package.model as md
-import package.model_cp as md_cp
 import package.experiment as exp
 import importlib
 import argparse

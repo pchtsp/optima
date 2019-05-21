@@ -29,8 +29,8 @@ class Solution(object):
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_periods(self):
-        resource_period = list(self.get_tasks().keys())
-        return sorted(aux.tup_to_dict(resource_period, result_col=0).keys())
+        resource_period = tl.TupList(self.get_tasks().keys()).to_dict(result_col=0).keys_l()
+        return sorted(resource_period)
 
     def get_tasks(self):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
@@ -43,7 +43,7 @@ class Solution(object):
 
     def get_task_resources(self):
         task_solution = self.get_tasks()
-        task_resources = aux.tup_to_dict(aux.dict_to_tup(task_solution), 0, is_list=True)
+        task_resources = sd.SuperDict.from_dict(task_solution).to_tuplist().to_dict(result_col=0, is_list=True)
         return {(a, t): v for (t, a), v in task_resources.items()}
 
     def get_task_num_resources(self):
@@ -71,14 +71,14 @@ class Solution(object):
 
     def get_in_task(self):
         tasks = [(t, r) for (r, t) in self.get_tasks()]
-        in_mission = {k: len(v) for k, v in aux.tup_to_dict(tasks, 1, is_list=True).items()}
-        return aux.fill_dict_with_default(in_mission, self.get_periods())
+        in_mission = tl.TupList(tasks).to_dict(result_col=1, is_list=True).to_lendict()
+        return in_mission.fill_with_default(self.get_periods())
 
     def get_in_maintenance(self):
         states = [(t, r) for (r, t), v in self.get_state().items() if v == 'M']
-        in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
+        in_maint = tl.TupList(states).to_dict(result_col=1, is_list=True).to_lendict()
         # fixed maintenances should be included in the states already
-        return aux.fill_dict_with_default(in_maint, self.get_periods())
+        return in_maint.fill_with_default(self.get_periods())
 
     def get_number_maintenances(self, resource):
         return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())

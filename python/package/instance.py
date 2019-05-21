@@ -278,8 +278,7 @@ class Instance(object):
         return num_resource_working
 
     def get_total_fixed_maintenances(self):
-        in_maint_dict = aux.tup_to_dict(self.get_fixed_maintenances(), 0, is_list=True)
-        return {k: len(v) for k, v in in_maint_dict.items()}
+        return self.get_fixed_maintenances().to_dict(result_col=0, is_list=True).to_lendict()
 
     def check_enough_candidates(self):
         task_num_resources = self.get_tasks('num_resource')
@@ -289,9 +288,10 @@ class Instance(object):
         return {k: (v, v / task_num_resources[k]) for k, v in task_slack.items()}
 
     def get_info(self):
+        task_period = sd.SuperDict.from_dict(self.get_task_period_list(True))
         assign = \
-            sum(v * self.data['tasks'][k]['num_resource'] for k, v in
-                aux.dict_to_lendict(self.get_task_period_list(True)).items())
+            sum(v * self.data['tasks'][k]['num_resource']
+                for k, v in task_period.to_lendict().items())
 
         return {
             'periods': len(self.get_periods()),
