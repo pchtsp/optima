@@ -77,12 +77,12 @@ class Experiment(object):
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
+        task_period_list = self.instance.get_task_period_list()
 
         task_assigned = \
-            aux.fill_dict_with_default(
-                self.solution.get_task_num_resources(),
-                self.instance.get_task_period_list()
-            )
+            sd.SuperDict.from_dict(self.solution.get_task_num_resources()).\
+                fill_with_default(task_period_list)
+
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
@@ -229,7 +229,7 @@ class Experiment(object):
         else:
             rt = self.solution.data['aux'][time]
 
-        rt_tup = aux.dictdict_to_dictup(rt)
+        rt_tup = sd.SuperDict.from_dict(rt).to_dictup()
         return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
 
     def check_resource_state(self, **params):
@@ -389,11 +389,12 @@ class Experiment(object):
         }
 
     def export_solution(self, path, sheet_name='solution'):
-        tasks = aux.dict_to_tup(self.solution.get_tasks())
+
+        tasks = sd.SuperDict.from_dict(self.solution.get_tasks()).to_tuplist()
         hours = self.instance.get_tasks('consumption')
         tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))
                         for t in tasks]
-        statesMissions = aux.dict_to_tup(self.solution.get_state()) + tasks_edited
+        statesMissions = sd.SuperDict.from_dict(self.solution.get_state()).to_tuplist() + tasks_edited
         table = pd.DataFrame(statesMissions, columns=['resource', 'period', 'state'])
         table = table.pivot(index='resource', columns='period', values='state')
         table.to_excel(path, sheet_name=sheet_name)

@@ -8,6 +8,8 @@ import numpy as np
 import copy
 import json
 import pickle
+from pytups import superdict as sd
+from pytups import tuplist as tl
 
 
 def make_name(name):
@@ -105,10 +107,13 @@ def get_model_data(source=r'../data/raw/parametres_DGA_final.xlsm'):
     capacites_avion = pd.concat([capacites_avion[~capacites_avion.value.isna()],
                                  capacites_avion_extra]).set_index('value')
 
-    mission_capacities = aux.tup_to_dict(
-        capacites_mission.to_records().tolist(), result_col=0)
-    aircraft_capacities = aux.tup_to_dict(
-        capacites_avion.to_records().tolist(), result_col=0)
+    mission_capacities = \
+        tl.TupList(capacites_mission.to_records().tolist()).\
+            to_dict(result_col=0)
+
+    aircraft_capacities = \
+        tl.TupList(capacites_avion.to_records().tolist()).\
+            to_dict(result_col=0)
 
     maint = table['DefinitionMaintenances']
     avions_state = table['Avions_Potentiels']
@@ -187,7 +192,8 @@ def combine_data_states(model_data, historic_data):
                        if int(str(value).startswith('V'))
                        }
     model_data_n = copy.deepcopy(model_data)
-    for key, value in aux.dicttup_to_dictdict(previous_states).items():
+    previous_states = sd.SuperDict.from_dict(previous_states).to_dictdict()
+    for key, value in previous_states.items():
         model_data_n['resources'][key]['states'] = value
     return model_data_n
 
@@ -256,14 +262,14 @@ def import_pie_solution(path_solution, path_input):
 
     state_dict = state.set_index(['resource', 'variable'])['value'].to_dict()
     state_dict_e = {(r_e_i[k[0]], p_e_i[k[1]]): v for k, v in state_dict.items()}
-    state_dict_f = aux.dicttup_to_dictdict(state_dict_e)
+    state_dict_f = sd.SuperDict.from_dict(state_dict_e).to_dictdict()
 
     table.value = elements.apply(lambda x: x[0])
 
     missions = table[ismission]
     missions_dict = missions.set_index(['resource', 'variable'])['value'].to_dict()
     missions_dict_e = {(r_e_i[k[0]], p_e_i[k[1]]): t_e_i[v] for k, v in missions_dict.items()}
-    task_dict_f = aux.dicttup_to_dictdict(missions_dict_e)
+    task_dict_f = sd.SuperDict.from_dict(missions_dict_e).to_dictdict()
 
     return {
         'state': state_dict_f,

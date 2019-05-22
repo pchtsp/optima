@@ -31,7 +31,7 @@ matplotlib==3.0.2
 nbformat==4.4.0
 numpy==1.15.4
 openpyxl==2.5.1
--e git+git@github.com:pchtsp/orloge.git@c5f584c4a194b283c119e82b040b486c4566cc4c#egg=orloge
+-e git+git@github.com:pchtsp/orloge.git@master#egg=orloge
 palettable==3.1.0
 pandas==0.23.4
 parso==0.3.1
@@ -41,13 +41,13 @@ pickleshare==0.7.4
 plotly==2.2.3
 prompt-toolkit==1.0.15
 ptyprocess==0.6.0
--e git+git@github.com:pchtsp/pulp-or.git@77f3bd1ec86ee9d8c35b68031b3a52af8b491a38#egg=PuLP
+-e git+git@github.com:pchtsp/pulp-or.git@master#egg=PuLP
 Pygments==2.2.0
 pypandoc==1.4
 pyparsing==2.3.1
 PyQt5==5.10.1
 python-dateutil==2.7.5
-https://github.com/pchtsp/pytups/archive/master.zip@egg=pytups
+-e git+git@github.com:pchtsp/pytups.git@master#egg=pytups
 pytz==2018.7
 PyYAML==3.12
 requests==2.18.4
