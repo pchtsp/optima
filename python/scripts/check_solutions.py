@@ -109,13 +109,12 @@ def test_rexecute():
     # new_options = None
     exec.re_execute_instance(path, new_options)
 
-def test_rexecute_many():
+def test_rexecute_many(exp_origin, exp_dest, num_proc=2):
 
-    pool = multi.Pool(processes=2)
-    def_options = dict(timeLimit=7200, mip_start=True, exclude_aux=False)
-
-    origin_path = os.path.join(PATHS['results'], 'dell_20190507_all/base')
-    destination_path = os.path.join(PATHS['results'], 'dell_20190507_remakes2/base')
+    pool = multi.Pool(processes=num_proc)
+    def_options = dict(timeLimit=3600, mip_start=True, exclude_aux=False)
+    origin_path = os.path.join(PATHS['results'], exp_origin)
+    destination_path = os.path.join(PATHS['results'], exp_dest)
     remakes_path = os.path.join(destination_path, 'index.txt')
     with open(remakes_path, 'r') as f:
         instances = f.readlines()
@@ -249,7 +248,8 @@ def check_rem_calculation(experiment):
 if __name__ == '__main__':
     # check_rem_calculation('201904181142')
     # test_rexecute()
-    test_rexecute_many()
+    args = ('dell_20190515_all/base', 'dell_20190515_remakes/base', 2)
+    test_rexecute_many(*args)
     # check_over_assignments()
     # test_rexecute()
     # graph_check()

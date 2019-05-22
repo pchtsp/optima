@@ -10,6 +10,7 @@ import package.reports as rep
 import package.data_input as di
 import package.model_upper_bound as mub
 
+import shutil
 import orloge as ol
 
 from rpy2.robjects import pandas2ri
@@ -24,6 +25,7 @@ pandas2ri.activate()
 name = 'dell_20190505'
 name = 'dell_20190507'
 name = 'dell_20190507_all'
+name = 'dell_20190515_all'
 path = params.PATHS['results'] + name +'/base/'
 path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
 os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
@@ -244,20 +246,30 @@ status_df[status_df.gap_abs > 100]
 # TODO: we filter instances that are too far... from optimality
 #
 
+def clean_remakes():
+    path_remake = params.PATHS['results'] + 'dell_20190515_remakes'
+    ll = di.experiment_to_instances(path_remake)
+    lle = sd.SuperDict(ll).to_dictup().vapply(exp.Experiment.from_dir).\
+        clean(func= lambda v: v is None).keys_l()
+    lled = tl.TupList(lle).filter_list_f(lambda x: x[1]!='index.txt').\
+        apply(lambda x: os.path.join(path_remake, x[0], x[1]))
+
+    lled.apply(shutil.rmtree)
+
 def write_index():
     _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
                      status_df.gap_abs >= 50], axis=0)
-    remakes_df = status_df[_filter]
+    remakes_df = status_df[_filter].sort_values(['gap_abs'], ascending=False)
 
     remakes = remakes_df.name.tolist()
-    remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190507_remakes2/base/index.txt'
+    remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190515_remakes/base/index.txt'
 
     with open(remakes_path, 'w') as f:
         f.write('\n'.join(remakes))
 
 #####################
 # EXPORT THINGS
-#####################
+####################
 
 # rep.print_table_md(result_tab_summ)
 # result_tab.to_csv(path_graphs + 'table.csv', index=False)
@@ -275,10 +287,9 @@ def draw_hist(var='maints'):
     path_out = path_graphs + r'hist_{}_{}.png'.format(var, name)
     plot.save(path_out)
 
-for var in ['maints', 'mean_dist', 'max_dist', 'min_dist']:
+for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
     draw_hist(var)
     
-draw_hist('mean_2maint')
 
 def hist_no_agg(cases):
     # basenames= 1
@@ -296,6 +307,8 @@ def hist_no_agg(cases):
 
     path_out = path_graphs + r'hist_all_{}_{}.png'.format(var, name)
     plot.save(path_out)
+
+hist_no_agg(cases)
 
 # case = cases_dict['201905081456_765']
 # tt['201905081456_765']
