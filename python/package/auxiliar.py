@@ -3,8 +3,6 @@
 import arrow
 import datetime
 
-# TODO: migrate all relevant methods to tuplist and superdict
-
 def get_months(start_month, end_month):
     """
     :param start_month: month in YYY-MM

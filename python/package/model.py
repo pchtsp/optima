@@ -593,7 +593,7 @@ class Model(exp.Experiment):
                     if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
                     ])
 
-        # this is the domain for the maintenance m_itt variable
+        # att_maints is the domain for the maintenance m_itt variable
         # we want all t1, t2 combinations such as t1 and t2 make possible cycle combinations.
         # without using the last period as a start of a new cycle (as a convention)
         # since we are only assuming max 1 assignment, we need to take out the possibilities that leave
@@ -607,10 +607,11 @@ class Model(exp.Experiment):
         # also, we want to permit incomplete cycles that finish in the last period.
         # the additional possibilities are very similar to the previous ones
         # but with the last_period instead of t2
+        # and they do not constraint the min distance between maintenances
         _t2 = last_period
         att_maints = att_maints_no_last + \
                      tl.TupList((a, t1, _t2) for (a, t1) in at_M_ini if
-                                periods_pos[t1] + min_elapsed <= periods_pos[_t2] < periods_pos[t1] + max_elapsed
+                                periods_pos[t1] + duration <= periods_pos[_t2] < periods_pos[t1] + max_elapsed
                                 )
         att_maints = tl.TupList(att_maints)
 
