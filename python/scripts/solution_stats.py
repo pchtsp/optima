@@ -10,6 +10,7 @@ import package.data_input as di
 import package.model_upper_bound as mub
 import package.instance_stats as istats
 
+import shutil
 import orloge as ol
 
 from rpy2.robjects import pandas2ri
@@ -165,20 +166,30 @@ def get_status_df(experiments):
     # status_df.columns
     return status_df
 
+def clean_remakes():
+    path_remake = params.PATHS['results'] + 'dell_20190515_remakes'
+    ll = di.experiment_to_instances(path_remake)
+    lle = sd.SuperDict(ll).to_dictup().vapply(exp.Experiment.from_dir).\
+        clean(func= lambda v: v is None).keys_l()
+    lled = tl.TupList(lle).filter_list_f(lambda x: x[1]!='index.txt').\
+        apply(lambda x: os.path.join(path_remake, x[0], x[1]))
+
+    lled.apply(shutil.rmtree)
+
 def write_index():
     _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
                      status_df.gap_abs >= 50], axis=0)
-    remakes_df = status_df[_filter]
+    remakes_df = status_df[_filter].sort_values(['gap_abs'], ascending=False)
 
     remakes = remakes_df.name.tolist()
-    remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190507_remakes2/base/index.txt'
+    remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190515_remakes/base/index.txt'
 
     with open(remakes_path, 'w') as f:
         f.write('\n'.join(remakes))
 
 #####################
 # EXPORT THINGS
-#####################
+####################
 
 # rep.print_table_md(result_tab_summ)
 # result_tab.to_csv(path_graphs + 'table.csv', index=False)
@@ -214,6 +225,7 @@ def hist_no_agg(basenames, cases):
 
     path_out = path_graphs + r'hist_all_{}_{}.png'.format(var, name)
     plot.save(path_out)
+
 
 # case = cases_dict['201905081456_765']
 # tt['201905081456_765']
@@ -430,11 +442,11 @@ if __name__ == '__main__':
     status_df.groupby('status').agg('max')['gap_abs']
     status_df.groupby('status').agg('mean')['gap_abs']
 
-    for var in ['maints', 'mean_dist', 'max_dist', 'min_dist']:
+    for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
         draw_hist(var)
 
     draw_hist('mean_2maint')
-
+	hist_no_agg(cases)
     for var in ['maints', 'mean_dist', 'mean_2maint']:
         cons_init(var)
 
