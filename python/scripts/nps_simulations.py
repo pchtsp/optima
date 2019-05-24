@@ -35,15 +35,11 @@ def merge_resources(model_data, initial_data):
 
 def solve_errors(initial_data, _option):
     try:
-        # print('entered solve_errors')
         print('path is : {}'.format(_option['path']))
         model_data = sim.create_dataset(_option)
         model_data = merge_resources(model_data, initial_data)
-        # print('actually solving instance')
         exec.execute_solve(model_data, _option)
-        # print('solved!')
     except Exception as e:
-        # print('some exception!')
         str_fail = "Unexpected error in case: \n{}".format(repr(e))
         path_out = os.path.join(_option['path'], 'failure.txt')
         with open(path_out, 'w') as f:
@@ -91,6 +87,7 @@ if __name__ == "__main__":
     multiproc = options.get('multiprocess')
     results = {}
     pos = 0
+    pool = None
     if multiproc:
         pool = multi.Pool(processes=multiproc)
 

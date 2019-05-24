@@ -81,6 +81,13 @@ OPTIONS = {
     , 'threads': None
     , 'solver_path': None
     , 'keepfiles': 0
+    # stats-cut-data
+    , 'StochCuts' : {
+        'active': False,
+        'maints': None,
+        'mean_2maint': None,
+        'mean_dist': None
+    }
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
