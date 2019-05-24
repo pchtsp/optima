@@ -69,30 +69,35 @@ def get_geomean(consumption):
 
 def calculate_stat(instance, coefs):
     intercept = coefs.get('intercept', 0)
+    mean_consum = get_consumptions(instance, hours=True).mean()
+    init = get_init_hours(instance).mean()
     data = \
         sd.SuperDict(
-            consumption=get_consumptions(instance, hours=True).mean()
-            ,consumption2=get_consumptions(instance, hours=True).mean()**2
-            ,init = get_init_hours(instance).mean()
+            mean_consum=mean_consum
+            , mean_consum2=mean_consum**2
+            , mean_consum3=mean_consum**3
+            , init = init
         )
     return sum(data.apply(lambda k, v: v * coefs.get(k, 0)).values_l()) + intercept
 
 
 def get_bound_var(instance, variable):
-    data = {
-        'maints': {'mean_consum': -0.083981156,
-                   'init': -0.014008507,
-                   'mean_consum2': 0.00033154176,
-                   'intercept': 36.63064544413732},
-        'mean_2maint': {'mean_consum': -0.33839343,
-                        'init': -0.02039799,
-                        'mean_consum2': 0.0011614594,
-                        'intercept': 44.222750378908614},
-        'mean_dist': {'mean_consum': 0.10140094,
-                      'init': -0.012073993,
-                      'mean_consum2': -0.00026209599,
-                      'intercept': 50.271137909384024}
-    }
+    data = \
+        {'maints': {'mean_consum': 0.0,
+                    'init': -0.011996316,
+                    'mean_consum2': -0.0001735429,
+                    'mean_consum3': 8.8102027e-07,
+                    'intercept': 30.652218142375244},
+         'mean_2maint': {'mean_consum': 0.0,
+                         'init': -0.016398298,
+                         'mean_consum2': -0.00050938537,
+                         'mean_consum3': 2.357292e-06,
+                         'intercept': 19.424510800979323},
+         'mean_dist': {'mean_consum': -0.11756852,
+                       'init': -0.010143913,
+                       'mean_consum2': 0.0010128354,
+                       'mean_consum3': -2.3906576e-06,
+                       'intercept': 60.588303439359386}}
     if variable not in data:
         raise ValueError('data not found for variable: {}'.format(variable))
     return calculate_stat(instance, data[variable])
