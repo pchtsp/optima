@@ -2,6 +2,7 @@ import package.experiment as exp
 import pandas as pd
 import package.params as params
 import pytups.superdict as sd
+import pytups.tuplist as tl
 import os
 import numpy as np
 import package.rpy_graphs as rpyg
@@ -435,6 +436,8 @@ if __name__ == '__main__':
     os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
 
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
+    basenames = [os.path.basename(e) for e in experiments]
+    cases = [exp.Experiment.from_dir(e) for e in experiments]
 
     result_tab = get_table(experiments)
     status_df = get_status_df(experiments)
@@ -446,7 +449,8 @@ if __name__ == '__main__':
         draw_hist(var)
 
     draw_hist('mean_2maint')
-	hist_no_agg(cases)
+
+    hist_no_agg(basenames, cases)
     for var in ['maints', 'mean_dist', 'mean_2maint']:
         cons_init(var)
 
@@ -462,13 +466,14 @@ if __name__ == '__main__':
         for grade in range(1, 4):
             print(_var, grade)
             regression_superquantiles(result_tab, status_df, _var, grade, _lambda=0.1, alpha=0.9)
-            print('\n')
+            print()
 
     var_coefs = {}
     for predict_var in ['maints', 'mean_2maint', 'mean_dist']:
         x_train = result_tab[['mean_consum', 'init']].copy()
         x_train['mean_consum2'] = x_train.mean_consum**2
+        x_train['mean_consum3'] = x_train.mean_consum**3
         y_train = result_tab[predict_var]
-        coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=0.95)
+        coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=0.90)
         coefs['intercept'] = coef0
         var_coefs[predict_var] = coefs

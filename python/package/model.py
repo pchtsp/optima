@@ -275,7 +275,7 @@ class Model(exp.Experiment):
 
         # Adding trained cuts.
         StochCuts = options.get('StochCuts', {})
-        print(StochCuts)
+        # print(StochCuts)
         if StochCuts.get('active', False):
             # TODO: max_mean_dist
             max_total_maints = math.ceil(StochCuts['maints'])
@@ -283,8 +283,11 @@ class Model(exp.Experiment):
             _dist = self.instance.get_dist_periods
             # max_mean_dist = StochCuts['mean_dist']
             dist_m2_end = tl.TupList(l['att_maints_no_last']).to_dict(None).vapply(lambda v: _dist(v[2], last_period))
+            # print(dist_m2_end)
             model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) <= max_total_maints
             model += pl.lpSum(start_M[tup]*v for tup, v in dist_m2_end.items()) <= max_sum_2maint
+            # print("max_maints= {}".format(max_total_maints))
+            # print("max_sum_2maint= {}".format(max_sum_2maint))
 
 
 
