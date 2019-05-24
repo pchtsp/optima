@@ -1,6 +1,5 @@
 import math
 import pulp as pl
-import package.auxiliar as aux
 import package.config as conf
 import package.solution as sol
 import package.experiment as exp
@@ -73,8 +72,6 @@ class Model(exp.Experiment):
         rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
 
         # slack variables:
-
-        # get all demand for flight hours for k
         price_slack_kts = {s: (p+1)*50 for p, s in enumerate(l['slots'])}
         price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(l['slots'])}
         price_slack_kts_h = {s: (p + 2)**2 for p, s in enumerate(l['slots'])}
@@ -275,6 +272,22 @@ class Model(exp.Experiment):
                      num_resource_maint[t] <= \
                      maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in l['slots'])
 
+
+        # Adding trained cuts.
+        StochCuts = options.get('StochCuts', {})
+        print(StochCuts)
+        if StochCuts.get('active', False):
+            # TODO: max_mean_dist
+            max_total_maints = math.ceil(StochCuts['maints'])
+            max_sum_2maint = math.ceil(StochCuts['mean_2maint']*len(l['resources']))
+            _dist = self.instance.get_dist_periods
+            # max_mean_dist = StochCuts['mean_dist']
+            dist_m2_end = tl.TupList(l['att_maints_no_last']).to_dict(None).vapply(lambda v: _dist(v[2], last_period))
+            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) <= max_total_maints
+            model += pl.lpSum(start_M[tup]*v for tup, v in dist_m2_end.items()) <= max_sum_2maint
+
+
+
         # ##################################
         # SOLVING
         # ##################################
@@ -308,11 +321,6 @@ class Model(exp.Experiment):
         start_M = variables['start_M']
         start_T = variables['start_T']
         rut = variables['rut']
-
-        # TODO: try to fix these values??
-        slack_kts_h = variables['slack_kts_h']
-        slack_kts = variables['slack_kts']
-        slack_ts = variables['slack_ts']
 
         _next = self.instance.get_next_period
         _prev = self.instance.get_prev_period
@@ -375,7 +383,6 @@ class Model(exp.Experiment):
 
         return True
 
-
     def get_solution(self, variables):
 
         l = self.domains
@@ -430,7 +437,6 @@ class Model(exp.Experiment):
                                 for k, v in solution_data_pre['aux'].items()}
         solution = sol.Solution(solution_data)
         return solution
-
 
     def get_bounds(self):
         l = self.domains

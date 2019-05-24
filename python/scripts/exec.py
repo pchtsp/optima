@@ -6,13 +6,15 @@ import package.instance as inst
 import package.solution as sol
 import package.model as md
 import package.experiment as exp
-import importlib
-import argparse
 import package.heuristics as heur
 import package.heuristics_maintfirst as mf
 import package.simulation as sim
+import package.instance_stats as istats
 import pytups.superdict as sd
+
 import datetime as dt
+import importlib
+import argparse
 
 
 def config_and_solve(options):
@@ -65,9 +67,14 @@ def execute_solve(model_data, options, solution_data=None):
     if solution_data is not None:
         solution = sol.Solution(solution_data)
 
+    StochCuts = options.get('StochCuts', {})
+    if StochCuts.get('active', False):
+        for variable in ['maints', 'mean_2maint', 'mean_dist']:
+            StochCuts[variable] = istats.get_bound_var(instance, variable)
+        options['StochCuts'] = StochCuts
+
     exclude_aux = options.get('exclude_aux', True)
     output_path = options['path']
-    # print(output_path)
     di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=exclude_aux)
     di.export_data(output_path, options, name="options", file_type='json')
 
