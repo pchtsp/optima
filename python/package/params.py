@@ -98,8 +98,8 @@ OPTIONS = {
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)
-        , 't_required_hours': (30, 50, 80) # triangular distribution params
-        , 't_num_resource': (2, 5)
+        , 't_required_hours': (10, 50, 100) # triangular distribution params
+        , 't_num_resource': (1, 6)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
         , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission
