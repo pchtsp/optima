@@ -1,12 +1,11 @@
 import pulp as pl
 import pytups.superdict as sd
 import math
-import pandas as pd
 
 # Y = []  # np.array
 # X = pd.DataFrame() # (var, point): value\
 
-def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95):
+def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95, sign=1):
     """
 
     :param X: pandas Dataframe
@@ -31,29 +30,40 @@ def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95):
 
     model = pl.LpProblem("regression_value_at_risk", pl.LpMinimize)
 
-    objective = pl.lpSum(c[v]*x[p][v] for p in points for v in variables) / len_points + \
+    objective = sign * pl.lpSum(c[v]*x[p][v] for p in points for v in variables) / len_points + \
                 z_0 + pl.lpSum(z.values()) / (1 - alpha) / len_points + \
                 _lambda * pl.lpSum(low.values()) + \
                 _lambda * pl.lpSum(up.values())
 
+    # model += objective >= 0
     model += objective
 
     for p in points:
-        model += z[p] >= y[p] - pl.lpSum(c[v] * x[p][v] for v in variables) - z_0
+        model += z[p] >= (y[p] - pl.lpSum(c[v] * x[p][v] for v in variables))*sign - z_0
 
     for v in variables:
         model += c[v] + low[v] - up[v] == 0
 
-    result = model.solve()
+    solver = None
+    # solver = pl.CPLEX_CMD(msg=True)
+    result = model.solve(solver)
+    # result == pl.LpStatusInfeasible
 
     c_out = sd.SuperDict(c).vapply(pl.value)
-    Y_aux = [_y - sum(x[p][v]*c_out[v] for v in variables) for p, _y in enumerate(y)]
+    objective.value()
+    low_out = sd.SuperDict(low).vapply(pl.value)
+    up_out = sd.SuperDict(up).vapply(pl.value)
+    z_out = sd.SuperDict(z).vapply(pl.value)
+    z_0_out = z_0.value()
+
+    Y_aux = [(_y - sum(x[p][v]*c_out[v] for v in variables))*sign for p, _y in enumerate(y)]
     Y_aux.sort()
     # (1/(1-alpha))*()
     limit = math.ceil(alpha * len_points)
     sum_ps = limit/len_points
+    # limit_comp = len_points - limit
 
-    c_0 = ((sum_ps - alpha)*Y_aux[limit] + sum(Y_aux[limit:])/len_points)/(1- alpha)
+    c_0 = ((sum_ps - alpha)*Y_aux[limit] + sum(Y_aux[limit+1:])/len_points)/(1- alpha)
     # c_0 = sum(Y_aux[limit:])/(len_points - limit)
     return c_0, c_out
 

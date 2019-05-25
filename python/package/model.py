@@ -275,21 +275,42 @@ class Model(exp.Experiment):
 
         # Adding trained cuts.
         StochCuts = options.get('StochCuts', {})
-        # print(StochCuts)
         if StochCuts.get('active', False):
-            # TODO: max_mean_dist
-            max_total_maints = math.ceil(StochCuts['maints'])
-            max_sum_2maint = math.ceil(StochCuts['mean_2maint']*len(l['resources']))
+            print(StochCuts)
+            size_res = len(l['resources'])
+            def get_max_min(var, func=None):
+                bounds = ['min', 'max']
+                _func = {'min': math.floor, 'max': math.ceil}
+                contents = sd.SuperDict({k: StochCuts['{}_{}'.format(k, var)] for k in bounds})
+                if func is not None:
+                    contents = contents.vapply(func)
+                return tuple(_func[b](contents[b]) for b in ['min', 'max'])
             _dist = self.instance.get_dist_periods
-            # max_mean_dist = StochCuts['mean_dist']
-            dist_m2_end = tl.TupList(l['att_maints_no_last']).to_dict(None).vapply(lambda v: _dist(v[2], last_period))
-            # print(dist_m2_end)
-            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) <= max_total_maints
-            model += pl.lpSum(start_M[tup]*v for tup, v in dist_m2_end.items()) <= max_sum_2maint
-            # print("max_maints= {}".format(max_total_maints))
-            # print("max_sum_2maint= {}".format(max_sum_2maint))
-
-
+            min_second_maints, max_second_maints = get_max_min('maints', lambda v: v - size_res)
+            min_sum_dist_2M_end, max_sum_dist_2M_end = get_max_min('mean_2maint', lambda v: size_res*v)
+            min_sum_dist_1M_2M, max_sum_dist_1M_2M = get_max_min('mean_dist', lambda v: size_res*v)
+            print(get_max_min('maints'))
+            print(get_max_min('mean_2maint', lambda v: size_res*v))
+            print(get_max_min('mean_dist', lambda v: size_res*v))
+            # we get for each combination: the distance between the second and last period
+            dist_m2_end = \
+                tl.TupList(l['att_maints_no_last']). \
+                    to_dict(result_col=None). \
+                    apply(lambda k, v: _dist(k[2], last_period))
+            # we get for each combination: the distance between the first and second manintenance
+            # we need to add a distance when the second maintenance is at the end
+            # because that is not really a maintenance.
+            dist_m1_m2 = \
+                tl.TupList(l['att_maints']). \
+                    to_dict(result_col=None). \
+                    apply(lambda k, v: _dist(k[1], k[2]) - duration). \
+                    apply(lambda k, v: v + (k[2]==last_period))
+            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) <= max_second_maints
+            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) >= min_second_maints
+            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items()) <= max_sum_dist_2M_end
+            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items()) >= min_sum_dist_2M_end
+            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items()) <= max_sum_dist_1M_2M
+            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items()) >= min_sum_dist_1M_2M
 
         # ##################################
         # SOLVING
