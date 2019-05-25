@@ -81,8 +81,9 @@ def instance_status(experiments, vars_extract):
         vapply(lambda x: {var: x[var] for var in vars_extract})
 
     master = \
-        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal, ol.LpSolutionInfeasible],
-                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible']})
+        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal,
+                                   ol.LpSolutionInfeasible, ol.LpSolutionNoSolutionFound],
+                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible', 'NoIntegerFound']})
     return \
         pd.DataFrame.\
         from_dict(ll, orient='index').\
@@ -102,7 +103,7 @@ def get_table(experiments):
             continue
         consumption = istats.get_consumptions(case.instance)
         aircraft_use = istats.get_consumptions(case.instance, hours=False)
-        rel_consumption = istats.get_rel_consumptions(case)
+        rel_consumption = istats.get_rel_consumptions(case.instance)
         cycle_size = get_cycle_sizes(case)
         l_maint_date = get_last_maint_date(case).values_l()
         init_hours = istats.get_init_hours(case.instance)
@@ -428,12 +429,13 @@ if __name__ == '__main__':
     # name = 'dell_20190501'
     # name = 'dell_20190505'
     # name = 'dell_20190507'
-    name = 'dell_20190515_all'
-    # name = 'dell_20190507_all'
-    path = params.PATHS['results'] + name +'/base/'
+    # name = 'dell_20190523'
+    # name = 'dell_20190515_remakes'
     path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
     path_graphs = r'C:\Users\pchtsp\Documents\borrar/'
     os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
+    name = 'dell_20190515_all'
+    path = params.PATHS['results'] + name +'/base/'
 
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
@@ -441,6 +443,7 @@ if __name__ == '__main__':
 
     result_tab = get_table(experiments)
     status_df = get_status_df(experiments)
+    status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
     status_df.groupby('status').agg('count')['name']
     status_df.groupby('status').agg('max')['gap_abs']
     status_df.groupby('status').agg('mean')['gap_abs']

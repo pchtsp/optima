@@ -211,7 +211,13 @@ def check_rem_calculation(experiment):
 if __name__ == '__main__':
     # check_rem_calculation('201904181142')
     # test_rexecute()
-    options = dict(timeLimit=3600, mip_start=True, exclude_aux=True, threads=1)
+    options = sd.SuperDict(timeLimit=3600, mip_start=True, exclude_aux=True, threads=1)
+    options.update(StochCuts= {
+        'active': True,
+        'maints': None,
+        'mean_2maint': None,
+        'mean_dist': None
+    })
     args = ('dell_20190515_all/base', 'dell_20190515_remakes/base', 7, options)
     test_rexecute_many(*args)
     # check_over_assignments()
