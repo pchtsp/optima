@@ -36,7 +36,7 @@ def get_cycle_sizes(case):
     dist = case.instance.get_dist_periods
 
     cycles_between = \
-        cycles.apply(lambda k, v: [dist(*vv) for vv in v[1:2]])
+        cycles.apply(lambda k, v: [dist(*vv) + 1 for vv in v[1:2]])
 
     return pd.Series([vv for v in cycles_between.values() for vv in v])
 
@@ -396,14 +396,14 @@ def plotting(data_frame, x_name, y_name, y_pred_name, graph_name):
     plot.save(path_out)
 
 
-def regression_superquantiles(data, status_df, predict_var, grade=1, **kwargs):
+def regression_superquantiles(data, status_df, predict_var, grade=1, alpha=0.9, **kwargs):
 
     X = data[['mean_consum', 'init']].copy()
     Y = data[predict_var]
     for g in range(1, grade+1):
         X['mean_consum'+str(g)] = X.mean_consum**g
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=1)
-    coef0, coefs = mub.regression_VaR(X_train, y_train, **kwargs)
+    coef0, coefs = mub.regression_VaR(X_train, y_train, alpha=alpha, **kwargs)
     print(coefs)
 
     X_out = X_test.copy()
@@ -415,7 +415,7 @@ def regression_superquantiles(data, status_df, predict_var, grade=1, **kwargs):
 
     X_out = X_out.join(data[['init_cut', 'name']])
     X_out = X_out.merge(status_df, on='name', how='left')
-    graph_name = 'regression_mean_consum_g{}_init_{}'.format(grade, predict_var)
+    graph_name = 'regression_mean_consum_g{}_init_{}_{}'.format(grade, predict_var, alpha)
     plotting(X_out, 'mean_consum', predict_var, 'pred', graph_name)
 
 
@@ -466,17 +466,20 @@ if __name__ == '__main__':
     regression(['mean_consum', 'init', 'geomean_cons'], 'maints')
 
     for _var in ['maints', 'mean_2maint', 'mean_dist']:
-        for grade in range(1, 4):
-            print(_var, grade)
-            regression_superquantiles(result_tab, status_df, _var, grade, _lambda=0.1, alpha=0.9)
-            print()
+        for grade in range(3, 4):
+            for (alpha, sign) in zip([0.99, 0.8], [-1, 1]):
+                print(_var, grade)
+                regression_superquantiles(result_tab, status_df, _var, grade, _lambda=0.1, alpha=alpha, sign=sign)
+                print()
+    # regression_superquantiles(result_tab, status_df, _var, 3, _lambda=0.1, alpha=0.95, sign=-1)
 
     var_coefs = {}
     for predict_var in ['maints', 'mean_2maint', 'mean_dist']:
-        x_train = result_tab[['mean_consum', 'init']].copy()
-        x_train['mean_consum2'] = x_train.mean_consum**2
-        x_train['mean_consum3'] = x_train.mean_consum**3
-        y_train = result_tab[predict_var]
-        coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=0.90)
-        coefs['intercept'] = coef0
-        var_coefs[predict_var] = coefs
+        for (bound, sign, alpha) in [('max', 1, 0.8), ('min', -1, 0.99)]:
+            x_train = result_tab[['mean_consum', 'init']].copy()
+            x_train['mean_consum2'] = x_train.mean_consum**2
+            x_train['mean_consum3'] = x_train.mean_consum**3
+            y_train = result_tab[predict_var]
+            coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=alpha, sign=sign)
+            coefs['intercept'] = coef0
+            var_coefs[bound+'_'+predict_var] = coefs

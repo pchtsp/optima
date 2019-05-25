@@ -70,7 +70,9 @@ def execute_solve(model_data, options, solution_data=None):
     StochCuts = options.get('StochCuts', {})
     if StochCuts.get('active', False):
         for variable in ['maints', 'mean_2maint', 'mean_dist']:
-            StochCuts[variable] = istats.get_bound_var(instance, variable)
+            for bound in ['min', 'max']:
+                name = bound + '_' + variable
+                StochCuts[name] = istats.get_bound_var(instance, name)
         options['StochCuts'] = StochCuts
 
     exclude_aux = options.get('exclude_aux', True)
