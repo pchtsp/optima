@@ -44,12 +44,16 @@ def config_and_solve(options):
     execute_solve(model_data, options)
 
 
-def re_execute_instance(directory, new_options=None):
+def re_execute_instance(directory, new_options=None, new_input=None):
     if not os.path.exists(directory):
         raise ValueError('path {} does not exist'.format(directory))
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
+    model_data = sd.SuperDict.from_dict(model_data)
+    if new_input is not None:
+        model_data.update(new_input)
     solution_data = None
     options = di.load_data(os.path.join(directory, 'options.json'))
+    options = sd.SuperDict.from_dict(options)
     if new_options is not None:
         options.update(new_options)
     warm_start = options.get('mip_start', False)
@@ -81,7 +85,8 @@ def execute_solve(model_data, options, solution_data=None):
         min_dist = istats.get_min_dist_2M(instance)
         new_input_data = {'parameters': {'elapsed_time_size_2M': win_size,
                                          'max_elapsed_time_2M': min_dist+win_size//2 + 1}}
-        instance.data = sd.SuperDict.from_dict(instance.data).update(new_input_data)
+        instance.data = sd.SuperDict.from_dict(instance.data)
+        instance.data.update(new_input_data)
 
     exclude_aux = options.get('exclude_aux', True)
     output_path = options['path']

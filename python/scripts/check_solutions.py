@@ -109,10 +109,9 @@ def test_rexecute():
     # new_options = None
     exec.re_execute_instance(path, new_options)
 
-def test_rexecute_many(exp_origin, exp_dest, num_proc=2):
+def test_rexecute_many(exp_origin, exp_dest, num_proc=2, max_instances=None, new_options=None, **kwargs):
 
     pool = multi.Pool(processes=num_proc)
-    def_options = dict(timeLimit=3600, mip_start=True, exclude_aux=False)
     origin_path = os.path.join(PATHS['results'], exp_origin)
     destination_path = os.path.join(PATHS['results'], exp_dest)
     remakes_path = os.path.join(destination_path, 'index.txt')
@@ -122,15 +121,22 @@ def test_rexecute_many(exp_origin, exp_dest, num_proc=2):
     instances = tl.TupList(instances).apply(lambda x: x.strip())
     path_ins = instances.apply(lambda x: os.path.join(origin_path, x))
     path_outs = instances.apply(lambda x: os.path.join(destination_path, x))
+    if new_options is None:
+        new_options = {}
+
+    if max_instances is None:
+        max_instances = len(path_ins)
 
     results = {}
     for pos, path_in in enumerate(path_ins):
         path_out = path_outs[pos]
-        args = [path_in, {**def_options, **{'path': path_out}}]
-        results[pos] = pool.apply_async(exec.re_execute_instance, args)
+        args = {'directory': path_in, 'new_options': {**new_options, **{'path': path_out}}, **kwargs}
+        results[pos] = pool.apply_async(exec.re_execute_instance, kwds=args)
+        if pos + 1 >= max_instances:
+            break
 
     for pos, result in results.items():
-        result.get(timeout=7200+100)
+        result.get(timeout=3600+100)
 
 
 def check_over_assignments():
@@ -210,8 +216,17 @@ def check_rem_calculation(experiment):
 if __name__ == '__main__':
     # check_rem_calculation('201904181142')
     # test_rexecute()
-    args = ('dell_20190515_all/base', 'dell_20190515_remakes/base', 2)
-    test_rexecute_many(*args)
+    options = sd.SuperDict(timeLimit=3600, mip_start=True, exclude_aux=False, threads=1)
+    options.update(StochCuts= {'active': False})
+    new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
+    kwargs = {'exp_origin': 'dell_20190515_all/base',
+              'exp_dest': 'dell_20190515_remakes/base',
+              'num_proc': 7,
+              'new_options': options,
+              'new_input' : new_input,
+              'max_instances': 2
+              }
+    test_rexecute_many(**kwargs)
     # check_over_assignments()
     # test_rexecute()
     # graph_check()

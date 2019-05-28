@@ -100,8 +100,9 @@ def instance_status(experiments, vars_extract):
         vapply(lambda x: {var: x[var] for var in vars_extract})
 
     master = \
-        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal, ol.LpSolutionInfeasible],
-                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible']})
+        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal,
+                                   ol.LpSolutionInfeasible, ol.LpSolutionNoSolutionFound],
+                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible', 'NoIntegerFound']})
     return \
         pd.DataFrame.\
         from_dict(ll, orient='index').\
@@ -186,7 +187,7 @@ def get_table(experiments):
         result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3).astype(str)
 
     for grade in range(2, 6):
-        result_tab['mean_consum_' + str(grade)] = result_tab.mean_consum ** grade
+        result_tab['mean_consum' + str(grade)] = result_tab.mean_consum ** grade
 
     return result_tab
 
@@ -406,7 +407,7 @@ def regression(result_tab, x_vars, y_var):
 
 
 def test_regression(result_tab):
-    x_vars = ['mean_consum', 'mean_consum_2', 'mean_consum_3', 'init']
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init']
     predict_var= 'cycle_2M_min'
     filter = np.all([~pd.isna(result_tab.cycle_2M_min) ,result_tab.mean_consum.between(150, 300)], axis=0)
     coefs, intercept = regression(result_tab[filter], x_vars=x_vars, y_var=predict_var)
@@ -476,12 +477,13 @@ if __name__ == '__main__':
     # name = 'dell_20190501'
     # name = 'dell_20190505'
     # name = 'dell_20190507'
-    name = 'dell_20190515_all'
-    # name = 'dell_20190507_all'
-    path = params.PATHS['results'] + name +'/base/'
+    # name = 'dell_20190523'
+    # name = 'dell_20190515_remakes'
     path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
     path_graphs = r'C:\Users\pchtsp\Documents\borrar/'
     os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
+    name = 'dell_20190515_all'
+    path = params.PATHS['results'] + name +'/base/'
 
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
@@ -489,6 +491,7 @@ if __name__ == '__main__':
 
     result_tab = get_table(experiments)
     status_df = get_status_df(experiments)
+    status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
     status_df.groupby('status').agg('count')['name']
     status_df.groupby('status').agg('max')['gap_abs']
     status_df.groupby('status').agg('mean')['gap_abs']
@@ -509,6 +512,8 @@ if __name__ == '__main__':
 
     regression(result_tab, ['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
     regression(result_tab, ['mean_consum', 'init', 'geomean_cons'], 'maints')
+    data = test_regression(result_tab)
+    data
     # 'mean_consum', 'init', 'mean_consum_2', 'mean_consum_3'
 
     for _var in ['maints', 'mean_2maint', 'mean_dist']:

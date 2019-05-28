@@ -121,8 +121,8 @@ def get_min_dist_2M(instance):
     min, max = [150, 300]
     data = \
         {'mean_consum': 4.527784863082707,
-         'mean_consum_2': -0.021417007220022065,
-         'mean_consum_3': 3.135859788535103e-05,
+         'mean_consum2': -0.021417007220022065,
+         'mean_consum3': 3.135859788535103e-05,
          'init': 0.01026743076834458,
          "intercept": -251.89244412049118}
     mean_consum = get_consumptions(instance, hours=True).mean()
