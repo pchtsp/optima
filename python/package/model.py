@@ -276,7 +276,7 @@ class Model(exp.Experiment):
         # Adding trained cuts.
         StochCuts = options.get('StochCuts', {})
         if StochCuts.get('active', False):
-            print(StochCuts)
+            # print(StochCuts)
             size_res = len(l['resources'])
             def get_max_min(var, func=None):
                 bounds = ['min', 'max']
@@ -289,9 +289,9 @@ class Model(exp.Experiment):
             min_second_maints, max_second_maints = get_max_min('maints', lambda v: v - size_res)
             min_sum_dist_2M_end, max_sum_dist_2M_end = get_max_min('mean_2maint', lambda v: size_res*v)
             min_sum_dist_1M_2M, max_sum_dist_1M_2M = get_max_min('mean_dist', lambda v: size_res*v)
-            print(get_max_min('maints'))
-            print(get_max_min('mean_2maint', lambda v: size_res*v))
-            print(get_max_min('mean_dist', lambda v: size_res*v))
+            # print(get_max_min('maints'))
+            # print(get_max_min('mean_2maint', lambda v: size_res*v))
+            # print(get_max_min('mean_dist', lambda v: size_res*v))
             # we get for each combination: the distance between the second and last period
             dist_m2_end = \
                 tl.TupList(l['att_maints_no_last']). \
@@ -523,8 +523,8 @@ class Model(exp.Experiment):
         periods = self.instance.get_periods_range(first_period, last_period)
         period_0 = self.instance.get_prev_period(param_data['start'])
         periods_0 = [period_0] + periods
-        periods_pos = {periods[pos]: pos for pos in range(len(periods))}
-        previous = {period: periods_0[periods_pos[period]] for period in periods}
+        p_pos = {periods[pos]: pos for pos in range(len(periods))}
+        previous = {period: periods_0[p_pos[period]] for period in periods}
 
         # tasks
         task_data = self.instance.get_tasks()
@@ -540,7 +540,15 @@ class Model(exp.Experiment):
         resources = list(resources_data.keys())
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
-        min_elapsed = param_data['min_elapsed_time'] + duration
+        min_elapsed = max_elapsed - param_data['elapsed_time_size']
+        # second maintenance can have a more limited size of calendar.
+        min_elapsed_2M = min_elapsed
+        max_elapsed_2M = max_elapsed
+        if 'max_elapsed_time_2M' in param_data:
+            max_elapsed_2M = param_data['max_elapsed_time_2M'] + duration
+
+        if 'elapsed_time_size_2M' in param_data:
+            min_elapsed_2M = max_elapsed_2M - param_data['elapsed_time_size_2M']
 
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
@@ -576,7 +584,7 @@ class Model(exp.Experiment):
         at_free_start = [(a, t) for (a, t) in at_free]
         # at_free_start = [(a, t) for (a, t) in at_free if periods_pos[t] % 3 == 0]
         at_m_ini = [(a, t) for (a, t) in at_free_start
-                    if periods_pos[t] < ret_init_adjusted[a]
+                    if p_pos[t] < ret_init_adjusted[a]
                     ]
         at_m_ini_s = set(at_m_ini)
 
@@ -592,21 +600,21 @@ class Model(exp.Experiment):
                          at_mission_m_horizon)
         ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
         att = tl.TupList([(a, t1, t2) for (a, t1) in list(at_start + at_free_start) for t2 in periods if
-               periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + duration])
+               p_pos[t1] <= p_pos[t2] < p_pos[t1] + duration])
         # when I could have started maintenance (t2s) to be still in maintenance in period t1
         t2_at1 = att.to_dict(result_col=2, is_list=True)
         # start-assignment options for task assignments.
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
-                periods_pos[t1] <= periods_pos[t2] < periods_pos[t1] + min_assign[v]
+                p_pos[t1] <= p_pos[t2] < p_pos[t1] + min_assign[v]
                 ])
         # Start-stop options for task assignments.
         avtt2 = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
-                            (periods_pos[t2] >= periods_pos[t1] + min_assign[v] - 1) or
-                            (periods_pos[t2] >= periods_pos[t1] and t2 == last_period)
+                            (p_pos[t2] >= p_pos[t1] + min_assign[v] - 1) or
+                            (p_pos[t2] >= p_pos[t1] and t2 == last_period)
                 ])
         # For Start-stop options, during fixed periods, we do not care of the minimum time assignment.
         avtt2_fixed = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
-                            (periods_pos[t2] >= periods_pos[t1]) and
+                            (p_pos[t2] >= p_pos[t1]) and
                             ((a, v, t1) in at_mission_m_horizon or
                              (a, v, t2) in at_mission_m_horizon)
                 ])
@@ -614,13 +622,13 @@ class Model(exp.Experiment):
         # we had a repetition problem:
         avtt2 = avtt2.unique2()
         att_m = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
-                 if periods_pos[t1] < periods_pos[t2] < periods_pos[t1] + min_elapsed
+                 if p_pos[t1] < p_pos[t2] < p_pos[t1] + min_elapsed
                  ])
 
         # first maintenance starts possibilities because of initial state of aircraft
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init[a] <= len(periods)
-                    if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
+                    if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
                     ])
 
         # att_maints is the domain for the maintenance m_itt variable
@@ -630,8 +638,8 @@ class Model(exp.Experiment):
         # more than max_elapsed after it
         # only allow maintenance starts that follow the initial state (at_M_ini)
         att_maints_no_last = tl.TupList((a, t1, t2) for (a, t1) in at_M_ini for t2 in periods
-                                if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
-                                and len(periods) - max_elapsed <= periods_pos[t2]
+                                if (p_pos[t1] + min_elapsed_2M <= p_pos[t2] < p_pos[t1] + max_elapsed_2M)
+                                and len(periods) <= p_pos[t2] + max_elapsed
                                 and t2 < last_period
                                 )
         # also, we want to permit incomplete cycles that finish in the last period.
@@ -641,7 +649,7 @@ class Model(exp.Experiment):
         _t2 = last_period
         att_maints = att_maints_no_last + \
                      tl.TupList((a, t1, _t2) for (a, t1) in at_M_ini if
-                                periods_pos[t1] + duration <= periods_pos[_t2] < periods_pos[t1] + max_elapsed
+                                p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M
                                 )
         att_maints = tl.TupList(att_maints)
 
@@ -650,7 +658,9 @@ class Model(exp.Experiment):
         cycles = [str(n) for n in range(3)]
         att_cycles = tl.TupList((a, n) for a in resources for n in cycles)
 
-        att_M = att_maints.filter_list_f(lambda x: periods_pos[x[1]] + max_elapsed < len(periods))
+        # these are the periods where we know we have to do a second maintenance, given we did a maintenance in t.
+        # (OBSOLETE)
+        att_M = att_maints.filter_list_f(lambda x: p_pos[x[1]] + max_elapsed < len(periods))
         # this is the TTT_t set.
         # periods that are maintenance periods because of having assign a maintenance
         attt_maints = tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t1), []))
@@ -692,7 +702,7 @@ class Model(exp.Experiment):
          'periods'          :  periods
         ,'period_0'         :  period_0
         ,'periods_0'        :  periods_0
-        ,'periods_pos'      :  periods_pos
+        ,'periods_pos'      :  p_pos
         ,'previous'         :  previous
         ,'tasks'            :  tasks
         ,'candidates'       :  candidates

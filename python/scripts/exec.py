@@ -44,12 +44,16 @@ def config_and_solve(options):
     execute_solve(model_data, options)
 
 
-def re_execute_instance(directory, new_options=None):
+def re_execute_instance(directory, new_options=None, new_input=None):
     if not os.path.exists(directory):
         raise ValueError('path {} does not exist'.format(directory))
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
+    model_data = sd.SuperDict.from_dict(model_data)
+    if new_input is not None:
+        model_data.update(new_input)
     solution_data = None
     options = di.load_data(os.path.join(directory, 'options.json'))
+    options = sd.SuperDict.from_dict(options)
     if new_options is not None:
         options.update(new_options)
     warm_start = options.get('mip_start', False)
