@@ -540,7 +540,11 @@ class Model(exp.Experiment):
         resources = list(resources_data.keys())
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
-        min_elapsed = param_data['min_elapsed_time'] + duration
+        min_elapsed = max_elapsed - param_data['elapsed_time_size']
+        # second maintenance can have a more limited size of calendar.
+        min_elapsed_2M = min_elapsed
+        if 'elapsed_time_size_2M' in param_data:
+            min_elapsed_2M = max_elapsed - param_data['elapsed_time_size_2M']
 
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
@@ -630,7 +634,7 @@ class Model(exp.Experiment):
         # more than max_elapsed after it
         # only allow maintenance starts that follow the initial state (at_M_ini)
         att_maints_no_last = tl.TupList((a, t1, t2) for (a, t1) in at_M_ini for t2 in periods
-                                if (periods_pos[t1] + min_elapsed <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
+                                if (periods_pos[t1] + min_elapsed_2M <= periods_pos[t2] < periods_pos[t1] + max_elapsed)
                                 and len(periods) - max_elapsed <= periods_pos[t2]
                                 and t2 < last_period
                                 )

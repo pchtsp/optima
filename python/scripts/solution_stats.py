@@ -30,13 +30,32 @@ def get_num_maints(case):
     maints = case.get_maintenance_starts()
     return len(maints)
 
+def get_prev_1M_dist(case):
+    m_starts = case.get_maintenance_starts()
+    dist = case.instance.get_dist_periods
+    first, last = (case.instance.get_param(p) for p in ['start', 'end'])
+    init_ret = case.instance.get_resources('initial_elapsed')
+    max_ret = case.instance.get_param('max_elapsed_time')
 
-def get_cycle_sizes(case):
+    dist_to_1M = \
+        m_starts.\
+        to_dict(1). \
+        vapply(lambda v: [vv for vv in v if vv >= first]). \
+        vapply(sorted).\
+        vapply(lambda v: dist(first, v[0])).\
+        apply(lambda k, v: max_ret - init_ret[k] + v)
+
+    return dist_to_1M
+
+def get_1M_2M_dist(case):
     cycles = case.get_all_maintenance_cycles()
     dist = case.instance.get_dist_periods
 
+    # now we only want to see the distance when
+    # there is a second maintenance
     cycles_between = \
-        cycles.apply(lambda k, v: [dist(*vv) + 1 for vv in v[1:2]])
+        cycles.clean(func=lambda v: len(v)==3).\
+        apply(lambda k, v: [dist(*vv) + 1 for vv in v[1:2]])
 
     return pd.Series([vv for v in cycles_between.values() for vv in v])
 
@@ -59,7 +78,7 @@ def get_last_maint_date(case):
     return last_dist
 
 def cycle_sizes(cases):
-    cycles =[get_cycle_sizes(case) for case in cases if case is not None]
+    cycles =[get_1M_2M_dist(case) for case in cases if case is not None]
     all_cycles = np.asarray(cycles).flatten()
 
     plot = ggplot2.ggplot(pd.DataFrame(all_cycles, columns=['cycle'])) + \
@@ -103,10 +122,14 @@ def get_table(experiments):
         consumption = istats.get_consumptions(case.instance)
         aircraft_use = istats.get_consumptions(case.instance, hours=False)
         rel_consumption = istats.get_rel_consumptions(case.instance)
-        cycle_size = get_cycle_sizes(case)
+        cycle_2M_size = get_1M_2M_dist(case)
+        cycle_1M_size = get_prev_1M_dist(case)
+        cycle_2M_quants = cycle_2M_size.quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
+        cycle_1M_size_values = cycle_1M_size.values_l()
+        cycle_1M_quants = pd.Series(cycle_1M_size_values).quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
         l_maint_date = get_last_maint_date(case).values_l()
         init_hours = istats.get_init_hours(case.instance)
-        cy_sum = cycle_size.agg(['mean', 'max', 'min']).tolist()
+        cy_sum = cycle_2M_size.agg(['mean', 'max', 'min']).tolist()
         airc_sum = aircraft_use.agg(['mean', 'max', 'var']).tolist()
         cons_sum = consumption.agg(['mean', 'max', 'var']).tolist()
         l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min']).tolist()
@@ -132,6 +155,8 @@ def get_table(experiments):
                       pos_aircraft +
                       [geomean_cons, geomean_airc] + [num_errors] +
                       cy_sum +
+                      cycle_2M_quants +
+                      cycle_1M_quants +
                       l_maint_date_stat)
 
     names = ['name', 'init',
@@ -143,6 +168,8 @@ def get_table(experiments):
              'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
              'geomean_cons', 'geomean_airc', 'num_errors',
              'mean_dist', 'max_dist', 'min_dist',
+             'cycle_2M_min', 'cycle_2M_25', 'cycle_2M_50', 'cycle_2M_75', 'cycle_2M_max',
+             'cycle_1M_min', 'cycle_1M_25', 'cycle_1M_50', 'cycle_1M_75', 'cycle_1M_max',
              'mean_2maint',  'max_2maint', 'min_2maint']
 
     renames = {p: n for p, n in enumerate(names)}
@@ -157,6 +184,10 @@ def get_table(experiments):
     for col in ['init', 'quant75w', 'quant9w', 'quant5w',
                 'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9']:
         result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3).astype(str)
+
+    for grade in range(2, 6):
+        result_tab['mean_consum_' + str(grade)] = result_tab.mean_consum ** grade
+
     return result_tab
 
 def get_status_df(experiments):
@@ -200,10 +231,14 @@ def write_index():
 # histograms
 #####################
 
-def draw_hist(var='maints'):
+def draw_hist(var='maints', bar=True):
+    if bar:
+        _func = ggplot2.geom_bar(position="identity")
+    else:
+        _func = ggplot2.geom_histogram(position="identity")
     plot = ggplot2.ggplot(result_tab) + \
            ggplot2.aes_string(x=var) + \
-           ggplot2.geom_bar(position="identity") + \
+           _func + \
            ggplot2.theme_minimal()
 
     path_out = path_graphs + r'hist_{}_{}.png'.format(var, name)
@@ -337,18 +372,16 @@ def test5():
 # Y = result_tab['maints']
 
 
-def create_X_Y(x_vars, y_var):
+def create_X_Y(result_tab, x_vars, y_var):
     X = result_tab[x_vars].copy()
-    X['mean_consum_2'] = X.mean_consum ** 2
-    # X['mean_consum_3'] = X.mean_consum**3
     Y = result_tab[y_var]
     # 70% training and 30% test
     return \
         train_test_split(X, Y, test_size=0.3, random_state=1)
 
 
-def decision_tree(x_vars, y_var):
-    X_train, X_test, y_train, y_test = create_X_Y(x_vars, y_var)
+def decision_tree(result_tab, x_vars, y_var):
+    X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var)
     clf = tree.DecisionTreeRegressor(max_depth=10)
     clf.fit(X=X_train, y=y_train)
     y_pred = clf.predict(X_test)
@@ -356,22 +389,39 @@ def decision_tree(x_vars, y_var):
     metrics.mean_squared_error(y_test, y_pred)
 
 
-def regression(x_vars, y_var):
+def regression(result_tab, x_vars, y_var):
     # clf = linear_model.LassoCV()
     # clf.fit(X, Y)
-    X_train, X_test, y_train, y_test = create_X_Y(x_vars, y_var)
+    X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var)
     clf = linear_model.LinearRegression()
+    # print(X_train)
     clf.fit(X=X_train, y=y_train)
-    print(clf.coef_)
+    # print(clf.coef_)
     y_pred = clf.predict(X_test)
     args = (y_test, y_pred)
-    metrics.mean_absolute_error(*args)
-    metrics.mean_squared_error(*args)
-    return metrics.r2_score(*args)
+    print('MAE={}'.format(metrics.mean_absolute_error(*args)))
+    print('MSE={}'.format(metrics.mean_squared_error(*args)))
+    print('R^2={}'.format(metrics.r2_score(*args)))
+    return (clf.coef_, clf.intercept_)
 
 
-def classify(x_vars, y_var):
-    X_train, X_test, y_train, y_test = create_X_Y(x_vars, y_var)
+def test_regression(result_tab):
+    x_vars = ['mean_consum', 'mean_consum_2', 'mean_consum_3', 'init']
+    predict_var= 'cycle_2M_min'
+    filter = np.all([~pd.isna(result_tab.cycle_2M_min) ,result_tab.mean_consum.between(150, 300)], axis=0)
+    coefs, intercept = regression(result_tab[filter], x_vars=x_vars, y_var=predict_var)
+    coef_dict = sd.SuperDict(zip(x_vars, coefs))
+    y_pred = np.sum([result_tab[k]*c for k, c in coef_dict.items()], axis=0) + intercept
+    X = result_tab.copy()
+    X = X.merge(status_df, on='name', how='left')
+    X['pred'] = y_pred
+    graph_name = 'regression_mean_consum_g{}_init_{}'.format(5, predict_var)
+    plotting(X, 'mean_consum', predict_var, 'pred', graph_name)
+    return coef_dict, intercept
+
+
+def classify(result_tab, x_vars, y_var):
+    X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var)
     clf = tree.DecisionTreeClassifier(max_depth=4)
     clf.fit(X=X_train, y=y_train, sample_weight=y_train*10 +1)
     y_pred = clf.predict(X_test)
@@ -418,8 +468,6 @@ def regression_superquantiles(data, status_df, predict_var, grade=1, alpha=0.9, 
     plotting(X_out, 'mean_consum', predict_var, 'pred', graph_name)
 
 
-
-
 if __name__ == '__main__':
 
     pandas2ri.activate()
@@ -459,8 +507,9 @@ if __name__ == '__main__':
             agg({'mean_dist': ['mean', 'var'],
                  'maints': ['mean', 'var']})
 
-    regression(['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
-    regression(['mean_consum', 'init', 'geomean_cons'], 'maints')
+    regression(result_tab, ['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
+    regression(result_tab, ['mean_consum', 'init', 'geomean_cons'], 'maints')
+    # 'mean_consum', 'init', 'mean_consum_2', 'mean_consum_3'
 
     for _var in ['maints', 'mean_2maint', 'mean_dist']:
         for grade in range(3, 4):

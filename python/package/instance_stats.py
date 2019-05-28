@@ -53,11 +53,11 @@ def get_init_hours(instance):
 
 
 def get_argmedian(consumption, prop=0.5):
-    half = sum(consumption) * prop
+    limit = sum(consumption) * prop
     so_far = 0
     for pos, item in enumerate(consumption):
         so_far += item
-        if so_far > half:
+        if so_far > limit:
             return pos
     return len(consumption)
 
@@ -116,3 +116,18 @@ def get_bound_var(instance, variable):
     if variable not in data:
         raise ValueError('data not found for variable: {}'.format(variable))
     return calculate_stat(instance, data[variable])
+
+def get_min_dist_2M(instance):
+    min, max = [150, 300]
+    data = \
+        {'mean_consum': 4.527784863082707,
+         'mean_consum_2': -0.021417007220022065,
+         'mean_consum_3': 3.135859788535103e-05,
+         'init': 0.01026743076834458,
+         "intercept": -251.89244412049118}
+    mean_consum = get_consumptions(instance, hours=True).mean()
+    if mean_consum < min:
+        return instance.get_param('max_elapsed_time')
+    if mean_consum > max:
+        return instance.get_param('max_elapsed_time') - instance.get_param('elapsed_time_size')
+    return calculate_stat(instance, coefs=data)

@@ -84,9 +84,12 @@ OPTIONS = {
     # stats-cut-data
     , 'StochCuts' : {
         'active': False,
-        'maints': None,
-        'mean_2maint': None,
-        'mean_dist': None
+        'max_maints': None,
+        'max_mean_2maint': None,
+        'max_mean_dist': None
+    }, 'reduce_2M_window': {
+        'active': True,
+        'window_size': 10
     }
     # simulation params:
     , 'simulation': {
@@ -96,6 +99,7 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'elapsed_time_size': 30  # size of window to do next maintenance
+        , 'elapsed_time_size_2M': 5  # size of window to do next maintenance
         , 'min_usage_period': 0 # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type

@@ -28,7 +28,6 @@ class Instance(object):
         params = {
             'maint_weight': 1
             , 'unavail_weight': 1
-            , 'min_elapsed_time': 0
             , 'min_usage_period': 0
             , 'min_avail_percent': 0.1
             , 'min_avail_value': 1
@@ -418,7 +417,6 @@ class Instance(object):
         ret_init = resources.get_property("initial_elapsed")
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
-        min_elapsed = param_data['min_elapsed_time'] + duration
         ret_init_adjusted = ret_init.apply(lambda _, v: v - max_elapsed + min_elapsed)
 
         first_maint_range = tl.TupList((a, t) for a in resources for t in periods

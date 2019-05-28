@@ -75,6 +75,14 @@ def execute_solve(model_data, options, solution_data=None):
                 StochCuts[name] = istats.get_bound_var(instance, name)
         options['StochCuts'] = StochCuts
 
+    reduce_2M_window = options.get('reduce_2M_window', {})
+    if reduce_2M_window.get('active', False):
+        win_size = reduce_2M_window['window_size']
+        min_dist = istats.get_min_dist_2M(instance)
+        new_input_data = {'parameters': {'elapsed_time_size_2M': win_size,
+                                         'max_elapsed_time_2M': min_dist+win_size//2 + 1}}
+        instance.data = sd.SuperDict.from_dict(instance.data).update(new_input_data)
+
     exclude_aux = options.get('exclude_aux', True)
     output_path = options['path']
     di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=exclude_aux)
