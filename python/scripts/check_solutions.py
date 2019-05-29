@@ -217,13 +217,12 @@ if __name__ == '__main__':
     # check_rem_calculation('201904181142')
     # test_rexecute()
     options = sd.SuperDict(timeLimit=3600, mip_start=True, exclude_aux=False, threads=1)
-    options.update(StochCuts= {'active': False})
-    new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
+    options.update(StochCuts= {'active': False}, reduce_2M_window={'active': True, 'window_size': 10})
+    # new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
     kwargs = {'exp_origin': 'dell_20190515_all/base',
               'exp_dest': 'dell_20190515_remakes/base',
               'num_proc': 7,
               'new_options': options,
-              'new_input' : new_input,
               'max_instances': 2
               }
     test_rexecute_many(**kwargs)

@@ -130,4 +130,4 @@ def get_min_dist_2M(instance):
         return instance.get_param('max_elapsed_time')
     if mean_consum > max:
         return instance.get_param('max_elapsed_time') - instance.get_param('elapsed_time_size')
-    return calculate_stat(instance, coefs=data)
+    return round(calculate_stat(instance, coefs=data))

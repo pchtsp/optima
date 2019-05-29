@@ -83,8 +83,9 @@ def execute_solve(model_data, options, solution_data=None):
     if reduce_2M_window.get('active', False):
         win_size = reduce_2M_window['window_size']
         min_dist = istats.get_min_dist_2M(instance)
+        max_et = instance.get_param('max_elapsed_time')
         new_input_data = {'parameters': {'elapsed_time_size_2M': win_size,
-                                         'max_elapsed_time_2M': min_dist+win_size//2 + 1}}
+                                         'max_elapsed_time_2M': min(min_dist+win_size//2 + 1, max_et)}}
         instance.data = sd.SuperDict.from_dict(instance.data)
         instance.data.update(new_input_data)
 
