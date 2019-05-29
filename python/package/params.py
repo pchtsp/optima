@@ -84,9 +84,6 @@ OPTIONS = {
     # stats-cut-data
     , 'StochCuts' : {
         'active': False,
-        'max_maints': None,
-        'max_mean_2maint': None,
-        'max_mean_dist': None
     }, 'reduce_2M_window': {
         'active': False,
         'window_size': 10
@@ -98,8 +95,9 @@ OPTIONS = {
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
+        , 'max_elapsed_time_2M': None
         , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'elapsed_time_size_2M': 5  # size of window to do next maintenance
+        , 'elapsed_time_size_2M': None
         , 'min_usage_period': 0 # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
@@ -109,16 +107,11 @@ OPTIONS = {
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)
-        , 't_required_hours': (10, 50, 100) # triangular distribution params
-        , 't_num_resource': (1, 6)
+        , 't_required_hours': (30, 50, 80) # triangular distribution params
+        , 't_num_resource': (2, 5)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
         , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission
     }
 }
-
-# white_list = ['O1', 'O5']
-# black_list = []
-# black_list = ['O10', 'O8', 'O6']
-# black_list = ['O8']  # this task has less candidates than what it asks.
 
