@@ -58,6 +58,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    options = params.OPTIONS = sd.SuperDict.from_dict(params.OPTIONS)
+
     if args.config_dict:
         params.OPTIONS.update(args.config_dict)
 
@@ -72,7 +74,6 @@ if __name__ == "__main__":
 
     num_instances = args.num_inst
 
-    options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
     sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
     options['PATHS'] = params.PATHS
 

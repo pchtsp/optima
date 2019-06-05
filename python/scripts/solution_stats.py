@@ -26,12 +26,18 @@ from sklearn.model_selection import train_test_split
 
 # from importlib import reload
 
-def get_num_maints(case):
-    maints = case.get_maintenance_starts()
+
+def get_num_maints(case, _type=0):
+    res = istats.get_resources_of_type(case.instance, _type=_type)
+    maints = \
+        case.get_maintenance_starts().\
+            filter_list_f(lambda v: v[0] in res)
     return len(maints)
 
-def get_prev_1M_dist(case):
-    m_starts = case.get_maintenance_starts()
+
+def get_prev_1M_dist(case, _type=0):
+    res = istats.get_resources_of_type(case.instance, _type=_type)
+    m_starts = case.get_maintenance_starts().filter_list_f(lambda v: v[0] in res)
     dist = case.instance.get_dist_periods
     first, last = (case.instance.get_param(p) for p in ['start', 'end'])
     init_ret = case.instance.get_resources('initial_elapsed')
@@ -47,25 +53,31 @@ def get_prev_1M_dist(case):
 
     return dist_to_1M
 
-def get_1M_2M_dist(case):
-    cycles = case.get_all_maintenance_cycles()
+
+def get_1M_2M_dist(case, _type=0):
+    res = istats.get_resources_of_type(case.instance, _type=_type)
+    cycles = case.get_all_maintenance_cycles().filter(list(res))
     dist = case.instance.get_dist_periods
+    max_value = case.instance.get_param('max_elapsed_time')
 
     # now we only want to see the distance when
     # there is a second maintenance
     cycles_between = \
         cycles.clean(func=lambda v: len(v)==3).\
-        apply(lambda k, v: [dist(*vv) + 1 for vv in v[1:2]])
+        apply(lambda k, v: dist(*v[1]) + 1)
 
-    return pd.Series([vv for v in cycles_between.values() for vv in v])
+    if not len(cycles_between):
+        return pd.Series(max_value)
+    return pd.Series(cycles_between.values_l())
 
 
-def get_last_maint_date(case):
+def get_last_maint_date(case, _type=0):
+    res = istats.get_resources_of_type(case.instance, _type=_type)
     dist = case.instance.get_dist_periods
     next = case.instance.get_next_period
     first, last = (case.instance.get_param(p) for p in ['start', 'end'])
     last =  next(last)
-    m_starts = case.get_maintenance_starts()
+    m_starts = case.get_maintenance_starts().filter_list_f(lambda v: v[0] in res)
 
     last_dist = \
         m_starts.\
@@ -142,6 +154,7 @@ def get_table(experiments):
         init_sum = init_hours.agg(['mean']).tolist()
         num_maints = [get_num_maints(case)]
         cons_min_assign = istats.min_assign_consumption(case.instance).agg(['mean', 'max']).tolist()
+        num_special_tasks = istats.get_num_special(case.instance)
         num_errors = 0
         errors = di.load_data(e + '/errors.json')
         _case_name = basenames[p]
@@ -155,6 +168,7 @@ def get_table(experiments):
                       pos_consum +
                       pos_aircraft +
                       [geomean_cons, geomean_airc] + [num_errors] +
+                      [num_special_tasks] +
                       cy_sum +
                       cycle_2M_quants +
                       cycle_1M_quants +
@@ -168,6 +182,7 @@ def get_table(experiments):
              'pos_consum5', 'pos_consum75', 'pos_consum9',
              'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
              'geomean_cons', 'geomean_airc', 'num_errors',
+             'spec_tasks',
              'mean_dist', 'max_dist', 'min_dist',
              'cycle_2M_min', 'cycle_2M_25', 'cycle_2M_50', 'cycle_2M_75', 'cycle_2M_max',
              'cycle_1M_min', 'cycle_1M_25', 'cycle_1M_50', 'cycle_1M_75', 'cycle_1M_max',
@@ -183,11 +198,14 @@ def get_table(experiments):
     result_tab = result_tab.merge(indeces, on='mean_consum_cut')
 
     for col in ['init', 'quant75w', 'quant9w', 'quant5w',
-                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9']:
-        result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3).astype(str)
+                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9', 'spec_tasks']:
+        result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
 
     for grade in range(2, 6):
         result_tab['mean_consum' + str(grade)] = result_tab.mean_consum ** grade
+
+    status_df = get_status_df(experiments)
+    result_tab = result_tab.merge(status_df, on=['name'], how='left')
 
     return result_tab
 
@@ -271,14 +289,19 @@ def hist_no_agg(basenames, cases):
 #####################
 # consumption + init against vars
 #####################
-def cons_init(var='mean_dist'):
-    table = result_tab.merge(status_df, on=['name'], how='left')
+def cons_init(table, var='mean_dist', facet_grid_var='init_cut ~ .', smooth=True, jitter=True, **kwargs):
     plot = ggplot2.ggplot(table) + \
-           ggplot2.aes_string(x='mean_consum', y=var, color='status') + \
-           ggplot2.geom_jitter(alpha=0.8, height=0.2) + \
-           ggplot2.geom_smooth(method = 'loess') + \
-           ggplot2.facet_grid(ro.Formula('init_cut ~ .')) + \
+           ggplot2.aes_string(x='mean_consum', y=var, **kwargs) + \
+           ggplot2.facet_grid(ro.Formula(facet_grid_var)) + \
            ggplot2.theme_minimal()
+
+    if jitter:
+        plot += ggplot2.geom_jitter(alpha=0.8, height=0.2)
+    else:
+        plot += ggplot2.geom_point(alpha=0.8, height=0.2)
+
+    if smooth:
+        plot += ggplot2.geom_smooth(method = 'loess')
 
     path_out = path_graphs + r'mean_consum_init_vs_{}_{}.png'.format(var, name)
     plot.save(path_out)
@@ -391,13 +414,9 @@ def decision_tree(result_tab, x_vars, y_var):
 
 
 def regression(result_tab, x_vars, y_var):
-    # clf = linear_model.LassoCV()
-    # clf.fit(X, Y)
     X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var)
     clf = linear_model.LinearRegression()
-    # print(X_train)
     clf.fit(X=X_train, y=y_train)
-    # print(clf.coef_)
     y_pred = clf.predict(X_test)
     args = (y_test, y_pred)
     print('MAE={}'.format(metrics.mean_absolute_error(*args)))
@@ -406,12 +425,15 @@ def regression(result_tab, x_vars, y_var):
     return (clf.coef_, clf.intercept_)
 
 
-def test_regression(result_tab):
-    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init']
+def test_regression(result_tab, x_vars, plot=True):
     predict_var= 'cycle_2M_min'
-    filter = np.all([~pd.isna(result_tab.cycle_2M_min) ,result_tab.mean_consum.between(150, 300)], axis=0)
+    filter = np.all([~pd.isna(result_tab[predict_var]),
+                     result_tab.mean_consum.between(150, 300)],
+                    axis=0)
     coefs, intercept = regression(result_tab[filter], x_vars=x_vars, y_var=predict_var)
     coef_dict = sd.SuperDict(zip(x_vars, coefs))
+    if not plot:
+        return coef_dict, intercept
     y_pred = np.sum([result_tab[k]*c for k, c in coef_dict.items()], axis=0) + intercept
     X = result_tab.copy()
     X = X.merge(status_df, on='name', how='left')
@@ -446,31 +468,38 @@ def plotting(data_frame, x_name, y_name, y_pred_name, graph_name):
     plot.save(path_out)
 
 
-def regression_superquantiles(data, status_df, predict_var, grade=1, alpha=0.9, **kwargs):
+def regression_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=True, **kwargs):
 
-    X = data[['mean_consum', 'init']].copy()
-    Y = data[predict_var]
-    for g in range(1, grade+1):
-        X['mean_consum'+str(g)] = X.mean_consum**g
+    X = result_tab[x_vars].copy()
+    Y = result_tab[predict_var].copy()
+    bound = 'upper'
+    if not upper_bound:
+        Y *= -1
+        bound = 'lower'
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=1)
-    coef0, coefs = mub.regression_VaR(X_train, y_train, alpha=alpha, **kwargs)
+    coef0, coefs = mub.regression_VaR(X=X_train, Y=y_train, **kwargs)
+    if not upper_bound:
+        coef0 *= -1
+        coefs = sd.SuperDict.from_dict(coefs).vapply(lambda v: -v)
     print(coefs)
 
     X_out = X_test.copy()
+    if not upper_bound:
+        y_test *= -1
     X_out[predict_var] = y_test
     X_out['pred'] = y_pred = np.sum([v*X_out[k] for k, v in coefs.items()], axis=0) + coef0
-    args = (y_test, y_pred)
-    error = (y_pred < y_test).sum() / y_pred.shape[0] * 100
-    print("error: {}%".format(round(error, 2)))
+    above = (y_pred > y_test).sum() / y_pred.shape[0] * 100
+    print("above: {}%".format(round(above, 2)))
 
-    X_out = X_out.join(data[['init_cut', 'name']])
-    X_out = X_out.merge(status_df, on='name', how='left')
-    graph_name = 'regression_mean_consum_g{}_init_{}_{}'.format(grade, predict_var, alpha)
+    if not plot:
+        return
+    X_out = X_out.join(result_tab[['init_cut', 'name', 'status']])
+    graph_name = 'superquantiles_mean_consum_init_{}_{}'.format(predict_var, bound)
     plotting(X_out, 'mean_consum', predict_var, 'pred', graph_name)
 
 
 if __name__ == '__main__':
-
+    os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
     pandas2ri.activate()
 
     # name = 'dell_20190502_num_maint_2'
@@ -481,48 +510,75 @@ if __name__ == '__main__':
     # name = 'dell_20190515_remakes'
     path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
     path_graphs = r'C:\Users\pchtsp\Documents\borrar/'
-    os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
     name = 'dell_20190515_all'
+    # name = 'IT000125_20190528_all'
+    name = 'IT000125_20190604'
     path = params.PATHS['results'] + name +'/base/'
 
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
-    cases = [exp.Experiment.from_dir(e) for e in experiments]
 
     result_tab = get_table(experiments)
     status_df = get_status_df(experiments)
     status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
     status_df.groupby('status').agg('count')['name']
     status_df.groupby('status').agg('max')['gap_abs']
-    status_df.groupby('status').agg('mean')['gap_abs']
+    status_df.groupby('status').agg('max')['gap']
+    status_df.groupby('status').agg('median')['gap_abs']
+    status_df.groupby('status').agg('median')['gap']
+
+    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
+    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
+    (result_tab.num_errors==0).sum()
+    cons_init(result_tab, var='cycle_2M_min', color='status', smooth=False)
 
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
         draw_hist(var)
 
     draw_hist('mean_2maint')
 
-    hist_no_agg(basenames, cases)
-    for var in ['maints', 'mean_dist', 'mean_2maint']:
-        cons_init(var)
+    # cases = [exp.Experiment.from_dir(e) for e in experiments]
+    # hist_no_agg(basenames, cases)
+
+    for var in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
+        cons_init(result_tab, var, color='status')
 
     result_tab_summ = \
         result_tab.groupby(['mean_consum_cut_2', 'init_cut']). \
             agg({'mean_dist': ['mean', 'var'],
                  'maints': ['mean', 'var']})
 
-    regression(result_tab, ['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
-    regression(result_tab, ['mean_consum', 'init', 'geomean_cons'], 'maints')
-    data = test_regression(result_tab)
-    data
+    # regression(result_tab, ['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
+    # regression(result_tab, ['mean_consum', 'init', 'geomean_cons'], 'maints')
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'pos_consum9',
+              'pos_consum5', 'quant5w', 'quant75w', 'quant9w', 'max_consum', 'var_consum',
+              'cons_min_mean', 'cons_min_max']
+    x_vars += ['spec_tasks']
+    # x_vars += ['geomean_cons']
+    predict_var = 'cycle_2M_min'
+
+    bound_options = [(True, 0.7), (False, 0.5)]
+    bound_options = [(False, 0.5)]
+    table = result_tab
+    # table = result_tab.query('mean_consum >=180 and gap_abs <= 30')
+    # table = result_tab[result_tab.mean_consum.between(150, 300)]
+    table = result_tab.query('mean_consum >=150 and gap_abs <= 80')
+    for upper, alpha in bound_options:
+        regression_superquantiles(table, x_vars=x_vars,
+                                  predict_var=predict_var,
+                                  _lambda=10, alpha=alpha, plot=True, upper_bound=upper)
+    data = test_regression(result_tab, x_vars, plot=False)
+    data = test_regression(result_tab, x_vars)
+    (result_tab.num_errors>0).sum()
     # 'mean_consum', 'init', 'mean_consum_2', 'mean_consum_3'
 
     for _var in ['maints', 'mean_2maint', 'mean_dist']:
         for grade in range(3, 4):
             for (alpha, sign) in zip([0.99, 0.8], [-1, 1]):
                 print(_var, grade)
-                regression_superquantiles(result_tab, status_df, _var, grade, _lambda=0.1, alpha=alpha, sign=sign)
+                regression_superquantiles(result_tab, status_df, _var, _lambda=0.1, alpha=alpha, sign=sign)
                 print()
-    # regression_superquantiles(result_tab, status_df, _var, 3, _lambda=0.1, alpha=0.95, sign=-1)
+
 
     var_coefs = {}
     for predict_var in ['maints', 'mean_2maint', 'mean_dist']:
@@ -534,3 +590,20 @@ if __name__ == '__main__':
             coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=alpha, sign=sign)
             coefs['intercept'] = coef0
             var_coefs[bound+'_'+predict_var] = coefs
+
+
+    # some more graphs.
+    var = 'cycle_2M_min'
+    table = result_tab.merge(status_df, on=['name'], how='left')
+    table = table[table.mean_consum.between(150, 300)]
+    plot = ggplot2.ggplot(table) + \
+           ggplot2.aes_string(x='mean_consum', y=var) + \
+           ggplot2.geom_jitter(alpha=0.8, height=0.2) + \
+           ggplot2.geom_smooth() + \
+           ggplot2.facet_grid(ro.Formula('init_cut ~ spec_tasks_cut')) + \
+           ggplot2.theme_minimal()
+    path_out = path_graphs + r'mean_consum_init_vs_{}_{}_spectasks_nocolor.png'.format(var, name)
+    plot.save(path_out)
+
+
+# result_tab.groupby('spec_tasks_cut').name.agg('count')

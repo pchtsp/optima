@@ -84,11 +84,8 @@ OPTIONS = {
     # stats-cut-data
     , 'StochCuts' : {
         'active': False,
-        'max_maints': None,
-        'max_mean_2maint': None,
-        'max_mean_dist': None
     }, 'reduce_2M_window': {
-        'active': True,
+        'active': False,
         'window_size': 10
     }
     # simulation params:
