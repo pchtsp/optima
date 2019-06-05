@@ -6,7 +6,7 @@ import unicodedata
 import package.auxiliar as aux
 import numpy as np
 import copy
-import json
+import ujson as json
 import pickle
 from pytups import superdict as sd
 from pytups import tuplist as tl
