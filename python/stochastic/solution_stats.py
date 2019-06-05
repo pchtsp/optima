@@ -5,11 +5,9 @@ import pytups.superdict as sd
 import pytups.tuplist as tl
 import os
 import numpy as np
-import package.rpy_graphs as rpyg
-import package.reports as rep
 import package.data_input as di
 import package.model_upper_bound as mub
-import package.instance_stats as istats
+import stochastic.instance_stats as istats
 
 import shutil
 import orloge as ol
@@ -20,7 +18,6 @@ import rpy2.robjects as ro
 
 from sklearn import tree
 from sklearn import linear_model
-import graphviz
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 

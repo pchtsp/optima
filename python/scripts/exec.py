@@ -9,7 +9,7 @@ import package.experiment as exp
 import package.heuristics as heur
 import package.heuristics_maintfirst as mf
 import package.simulation as sim
-import package.instance_stats as istats
+import stochastic.instance_stats as istats
 import pytups.superdict as sd
 
 import datetime as dt
