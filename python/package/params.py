@@ -11,7 +11,7 @@ path_base = r'/home'
 # path_base = r'C:\Users'
 path_root = path_base + '/pchtsp/Documents/projects/'
 path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
-path_results = r'C:\Users\franco.peschiera.fr\Documents\optima_results/'
+path_results = r'C:\Users\pchtsp\Documents\borrar/'
 path_project = path_root + "OPTIMA/"
 
 PATHS = {

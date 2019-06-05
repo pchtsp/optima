@@ -7,7 +7,7 @@ import orloge as log
 import numpy as np
 import package.auxiliar as aux
 import package.experiment as exp
-import package.reports as rep
+import reports.reports as rep
 
 
 path_root = PATHS['root']

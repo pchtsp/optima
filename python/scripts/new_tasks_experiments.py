@@ -1,5 +1,4 @@
-import scripts.COR2019 as cor
-import package.reports as rep
+import reports.reports as rep
 import pandas as pd
 import dfply as dp
 from dfply import X

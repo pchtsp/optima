@@ -3,15 +3,12 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import package.experiment as exp
 import pprint as pp
-from package.params import PATHS, OPTIONS
-import package.auxiliar as aux
-import package.data_input as di
+from package.params import PATHS
 import pandas as pd
 import pytups.superdict as sd
 import pytups.tuplist as tl
 import scripts.exec as exec
-import package.model as md
-import package.rpy_graphs as rg
+import reports.rpy_graphs as rg
 import dfply as dp
 from dfply import X
 import multiprocessing as multi

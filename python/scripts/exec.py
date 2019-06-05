@@ -4,10 +4,10 @@ import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.solution as sol
-import package.model as md
 import package.experiment as exp
-import package.heuristics as heur
-import package.heuristics_maintfirst as mf
+import solvers.model as md
+import solvers.heuristics as heur
+import solvers.heuristics_maintfirst as mf
 import package.simulation as sim
 import stochastic.instance_stats as istats
 import pytups.superdict as sd

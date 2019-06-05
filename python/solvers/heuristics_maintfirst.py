@@ -4,7 +4,7 @@ import package.data_input as di
 import numpy as np
 import package.instance as inst
 import package.solution as sol
-import package.heuristics as heur
+import solvers.heuristics as heur
 import random as rn
 import math
 import ujson

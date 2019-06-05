@@ -1,7 +1,5 @@
-import package.auxiliar as aux
 import package.data_input as di
-import package.model as md
-import package.instance as inst
+import solvers.model as md
 import package.experiment as exp
 import os
 

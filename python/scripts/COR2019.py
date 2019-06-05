@@ -1,4 +1,4 @@
-import package.reports as rep
+import reports.reports as rep
 import os
 import package.experiment as exp
 import pandas as pd
@@ -9,7 +9,7 @@ import pytups.superdict as sd
 # import numpy as np
 import dfply as dp
 from dfply import X
-import package.rpy_graphs as rg
+import reports.rpy_graphs as rg
 import scripts.names as na
 import orloge as ol
 

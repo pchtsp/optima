@@ -1,12 +1,12 @@
 import sys
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtWidgets
 from desktop_app.gui import Ui_MainWindow
 
 import package.auxiliar as aux
 import package.data_input as di
 import package.instance as inst
 import package.params as params
-import package.heuristics as heur
+import solvers.heuristics as heur
 import os
 import arrow
 import pprint as pp
