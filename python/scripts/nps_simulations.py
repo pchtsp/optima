@@ -37,7 +37,7 @@ def solve_errors(initial_data, _option):
     try:
         print('path is : {}'.format(_option['path']))
         model_data = sim.create_dataset(_option)
-        model_data = merge_resources(model_data, initial_data)
+        # model_data = merge_resources(model_data, initial_data)
         exec.execute_solve(model_data, _option)
     except Exception as e:
         str_fail = "Unexpected error in case: \n{}".format(repr(e))
@@ -85,6 +85,7 @@ if __name__ == "__main__":
 
     seed_backup = sim_data['seed']
     multiproc = options.get('multiprocess')
+    time_limit_default = options.get('timeLimit', 3600) + 600
     results = {}
     pos = 0
     pool = None
@@ -139,5 +140,5 @@ if __name__ == "__main__":
 
     for pos, result in results.items():
         # print('actually running functions')
-        result.get(timeout=1000)
+        result.get(timeout=time_limit_default)
 

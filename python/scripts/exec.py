@@ -44,6 +44,21 @@ def config_and_solve(options):
     execute_solve(model_data, options)
 
 
+def re_execute_instance_errors(directory, new_options=None, **kwags):
+    destination = directory
+    if new_options is not None:
+        if 'path' in new_options:
+            destination = new_options['path']
+    try:
+        print('path is : {}'.format(directory))
+        re_execute_instance(directory, new_options=new_options, **kwags)
+    except Exception as e:
+        str_fail = "Unexpected error in case: \n{}".format(repr(e))
+        path_out = os.path.join(destination, 'failure.txt')
+        with open(path_out, 'w') as f:
+            f.write(str_fail)
+
+
 def re_execute_instance(directory, new_options=None, new_input=None):
     if not os.path.exists(directory):
         raise ValueError('path {} does not exist'.format(directory))
@@ -74,7 +89,9 @@ def execute_solve(model_data, options, solution_data=None):
     StochCuts = options.get('StochCuts', {})
     if StochCuts.get('active', False):
         for variable in ['maints', 'mean_2maint', 'mean_dist']:
-            for bound in ['min', 'max']:
+            for bound in StochCuts.get('bounds', ['min', 'max']):
+                if bound is None:
+                    continue
                 name = bound + '_' + variable
                 StochCuts[name] = istats.get_bound_var(instance, name)
         options['StochCuts'] = StochCuts

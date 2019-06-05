@@ -81,9 +81,12 @@ OPTIONS = {
     , 'threads': None
     , 'solver_path': None
     , 'keepfiles': 0
+    , 'do_not_solve': False
     # stats-cut-data
     , 'StochCuts' : {
         'active': False,
+        'bounds': ['min', 'max'],  # ['min', 'max']
+        'cuts': ['maints', 'mean_2maint', 'mean_dist']
     }, 'reduce_2M_window': {
         'active': False,
         'window_size': 10

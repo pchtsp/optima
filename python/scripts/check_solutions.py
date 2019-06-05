@@ -11,7 +11,7 @@ import pytups.superdict as sd
 import pytups.tuplist as tl
 import scripts.exec as exec
 import package.model as md
-import package.rpy_graphs as rg
+# import package.rpy_graphs as rg
 import dfply as dp
 from dfply import X
 import multiprocessing as multi
@@ -82,7 +82,7 @@ def graph_check():
     status.columns = ['period', 'rut', 'ret', 'state', 'task']
     status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    rg.gantt_experiment(path)
+    # rg.gantt_experiment(path)
 
     experiment.check_solution()
 
@@ -131,12 +131,17 @@ def test_rexecute_many(exp_origin, exp_dest, num_proc=2, max_instances=None, new
     for pos, path_in in enumerate(path_ins):
         path_out = path_outs[pos]
         args = {'directory': path_in, 'new_options': {**new_options, **{'path': path_out}}, **kwargs}
-        results[pos] = pool.apply_async(exec.re_execute_instance, kwds=args)
+        results[pos] = pool.apply_async(exec.re_execute_instance_errors, kwds=args)
         if pos + 1 >= max_instances:
             break
 
+    timelimit = new_options.get('timeLimit', 3600)
     for pos, result in results.items():
-        result.get(timeout=3600+100)
+        try:
+            result.get(timeout=timelimit+600)
+        except multi.TimeoutError:
+            print('Multiprocessing TimeoutError happened.')
+            pass
 
 
 def check_over_assignments():

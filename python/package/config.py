@@ -42,8 +42,6 @@ class Config(object):
                 self.memory = None
         else:
             self.memory = options.get('memory')
-        self.writeMPS = options.get('writeMPS', False)
-        self.writeLP = options.get('writeLP', False)
 
     def config_cbc(self):
         if not os.path.exists(self.path):
@@ -102,11 +100,6 @@ class Config(object):
 
     def solve_model(self, model):
 
-        if self.writeMPS:
-            model.writeMPS(filename=self.path + 'formulation.mps')
-        if self.writeLP:
-            model.writeLP(filename=self.path + 'formulation.lp')
-
         solver = None
         if self.solver == "GUROBI":
             solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=self.keepfiles)
@@ -120,6 +113,7 @@ class Config(object):
             try:
                 result = model.solve(solver, timeout=self.timeLimit + 60)
             except pl.PulpSolverError as e:
+                print('Possible PuLP TimeoutError happened.')
                 print(e)
                 # We usually get this because of CPLEX not ending when it should
                 result = 0

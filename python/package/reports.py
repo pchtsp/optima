@@ -479,12 +479,14 @@ def get_experiment_errors(experiment):
     path_exps = path_results + experiment
     exp_inst = di.experiment_to_instances(path_exps)
     errors_f = \
-        sd.SuperDict.from_dict(exp_inst).to_dictup().\
+        sd.SuperDict.from_dict(exp_inst)\
+            .to_dictup().\
             apply(lambda k, v: os.path.join(v, 'errors.json')).\
             apply(lambda k, v: sd.SuperDict.from_dict(di.load_data(v)) if os.path.exists(v) else sd.SuperDict()).\
             apply(lambda k, v: v.to_dictup().len()).\
             to_dictdict()
-    table = pd.DataFrame.from_dict(errors_f, orient='index').\
+    table = \
+        pd.DataFrame.from_dict(errors_f, orient='index').\
         stack().\
         reset_index().\
         rename(columns={'level_0': 'scenario', 'level_1':'instance_name', 0: 'errors'}).\
@@ -493,9 +495,10 @@ def get_experiment_errors(experiment):
         reset_index().\
         rename(columns={'index': 'instance'})
 
-    table['instance'] = table.groupby('scenario').\
-        apply(func=lambda x: x.instance - x.instance.min()).\
-        reset_index(drop=True)
+    table['instance'] = \
+        table.groupby('scenario')['instance'].apply(lambda x: x - x.min())
+
+    table.reset_index(drop=True, inplace=True)
 
     return table
 

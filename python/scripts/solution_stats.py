@@ -209,14 +209,17 @@ def clean_remakes():
 
     lled.apply(shutil.rmtree)
 
-def write_index():
-    _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
-                     status_df.gap_abs >= 50], axis=0)
+def write_index(status_df, remakes_path):
+    # sum(_filter)
+    # sum(status_df.sol_code==ol.LpSolutionOptimal)
+    not_optimal_status = [ol.LpSolutionIntegerFeasible, ol.LpSolutionNoSolutionFound]
+    _filter = np.in1d(status_df.sol_code, not_optimal_status)
+    # _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
+    #                  status_df.gap_abs >= 10], axis=0)
+    # _filter = np.any([status_df.sol_code==ol.LpSolutionNoSolutionFound, _filter], axis=0)
     remakes_df = status_df[_filter].sort_values(['gap_abs'], ascending=False)
-
+    status_df.groupby('sol_code').agg('count')
     remakes = remakes_df.name.tolist()
-    remakes_path = r'C:\Users\franco.peschiera.fr\Documents\optima_results\dell_20190515_remakes/base/index.txt'
-
     with open(remakes_path, 'w') as f:
         f.write('\n'.join(remakes))
 
