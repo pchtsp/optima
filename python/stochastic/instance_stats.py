@@ -7,25 +7,25 @@ def get_resources_of_type(instance, _type=0):
         clean(func=lambda v: v == _type).to_tuplist().filter(0).to_set()
 
 
-def is_type(task, type, property_name='type_resource'):
-    return task[property_name] == type
+def is_type(task, _type, property_name='type_resource'):
+    return task[property_name] == _type
 
 
-def min_assign_consumption(instance, type=0):
+def min_assign_consumption(instance, _type=0):
     tasks = instance.get_tasks()
     tasks_tt = \
         sd.SuperDict(tasks).\
-        clean(func=is_type, type=type).\
+        clean(func=is_type, _type=_type).\
         apply(lambda k, v: v['consumption']*v['num_resource']*v['min_assign'])
     return pd.Series(tasks_tt.values_l())
 
 
-def get_rel_consumptions(instance, type=0):
+def get_rel_consumptions(instance, _type=0):
     ranged = instance.get_periods_range
     tasks = instance.get_tasks()
     tasks_tt = \
         sd.SuperDict(tasks). \
-            clean(func=is_type, type=type). \
+            clean(func=is_type, _type=_type). \
             apply(lambda k, v:
                   sd.SuperDict({p: v['consumption']*v['min_assign']
                                 for p in ranged(v['start'], v['end'])})). \
@@ -38,7 +38,7 @@ def get_rel_consumptions(instance, type=0):
     return pd.Series(values)
 
 
-def get_consumptions(instance, hours=True, type=0):
+def get_consumptions(instance, hours=True, _type=0):
 
     ranged = instance.get_periods_range
     tasks = instance.get_tasks()
@@ -47,7 +47,7 @@ def get_consumptions(instance, hours=True, type=0):
         tasks = tasks.apply(lambda k, v: {**v, **{'consumption': 1}})
     tasks_tt = \
         tasks. \
-        clean(func=is_type, type=type). \
+        clean(func=is_type, _type=_type). \
         vapply(lambda v:
                        sd.SuperDict({p: v['consumption']*v['num_resource']
                                      for p in ranged(v['start'], v['end'])})).\
@@ -60,11 +60,11 @@ def get_consumptions(instance, hours=True, type=0):
     return pd.Series(values)
 
 
-def get_init_hours(instance, type=0):
+def get_init_hours(instance, _type=0):
     resources = sd.SuperDict.from_dict(instance.get_resources())
     data =\
         resources.\
-            clean(func=is_type, type=type, property_name='type').\
+            clean(func=is_type, _type=_type, property_name='type').\
             get_property('initial_used').values_l()
     return pd.Series(data)
 
@@ -79,12 +79,12 @@ def get_argmedian(consumption, prop=0.5):
     return len(consumption)
 
 
-def get_num_special(instance, type=0):
+def get_num_special(instance, _type=0):
     _dist = instance.get_dist_periods
     tasks = sd.SuperDict.from_dict(instance.get_tasks())
     tasks_spec = \
         tasks.\
-            clean(func=is_type, type=type).\
+            clean(func=is_type, _type=_type).\
             get_property('capacities').\
             to_lendict().clean(1).keys_l()
     spec_hours = \

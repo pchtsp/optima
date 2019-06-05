@@ -57,10 +57,10 @@ def hist_no_agg(basenames, cases):
 #####################
 # consumption + init against vars
 #####################
-def cons_init(table, var='mean_dist', facet_grid_var='init_cut ~ .', smooth=True, jitter=True, **kwargs):
+def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, jitter=True, **kwargs):
+    # x='mean_consum', y=y,
     plot = ggplot2.ggplot(table) + \
-           ggplot2.aes_string(x='mean_consum', y=var, **kwargs) + \
-           ggplot2.facet_grid(ro.Formula(facet_grid_var)) + \
+           ggplot2.aes_string(**kwargs) + \
            ggplot2.theme_minimal()
 
     if jitter:
@@ -68,11 +68,18 @@ def cons_init(table, var='mean_dist', facet_grid_var='init_cut ~ .', smooth=True
     else:
         plot += ggplot2.geom_point(alpha=0.8, height=0.2)
 
+    if facet:
+        plot += ggplot2.facet_grid(ro.Formula(facet))
+
     if smooth:
         plot += ggplot2.geom_smooth(method = 'loess')
 
-    path_out = path_graphs + r'mean_consum_init_vs_{}_{}.png'.format(var, name)
+    if y_pred:
+        plot += ggplot2.geom_line(ggplot2.aes_string(y=y_pred), color='blue')
+
+    path_out = path_graphs + r'{}_{}.png'.format(graph_name, name)
     plot.save(path_out)
+
 
 
 def test3(var = 'cons_min_max_vs_maints'):
@@ -106,21 +113,6 @@ def test6(var = 'cons_min_max_vs_max_dist_by_pos_consum'):
     path_out = path_graphs + r'{}_{}.png'.format(var, name)
     plot.save(path_out)
 
-
-def plotting(data_frame, x_name, y_name, y_pred_name, graph_name):
-    # Plot!
-    # result = pd.DataFrame(x_test)
-    # result['y_test'] = y_test
-    # result['y_pred'] = y_pred
-    plot = ggplot2.ggplot(data_frame) + \
-           ggplot2.aes_string(x=x_name, y=y_name, color='status') + \
-           ggplot2.geom_jitter(alpha=0.8, height=0.1) + \
-           ggplot2.geom_line(ggplot2.aes_string(y=y_pred_name), color='blue') + \
-           ggplot2.facet_grid(ro.Formula('init_cut ~ .')) + \
-           ggplot2.theme_minimal()
-
-    path_out = path_graphs + r'{}_{}.png'.format(graph_name, name)
-    plot.save(path_out)
 
 def cycle_sizes(cases):
     cycles =[sol_status.get_1M_2M_dist(case) for case in cases if case is not None]

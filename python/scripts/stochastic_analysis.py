@@ -18,8 +18,6 @@ import orloge as ol
 import pandas as pd
 
 
-# from importlib import reload
-
 #####################
 # EXPORT THINGS
 ####################
@@ -40,7 +38,7 @@ def clean_remakes():
 
     lled.apply(shutil.rmtree)
 
-def write_index():
+def write_index(status_df):
     _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
                      status_df.gap_abs >= 50], axis=0)
     remakes_df = status_df[_filter].sort_values(['gap_abs'], ascending=False)
@@ -71,58 +69,59 @@ def instance_status(experiments, vars_extract):
         rename_axis('name').\
         reset_index().merge(master, on='sol_code')
 
-def get_table(experiments):
+def get_table(experiments, _types=1):
     result = []
     cases = [exp.Experiment.from_dir(e) for e in experiments]
     basenames = [os.path.basename(e) for e in experiments]
 
-    for p, e in enumerate(experiments):
-        # print(e)
-        case = cases[p]
-        # we clean errors.
-        if case is None:
-            continue
-        consumption = istats.get_consumptions(case.instance)
-        aircraft_use = istats.get_consumptions(case.instance, hours=False)
-        rel_consumption = istats.get_rel_consumptions(case.instance)
-        cycle_2M_size = sol_stats.get_1M_2M_dist(case)
-        cycle_1M_size = sol_stats.get_prev_1M_dist(case)
-        cycle_2M_quants = cycle_2M_size.quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
-        cycle_1M_size_values = cycle_1M_size.values_l()
-        cycle_1M_quants = pd.Series(cycle_1M_size_values).quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
-        l_maint_date = sol_stats.get_last_maint_date(case).values_l()
-        init_hours = istats.get_init_hours(case.instance)
-        cy_sum = cycle_2M_size.agg(['mean', 'max', 'min']).tolist()
-        airc_sum = aircraft_use.agg(['mean', 'max', 'var']).tolist()
-        cons_sum = consumption.agg(['mean', 'max', 'var']).tolist()
-        l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min']).tolist()
-        pos_consum = [istats.get_argmedian(consumption, prop) for prop in [0.5, 0.75, 0.9]]
-        pos_aircraft = [istats.get_argmedian(aircraft_use, prop) for prop in [0.5, 0.75, 0.9]]
-        geomean_airc = istats.get_geomean(aircraft_use)
-        geomean_cons = istats.get_geomean(consumption)
-        quantsw = rel_consumption.rolling(12).mean().shift(-11).quantile(q=[0.5, 0.75, 0.9]).tolist()
-        init_sum = init_hours.agg(['mean']).tolist()
-        num_maints = [sol_stats.get_num_maints(case)]
-        cons_min_assign = istats.min_assign_consumption(case.instance).agg(['mean', 'max']).tolist()
-        num_special_tasks = istats.get_num_special(case.instance)
-        num_errors = 0
-        errors = di.load_data(e + '/errors.json')
-        _case_name = basenames[p]
-        if errors:
-            num_errors = sd.SuperDict(errors).to_dictup().len()
-        result.append([_case_name] + init_sum +
-                      cons_sum +
-                      airc_sum +
-                      num_maints +
-                      cons_min_assign + quantsw +
-                      pos_consum +
-                      pos_aircraft +
-                      [geomean_cons, geomean_airc] + [num_errors] +
-                      [num_special_tasks] +
-                      cy_sum +
-                      cycle_2M_quants +
-                      cycle_1M_quants +
-                      l_maint_date_stat)
+    for _type in range(_types):
+        for p, e in enumerate(experiments):
+            # print(e)
+            case = cases[p]
+            # we clean errors.
+            if case is None:
+                continue
+            consumption = istats.get_consumptions(case.instance, _type=_type)
+            aircraft_use = istats.get_consumptions(case.instance, hours=False, _type=_type)
+            rel_consumption = istats.get_rel_consumptions(case.instance, _type=_type)
+            cycle_2M_size = sol_stats.get_1M_2M_dist(case, _type=_type)
+            cycle_1M_size = sol_stats.get_prev_1M_dist(case, _type=_type)
+            cycle_2M_quants = cycle_2M_size.quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
+            cycle_1M_size_values = cycle_1M_size.values_l()
+            cycle_1M_quants = pd.Series(cycle_1M_size_values).quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
+            l_maint_date = sol_stats.get_last_maint_date(case, _type=_type).values_l()
+            init_hours = istats.get_init_hours(case.instance, _type=_type)
+            cy_sum = cycle_2M_size.agg(['mean', 'max', 'min']).tolist()
+            airc_sum = aircraft_use.agg(['mean', 'max', 'var']).tolist()
+            cons_sum = consumption.agg(['mean', 'max', 'var']).tolist()
+            l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min']).tolist()
+            pos_consum = [istats.get_argmedian(consumption, prop) for prop in [0.5, 0.75, 0.9]]
+            pos_aircraft = [istats.get_argmedian(aircraft_use, prop) for prop in [0.5, 0.75, 0.9]]
+            geomean_airc = istats.get_geomean(aircraft_use)
+            geomean_cons = istats.get_geomean(consumption)
+            quantsw = rel_consumption.rolling(12).mean().shift(-11).quantile(q=[0.5, 0.75, 0.9]).tolist()
+            init_sum = init_hours.agg(['mean']).tolist()
+            num_maints = [sol_stats.get_num_maints(case, _type=_type)]
+            cons_min_assign = istats.min_assign_consumption(case.instance, _type=_type).agg(['mean', 'max']).tolist()
+            num_special_tasks = istats.get_num_special(case.instance, _type=_type)
+            num_errors = 0
+            errors = di.load_data(e + '/errors.json')
+            _case_name = basenames[p]
+            if errors:
+                num_errors = sd.SuperDict(errors).to_dictup().len()
+            result.append([_case_name] + init_sum +
+                          cons_sum +
+                          airc_sum +
+                          num_maints +
+                          cons_min_assign + quantsw +
+                          pos_consum +
+                          pos_aircraft +
+                          [geomean_cons, geomean_airc] + [num_errors] +
+                          [num_special_tasks] +
+                          cy_sum +
+                          cycle_2M_quants +
+                          cycle_1M_quants +
+                          l_maint_date_stat)
 
     names = ['name', 'init',
              'mean_consum', 'max_consum', 'var_consum',
@@ -156,6 +155,9 @@ def get_table(experiments):
 
     status_df = get_status_df(experiments)
     result_tab = result_tab.merge(status_df, on=['name'], how='left')
+
+    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
+    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
 
     return result_tab
 
@@ -194,15 +196,21 @@ def test5():
 
 
 if __name__ == '__main__':
-    os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
+    # os.environ['path'] += r';C:\Program Files (x86)\Graphviz2.38\bin'
+    # from importlib import reload
     name = sto_params.name
     path = params.PATHS['results'] + name +'/base/'
 
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
 
-    result_tab = get_table(experiments)
+    result_tab = get_table(experiments, 2)
+
+    result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
+    result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
+
     status_df = get_status_df(experiments)
+
     status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
     status_df.groupby('status').agg('count')['name']
     status_df.groupby('status').agg('max')['gap_abs']
@@ -210,10 +218,9 @@ if __name__ == '__main__':
     status_df.groupby('status').agg('median')['gap_abs']
     status_df.groupby('status').agg('median')['gap']
 
-    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
-    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
+
     (result_tab.num_errors==0).sum()
-    graphs.cons_init(result_tab, var='cycle_2M_min', color='status', smooth=False)
+    graphs.cons_init(result_tab, y='cycle_2M_min', color='status', smooth=False)
 
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
         graphs.draw_hist(var)
@@ -223,33 +230,27 @@ if __name__ == '__main__':
     # cases = [exp.Experiment.from_dir(e) for e in experiments]
     # hist_no_agg(basenames, cases)
 
-    for var in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
-        graphs.cons_init(result_tab, var, color='status')
+    for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
+        x = 'mean_consum'
+        graph_name = '{}_vs_{}'.format(x, y)
+        graphs.plotting(result_tab[result_tab.gap_abs<=80], x=x,  y=y, color='status',
+                        facet='init_cut ~ .' , graph_name=graph_name, smooth=True)
 
-    result_tab_summ = \
-        result_tab.groupby(['mean_consum_cut_2', 'init_cut']). \
-            agg({'mean_dist': ['mean', 'var'],
-                 'maints': ['mean', 'var']})
-
-    # regression(result_tab, ['mean_consum', 'init', 'pos_consum5'], 'mean_dist')
-    # regression(result_tab, ['mean_consum', 'init', 'geomean_cons'], 'maints')
     x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'pos_consum9',
               'pos_consum5', 'quant5w', 'quant75w', 'quant9w', 'max_consum', 'var_consum',
               'cons_min_mean', 'cons_min_max']
     x_vars += ['spec_tasks']
     # x_vars += ['geomean_cons']
-    predict_var = 'cycle_2M_min'
-
-    bound_options = [(True, 0.7), (False, 0.5)]
-    bound_options = [(False, 0.5)]
+    bound_options = [('maints', True, 0.8), ('maints', False, 0.8), ('cycle_2M_min', False, 0.8)]
     table = result_tab
     # table = result_tab.query('mean_consum >=180 and gap_abs <= 30')
     # table = result_tab[result_tab.mean_consum.between(150, 300)]
-    table = result_tab.query('mean_consum >=150 and gap_abs <= 80')
-    for upper, alpha in bound_options:
-        models.regression_superquantiles(table, x_vars=x_vars,
-                                  predict_var=predict_var,
-                                  _lambda=10, alpha=alpha, plot=True, upper_bound=upper)
+    table = result_tab.query('mean_consum >=150 and mean_consum <=250 and gap_abs <= 80')
+    # table = result_tab.query('mean_consum >=150 and mean_consum <=250 and num_errors==0')
+    for predict_var, upper, alpha in bound_options:
+        data = models.test_superquantiles(table, x_vars=x_vars,
+                                   predict_var=predict_var,
+                                   _lambda=10, alpha=alpha, plot=True, upper_bound=upper)
     data = models.test_regression(result_tab, x_vars, plot=False)
     data = models.test_regression(result_tab, x_vars)
     (result_tab.num_errors>0).sum()
@@ -259,7 +260,7 @@ if __name__ == '__main__':
         for grade in range(3, 4):
             for (alpha, sign) in zip([0.99, 0.8], [-1, 1]):
                 print(_var, grade)
-                models.regression_superquantiles(result_tab, status_df, _var, _lambda=0.1, alpha=alpha, sign=sign)
+                models.test_superquantiles(result_tab, status_df, _var, _lambda=0.1, alpha=alpha, sign=sign)
                 print()
 
 # result_tab.groupby('spec_tasks_cut').name.agg('count')

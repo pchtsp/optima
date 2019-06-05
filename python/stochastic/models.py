@@ -57,7 +57,7 @@ def test_regression(result_tab, x_vars, plot=True):
     X = result_tab.copy()
     X['pred'] = y_pred
     graph_name = 'regression_mean_consum_g{}_init_{}'.format(5, predict_var)
-    graphs.plotting(X, 'mean_consum', predict_var, 'pred', graph_name)
+    graphs.plotting(X, x='mean_consum', y=predict_var, y_pred='pred', graph_name=graph_name, smooth=False)
     return coef_dict, intercept
 
 
@@ -70,7 +70,7 @@ def classify(result_tab, x_vars, y_var):
     return metrics.confusion_matrix(y_test, y_pred)
 
 
-def regression_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=True, **kwargs):
+def test_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=True, **kwargs):
 
     X = result_tab[x_vars].copy()
     Y = result_tab[predict_var].copy()
@@ -83,7 +83,6 @@ def regression_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_
     if not upper_bound:
         coef0 *= -1
         coefs = sd.SuperDict.from_dict(coefs).vapply(lambda v: -v)
-    print(coefs)
 
     X_out = X_test.copy()
     if not upper_bound:
@@ -94,22 +93,13 @@ def regression_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_
     print("above: {}%".format(round(above, 2)))
 
     if not plot:
-        return
+        return coefs, coef0
     X_out = X_out.join(result_tab[['init_cut', 'name', 'status']])
     graph_name = 'superquantiles_mean_consum_init_{}_{}'.format(predict_var, bound)
-    graphs.plotting(X_out, 'mean_consum', predict_var, 'pred', graph_name)
+    graphs.plotting(table=X_out, x='mean_consum', y=predict_var, y_pred='pred',
+                    graph_name=graph_name, smooth=False, color='status')
+    return coefs, coef0
 
 
 if __name__ == '__main__':
-    result_tab = None
-    var_coefs = {}
-    for predict_var in ['maints', 'mean_2maint', 'mean_dist']:
-        for (bound, sign, alpha) in [('max', 1, 0.8), ('min', -1, 0.99)]:
-            x_train = result_tab[['mean_consum', 'init']].copy()
-            x_train['mean_consum2'] = x_train.mean_consum**2
-            x_train['mean_consum3'] = x_train.mean_consum**3
-            y_train = result_tab[predict_var]
-            coef0, coefs = mub.regression_VaR(x_train, y_train, _lambda=0.1, alpha=alpha, sign=sign)
-            coefs['intercept'] = coef0
-            var_coefs[bound+'_'+predict_var] = coefs
-
+    pass
