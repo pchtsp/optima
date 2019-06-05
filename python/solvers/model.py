@@ -25,8 +25,7 @@ class Model(exp.Experiment):
     def solve(self, options=None):
         self.domains = l = self.get_domains_sets()
         ub = self.get_bounds()
-        first_period = self.instance.get_param('start')
-        last_period = self.instance.get_param('end')
+        first_period, last_period = (self.instance.get_param(d) for d in ['start', 'end'])
         consumption = sd.SuperDict.from_dict(self.instance.get_tasks('consumption'))
         requirement = self.instance.get_tasks('num_resource')
         rut_init = self.instance.get_initial_state("used")
@@ -113,7 +112,7 @@ class Model(exp.Experiment):
             , 'slack_kts': slack_kts
         }
 
-        if options.get('mip_start'):
+        if options.get('mip_start') and self.solution is not None:
             self.fill_initial_solution(vs)
             vars_to_fix = []
             # vars_to_fix = [start_M, start_T]
@@ -125,10 +124,8 @@ class Model(exp.Experiment):
         # MODEL
         model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
 
-        # TODO: temporal!!
         # try to make the second maintenance the most late possible
         period_pos = self.instance.data['aux']['period_i']
-        # - pl.lpSum(start_M[a, t1, t2] * period_pos[t2] for a, t1, t2 in l['att_maints'])\
 
         # OBJECTIVE:
         # maints
@@ -274,43 +271,7 @@ class Model(exp.Experiment):
 
 
         # Adding trained cuts.
-        StochCuts = options.get('StochCuts', {})
-        if StochCuts.get('active', False):
-            # print(StochCuts)
-            size_res = len(l['resources'])
-            def get_max_min(var, func=None):
-                bounds = ['min', 'max']
-                _func = {'min': math.floor, 'max': math.ceil}
-                contents = sd.SuperDict({k: StochCuts['{}_{}'.format(k, var)] for k in bounds})
-                if func is not None:
-                    contents = contents.vapply(func)
-                return tuple(_func[b](contents[b]) for b in ['min', 'max'])
-            _dist = self.instance.get_dist_periods
-            min_second_maints, max_second_maints = get_max_min('maints', lambda v: v - size_res)
-            min_sum_dist_2M_end, max_sum_dist_2M_end = get_max_min('mean_2maint', lambda v: size_res*v)
-            min_sum_dist_1M_2M, max_sum_dist_1M_2M = get_max_min('mean_dist', lambda v: size_res*v)
-            # print(get_max_min('maints'))
-            # print(get_max_min('mean_2maint', lambda v: size_res*v))
-            # print(get_max_min('mean_dist', lambda v: size_res*v))
-            # we get for each combination: the distance between the second and last period
-            dist_m2_end = \
-                tl.TupList(l['att_maints_no_last']). \
-                    to_dict(result_col=None). \
-                    apply(lambda k, v: _dist(k[2], last_period))
-            # we get for each combination: the distance between the first and second manintenance
-            # we need to add a distance when the second maintenance is at the end
-            # because that is not really a maintenance.
-            dist_m1_m2 = \
-                tl.TupList(l['att_maints']). \
-                    to_dict(result_col=None). \
-                    apply(lambda k, v: _dist(k[1], k[2]) - duration). \
-                    apply(lambda k, v: v + (k[2]==last_period))
-            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) <= max_second_maints
-            model += pl.lpSum(start_M[tup] for tup in l['att_maints_no_last']) >= min_second_maints
-            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items()) <= max_sum_dist_2M_end
-            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items()) >= min_sum_dist_2M_end
-            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items()) <= max_sum_dist_1M_2M
-            model += pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items()) >= min_sum_dist_1M_2M
+        self.add_stoch_cuts(model, start_M, options)
 
         # ##################################
         # SOLVING
@@ -318,6 +279,15 @@ class Model(exp.Experiment):
 
         # SOLVING
         config = conf.Config(options)
+        if options.get('writeMPS', False):
+            model.writeMPS(filename=options['path'] + 'formulation.mps')
+        if options.get('writeLP', False):
+            model.writeLP(filename=options['path'] + 'formulation.lp')
+
+        if options.get('do_not_solve', False):
+            print('Not solved because of option "do_not_solve".')
+            return self.solution
+
         result = config.solve_model(model)
 
         if result != 1:
@@ -513,6 +483,70 @@ class Model(exp.Experiment):
             apply(lambda k, v: v.value()).\
             clean()
 
+    def add_stoch_cuts(self, model, start_M, options):
+
+        StochCuts = options.get('StochCuts', {})
+        if not StochCuts.get('active', False):
+            return
+
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        duration = self.instance.get_param('maint_duration')
+        size_res = len(l['resources'])
+        first_period, last_period = (self.instance.get_param(d) for d in ['start', 'end'])
+
+        def get_max_min(var, func=None):
+            bounds = StochCuts.get('bounds', ['min', 'max'])
+            _func = {'min': math.floor, 'max': math.ceil, None: lambda x: None}
+            contents = sd.SuperDict({k: StochCuts['{}_{}'.format(k, var)] for k in bounds if k is not None})
+            if func is not None:
+                contents = contents.vapply(func)
+            return tuple(_func[b](contents.get(b)) for b in bounds)
+
+        _dist = self.instance.get_dist_periods
+
+        # print(get_max_min('maints'))
+        # print(get_max_min('mean_2maint', lambda v: size_res*v))
+        # print(get_max_min('mean_dist', lambda v: size_res*v))
+        # we get for each combination: the distance between the second and last period
+        dist_m2_end = \
+            tl.TupList(l['att_maints_no_last']). \
+                to_dict(result_col=None). \
+                apply(lambda k, v: _dist(k[2], last_period))
+        # we get for each combination: the distance between the first and second manintenance
+        # we need to add a distance when the second maintenance is at the end
+        # because that is not really a maintenance.
+        dist_m1_m2 = \
+            tl.TupList(l['att_maints']). \
+                to_dict(result_col=None). \
+                apply(lambda k, v: _dist(k[1], k[2]) - duration). \
+                apply(lambda k, v: v + (k[2] == last_period))
+        all_cuts = ['maints', 'mean_2maint', 'mean_dist']
+        str_cut = {k: {'bounds': [None, None], 'expression': 0}
+                   for k in all_cuts}
+
+        str_cut['maints']['bounds'] = get_max_min('maints', lambda v: v - size_res)
+        str_cut['maints']['expression'] = pl.lpSum(start_M[tup] for tup in l['att_maints_no_last'])
+
+        str_cut['mean_2maint']['bounds'] = get_max_min('mean_2maint', lambda v: size_res * v)
+        str_cut['mean_2maint']['expression'] = pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items())
+
+        str_cut['mean_dist']['bounds'] = get_max_min('mean_dist', lambda v: size_res * v)
+        str_cut['mean_dist']['expression'] = pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items())
+
+        active_cuts = StochCuts.get('cuts', all_cuts)
+        str_cut = sd.SuperDict(str_cut).filter(active_cuts)
+        for cut, info in str_cut.items():
+            bound_min, bound_max = info['bounds']
+            if bound_min is not None:
+                model += info['expression'] >= bound_min
+            if bound_max is not None:
+                model += info['expression'] <= bound_max
+
+        return
+
     def get_domains_sets(self):
         states = ['M']
 
@@ -544,10 +578,10 @@ class Model(exp.Experiment):
         # second maintenance can have a more limited size of calendar.
         min_elapsed_2M = min_elapsed
         max_elapsed_2M = max_elapsed
-        if 'max_elapsed_time_2M' in param_data:
+        if param_data.get('max_elapsed_time_2M') is not None:
             max_elapsed_2M = param_data['max_elapsed_time_2M'] + duration
 
-        if 'elapsed_time_size_2M' in param_data:
+        if param_data.get('elapsed_time_size_2M') is not None:
             min_elapsed_2M = max_elapsed_2M - param_data['elapsed_time_size_2M']
 
         ret_init = self.instance.get_initial_state("elapsed")

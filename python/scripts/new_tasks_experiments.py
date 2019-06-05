@@ -25,24 +25,34 @@ input = [
     'dell_20190422_new_new_cplex_newobjs_rut',
     'dell_20190430_new_new_gurobi_newobjs_rut'
          ]
+
+
+input = ['dell_20190529_allcuts',
+         'dell_20190529_strcuts',
+         'dell_20190529_nocuts',
+         'dell_20190529_strANDmaxcuts',
+         'dell_20190529_strcutsANDmaints',
+         'dell_20190529_strcutsANDmaxmaints']
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_cut_comparison.html'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison.tex'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison_2.html'
-file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_comparison.tex'
+file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cuts_comparison.tex'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_vs_cbc.html'
 # input = [('new', 'dell_20190401_maintenances'), ('old', 'dell_20190327_cbc_old')]
 #####################
 # INFO
 
 results_dict = {}
+raw_results_dict = {}
 for name, exp in enumerate(input):
     if exp is None:
         continue
     table = rep.get_simulation_results(exp)
     table_errors = rep.get_experiment_errors(exp)
+    table_n = table >> dp.left_join(table_errors, by=['scenario', 'instance'])
+    raw_results_dict[name] = table_n
     results_dict[name] = \
-        table >> \
-        dp.left_join(table_errors, by=['scenario', 'instance']) >> \
+        table_n >> \
         dp.mutate(gap_abs = X.objective - X.bound) >> \
             dp.rename(t= 'time_out', g = 'gap_abs') >> \
             dp.group_by(X.scenario) >> \
@@ -59,7 +69,7 @@ for name, exp in enumerate(input):
                          non_0=X.nonzeros.mean(),
                          no_int=X.no_int.sum(),
                          inf=dp.first(X.sizet) - dp.n(X.t),
-                         errs=X.errors.mean()
+                         errs=X.errors.sum()
                     )
 
 stats_order = ['cons', 'vars', 'non_0', 'inf', 'no_int', 'errs'] \
@@ -68,6 +78,8 @@ stats_order = ['cons', 'vars', 'non_0', 'inf', 'no_int', 'errs'] \
 stats_order_dict = {stat: pos for pos, stat in enumerate(stats_order)}
 
 results = pd.concat(results_dict)
+df = pd.concat(raw_results_dict).reset_index()
+df[df.inf].sort_values(['level_1', 'level_0'])
 
 results2 = results.reset_index().drop(['level_1'], axis=1).\
     rename(columns=dict(level_0='experiment'))

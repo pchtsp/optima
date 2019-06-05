@@ -8,7 +8,6 @@ import pandas as pd
 import pytups.superdict as sd
 import pytups.tuplist as tl
 import scripts.exec as exec
-import reports.rpy_graphs as rg
 import dfply as dp
 from dfply import X
 import multiprocessing as multi
@@ -79,7 +78,6 @@ def graph_check():
     status.columns = ['period', 'rut', 'ret', 'state', 'task']
     status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    rg.gantt_experiment(path)
 
     experiment.check_solution()
 
@@ -128,12 +126,17 @@ def test_rexecute_many(exp_origin, exp_dest, num_proc=2, max_instances=None, new
     for pos, path_in in enumerate(path_ins):
         path_out = path_outs[pos]
         args = {'directory': path_in, 'new_options': {**new_options, **{'path': path_out}}, **kwargs}
-        results[pos] = pool.apply_async(exec.re_execute_instance, kwds=args)
+        results[pos] = pool.apply_async(exec.re_execute_instance_errors, kwds=args)
         if pos + 1 >= max_instances:
             break
 
+    timelimit = new_options.get('timeLimit', 3600)
     for pos, result in results.items():
-        result.get(timeout=3600+100)
+        try:
+            result.get(timeout=timelimit+600)
+        except multi.TimeoutError:
+            print('Multiprocessing TimeoutError happened.')
+            pass
 
 
 def check_over_assignments():
@@ -214,13 +217,12 @@ if __name__ == '__main__':
     # check_rem_calculation('201904181142')
     # test_rexecute()
     options = sd.SuperDict(timeLimit=3600, mip_start=True, exclude_aux=False, threads=1)
-    options.update(StochCuts= {'active': False})
-    new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
+    options.update(StochCuts= {'active': False}, reduce_2M_window={'active': True, 'window_size': 10})
+    # new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
     kwargs = {'exp_origin': 'dell_20190515_all/base',
               'exp_dest': 'dell_20190515_remakes/base',
               'num_proc': 7,
               'new_options': options,
-              'new_input' : new_input,
               'max_instances': 2
               }
     test_rexecute_many(**kwargs)
