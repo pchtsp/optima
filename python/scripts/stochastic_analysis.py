@@ -208,7 +208,7 @@ if __name__ == '__main__':
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
 
-    result_tab = get_table(experiments, 2)
+    result_tab = get_table(experiments, 1)
 
     result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
     result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
 
     (result_tab.num_errors==0).sum()
-    graphs.cons_init(result_tab, y='cycle_2M_min', color='status', smooth=False)
+    graphs.plotting(result_tab, y='cycle_2M_min', color='status', smooth=False)
 
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
         graphs.draw_hist(var)
@@ -245,16 +245,21 @@ if __name__ == '__main__':
               'cons_min_mean', 'cons_min_max']
     x_vars += ['spec_tasks']
     # x_vars += ['geomean_cons']
-    bound_options = [('maints', True, 0.8), ('maints', False, 0.8), ('cycle_2M_min', False, 0.8)]
+    bound_options = [('maints', True, 0.8), ('maints', False, 0.5), ('cycle_2M_min', False, 0.5)]
     table = result_tab
     # table = result_tab.query('mean_consum >=180 and gap_abs <= 30')
     # table = result_tab[result_tab.mean_consum.between(150, 300)]
-    table = result_tab.query('mean_consum >=150 and mean_consum <=250 and gap_abs <= 80')
+    table = result_tab.query('mean_consum >=150 and mean_consum <=250')
     # table = result_tab.query('mean_consum >=150 and mean_consum <=250 and num_errors==0')
+    data = {}
     for predict_var, upper, alpha in bound_options:
-        data = models.test_superquantiles(table, x_vars=x_vars,
-                                   predict_var=predict_var,
-                                   _lambda=10, alpha=alpha, plot=True, upper_bound=upper)
+        b = 'min_' + predict_var
+        if upper:
+            b = 'max_' + predict_var
+        _dict = models.test_superquantiles(table, x_vars=x_vars,
+                               predict_var=predict_var,
+                               _lambda=5, alpha=alpha, plot=True, upper_bound=upper)
+        data[b] = sd.SuperDict.from_dict(_dict).clean()
     data = models.test_regression(result_tab, x_vars, plot=False)
     data = models.test_regression(result_tab, x_vars)
     (result_tab.num_errors>0).sum()

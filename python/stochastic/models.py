@@ -98,7 +98,7 @@ def test_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=
     graph_name = 'superquantiles_mean_consum_init_{}_{}'.format(predict_var, bound)
     graphs.plotting(table=X_out, x='mean_consum', y=predict_var, y_pred='pred',
                     graph_name=graph_name, smooth=False, color='status')
-    return coefs, coef0
+    return {**coefs, **{'intercept': coef0}}
 
 
 if __name__ == '__main__':

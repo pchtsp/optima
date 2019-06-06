@@ -1,12 +1,13 @@
 import math
 import pulp as pl
-import package.config as conf
+import solvers.config as conf
 import package.solution as sol
 import package.experiment as exp
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import random as rn
-import numpy as np
+
+import stochastic.instance_stats as istats
 
 
 ######################################################
@@ -23,7 +24,7 @@ class Model(exp.Experiment):
         self.domains = {}
 
     def solve(self, options=None):
-        self.domains = l = self.get_domains_sets()
+        self.domains = l = self.get_domains_sets(options)
         ub = self.get_bounds()
         first_period, last_period = (self.instance.get_param(d) for d in ['start', 'end'])
         consumption = sd.SuperDict.from_dict(self.instance.get_tasks('consumption'))
@@ -269,9 +270,12 @@ class Model(exp.Experiment):
                      num_resource_maint[t] <= \
                      maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in l['slots'])
 
-
         # Adding trained cuts.
-        self.add_stoch_cuts(model, start_M, options)
+        StochCuts = options.get('StochCuts', {})
+        if StochCuts.get('active', False):
+            types = self.instance.get_types()
+            for t in types:
+                self.add_stochastic_cuts(model, start_M, _type=t, options=options)
 
         # ##################################
         # SOLVING
@@ -483,71 +487,102 @@ class Model(exp.Experiment):
             apply(lambda k, v: v.value()).\
             clean()
 
-    def add_stoch_cuts(self, model, start_M, options):
+    def add_stochastic_cuts(self, model, start_M, _type, options):
 
         StochCuts = options.get('StochCuts', {})
-        if not StochCuts.get('active', False):
-            return
 
         l = self.domains
         if not len(l):
-            raise ValueError('Model has not been solved yet. No domains are generated')
+            raise ValueError('No domains are generated: aborting.')
 
         duration = self.instance.get_param('maint_duration')
-        size_res = len(l['resources'])
+        _dist = self.instance.get_dist_periods
+        resources = istats.get_resources_of_type(self.instance, _type=_type)
+        size_res = len(resources)
         first_period, last_period = (self.instance.get_param(d) for d in ['start', 'end'])
 
-        def get_max_min(var, func=None):
+        def get_min_max(variable, func=None):
             bounds = StochCuts.get('bounds', ['min', 'max'])
-            _func = {'min': math.floor, 'max': math.ceil, None: lambda x: None}
-            contents = sd.SuperDict({k: StochCuts['{}_{}'.format(k, var)] for k in bounds if k is not None})
+            _func = {'min': math.floor, 'max': math.ceil}
+            contents = \
+                sd.SuperDict({k: '{}_{}'.format(k, variable) for k in bounds}).\
+                vapply(lambda v: istats.get_bound_var(self.instance, v, _type))
             if func is not None:
                 contents = contents.vapply(func)
-            return tuple(_func[b](contents.get(b)) for b in bounds)
 
-        _dist = self.instance.get_dist_periods
+            return contents.apply(lambda k, v: _func[k](v))
 
-        # print(get_max_min('maints'))
-        # print(get_max_min('mean_2maint', lambda v: size_res*v))
-        # print(get_max_min('mean_dist', lambda v: size_res*v))
+        filtered_att_no_last = \
+            tl.TupList(l['att_maints_no_last']).\
+            filter_list_f(function=lambda v: v[0] in resources)
+
         # we get for each combination: the distance between the second and last period
         dist_m2_end = \
-            tl.TupList(l['att_maints_no_last']). \
-                to_dict(result_col=None). \
-                apply(lambda k, v: _dist(k[2], last_period))
+            filtered_att_no_last.\
+            to_dict(result_col=None).\
+            apply(lambda k, v: _dist(k[2], last_period))
         # we get for each combination: the distance between the first and second manintenance
         # we need to add a distance when the second maintenance is at the end
         # because that is not really a maintenance.
         dist_m1_m2 = \
             tl.TupList(l['att_maints']). \
-                to_dict(result_col=None). \
-                apply(lambda k, v: _dist(k[1], k[2]) - duration). \
-                apply(lambda k, v: v + (k[2] == last_period))
-        all_cuts = ['maints', 'mean_2maint', 'mean_dist']
-        str_cut = {k: {'bounds': [None, None], 'expression': 0}
-                   for k in all_cuts}
+            filter_list_f(function=lambda v: v[0] in resources). \
+            to_dict(result_col=None). \
+            apply(lambda k, v: _dist(k[1], k[2]) - duration). \
+            apply(lambda k, v: v + (k[2] == last_period))
 
-        str_cut['maints']['bounds'] = get_max_min('maints', lambda v: v - size_res)
-        str_cut['maints']['expression'] = pl.lpSum(start_M[tup] for tup in l['att_maints_no_last'])
+        active_cuts = StochCuts.get('cuts', ['maints', 'mean_2maint', 'mean_dist'])
+        str_cut = {}
 
-        str_cut['mean_2maint']['bounds'] = get_max_min('mean_2maint', lambda v: size_res * v)
-        str_cut['mean_2maint']['expression'] = pl.lpSum(start_M[tup] * v for tup, v in dist_m2_end.items())
+        if 'maints' in active_cuts:
+            str_cut['maints'] = get_min_max('maints', lambda v: v - size_res)
+            str_cut['maints']['expression'] = pl.lpSum(start_M[tup] for tup in filtered_att_no_last)
 
-        str_cut['mean_dist']['bounds'] = get_max_min('mean_dist', lambda v: size_res * v)
-        str_cut['mean_dist']['expression'] = pl.lpSum(start_M[tup] * v for tup, v in dist_m1_m2.items())
+        if 'mean_2maint' in active_cuts:
+            str_cut['mean_2maint'] = get_min_max('mean_2maint', lambda v: size_res * v)
+            str_cut['mean_2maint']['expression'] = pl.lpSum(start_M[tup] * dist for tup, dist in dist_m2_end.items())
 
-        active_cuts = StochCuts.get('cuts', all_cuts)
-        str_cut = sd.SuperDict(str_cut).filter(active_cuts)
+        if 'mean_dist' in active_cuts:
+            str_cut['mean_dist'] = get_min_max('mean_dist', lambda v: size_res * v)
+            str_cut['mean_dist']['expression'] = pl.lpSum(start_M[tup] * dist for tup, dist in dist_m1_m2.items())
+
         for cut, info in str_cut.items():
-            bound_min, bound_max = info['bounds']
+            bound_min, bound_max = info.get('min'), info.get('max')
             if bound_min is not None:
                 model += info['expression'] >= bound_min
             if bound_max is not None:
                 model += info['expression'] <= bound_max
 
-        return
+        return True
 
-    def get_domains_sets(self):
+    def get_min_max_2M(self, options):
+
+        param_data = self.instance.get_param()
+        reduce_2M_window = options['reduce_2M_window']
+        duration = param_data['maint_duration']
+        types = self.instance.get_types()
+        win_size = reduce_2M_window['window_size']
+
+        min_dist_types = \
+            types.to_dict(result_col=None). \
+                kapply(lambda k: istats.get_min_dist_2M(self.instance, k))
+
+        max_et = self.instance.get_param('max_elapsed_time')
+        max_dist_types = \
+            min_dist_types. \
+                vapply(lambda v: v + win_size + 1). \
+                vapply(min, max_et). \
+                vapply(lambda v: v + duration)
+
+        max_elapsed_2M = \
+            sd.SuperDict(self.instance.get_resources('type')). \
+                vapply(lambda v: max_dist_types[v])
+
+        min_elapsed_2M = max_elapsed_2M.vapply(lambda v: v - win_size)
+
+        return min_elapsed_2M, max_elapsed_2M
+
+    def get_domains_sets(self, options):
         states = ['M']
 
         param_data = self.instance.get_param()
@@ -575,14 +610,16 @@ class Model(exp.Experiment):
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
         min_elapsed = max_elapsed - param_data['elapsed_time_size']
-        # second maintenance can have a more limited size of calendar.
-        min_elapsed_2M = min_elapsed
-        max_elapsed_2M = max_elapsed
-        if param_data.get('max_elapsed_time_2M') is not None:
-            max_elapsed_2M = param_data['max_elapsed_time_2M'] + duration
 
-        if param_data.get('elapsed_time_size_2M') is not None:
-            min_elapsed_2M = max_elapsed_2M - param_data['elapsed_time_size_2M']
+        # second maintenance can have a more limited size of calendar.
+        # and depends on the aircraft
+        min_elapsed_2M = {r: min_elapsed for r in resources}
+        max_elapsed_2M = {r: max_elapsed for r in resources}
+
+        # If the cuts are activated: we replace the defaults.
+        reduce_2M_window = options.get('reduce_2M_window', {})
+        if reduce_2M_window.get('active', False):
+            min_elapsed_2M, max_elapsed_2M = self.get_min_max_2M(options)
 
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
@@ -672,7 +709,7 @@ class Model(exp.Experiment):
         # more than max_elapsed after it
         # only allow maintenance starts that follow the initial state (at_M_ini)
         att_maints_no_last = tl.TupList((a, t1, t2) for (a, t1) in at_M_ini for t2 in periods
-                                if (p_pos[t1] + min_elapsed_2M <= p_pos[t2] < p_pos[t1] + max_elapsed_2M)
+                                if (p_pos[t1] + min_elapsed_2M[a] <= p_pos[t2] < p_pos[t1] + max_elapsed_2M[a])
                                 and len(periods) <= p_pos[t2] + max_elapsed
                                 and t2 < last_period
                                 )
@@ -683,7 +720,7 @@ class Model(exp.Experiment):
         _t2 = last_period
         att_maints = att_maints_no_last + \
                      tl.TupList((a, t1, _t2) for (a, t1) in at_M_ini if
-                                p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M
+                                p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M[a]
                                 )
         att_maints = tl.TupList(att_maints)
 
@@ -769,10 +806,10 @@ class Model(exp.Experiment):
         , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
-        , 'slots': slots
-        , 'k': k
-        , 'kts': kts
-        , 'ts': ts
+        , 'slots'           : slots
+        , 'k'               : k
+        , 'kts'             : kts
+        , 'ts'              : ts
         , 'att_maints'      : att_maints
         , 'att_cycles'      : att_cycles
         , 'cycles'          : cycles

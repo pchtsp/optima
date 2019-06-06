@@ -86,26 +86,6 @@ def execute_solve(model_data, options, solution_data=None):
     if solution_data is not None:
         solution = sol.Solution(solution_data)
 
-    StochCuts = options.get('StochCuts', {})
-    if StochCuts.get('active', False):
-        for variable in ['maints', 'mean_2maint', 'mean_dist']:
-            for bound in StochCuts.get('bounds', ['min', 'max']):
-                if bound is None:
-                    continue
-                name = bound + '_' + variable
-                StochCuts[name] = istats.get_bound_var(instance, name)
-        options['StochCuts'] = StochCuts
-
-    reduce_2M_window = options.get('reduce_2M_window', {})
-    if reduce_2M_window.get('active', False):
-        win_size = reduce_2M_window['window_size']
-        min_dist = istats.get_min_dist_2M(instance)
-        max_et = instance.get_param('max_elapsed_time')
-        new_input_data = {'parameters': {'elapsed_time_size_2M': win_size,
-                                         'max_elapsed_time_2M': min(min_dist+win_size//2 + 1, max_et)}}
-        instance.data = sd.SuperDict.from_dict(instance.data)
-        instance.data.update(new_input_data)
-
     exclude_aux = options.get('exclude_aux', True)
     output_path = options['path']
     di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=exclude_aux)

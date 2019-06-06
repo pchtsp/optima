@@ -1,6 +1,6 @@
 import pytups.superdict as sd
 import pandas as pd
-
+import stochastic.params as params
 
 def get_resources_of_type(instance, _type=0):
     return sd.SuperDict(instance.get_resources('type')).\
@@ -102,68 +102,48 @@ def get_geomean(consumption):
     return result
 
 
-def calculate_stat(instance, coefs, type=0):
-    # TODO: think on this and below
+def calculate_stat(instance, coefs, _type):
     intercept = coefs.get('intercept', 0)
-    mean_consum = get_consumptions(instance, hours=True).mean()
-    init = get_init_hours(instance).mean()
+    consumption = get_consumptions(instance, hours=True, _type=_type)
+    mean_consum = consumption.mean()
+    init = get_init_hours(instance, _type=_type).mean()
+    cons_min = min_assign_consumption(instance, _type=_type)
+    rel_consumption = get_rel_consumptions(instance, _type=_type)
+    quantsw = rel_consumption.rolling(12).mean().shift(-11).quantile(q=[0.5, 0.75, 0.9]).tolist()
+
     data = \
         sd.SuperDict(
             mean_consum=mean_consum
             , mean_consum2=mean_consum**2
             , mean_consum3=mean_consum**3
             , init = init
+            , spec_tasks = get_num_special(instance, _type)
+            , var_consum= consumption.agg('var')
+            , max_consum = consumption.agg('max')
+            , cons_min_max=cons_min.agg('max')
+            , quant9w = quantsw[2]
+
         )
-    return sum(data.apply(lambda k, v: v * coefs.get(k, 0)).values_l()) + intercept
+    missing_info = set(coefs) - set(data)
+    if len(missing_info) > 1:
+        # intercept is the only one that should be there
+        raise KeyError('missing keys in data: {}'.format(missing_info))
+    return sum(data.apply(lambda k, v: v * coefs.get(k, 0)).values()) + intercept
 
 
-def get_bound_var(instance, variable):
-    data = \
-        {'max_maints': {'mean_consum': 0.0,
-                        'init': -0.014491014,
-                        'mean_consum2': -0.00021415783,
-                        'mean_consum3': 1.0077952e-06,
-                        'intercept': 32.11475261509869},
-         'min_maints': {'mean_consum': 0.44668751,
-                        'init': -0.018518972,
-                        'mean_consum2': -0.0021752748,
-                        'mean_consum3': 3.6075012e-06,
-                        'intercept': 0.16115577492676791},
-         'max_mean_2maint': {'mean_consum': 0.079769466,
-                             'init': -0.017577526,
-                             'mean_consum2': -0.00093425999,
-                             'mean_consum3': 3.0289197e-06,
-                             'intercept': 14.851572921387236},
-         'min_mean_2maint': {'mean_consum': 0.24287724,
-                             'init': -0.018909612,
-                             'mean_consum2': -0.0014578421,
-                             'mean_consum3': 3.0106766e-06,
-                             'intercept': 0.18510246178846076},
-         'max_mean_dist': {'mean_consum': -0.02652565,
-                           'init': -0.010174868,
-                           'mean_consum2': 0.00047905823,
-                           'mean_consum3': -1.4342716e-06,
-                           'intercept': 56.15615658837415},
-         'min_mean_dist': {'mean_consum': 0.72213221,
-                           'init': -0.0071054628,
-                           'mean_consum2': -0.0032535334,
-                           'mean_consum3': 4.3151898e-06,
-                           'intercept': 0.7021066395663593}}
+def get_bound_var(instance, variable, _type):
+    data = params.get_bound_var_data
     if variable not in data:
         raise ValueError('data not found for variable: {}'.format(variable))
-    return calculate_stat(instance, data[variable])
+    return calculate_stat(instance, data[variable], _type=_type)
 
-def get_min_dist_2M(instance):
-    min, max = [150, 300]
-    data = \
-        {'mean_consum': 4.527784863082707,
-         'mean_consum2': -0.021417007220022065,
-         'mean_consum3': 3.135859788535103e-05,
-         'init': 0.01026743076834458,
-         "intercept": -251.89244412049118}
-    mean_consum = get_consumptions(instance, hours=True).mean()
+
+def get_min_dist_2M(instance, _type):
+    min, max = params.get_min_dist_2M_min_max
+    mean_consum = get_consumptions(instance, hours=True, _type=_type).mean()
     if mean_consum < min:
         return instance.get_param('max_elapsed_time')
     if mean_consum > max:
-        return instance.get_param('max_elapsed_time') - instance.get_param('elapsed_time_size')
-    return round(calculate_stat(instance, coefs=data))
+        return params.get_min_dist_2M_min_elapsed
+    data = params.get_bound_var_data['min_cycle_2M_min']
+    return round(calculate_stat(instance, coefs=data, _type=_type))

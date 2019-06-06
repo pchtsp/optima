@@ -403,6 +403,10 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
+    def get_types(self):
+        values = self.get_tasks('type_resource').values()
+        return tl.TupList(values).unique2()
+
     def get_stats(self):
         """
         These stats are useful to characterize an instance and to get better bounds
