@@ -33,6 +33,18 @@ class Experiment(object):
         solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
 
+    @classmethod
+    def from_zipfile(cls, zipobj, path, format='json', prefix="data_"):
+        # files = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
+        files = [path + '/' + prefix + f + "." + format for f in ['in', 'out']]
+        instance = di.load_data_zip(zipobj, files[0])
+        solution = di.load_data_zip(zipobj, files[1])
+        # print(files[0], files[1])
+        if not np.all([instance, solution]):
+            return None
+        return cls(inst.Instance(instance), sol.Solution(solution))
+
+
     @staticmethod
     def expand_resource_period(data, resource, period):
         if resource not in data:

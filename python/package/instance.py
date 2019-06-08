@@ -1,7 +1,6 @@
 # /usr/bin/python3
 
 import numpy as np
-import package.auxiliar as aux
 import package.data_input as di
 import pandas as pd
 import math
@@ -40,10 +39,12 @@ class Instance(object):
         num_periods = self.get_param('num_period')
         self.data['aux'] = {}
 
-        begin = aux.month_to_arrow(start).shift(months=-50)
-        end = aux.month_to_arrow(start).shift(months=num_periods+50)
+        begin_year = int(start[:4]) - 5
+        end_year = int(start[:4]) + 5 + num_periods//12
+        many_months = ['{}-{:02.0f}'.format(_a, _b) for _a in range(begin_year, end_year) for _b in range(1, 13)]
+        pos = many_months.index(start)
         self.data['aux']['period_e'] = {
-            k- 50:  r.format("YYYY-MM") for k, r in enumerate(arrow.Arrow.range('month', begin, end))
+            k- pos: r for k, r in enumerate(many_months)
         }
         self.data['aux']['period_i'] = {
             v: k for k, v in self.data['aux']['period_e'].items()
@@ -77,7 +78,7 @@ class Instance(object):
         if param is None:
             return data
         if param in list(data.values())[0]:
-            return aux.get_property_from_dic(data, param)
+            return sd.SuperDict.from_dict(data).get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):
@@ -107,8 +108,7 @@ class Instance(object):
         if resource is not None:
             param_resources.filter(resource)
         rt_max = self.get_param(key_max)
-
-        rt_read = aux.get_property_from_dic(param_resources, key_initial)
+        rt_read = sd.SuperDict.from_dict(param_resources).get_property(key_initial)
 
         # we also check if the resources is currently in maintenance.
         # If it is: we assign the rt_max (according to convention).

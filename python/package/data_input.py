@@ -216,6 +216,15 @@ def load_data(path, file_type=None):
         with open(path, 'r') as f:
             return json.load(f)
 
+def load_data_zip(zipobj, path, file_type='json'):
+    if file_type not in ['json']:
+        raise ImportError("file type not known: {}".format(file_type))
+    if file_type == 'json':
+        try:
+            data = zipobj.read(path)
+        except KeyError:
+            return False
+        return json.loads(data)
 
 def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False):
     # I'm gonna add the option to exclude the 'aux' section of the object, if exists
