@@ -1,13 +1,10 @@
 import os, sys
 import subprocess
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import importlib
-import argparse
-import datetime as dt
-import json
-import package.superdict as sd
+
 import package.auxiliar as aux
 import package.data_input as di
+import package.data_dga as dga
 import package.instance as inst
 import package.solution as sol
 import package.model as md
@@ -27,9 +24,9 @@ def config_and_solve(options):
         model_data = td.import_input_template(options['input_template_path'])
         # TODO: read solution and give to algorithm
     else:
-        model_data = di.get_model_data(options['PATHS']['input'])
-        historic_data = di.generate_solution_from_source(options['PATHS']['hist'])
-        model_data = di.combine_data_states(model_data, historic_data)
+        model_data = dga.get_model_data(options['PATHS']['input'])
+        historic_data = dga.generate_solution_from_source(options['PATHS']['hist'])
+        model_data = dga.combine_data_states(model_data, historic_data)
         model_data['parameters']['start'] = options['start']
         model_data['parameters']['end'] = \
             aux.shift_month(model_data['parameters']['start'], options['num_period'] - 1)
@@ -155,57 +152,3 @@ def update_case_path(options, path):
     options['input_template_path'] = path + 'template_in.xlsx'
     options['output_template_path'] = path + 'template_out.xlsx'
     return options
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
-    parser.add_argument('-c', dest='file', default="package.params",
-                        help='config file (default: package.params)')
-    parser.add_argument('-d', '--options', dest='config_dict', type=json.loads)
-    parser.add_argument('-df', '--options-file', dest='config_file')
-    parser.add_argument('-p', '--paths', dest='paths_dict', type=json.loads)
-    parser.add_argument('-it', '--input-template', dest='input_template')
-    parser.add_argument('-id', '--input-template-dir', dest='input_template_dir')
-
-    args = parser.parse_args()
-    print('Using config file in {}'.format(args.file))
-    params = importlib.import_module(args.file)
-
-    args = parser.parse_args()
-    if getattr(sys, 'frozen', False):
-        # we are running in a bundle
-        root = sys._MEIPASS + '/'
-    else:
-        # we are running in a normal Python environment
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + '/'
-
-    params.OPTIONS['root'] = root
-
-    new_options = None
-    if args.config_dict:
-        new_options = args.config_dict
-    elif args.config_file:
-        new_options = di.load_data(args.config_file)
-    if new_options:
-        params.OPTIONS.update(new_options)
-
-    if args.paths_dict:
-        params.PATHS.update(args.paths_dict)
-        path = os.path.join(params.PATHS['experiments'], dt.datetime.now().strftime("%Y%m%d%H%M")) + '/'
-        update_case_path(params.OPTIONS, path)
-
-    if args.input_template_dir:
-        path = args.input_template_dir
-        update_case_path(params.OPTIONS, path)
-        possible_option_path = path + 'options_in.json'
-        if os.path.exists(possible_option_path):
-            new_options = di.load_data(possible_option_path)
-            params.OPTIONS.update(new_options)
-
-    if args.input_template:
-        params.OPTIONS['input_template_path'] = args.input_template
-
-    options = params.OPTIONS
-    options['PATHS'] = params.PATHS
-    config_and_solve(options)

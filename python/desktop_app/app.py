@@ -12,12 +12,17 @@ import arrow
 import pprint as pp
 from io import StringIO
 
+import package.template_data as td
+import package.exec as exec
+import package.heuristics_maintfirst as mf
+
 # TODO: add dialog when it finds a solution
 
 
 class MainWindow_EXCEC():
 
-    def __init__(self):
+    def __init__(self, options):
+        self.options = options
         app = QtWidgets.QApplication(sys.argv)
         MainWindow = QtWidgets.QMainWindow()
         self.ui = Ui_MainWindow()
@@ -61,38 +66,48 @@ class MainWindow_EXCEC():
         self.ui.start_date.setDate(arrow.get(start).datetime)
         self.ui.end_date.setDate(arrow.get(end).datetime)
 
+    def load_template(self):
+        options = self.options
+        model_data = td.import_input_template(options['input_template_path'])
+        self.instance = inst.Instance(model_data)
+        return self.instance
+
     def generate_solution(self):
-        self.input_data['parameters']['start'] = \
-            self.ui.start_date.text()
-        self.input_data['parameters']['end'] = \
-            self.ui.end_date.text()
-        options = {
-            'timeLimit': int(self.ui.max_time.text())
-            , 'gap': 0
-            , 'solver': "CPLEX"
-            , 'path':
-                os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
-        }
-        instance = inst.Instance(self.input_data)
-        heur_obj = heur.GreedyByMission(instance)
-        old_stdout = sys.stdout
-        sys.stdout = mystdout = StringIO()
-        heur_obj.solve()
-        check = heur_obj.check_solution()
-        if len(check) == 0:
+        # exec.config_and_solve(self.options)
+        options = self.options
+        instance = self.load_template()
+        self.experiment = experiment = mf.MaintenanceFirst(instance, solution=None)
+        output_path = options['path']
+
+        experiment.solve(options)
+        # old_stdout = sys.stdout
+        # sys.stdout = mystdout = StringIO()
+        errors = experiment.check_solution()
+        errors = {k: v.to_dictdict() for k, v in errors.items()}
+
+        if len(errors) == 0:
             self.ui.solution_log.setText("Everthing went fine!")
         else:
-            self.ui.solution_log.setText(pp.pprint(check))
+            self.ui.solution_log.setText(pp.pprint(errors))
         try:
-            heur_obj.export_solution(self.solution_path, 'solution')
+            _kwags = dict(file_type='json', exclude_aux=True)
+            di.export_data(output_path, experiment.instance.data, name="data_in", **_kwags)
+            di.export_data(output_path, experiment.solution.data, name="data_out", **_kwags)
+            td.export_output_template(options['output_template_path'], experiment.solution.data)
         except:
             print("Solution could not be exported")
-        sys.stdout = old_stdout
-        self.ui.solution_log.setText(mystdout.getvalue())
+        log_path = os.path.join(output_path, 'output.log')
+        try:
+            with open(log_path) as f:
+                res = f.readlines()
+        except:
+            print('Error reading log file')
+            res = ''
+        self.ui.solution_log.setText(res)
 
 
 if __name__ == "__main__":
-    MainWindow_EXCEC()
+    MainWindow_EXCEC({})
 
 
 

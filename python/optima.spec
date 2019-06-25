@@ -20,7 +20,7 @@ def get_dfply_path():
 
 path_main = os.path.dirname(os.path.abspath(sys.argv[2]))
 
-a = Analysis(['scripts/exec.py'],
+a = Analysis(['scripts/main.py'],
              pathex=[path_main],
              binaries=[],
              datas=[],

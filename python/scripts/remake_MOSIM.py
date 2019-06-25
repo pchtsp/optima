@@ -1,7 +1,4 @@
-import scripts.exec as exec
 import os
-import datetime as dt
-import time
 # import package.instance as inst
 import package.params as params
 import package.experiment as exp

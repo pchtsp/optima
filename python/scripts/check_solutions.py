@@ -2,18 +2,16 @@ import package.experiment as exp
 import pprint as pp
 from package.params import PATHS, OPTIONS
 import package.auxiliar as aux
-import package.data_input as di
 import pandas as pd
 import package.superdict as sd
-import scripts.exec as exec
+import package.exec as exec
 import os
-import package.model as md
+
 try:
     import package.rpy_graphs as rg
 except:
     print("No support for R graph functions!")
-import dfply as dp
-from dfply import X
+
 
 def test2():
     # e = '201809121711'

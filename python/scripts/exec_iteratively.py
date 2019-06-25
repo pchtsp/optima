@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import scripts.exec as exec
+import package.exec as exec
 import datetime as dt
 import package.superdict as sd
 import argparse
