@@ -47,12 +47,7 @@ if __name__ == "__main__":
         exec.update_case_path(params.OPTIONS, path)
 
     if args.input_template_dir:
-        path = args.input_template_dir
-        exec.update_case_path(params.OPTIONS, path)
-        possible_option_path = path + 'options_in.json'
-        if os.path.exists(possible_option_path):
-            new_options = di.load_data(possible_option_path)
-            params.OPTIONS.update(new_options)
+        exec.udpdate_case_read_options(params.OPTIONS, args.input_template_dir)
 
     if args.input_template:
         params.OPTIONS['input_template_path'] = args.input_template

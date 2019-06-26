@@ -152,3 +152,12 @@ def update_case_path(options, path):
     options['input_template_path'] = path + 'template_in.xlsx'
     options['output_template_path'] = path + 'template_out.xlsx'
     return options
+
+
+def udpdate_case_read_options(options, path):
+    possible_option_path = path + 'options_in.json'
+    if os.path.exists(possible_option_path):
+        new_options = di.load_data(possible_option_path)
+        options.update(new_options)
+    update_case_path(options, path)
+    return options

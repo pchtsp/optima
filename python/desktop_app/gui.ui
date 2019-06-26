@@ -35,7 +35,7 @@
        <rect>
         <x>0</x>
         <y>10</y>
-        <width>582</width>
+        <width>591</width>
         <height>429</height>
        </rect>
       </property>
@@ -74,17 +74,46 @@
            </property>
           </widget>
          </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_2">
+           <item>
+            <widget class="QLabel" name="instCheck">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QLabel { color : red; }</string>
+             </property>
+             <property name="text">
+              <string>no instance loaded</string>
+             </property>
+             <property name="textFormat">
+              <enum>Qt::AutoText</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="solCheck">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">QLabel { color : red; }</string>
+             </property>
+             <property name="text">
+              <string>no solution loaded</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="readExcel">
-         <property name="text">
-          <string>Read Excel</string>
-         </property>
-         <property name="default">
-          <bool>false</bool>
-         </property>
-        </widget>
        </item>
        <item>
         <layout class="QGridLayout" name="gridLayout">
@@ -172,9 +201,26 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="generateSolution_2">
+          <widget class="QPushButton" name="checkSolution">
+           <property name="text">
+            <string>check solution</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="exportSolution">
            <property name="text">
             <string>export solution</string>
+           </property>
+           <property name="default">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="exportSolution_to">
+           <property name="text">
+            <string>export solution to</string>
            </property>
            <property name="default">
             <bool>false</bool>
@@ -202,7 +248,7 @@
      <x>0</x>
      <y>0</y>
      <width>813</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
