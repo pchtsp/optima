@@ -2,8 +2,8 @@ import os
 # import package.instance as inst
 import package.params as params
 import package.experiment as exp
-import package.model as md
-import package.data_input as di
+import solvers.model as md
+import data.data_input as di
 
 
 if __name__ == "__main__":

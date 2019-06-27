@@ -108,7 +108,7 @@ class Solution(object):
 if __name__ == "__main__":
     path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
     path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712181704/"
-    import package.data_input as di
+    import data.data_input as di
     sol_states = Solution(di.load_data(path_states + "data_out.json"))
     sol_nostates = Solution(di.load_data(path_nostates + "data_out.json"))
     # sol_nostates.graph_maintenances(path="/home/pchtsp/Documents/projects/OPTIMA/img/maintenances.html",

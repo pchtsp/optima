@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-import package.data_dga as dd
+import data.data_dga as dd
 import package.auxiliar as aux
 
 

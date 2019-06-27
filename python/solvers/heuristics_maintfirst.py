@@ -1,10 +1,10 @@
 import package.superdict as sd
 import os
-import package.data_input as di
+import data.data_input as di
 import numpy as np
 import package.instance as inst
 import package.solution as sol
-import package.heuristics as heur
+import solvers.heuristics as heur
 import random as rn
 import math
 import ujson
@@ -60,9 +60,14 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         _log = log.getLogger()
         _log.handlers = [v for k, v in outputs.items() if k in output_choices]
+
+        # option to add a custom handler:
+        custom_handler = options.get('log_handler')
+        if custom_handler:
+            custom_handler.setFormatter(formatter)
+            _log.handlers.append(custom_handler)
+
         _log.setLevel(level)
-
-
         max_iters = options.get('max_iters', 99999999)
         max_time = options.get('timeLimit', 600)
         cooling = options.get('cooling', 0.995)

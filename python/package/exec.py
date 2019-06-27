@@ -3,16 +3,16 @@ import subprocess
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import package.auxiliar as aux
-import package.data_input as di
-import package.data_dga as dga
+import data.data_input as di
+import data.data_dga as dga
 import package.instance as inst
 import package.solution as sol
-import package.model as md
+import solvers.model as md
 import package.experiment as exp
-import package.heuristics as heur
-import package.heuristics_maintfirst as mf
+import solvers.heuristics as heur
+import solvers.heuristics_maintfirst as mf
 import package.simulation as sim
-import package.template_data as td
+import data.template_data as td
 
 
 def config_and_solve(options):
@@ -113,7 +113,7 @@ def execute_solve(model_data, options, solution_data=None):
     possible_path = options['root'] + 'R/functions/import_results.R'
     if options.get('graph', False) == 1:
         try:
-            import package.rpy_graphs as rg
+            import reports.rpy_graphs as rg
             # print('possible path for script: {}'.format(possible_path))
             # os.listdir(options['root'] + 'python/')
             # os.listdir(options['root'])

@@ -1,32 +1,26 @@
 import sys
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtWidgets
 from desktop_app.gui import Ui_MainWindow
 
-import package.auxiliar as aux
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
 import package.solution as sol
 import package.params as params
 import os
-import arrow
-import pprint as pp
 import logging
-from io import StringIO
-import multiprocessing as multi
 import json
 
-import package.template_data as td
+import data.template_data as td
 import package.exec as exec
-import package.heuristics_maintfirst as mf
+import solvers.heuristics_maintfirst as mf
 import package.experiment as exp
-import pytups.superdict as sd
+
 
 # TODO: add dialog when it finds a solution
 # TODO: import solution
-# TODO: check solution
 # TODO: export solution
 # TODO: generate graph?
-# TODO:
+# TODO: integrate json viewer
 
 
 class MainWindow_EXCEC():
@@ -62,7 +56,7 @@ class MainWindow_EXCEC():
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
-            caption="QFileDialog.getOpenFileName()",
+            caption="Choose a directory to load",
             directory=params.PATHS['data'],
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
@@ -114,7 +108,6 @@ class MainWindow_EXCEC():
         self.ui.instCheck.setText('Instance loaded')
         self.ui.instCheck.setStyleSheet("QLabel { color : green; }")
 
-        # TODO: load solution from files?
         if os.path.exists(options['output_template_path']):
             sol_data = td.import_output_template(options['output_template_path'])
             self.solution = sol.Solution(sol_data)
@@ -176,10 +169,10 @@ class MainWindow_EXCEC():
     def export_solution_gen(self, output_path, export_input=False):
         if not os.path.exists(output_path) or not os.path.isdir(output_path):
             self.show_message('Error', "Path doesn't exist or is not a directory.")
-            return
+            return 0
         if (not self.instance or not self.solution):
             self.show_message('Error', 'No solution can be exported because there is no loaded solution.')
-            return
+            return 0
         experiment = exp.Experiment(self.instance, self.solution)
         _kwags = dict(file_type='json', exclude_aux=True)
         di.export_data(output_path, experiment.instance.data, name="data_in", **_kwags)
@@ -189,6 +182,8 @@ class MainWindow_EXCEC():
         if export_input:
             _dir = os.path.join(output_path, 'template_in.xlsx')
             td.export_input_template(_dir, experiment.instance.data)
+        self.show_message('Success', 'Solution successfully exported.')
+        return 1
 
     def export_solution(self):
         output_path = self.options['path']

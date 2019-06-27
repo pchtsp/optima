@@ -3,9 +3,7 @@ import package.auxiliar as aux
 # TODO: take out dependency on aux
 import numpy as np
 import pandas as pd
-import dfply as dp
-from dfply import X
-import package.data_input as di
+import data.data_input as di
 import package.solution as sol
 import package.instance as inst
 import package.tuplist as tl

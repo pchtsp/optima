@@ -5,7 +5,7 @@ import datetime as dt
 import json
 import package.exec as exec
 import desktop_app.app as gui_app
-import package.data_input as di
+import data.data_input as di
 
 if __name__ == "__main__":
 

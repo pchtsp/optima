@@ -1,6 +1,5 @@
 import docplex.cp.model as doc
 import package.auxiliar as aux
-import package.config as conf
 import package.solution as sol
 import os
 

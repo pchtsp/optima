@@ -2,8 +2,7 @@
 
 import numpy as np
 import package.auxiliar as aux
-import package.data_input as di
-import pandas as pd
+import data.data_input as di
 import math
 import package.superdict as sd
 import package.tuplist as tl

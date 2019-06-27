@@ -1,4 +1,4 @@
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
 import package.experiment as exp
 import package.solution as sol

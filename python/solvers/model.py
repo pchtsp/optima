@@ -1,7 +1,7 @@
 import math
 import pulp as pl
 import package.auxiliar as aux
-import package.config as conf
+import solvers.config as conf
 import package.solution as sol
 import package.experiment as exp
 import package.tuplist as tl

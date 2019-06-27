@@ -8,7 +8,7 @@ import package.exec as exec
 import os
 
 try:
-    import package.rpy_graphs as rg
+    import reports.rpy_graphs as rg
 except:
     print("No support for R graph functions!")
 
@@ -163,6 +163,17 @@ def check_over_assignments():
     result.sort_index(inplace=True)
     return result
 
+def check_template_data():
+    import data.template_data as td
+    import package.instance as inst
+    import package.solution as sol
+
+    path_in = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830/template_in.xlsx'
+    path_sol = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830/template_out.xlsx'
+    model_data = td.import_input_template(path_in)
+    instance = inst.Instance(model_data)
+    sol_data = td.import_output_template(path_sol)
+    self.solution = sol.Solution(sol_data)
 
 if __name__ == '__main__':
     # check_over_assignments()

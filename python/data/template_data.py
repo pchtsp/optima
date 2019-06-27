@@ -234,6 +234,11 @@ def export_output_template(path, data):
 def import_output_template(path):
 
     sheets = ['sol_maints']
+    # xl = pd.ExcelFile(path)
+    # missing = set(sheets) - set(xl.sheet_names)
+    # if len(missing):
+    #     raise KeyError('The following sheets were not found: {}'.format(missing))
+
     tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
     equiv = {'avion': 'resource', 'mois': 'period', 'maint':'maint'}
     columns = list(equiv.values())

@@ -39,8 +39,8 @@ a.datas += [('R/functions/import_results.R', '../R/functions/import_results.R', 
 a.binaries = filter(lambda x: 'pandas' not in x[0], a.binaries)
 a.binaries = [x for x in a.binaries if not x[0].startswith("IPython")]
 a.binaries = [x for x in a.binaries if not x[0].startswith("zmq")]
-a.binaries = [x for x in a.binaries if not x[0].startswith("PyQt5")]
-a.binaries = [x for x in a.binaries if not x[0].startswith("Qt5")]
+# a.binaries = [x for x in a.binaries if not x[0].startswith("PyQt5")]
+# a.binaries = [x for x in a.binaries if not x[0].startswith("Qt5")]
 a.binaries = a.binaries - TOC([
  #('sqlite3.dll', None, None),
  ('tcl85.dll', None, None),
@@ -53,10 +53,10 @@ a.binaries = a.binaries - TOC([
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 # for several files, keep the following two and comment the other one.
-# exe = EXE(pyz, a.scripts, exclude_binaries=True, name='optima', debug=False, strip=False, upx=True, console=True)
-# coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='optima')
+exe = EXE(pyz, a.scripts, exclude_binaries=True, name='optima', debug=False, strip=False, upx=True, console=True)
+coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='optima')
 
 # for one exe, replace the two above for.
-exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name='optima', debug=False, strip=False, upx=True, runtime_tmpdir=None, console=True)
+# exe = EXE(pyz, a.scripts, a.binaries, a.zipfiles, a.datas, name='optima', debug=False, strip=False, upx=True, runtime_tmpdir=None, console=True)
 
 # pyinstaller -y optima.spec

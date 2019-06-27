@@ -71,6 +71,7 @@ OPTIONS = {
     , 'max_iters': 99999999
     , 'prob_delete_maint': 0.5
     , 'log_output': ['file', 'console']
+    , 'log_handler': None
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0

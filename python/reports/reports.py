@@ -4,10 +4,10 @@ import package.instance as inst
 import package.experiment as exp
 import os
 import numpy as np
-import package.data_input as di
+import data.data_input as di
 import tabulate
 import re
-import package.heuristics as heur
+import solvers.heuristics as heur
 from package.params import PATHS
 import scripts.names as na
 
