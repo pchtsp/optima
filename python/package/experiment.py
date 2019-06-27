@@ -328,7 +328,6 @@ class Experiment(object):
         if error negative: bigger than max. Otherwise: less than min
         is not respected
         """
-        # TODO: do it with self.solution.get_schedule()
         tasks = self.solution.get_tasks().to_tuplist()
         maints = self.solution.get_state_tuplist()
         previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
@@ -483,44 +482,6 @@ class Experiment(object):
 
         return tl.TupList(result.to_records(index=False)).\
             to_dict(result_col=4, is_list=False)
-
-        # self.get_maintenance_periods()
-        # maint_start_m = {m: self.get_maintenance_starts(set(m)) for m in maints}
-        #
-        # maint_start_m2 = [(m, *t) for m, tup in maint_start_m.items() for t in tup]
-        # m_s_tab = pd.DataFrame.from_records(maint_start_m2, columns=['maint', 'resource', 'period'])
-        #
-        # maint_tab = pd.DataFrame.from_dict(maints, orient='index')
-        # maint_tab['maint'] = maint_tab.index
-        # maint_tab['max_dist'] = maint_tab.max_elapsed_time + maint_tab.duration_periods
-        # maint_tab['min_dist'] = maint_tab.max_dist - maint_tab.elapsed_time_size
-        # maint_tab = maint_tab[['maint', 'max_dist', 'min_dist']]
-        #
-        # def is_not_na(series):
-        #     return ~pd.isna(series)
-        # def diff_bound(dist, bound, error, less_than=True):
-        #     if less_than:
-        #         one_clause = dist < bound
-        #     else:
-        #         one_clause = dist > bound
-        #     second_clause = is_not_na(bound)
-        #     return pd.Series(np.where(np.all([one_clause, second_clause], axis=0), dist - bound, error))
-        #
-        # m_s_tab.sort_values(['maint', 'resource', 'period'], inplace=True)
-        # m_s_tab['duration'] =  m_s_tab.maint.map(durations) - 1
-        # m_s_tab['end'] = add_periods(m_s_tab.period, m_s_tab.duration)
-        # maint_start_tab_agg = m_s_tab.groupby(['maint', 'resource'])
-        # m_s_tab['period2'] = maint_start_tab_agg.period.shift(-1)
-        # m_s_tab = m_s_tab[is_not_na(m_s_tab.period2)].copy().reset_index()
-        # m_s_tab['dist'] = dist_periods(m_s_tab.end, m_s_tab.period2)
-        # m_s_tab = pd.merge(m_s_tab, maint_tab, on='maint')
-        # m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.min_dist, 0)
-        # m_s_tab['error'] = diff_bound(m_s_tab.dist, m_s_tab.max_dist, m_s_tab.error, False)
-        # m_s_tab = m_s_tab[['maint', 'resource', 'period', 'period2', 'error']]
-        # m_s_tab = m_s_tab[m_s_tab['error'] != 0]
-        #
-        # return tl.TupList(m_s_tab.to_records(index=False)).\
-        #     to_dict(result_col=4, is_list=False)
 
     def get_objective_function(self):
         raise ValueError("This is no longer supported")

@@ -145,8 +145,12 @@ def check_over_assignments():
     def listdir_fullpath(d):
         return [os.path.join(d, f) for f in os.listdir(d)]
 
-    exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/') for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
-    exp_scenario = {os.path.basename(e): os.path.basename(p) for p in listdir_fullpath(path_exps) for e in             listdir_fullpath(p)}
+    exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/')
+            for p in listdir_fullpath(path_exps)
+            for e in listdir_fullpath(p)}
+    exp_scenario = {os.path.basename(e): os.path.basename(p)
+                    for p in listdir_fullpath(path_exps)
+                    for e in listdir_fullpath(p)}
     checks = {e: v.check_task_num_resources(strict=True) for e, v in exps.items() if v is not None}
 
 
@@ -168,16 +172,17 @@ def check_template_data():
     import package.instance as inst
     import package.solution as sol
 
-    path_in = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830/template_in.xlsx'
-    path_sol = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830/template_out.xlsx'
+    path_in = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201903101302/template_in.xlsx'
+    path_sol = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201903101302/template_out.xlsx'
     model_data = td.import_input_template(path_in)
     instance = inst.Instance(model_data)
     sol_data = td.import_output_template(path_sol)
-    self.solution = sol.Solution(sol_data)
+    solution = sol.Solution(sol_data)
 
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
-    graph_check(path)
+    # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
+    # graph_check(path)
+    check_template_data()
     pass

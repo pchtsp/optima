@@ -1,25 +1,26 @@
 import sys
-from PyQt5 import QtWidgets
-from desktop_app.gui import Ui_MainWindow
+# import PyQt5
+from PyQt5 import QtWidgets, QtCore
 
-import data.data_input as di
-import package.instance as inst
-import package.solution as sol
-import package.params as params
 import os
 import logging
 import json
+import package.auxiliar as aux
 
-import data.template_data as td
+import package.instance as inst
+import package.solution as sol
+import package.params as params
 import package.exec as exec
-import solvers.heuristics_maintfirst as mf
 import package.experiment as exp
 
+import data.data_input as di
+import data.template_data as td
 
-# TODO: add dialog when it finds a solution
-# TODO: import solution
-# TODO: export solution
-# TODO: generate graph?
+import solvers.heuristics_maintfirst as mf
+import desktop_app.gui as gui
+import reports.gantt as gantt
+
+
 # TODO: integrate json viewer
 
 
@@ -29,27 +30,60 @@ class MainWindow_EXCEC():
         self.options = options
         app = QtWidgets.QApplication(sys.argv)
         MainWindow = QtWidgets.QMainWindow()
-        self.ui = Ui_MainWindow()
+        self.ui = gui.Ui_MainWindow()
         self.ui.setupUi(MainWindow)
-        self.ui.chooseFile.clicked.connect(self.choose_file)
         self.solution_path = options['output_template_path']
+
         self.ui.excel_path.setText(options['input_template_path'])
-        self.ui.max_time.setText(str(options['timeLimit']))
+        self.update_ui()
+        # self.ui.max_time.setText(str(options['timeLimit']))
 
         self.instance = None
         self.solution = None
 
-        self.input_data = {}
+        # menu actions:
+        self.ui.actionOpen_from.triggered.connect(self.choose_file)
+        self.ui.actionSave.triggered.connect(self.export_solution)
+        self.ui.actionSave_As.triggered.connect(self.export_solution_to)
+        self.ui.actionExit.triggered.connect(QtCore.QCoreApplication.exit)
 
         # below buttons:
+        self.ui.chooseFile.clicked.connect(self.choose_file)
         self.ui.generateSolution.clicked.connect(self.generate_solution)
         self.ui.checkSolution.clicked.connect(self.check_solution)
         self.ui.exportSolution.clicked.connect(self.export_solution)
         self.ui.exportSolution_to.clicked.connect(self.export_solution_to)
+        self.ui.generateGantt.clicked.connect(self.generate_gantt)
 
+        # other
+        self.ui.max_time.textEdited.connect(self.update_options)
+        # self.ui.start_date.valueChanged.connect(self.update_options)
+        self.ui.num_period.textEdited.connect(self.update_options)
 
         MainWindow.show()
         sys.exit(app.exec_())
+
+    def update_options(self):
+        try:
+            self.options['timeLimit'] = float(self.ui.max_time.text())
+            # self.options['start'] = self.ui.start_date.text()
+            self.options['num_period'] = float(self.ui.num_period.text())
+        except:
+            return 0
+
+    # def update_time(self):
+    #     try:
+    #         self.options['timeLimit'] = float(self.ui.max_time.text())
+    #     except:
+    #         return 0
+    #     return 1
+
+    def update_ui(self):
+        aux.month_to_arrow(self.options['start'])
+        self.ui.max_time.setText(str(self.options['timeLimit']))
+        # self.ui.start_date.setDate(str())
+        self.ui.num_period.setText(str(self.options['num_period']))
+        return 1
 
     def choose_file(self):
         QFileDialog = QtWidgets.QFileDialog
@@ -65,25 +99,16 @@ class MainWindow_EXCEC():
         exec.udpdate_case_read_options(self.options, dirName + '/')
         self.ui.excel_path.setText(dirName)
         self.load_template()
-
+        self.update_ui()
         return True
 
     def read_dir(self):
-        # input_file = params.PATHS['data'] + 'raw/parametres_DGA_final.xlsm'
-        # self.input_data = di.get_model_data(self.input_path)
-        # historic_data = di.generainput_pathte_solution_from_source()
-        # self.input_data = di.combine_data_states(self.input_data, historic_data)
-        # black_list = ['O8']  # this task has less candidates than what it asks.
-        # self.input_data['tasks'] = \
-        #     {k: v for k, v in self.input_data['tasks'].items() if k not in black_list}
-        # start, end = self.input_data['parameters']['start'], self.input_data['parameters']['end']
-        # self.ui.start_date.setDate(arrow.get(start).datetime)
-        # self.ui.end_date.setDate(arrow.get(end).datetime)
         self.load_template()
 
-    def show_message(self, title, text):
+    def show_message(self, title, text, icon='critical'):
         msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        if icon=='critical':
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
         msg.setText(text)
         # msg.setInformativeText("No template_in file found in directory.")
         msg.setWindowTitle(title)
@@ -134,7 +159,8 @@ class MainWindow_EXCEC():
         if not self.instance:
             self.show_message(title="Loading needed", text='No instance loaded, so not possible to solve.')
             return
-        experiment = mf.MaintenanceFirst(self.instance, solution=self.solution)
+        # TODO: see why input solution doesn't work
+        experiment = mf.MaintenanceFirst(self.instance)
         output_path = options['path']
 
         # TODO: update log live and use worker with multiprocessings
@@ -165,6 +191,11 @@ class MainWindow_EXCEC():
             print('Error reading log file')
             res = ''
         self.ui.solution_log.setText(res)
+        if self.solution:
+            self.show_message('Finished', 'Solution was saved in directory.', icon='Success')
+        else:
+            self.show_message('Problem occured', 'A solution was not found.')
+        return 1
 
     def export_solution_gen(self, output_path, export_input=False):
         if not os.path.exists(output_path) or not os.path.isdir(output_path):
@@ -182,13 +213,13 @@ class MainWindow_EXCEC():
         if export_input:
             _dir = os.path.join(output_path, 'template_in.xlsx')
             td.export_input_template(_dir, experiment.instance.data)
-        self.show_message('Success', 'Solution successfully exported.')
+        self.show_message('Success', 'Solution successfully exported.', icon='Success')
         return 1
 
     def export_solution(self):
         output_path = self.options['path']
         self.export_solution_gen(output_path)
-        return
+        return 1
 
     def export_solution_to(self):
         QFileDialog = QtWidgets.QFileDialog
@@ -196,13 +227,21 @@ class MainWindow_EXCEC():
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
             caption="QFileDialog.getOpenFileName()",
-            directory=params.PATHS['data'],
+            directory=self.options['path'],
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
         if not dirName:
             return False
         self.export_solution_gen(dirName, export_input=True)
-        return
+        return 1
+
+    def generate_gantt(self):
+        if not (self.instance and self.solution):
+            self.show_message('Error', 'Gantt cannot be created because a complete instance is needed.')
+            return 0
+        path = self.options['path']
+        gantt.make_gantt_from_experiment(path=path)
+        return 1
 
 class QPlainTextEditLogger(logging.Handler):
     def __init__(self, parent):

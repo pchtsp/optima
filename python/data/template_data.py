@@ -60,7 +60,8 @@ def get_resources(tables):
     maint_tab = tables['maintenances']
 
     def elapsed_time_between_dates(value, series2):
-        return pd.Series(len(aux.get_months(p2, value)) - 1 for p2 in series2)
+        return pd.Series(len(aux.get_months(p2, value)) - 1 if not pd.isna(p2) else np.nan
+                         for p2 in series2)
 
     equiv = {
         'avion': 'resource'
@@ -73,11 +74,11 @@ def get_resources(tables):
     states.resource = states.resource.astype(str)
 
     resources = \
-        pd.merge(resources, states, on='resource').\
+        pd.merge(resources, states, on='resource'). \
+        merge(maint_tab[['maint', 'BC', 'BH']], on='maint'). \
         assign(used = lambda x: x.hours - x.used). \
         assign(elapsed=lambda x: x.elapsed.str.slice(stop=7)). \
         assign(elapsed=lambda x: elapsed_time_between_dates(start, x.elapsed)). \
-        merge(maint_tab[['maint', 'BC', 'BH']], on='maint'). \
         assign(elapsed=lambda x: x.BC - x.elapsed). \
         assign(used=lambda x: x.BH - x.used). \
         filter(['resource', 'maint', 'used', 'elapsed']). \

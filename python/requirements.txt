@@ -16,6 +16,7 @@ et-xmlfile==1.0.1
 Flask==0.12.2
 future==0.17.1
 ggplot==0.11.5
+graphviz==0.10.1
 idna==2.6
 ipython==6.5.0
 ipython-genutils==0.2.0
@@ -32,7 +33,7 @@ matplotlib==3.0.2
 nbformat==4.4.0
 numpy==1.15.4
 openpyxl==2.5.1
-https://github.com/pchtsp/orloge/archive/master.zip#egg=orloge
+-e git+git@github.com:pchtsp/orloge.git@6879999026764538c09b51431ee1e8e53347c905#egg=orloge
 palettable==3.1.0
 pandas==0.23.4
 parso==0.3.1
@@ -43,21 +44,25 @@ pickleshare==0.7.4
 plotly==2.2.3
 prompt-toolkit==1.0.15
 ptyprocess==0.6.0
-https://github.com/pchtsp/pulp-or/archive/mip_start.zip#egg=PuLP
+-e git+git@github.com:pchtsp/pulp-or.git@4e0340e3a3b735ecfe249d38721662f70cb1fcfd#egg=PuLP
 Pygments==2.2.0
 PyInstaller==3.4
 pypandoc==1.4
 pyparsing==2.3.1
 PyQt5==5.10.1
 python-dateutil==2.7.5
+-e git+git@github.com:pchtsp/pytups.git@e1dcc6cb1db8cc938435e66c97fc97866553d3d4#egg=pytups
 pytz==2018.7
+pywin32-ctypes==0.2.0
 PyYAML==3.12
 requests==2.18.4
 rpy2==2.9.5
+scikit-learn==0.20.3
 scipy==1.1.0
 simplegeneric==0.8.1
 sip==4.19.8
 six==1.11.0
+sklearn==0.0
 statsmodels==0.9.0
 tabulate==0.8.2
 toposort==1.5
