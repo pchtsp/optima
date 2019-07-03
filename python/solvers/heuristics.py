@@ -17,6 +17,8 @@ class GreedyByMission(test.Experiment):
         # if solution given, just initialize and go
         if solution is not None:
             super().__init__(instance, solution)
+            for time in ['rut', 'ret']:
+                self.set_remaining_usage_time_all(time=time)
             return
 
         # if not, create a mock solution

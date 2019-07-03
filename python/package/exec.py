@@ -112,19 +112,21 @@ def execute_solve(model_data, options, solution_data=None):
 
     possible_path = options['root'] + 'R/functions/import_results.R'
     if options.get('graph', False) == 1:
-        try:
-            import reports.rpy_graphs as rg
+        import reports.gantt as gantt
+        gantt.make_gantt_from_experiment(path=options['path'])
+        # try:
+            # import reports.rpy_graphs as rg
             # print('possible path for script: {}'.format(possible_path))
             # os.listdir(options['root'] + 'python/')
             # os.listdir(options['root'])
-            if os.path.exists(possible_path):
+            # if os.path.exists(possible_path):
                 # print('file exists')
-                rg.gantt_experiment(options['path'], possible_path)
-            else:
+                # rg.gantt_experiment(options['path'], possible_path)
+            # else:
                 # print('file doesnt exists')
-                rg.gantt_experiment(options['path'])
-        except:
-            print("No support for R graph functions!")
+                # rg.gantt_experiment(options['path'])
+        # except:
+        #     print("No support for R graph functions!")
     elif options.get('graph', False) == 2:
         # TODO: choose a better temp path
         _file = copy_file_temp(possible_path)

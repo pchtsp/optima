@@ -1,6 +1,6 @@
 import sys
 # import PyQt5
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 
 import os
 import logging
@@ -22,6 +22,8 @@ import reports.gantt as gantt
 
 
 # TODO: integrate json viewer
+# TODO: deploy icon
+# TODO: correct gantt
 
 
 class MainWindow_EXCEC():
@@ -30,6 +32,17 @@ class MainWindow_EXCEC():
         self.options = options
         app = QtWidgets.QApplication(sys.argv)
         MainWindow = QtWidgets.QMainWindow()
+
+        # set icon
+        if getattr(sys, 'frozen', False):
+            scriptDir = sys._MEIPASS
+            self.examplesDir = scriptDir + '/examples/'
+        else:
+            scriptDir = os.path.dirname(os.path.realpath(__file__))
+            self.examplesDir = scriptDir + '/../../data/template/'
+        icon_path = os.path.join(scriptDir, "plane.ico")
+        MainWindow.setWindowIcon(QtGui.QIcon(icon_path))
+
         self.ui = gui.Ui_MainWindow()
         self.ui.setupUi(MainWindow)
         self.solution_path = options['output_template_path']
@@ -91,7 +104,7 @@ class MainWindow_EXCEC():
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
             caption="Choose a directory to load",
-            directory=params.PATHS['data'],
+            directory=self.examplesDir,
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
         if not dirName:
@@ -159,8 +172,7 @@ class MainWindow_EXCEC():
         if not self.instance:
             self.show_message(title="Loading needed", text='No instance loaded, so not possible to solve.')
             return
-        # TODO: see why input solution doesn't work
-        experiment = mf.MaintenanceFirst(self.instance)
+        experiment = mf.MaintenanceFirst(self.instance, self.solution)
         output_path = options['path']
 
         # TODO: update log live and use worker with multiprocessings
@@ -192,7 +204,7 @@ class MainWindow_EXCEC():
             res = ''
         self.ui.solution_log.setText(res)
         if self.solution:
-            self.show_message('Finished', 'Solution was saved in directory.', icon='Success')
+            self.show_message('Finished', 'A solution was found.', icon='Success')
         else:
             self.show_message('Problem occured', 'A solution was not found.')
         return 1
@@ -240,7 +252,11 @@ class MainWindow_EXCEC():
             self.show_message('Error', 'Gantt cannot be created because a complete instance is needed.')
             return 0
         path = self.options['path']
-        gantt.make_gantt_from_experiment(path=path)
+        try:
+            gantt.make_gantt_from_experiment(path=path)
+        except ValueError:
+            self.show_message('Error', 'A problem occurred. Be sure to have a valid solution exported in the directory.')
+            return 0
         return 1
 
 class QPlainTextEditLogger(logging.Handler):
