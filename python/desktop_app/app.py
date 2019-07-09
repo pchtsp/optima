@@ -1,6 +1,5 @@
 import sys
-# import PyQt5
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore, QtGui
 
 import os
 import logging
@@ -9,9 +8,9 @@ import package.auxiliar as aux
 
 import package.instance as inst
 import package.solution as sol
-import package.params as params
-import package.exec as exec
 import package.experiment as exp
+
+import package.exec as exec
 
 import data.data_input as di
 import data.template_data as td
@@ -22,8 +21,7 @@ import reports.gantt as gantt
 
 
 # TODO: integrate json viewer
-# TODO: deploy icon
-# TODO: correct gantt
+# TODO: deploy icon (below screen)
 
 
 class MainWindow_EXCEC():
@@ -46,13 +44,12 @@ class MainWindow_EXCEC():
         self.ui = gui.Ui_MainWindow()
         self.ui.setupUi(MainWindow)
         self.solution_path = options['output_template_path']
-
         self.ui.excel_path.setText(options['input_template_path'])
-        self.update_ui()
-        # self.ui.max_time.setText(str(options['timeLimit']))
 
         self.instance = None
         self.solution = None
+
+        self.update_ui()
 
         # menu actions:
         self.ui.actionOpen_from.triggered.connect(self.choose_file)
@@ -72,6 +69,7 @@ class MainWindow_EXCEC():
         self.ui.max_time.textEdited.connect(self.update_options)
         # self.ui.start_date.valueChanged.connect(self.update_options)
         self.ui.num_period.textEdited.connect(self.update_options)
+        self.ui.log_level.currentIndexChanged.connect(self.update_options)
 
         MainWindow.show()
         sys.exit(app.exec_())
@@ -81,6 +79,7 @@ class MainWindow_EXCEC():
             self.options['timeLimit'] = float(self.ui.max_time.text())
             # self.options['start'] = self.ui.start_date.text()
             self.options['num_period'] = float(self.ui.num_period.text())
+            self.options['debug'] = self.ui.log_level.currentIndex() == 1
         except:
             return 0
 
@@ -92,10 +91,36 @@ class MainWindow_EXCEC():
     #     return 1
 
     def update_ui(self):
-        aux.month_to_arrow(self.options['start'])
+        # aux.month_to_arrow(self.options['start'])
         self.ui.max_time.setText(str(self.options['timeLimit']))
         # self.ui.start_date.setDate(str())
         self.ui.num_period.setText(str(self.options['num_period']))
+
+        # widgets_update = [(self.instance, self.ui.instCheck), (self.solution, self.ui.solCheck)]
+        # for info, widget in widgets_update:
+        #     if info is None:
+        #         widget.
+        # we update labels with status:
+        if self.instance is None:
+            self.ui.instCheck.setText('No instance loaded')
+            self.ui.instCheck.setStyleSheet("QLabel { color : red; }")
+        else:
+            self.ui.instCheck.setText('Instance loaded')
+            self.ui.instCheck.setStyleSheet("QLabel { color : green; }")
+            numperiod = self.instance.get_param('num_period')
+            self.ui.num_period.setText(str(numperiod))
+            start = self.instance.get_param('start')
+            date2 = QtCore.QDate.fromString(start+'-01', QtCore.Qt.ISODate)
+            self.ui.start_date.setDate(date2)
+
+        if self.solution is None:
+            self.ui.solCheck.setText('No solution loaded')
+            self.ui.solCheck.setStyleSheet("QLabel { color : red; }")
+        else:
+            self.ui.solCheck.setText('Solution loaded')
+            self.ui.solCheck.setStyleSheet("QLabel { color : green; }")
+
+
         return 1
 
     def choose_file(self):
@@ -104,7 +129,7 @@ class MainWindow_EXCEC():
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
             caption="Choose a directory to load",
-            directory=self.examplesDir,
+            dir=self.examplesDir,
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
         if not dirName:
@@ -113,6 +138,7 @@ class MainWindow_EXCEC():
         self.ui.excel_path.setText(dirName)
         self.load_template()
         self.update_ui()
+        self.update_options()
         return True
 
     def read_dir(self):
@@ -142,15 +168,12 @@ class MainWindow_EXCEC():
             self.show_message(title="Error in template_in.xlsx", text="There's been an error reading the input file.")
             return
         self.instance = inst.Instance(model_data)
-        # we update labels with status:
-        self.ui.instCheck.setText('Instance loaded')
-        self.ui.instCheck.setStyleSheet("QLabel { color : green; }")
 
         if os.path.exists(options['output_template_path']):
             sol_data = td.import_output_template(options['output_template_path'])
             self.solution = sol.Solution(sol_data)
-            self.ui.solCheck.setText('Solution loaded')
-            self.ui.solCheck.setStyleSheet("QLabel { color : green; }")
+        else:
+            self.solution = None
 
         return True
 
@@ -239,7 +262,7 @@ class MainWindow_EXCEC():
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
             caption="QFileDialog.getOpenFileName()",
-            directory=self.options['path'],
+            dir=self.options['path'],
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
         if not dirName:
@@ -301,7 +324,11 @@ if __name__ == "__main__":
     # to compile desktop_app.gui, we need the following:
     # pyuic5 -o filename.py file.ui
     # if we add -x flag we make it executable
-    # example: pyuic5 gui.ui -o gui.py
+    # example: pyuic5 desktop_app/gui.ui -o desktop_app/gui.py
+    # for pyside2:
+    # Migration to pyside2:
+    # https://www.learnpyqt.com/blog/pyqt5-vs-pyside2/
+    # pyside2-uic desktop_app/gui.ui -o desktop_app/gui.py
     MainWindow_EXCEC({})
 
 

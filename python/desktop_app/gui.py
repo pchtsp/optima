@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'gui.ui'
+# Form implementation generated from reading ui file 'desktop_app/gui.ui',
+# licensing of 'desktop_app/gui.ui' applies.
 #
-# Created by: PyQt5 UI code generator 5.10.1
+# Created: Tue Jul  9 16:46:26 2019
+#      by: pyside2-uic  running on PySide2 5.13.0
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PySide2 import QtCore, QtGui, QtWidgets
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -42,8 +44,8 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.instCheck = QtWidgets.QLabel(self.Config)
         font = QtGui.QFont()
-        font.setBold(True)
         font.setWeight(75)
+        font.setBold(True)
         self.instCheck.setFont(font)
         self.instCheck.setStyleSheet("QLabel { color : red; }")
         self.instCheck.setTextFormat(QtCore.Qt.AutoText)
@@ -51,8 +53,8 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.addWidget(self.instCheck)
         self.solCheck = QtWidgets.QLabel(self.Config)
         font = QtGui.QFont()
-        font.setBold(True)
         font.setWeight(75)
+        font.setBold(True)
         self.solCheck.setFont(font)
         self.solCheck.setStyleSheet("QLabel { color : red; }")
         self.solCheck.setObjectName("solCheck")
@@ -62,6 +64,20 @@ class Ui_MainWindow(object):
         self.gridLayout = QtWidgets.QGridLayout()
         self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.gridLayout.setObjectName("gridLayout")
+        self.num_period = QtWidgets.QLineEdit(self.Config)
+        self.num_period.setEnabled(False)
+        self.num_period.setObjectName("num_period")
+        self.gridLayout.addWidget(self.num_period, 1, 1, 1, 1)
+        self.start_date_lab = QtWidgets.QLabel(self.Config)
+        self.start_date_lab.setObjectName("start_date_lab")
+        self.gridLayout.addWidget(self.start_date_lab, 0, 0, 1, 1)
+        self.start_date = QtWidgets.QDateEdit(self.Config)
+        self.start_date.setEnabled(False)
+        self.start_date.setCurrentSection(QtWidgets.QDateTimeEdit.YearSection)
+        self.start_date.setCalendarPopup(True)
+        self.start_date.setTimeSpec(QtCore.Qt.TimeZone)
+        self.start_date.setObjectName("start_date")
+        self.gridLayout.addWidget(self.start_date, 0, 1, 1, 1)
         self.max_time_lab = QtWidgets.QLabel(self.Config)
         self.max_time_lab.setObjectName("max_time_lab")
         self.gridLayout.addWidget(self.max_time_lab, 2, 0, 1, 1)
@@ -71,21 +87,17 @@ class Ui_MainWindow(object):
         self.max_time.setMaxLength(4)
         self.max_time.setObjectName("max_time")
         self.gridLayout.addWidget(self.max_time, 2, 1, 1, 1)
-        self.start_date = QtWidgets.QDateEdit(self.Config)
-        self.start_date.setCurrentSection(QtWidgets.QDateTimeEdit.YearSection)
-        self.start_date.setCalendarPopup(True)
-        self.start_date.setTimeSpec(QtCore.Qt.TimeZone)
-        self.start_date.setObjectName("start_date")
-        self.gridLayout.addWidget(self.start_date, 0, 1, 1, 1)
         self.num_periods_lab = QtWidgets.QLabel(self.Config)
         self.num_periods_lab.setObjectName("num_periods_lab")
         self.gridLayout.addWidget(self.num_periods_lab, 1, 0, 1, 1)
-        self.start_date_lab = QtWidgets.QLabel(self.Config)
-        self.start_date_lab.setObjectName("start_date_lab")
-        self.gridLayout.addWidget(self.start_date_lab, 0, 0, 1, 1)
-        self.num_period = QtWidgets.QLineEdit(self.Config)
-        self.num_period.setObjectName("num_period")
-        self.gridLayout.addWidget(self.num_period, 1, 1, 1, 1)
+        self.log_level = QtWidgets.QComboBox(self.Config)
+        self.log_level.setObjectName("log_level")
+        self.log_level.addItem("")
+        self.log_level.addItem("")
+        self.gridLayout.addWidget(self.log_level, 3, 1, 1, 1)
+        self.log_level_lab = QtWidgets.QLabel(self.Config)
+        self.log_level_lab.setObjectName("log_level_lab")
+        self.gridLayout.addWidget(self.log_level_lab, 3, 0, 1, 1)
         self.verticalLayout.addLayout(self.gridLayout)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
@@ -145,25 +157,27 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "OPTIMA v0.01"))
-        self.Config.setToolTip(_translate("MainWindow", "<html><head/><body><p>configuration</p></body></html>"))
-        self.chooseFile.setText(_translate("MainWindow", "Browse"))
-        self.instCheck.setText(_translate("MainWindow", "no instance loaded"))
-        self.solCheck.setText(_translate("MainWindow", "no solution loaded"))
-        self.max_time_lab.setText(_translate("MainWindow", "Max solving time                                                                                                         "))
-        self.start_date.setDisplayFormat(_translate("MainWindow", "yyyy-MM"))
-        self.num_periods_lab.setText(_translate("MainWindow", "Number of periods"))
-        self.start_date_lab.setText(_translate("MainWindow", "Start date"))
-        self.generateSolution.setText(_translate("MainWindow", "generate solution"))
-        self.checkSolution.setText(_translate("MainWindow", "check solution"))
-        self.exportSolution.setText(_translate("MainWindow", "export solution"))
-        self.exportSolution_to.setText(_translate("MainWindow", "export solution to"))
-        self.generateGantt.setText(_translate("MainWindow", "Generate gantt"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.Config), _translate("MainWindow", "Config"))
-        self.menuFile.setTitle(_translate("MainWindow", "File"))
-        self.actionOpen_from.setText(_translate("MainWindow", "Open from..."))
-        self.actionExit.setText(_translate("MainWindow", "Exit"))
-        self.actionSave.setText(_translate("MainWindow", "Export"))
-        self.actionSave_As.setText(_translate("MainWindow", "Save As..."))
+        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.01", None, -1))
+        self.Config.setToolTip(QtWidgets.QApplication.translate("MainWindow", "<html><head/><body><p>configuration</p></body></html>", None, -1))
+        self.chooseFile.setText(QtWidgets.QApplication.translate("MainWindow", "Browse", None, -1))
+        self.instCheck.setText(QtWidgets.QApplication.translate("MainWindow", "No instance loaded", None, -1))
+        self.solCheck.setText(QtWidgets.QApplication.translate("MainWindow", "No solution loaded", None, -1))
+        self.start_date_lab.setText(QtWidgets.QApplication.translate("MainWindow", "Start date", None, -1))
+        self.start_date.setDisplayFormat(QtWidgets.QApplication.translate("MainWindow", "yyyy-MM", None, -1))
+        self.max_time_lab.setText(QtWidgets.QApplication.translate("MainWindow", "Max solving time                                                                                                         ", None, -1))
+        self.num_periods_lab.setText(QtWidgets.QApplication.translate("MainWindow", "Number of periods", None, -1))
+        self.log_level.setItemText(0, QtWidgets.QApplication.translate("MainWindow", "INFO", None, -1))
+        self.log_level.setItemText(1, QtWidgets.QApplication.translate("MainWindow", "DEBUG", None, -1))
+        self.log_level_lab.setText(QtWidgets.QApplication.translate("MainWindow", "Logging level", None, -1))
+        self.generateSolution.setText(QtWidgets.QApplication.translate("MainWindow", "generate solution", None, -1))
+        self.checkSolution.setText(QtWidgets.QApplication.translate("MainWindow", "check solution", None, -1))
+        self.exportSolution.setText(QtWidgets.QApplication.translate("MainWindow", "export solution", None, -1))
+        self.exportSolution_to.setText(QtWidgets.QApplication.translate("MainWindow", "export solution to", None, -1))
+        self.generateGantt.setText(QtWidgets.QApplication.translate("MainWindow", "Generate gantt", None, -1))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.Config), QtWidgets.QApplication.translate("MainWindow", "Config", None, -1))
+        self.menuFile.setTitle(QtWidgets.QApplication.translate("MainWindow", "File", None, -1))
+        self.actionOpen_from.setText(QtWidgets.QApplication.translate("MainWindow", "Open from...", None, -1))
+        self.actionExit.setText(QtWidgets.QApplication.translate("MainWindow", "Exit", None, -1))
+        self.actionSave.setText(QtWidgets.QApplication.translate("MainWindow", "Export", None, -1))
+        self.actionSave_As.setText(QtWidgets.QApplication.translate("MainWindow", "Export As...", None, -1))
 
