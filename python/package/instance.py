@@ -24,7 +24,7 @@ class Instance(object):
 
     def __init__(self, model_data):
         self.data = model_data
-        self.set_cache_horizon()
+        self.set_date_params()
         self.set_default_params()
         for time_type in ['used', 'elapsed']:
             self.correct_initial_state(time_type=time_type)
@@ -91,7 +91,7 @@ class Instance(object):
             maints[m]['affects'] = v
         return maints
 
-    def set_cache_horizon(self):
+    def set_date_params(self):
         """
         This makes a cache of periods to later access it to move
         between periods inside the planning horizon
@@ -99,6 +99,9 @@ class Instance(object):
         """
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
+        # we force the end to be coherent with the num_period parameter
+        self.data['parameters']['end'] = aux.shift_month(start, num_periods - 1)
+        # we cache the relationships between periods
         self.data['aux'] = {}
         self.data['aux']['period_e'] = {
             k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
