@@ -3,7 +3,7 @@
 # Form implementation generated from reading ui file 'desktop_app/gui.ui',
 # licensing of 'desktop_app/gui.ui' applies.
 #
-# Created: Tue Jul  9 16:46:26 2019
+# Created: Wed Jul 10 15:41:35 2019
 #      by: pyside2-uic  running on PySide2 5.13.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -157,7 +157,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.01", None, -1))
+        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.20190712", None, -1))
         self.Config.setToolTip(QtWidgets.QApplication.translate("MainWindow", "<html><head/><body><p>configuration</p></body></html>", None, -1))
         self.chooseFile.setText(QtWidgets.QApplication.translate("MainWindow", "Browse", None, -1))
         self.instCheck.setText(QtWidgets.QApplication.translate("MainWindow", "No instance loaded", None, -1))
