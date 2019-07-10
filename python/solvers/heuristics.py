@@ -3,9 +3,9 @@ import numpy as np
 import package.experiment as test
 import package.solution as sol
 import random as rn
-import package.tuplist as tl
+import pytups.tuplist as tl
 import logging as log
-import package.superdict as sd
+import pytups.superdict as sd
 
 
 class GreedyByMission(test.Experiment):
@@ -291,7 +291,7 @@ class GreedyByMission(test.Experiment):
         periods = maint_needed - maint_not_possible - resource_blocked
 
         free = [(1, period) for period in periods]
-        return tl.TupList(free).tup_to_start_finish(ct=inst.compare_tups)
+        return tl.TupList(free).to_start_finish(inst.compare_tups)
 
     def get_random_maint(self, resource, min_period, max_period, maint='M'):
         """
@@ -369,7 +369,7 @@ class GreedyByMission(test.Experiment):
             return []
 
         ct = self.instance.compare_tups
-        startend = tl.TupList([(1, p) for p in candidate_periods]).tup_to_start_finish(ct=ct)
+        startend = tl.TupList([(1, p) for p in candidate_periods]).to_start_finish(ct)
         return startend.filter([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut', maint='M'):
@@ -409,7 +409,7 @@ class GreedyByMission(test.Experiment):
         :return:
         """
         # TODO: we should clean after adding M
-        self.solution.data[cat].tup_to_dicts(tup=args, value=value)
+        self.solution.data[cat].set_m(*args, value=value)
 
         return True
 
@@ -425,7 +425,7 @@ class GreedyByMission(test.Experiment):
         period = min_start
         while period <= last:
             states = self.solution.get_period_state(resource, period, 'state_m')
-            if states is not None and len(np.intersect1d(states.keys(), maints)):
+            if states is not None and len(states.keys() & maints):
                 return period
             period = self.instance.get_next_period(period)
         return None

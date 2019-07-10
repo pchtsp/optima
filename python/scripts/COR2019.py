@@ -4,7 +4,7 @@ import package.experiment as exp
 import pandas as pd
 import numpy as np
 import package.params as pm
-import package.superdict as sd
+import pytups.superdict as sd
 # import scripts.names as na
 # import numpy as np
 import dfply as dp

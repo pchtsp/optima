@@ -1,8 +1,8 @@
 # /usr/bin/python3
 
 import package.auxiliar as aux
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 
 class Solution(object):
     """

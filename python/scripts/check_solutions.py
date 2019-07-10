@@ -1,9 +1,10 @@
 import package.experiment as exp
+import solvers.heuristics_maintfirst as heur
 import pprint as pp
 from package.params import PATHS, OPTIONS
 import package.auxiliar as aux
 import pandas as pd
-import package.superdict as sd
+import pytups.superdict as sd
 import package.exec as exec
 import os
 
@@ -172,17 +173,31 @@ def check_template_data():
     import package.instance as inst
     import package.solution as sol
 
-    path_in = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201903101302/template_in.xlsx'
-    path_sol = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201903101302/template_out.xlsx'
+    path_in = PATHS['data'] + r'template/201903101302/template_in.xlsx'
+    path_sol = PATHS['data'] + r'template/201903101302/template_out.xlsx'
     model_data = td.import_input_template(path_in)
     instance = inst.Instance(model_data)
     sol_data = td.import_output_template(path_sol)
     solution = sol.Solution(sol_data)
+
+def solve_template():
+    import data.template_data as td
+    import package.instance as inst
+
+    path_in = PATHS['data'] + r'template/201902141830_3/template_in.xlsx'
+    model_data = td.import_input_template(path_in)
+    instance = inst.Instance(model_data)
+    experiment = heur.MaintenanceFirst(instance)
+    options = OPTIONS
+    options['path'] = os.path.dirname(path_in)
+    experiment.solve(options)
+    pass
+
 
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
     # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
     # graph_check(path)
-    check_template_data()
+    solve_template()
     pass

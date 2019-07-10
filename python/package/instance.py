@@ -4,8 +4,8 @@ import numpy as np
 import package.auxiliar as aux
 import data.data_input as di
 import math
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 
 
 class Instance(object):
@@ -251,7 +251,7 @@ class Instance(object):
         # we turn them into a start-finish tuple
         # we filter it so we only take the start-finish periods that end before the horizon
         assignments = \
-            previous_states.tup_to_start_finish(ct=self.compare_tups).\
+            previous_states.to_start_finish(self.compare_tups).\
                 filter_list_f(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \

@@ -4,8 +4,8 @@ import package.auxiliar as aux
 import solvers.config as conf
 import package.solution as sol
 import package.experiment as exp
-import package.tuplist as tl
-import package.superdict as sd
+import pytups.tuplist as tl
+import pytups.superdict as sd
 import random as rn
 
 

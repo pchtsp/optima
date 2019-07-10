@@ -6,8 +6,8 @@ import pandas as pd
 import data.data_input as di
 import package.solution as sol
 import package.instance as inst
-import package.tuplist as tl
-import package.superdict as sd
+import pytups.tuplist as tl
+import pytups.superdict as sd
 import os
 import shutil
 import re
@@ -126,7 +126,7 @@ class Experiment(object):
         :return: True
         """
         tup = [time, maint, resource, period]
-        self.solution.data['aux'].tup_to_dicts(tup=tup, value=value)
+        self.solution.data['aux'].set_m(*tup, value=value)
         return True
 
     def get_remainingtime(self, resource=None, period=None, time='rut', maint='M'):
@@ -338,7 +338,7 @@ class Experiment(object):
         num_periods = self.instance.get_param('num_period')
         ct = self.instance.compare_tups
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).tup_to_start_finish(ct=ct)
+        all_states_periods = tl.TupList(all_states).to_start_finish(ct)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -533,7 +533,7 @@ class Experiment(object):
         all_states = self.get_states(resource)
         ct = self.instance.compare_tups
         all_states.sort(key=lambda x: (x[0], x[2], x[1]))
-        return all_states.tup_to_start_finish(ct=ct, sort=False)
+        return all_states.to_start_finish(ct)
 
     def get_maintenance_periods(self, resource=None, state_list=None):
         if state_list is None:
@@ -541,7 +541,7 @@ class Experiment(object):
         all_states = self.get_states(resource)
         maintenances = tl.TupList([(k[0], k[1]) for k in all_states if k[2] in state_list])
         ct = self.instance.compare_tups
-        return maintenances.tup_to_start_finish(ct=ct)
+        return maintenances.to_start_finish(ct)
 
     def get_task_periods(self, resource=None):
         tasks = set(self.instance.get_tasks().keys())
@@ -550,7 +550,7 @@ class Experiment(object):
         ct = self.instance.compare_tups
         tasks_assigned = self.solution.get_tasks().to_tuplist()
         previous_tasks.extend(tasks_assigned)
-        return previous_tasks.tup_to_start_finish(ct=ct)
+        return previous_tasks.to_start_finish(ct)
 
     def get_maintenance_starts(self, state_list=None):
         return self.get_maintenance_periods(state_list=state_list).filter([0, 1])
@@ -584,6 +584,9 @@ class Experiment(object):
         args = {'left_index': True, 'right_index': True, 'how': 'left'}
         table = rut.merge(ret, **args).merge(task, **args).\
             merge(start, **args).sort_index().merge(state_m, **args)
+        names = np.all(table.isna(), axis=0)
+        list_names = names[~names].index
+        table = table.filter(list_names)
         return table.reset_index().rename(columns={'index': 'period'})
 
 

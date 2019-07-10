@@ -6,11 +6,11 @@ if 'GUROBI_HOME' in os.environ:
         os.environ['LD_LIBRARY_PATH'] = ""
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
-path_base = r'/home'
-path_base = r'C:\Users'
-path_root = path_base + '/pchtsp/Documents/projects/'
-path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
-path_project = path_root + "OPTIMA/"
+filename = os.path.realpath(__file__)
+directory = os.path.dirname(filename)
+path_project = os.path.join(directory, '..', '..') + '/'
+path_root = os.path.join(path_project, '..') + '/'
+path_results = os.path.join(path_root, 'optima_results/')
 
 PATHS = {
     'root': path_root
@@ -44,7 +44,7 @@ temp_path = \
     ) + '/'
 
 OPTIONS = {
-    'timeLimit': 10  # seconds
+    'timeLimit': 600  # seconds
     , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
     , 'black_list': ['O8', 'O10', 'O6']  # only used to read from DGA Excel.
     , 'white_list': []  # only used to read from DGA Excel.

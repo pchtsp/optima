@@ -1,4 +1,4 @@
-import package.superdict as sd
+import pytups.superdict as sd
 import os
 import data.data_input as di
 import numpy as np
@@ -136,6 +136,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         error_cat = errs.to_lendict()
         log.debug("errors: {}".format(error_cat))
         num_errors = sum(error_cat.values())
+        #  we add to num_errors the number of non empty assignments.
+        num_periods_maint = self.solution.data['state_m'].to_lendict().values()
+        num_errors += sum(num_periods_maint)/10
+
         # status
         # 0: best,
         # 1: improved,
@@ -174,11 +178,12 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_size_maints = self.get_candidates_size_maints(errors)
         candidates_min_assign = self.get_candidates_min_max_assign(errors)
         candidates_rut = self.get_candidates_rut(errors)
+        candidates_merge = self.get_candidates_merge()
 
         candidates = candidates_tasks + candidates_maints + \
                      candidates_cluster + candidates_dist_maints + \
                      candidates_min_assign + candidates_rut + \
-                     candidates_size_maints
+                     candidates_size_maints + candidates_merge
         if not len(candidates):
             return []
         # we add a random resource.
@@ -187,7 +192,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         # we only select a few (or 1) resource to change
         candidates_filter = rn.choices(candidates, k=min(k, len(candidates)))
 
-        # we want to garantee we only change the same resource once per iteration:
+        # we want to guarantee we only change the same resource once per iteration:
         ress, dates = [t for t in zip(*candidates_filter)]
         res, indices = np.unique(ress, return_index=True)
         candidates_n = [t for t in zip(res, np.array(dates)[indices])]
@@ -245,12 +250,28 @@ class MaintenanceFirst(heur.GreedyByMission):
                     break
         return candidates
 
+    def get_candidates_merge(self):
+        next = self.instance.get_next_period
+        data = self.solution.data['state_m']
+        def consec_list(_list):
+            filt = []
+            for el, el2 in zip(_list, _list[1:]):
+                if el2 == next(el):
+                    filt.append(el)
+                    filt.append(el2)
+            return filt
+
+        return data.\
+            vapply(sorted).\
+            vapply(consec_list).\
+            to_tuplist()
+
     def get_candidates_rut(self, errors):
         ct = self.instance.compare_tups
         maints_probs_st = \
             errors.get('usage', sd.SuperDict()).\
                 to_tuplist().\
-            tup_to_start_finish(ct=ct, pp=2)
+            to_start_finish(ct, pp=2)
         candidates = [(r, d) for m, r, d, p, e in maints_probs_st]
         return candidates
 
@@ -467,11 +488,13 @@ class MaintenanceFirst(heur.GreedyByMission):
                 if res in errors:
                     continue
                 for period, ret in info.items():
-                    if ret > 0:
+                    if ret > 0 or period < first:
                         continue
+                    # This tuple has three components:
+                    # (resource, first month to assign maintenance, month with troubles)
                     tup = res, \
                           max(first, inst.shift_period(period, -remaining_time_size + 1)), \
-                          period
+                          max(first, period)
                     maint_candidates.append(tup)
                     break
             if not len(maint_candidates):
@@ -484,7 +507,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                                                       which_maint='random',
                                                       maint=maint)
                 if not result:
-                    # we failed miserably, don't continue to try this resource
+                    # we failed, don't continue to try this resource
                     errors.append(resource)
         return
 

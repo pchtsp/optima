@@ -1,7 +1,7 @@
 import pandas as pd
 import package.auxiliar as aux
 import numpy as np
-import package.superdict as sd
+import pytups.superdict as sd
 
 
 def get_parameters(tables):

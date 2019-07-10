@@ -3,8 +3,8 @@ import pandas as pd
 import re
 import unicodedata
 import numpy as np
-import package.tuplist as tl
-import package.superdict as sd
+import pytups.tuplist as tl
+import pytups.superdict as sd
 import copy
 
 
