@@ -28,7 +28,7 @@ class MainWindow_EXCEC():
 
     def __init__(self, options):
         self.options = options
-        app = QtWidgets.QApplication(sys.argv)
+        self.app = QtWidgets.QApplication(sys.argv)
         MainWindow = QtWidgets.QMainWindow()
 
         # set icon
@@ -72,7 +72,7 @@ class MainWindow_EXCEC():
         self.ui.log_level.currentIndexChanged.connect(self.update_options)
 
         MainWindow.show()
-        sys.exit(app.exec_())
+        sys.exit(self.app.exec_())
 
     def update_options(self):
         try:
@@ -134,6 +134,8 @@ class MainWindow_EXCEC():
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",
         if not dirName:
             return False
+        # if os.path.isfile(dirName):
+        #     dirName = os.path.dirname(dirName)
         exec.udpdate_case_read_options(self.options, dirName + '/')
         self.ui.excel_path.setText(dirName)
         self.load_template()
@@ -185,9 +187,22 @@ class MainWindow_EXCEC():
         errors = experiment.check_solution()
         # errors = sd.SuperDict.from_dict(errors)
         errors = {k: v.to_dictdict() for k, v in errors.items()}
-        text = json.dumps(errors, cls=di.MyEncoder, indent=4)
-        msg = ScrollMessageBox(QtWidgets.QMessageBox.Critical,"The following errors were found:", text)
+        # text = json.dumps(errors, cls=di.MyEncoder, indent=4)
+        import desktop_app.qjsonmodel as qjs
+
+        model = qjs.QJsonModel()
+        view = QtWidgets.QTreeView()
+        view.setModel(model)
+        model.load(errors)
+        # view.resizeColumnToContents(0)
+        view.header().resizeSection(0, 400)
+        view.show()
+        view.resize(800, 500)
+        loop = QtCore.QEventLoop()
+        view.destroyed.connect(loop.quit)
+        loop.exec_()
         return
+
 
     def generate_solution(self):
         # exec.config_and_solve(self.options)
@@ -261,7 +276,7 @@ class MainWindow_EXCEC():
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         dirName = QFileDialog.getExistingDirectory(
-            caption="QFileDialog.getOpenFileName()",
+            caption="Choose a directory to export to",
             dir=self.options['path'],
             options=options)
         # filter = "Excel files (*.xlsx *.xlsm);;All Files (*)",

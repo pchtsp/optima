@@ -1,0 +1,12 @@
+'candidates':       problème de compatibilité avion-mission.
+'state':            plus d'un état (maintenance + mission) par période.
+'resources':        des missions qui manquent avions affectés dans certaines périodes.
+'usage':            la buté horaire (heures de vol) pour une maintenance n'est pas respecté.
+'elapsed':          la buté calendrier (périodes) pour une maintenance n'est pas respecté.
+'min_assign':       les périodes minimales d'affectation des missions ne sont pas respectées.
+'available':        le nombre minimal d'avions disponibles n'est pas respecté.
+'hours':            le nombre minimal d'heures de vol disponibles n'est pas respecté.
+'start_periods':    les missions et maintenances du début de la planification ne sont pas tenues en compte.
+'dist_maints':      la distance entre maintenance n'est pas respectée.
+'capacity':         la capacité de maintenance n'a pas été respectée.
+'maint_size':       la durée de maintenances n'a pas été respectée.
