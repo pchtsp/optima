@@ -75,7 +75,7 @@ def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, 
         plot += ggplot2.geom_smooth(method = 'loess')
 
     if y_pred:
-        plot += ggplot2.geom_line(ggplot2.aes_string(y=y_pred), color='blue')
+        plot += ggplot2.geom_point(ggplot2.aes_string(y=y_pred), color='blue', shape=1)
 
     path_out = path_graphs + r'{}_{}.png'.format(graph_name, name)
     plot.save(path_out)

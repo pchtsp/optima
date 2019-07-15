@@ -56,7 +56,7 @@ def test_regression(result_tab, x_vars, plot=True):
     y_pred = np.sum([result_tab[k]*c for k, c in coef_dict.items()], axis=0) + intercept
     X = result_tab.copy()
     X['pred'] = y_pred
-    graph_name = 'regression_mean_consum_g{}_init_{}'.format(5, predict_var)
+    graph_name = 'regression_mean_consum_g{}_{}'.format(5, predict_var)
     graphs.plotting(X, x='mean_consum', y=predict_var, y_pred='pred', graph_name=graph_name, smooth=False)
     return coef_dict, intercept
 
@@ -83,7 +83,6 @@ def test_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=
     if not upper_bound:
         coef0 *= -1
         coefs = sd.SuperDict.from_dict(coefs).vapply(lambda v: -v)
-
     X_out = X_test.copy()
     if not upper_bound:
         y_test *= -1
@@ -91,14 +90,16 @@ def test_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=
     X_out['pred'] = y_pred = np.sum([v*X_out[k] for k, v in coefs.items()], axis=0) + coef0
     above = (y_pred > y_test).sum() / y_pred.shape[0] * 100
     print("above: {}%".format(round(above, 2)))
-
+    coefs.update({'intercept': coef0})
     if not plot:
-        return coefs, coef0
-    X_out = X_out.join(result_tab[['init_cut', 'name', 'status']])
+        return coefs
+    X_out = X_out.join(result_tab, rsuffix='_other')
     graph_name = 'superquantiles_mean_consum_init_{}_{}'.format(predict_var, bound)
     graphs.plotting(table=X_out, x='mean_consum', y=predict_var, y_pred='pred',
-                    graph_name=graph_name, smooth=False, color='status')
-    return {**coefs, **{'intercept': coef0}}
+                    graph_name=graph_name, smooth=False, color='status',
+                    shape='has_special', facet='init_cut ~ var_consum_cut')
+
+    return coefs
 
 
 if __name__ == '__main__':

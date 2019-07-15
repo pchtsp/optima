@@ -2,6 +2,8 @@ import reports.reports as rep
 import pandas as pd
 import dfply as dp
 from dfply import X
+import orloge as ol
+import numpy as np
 
 # import os
 
@@ -78,8 +80,6 @@ stats_order = ['cons', 'vars', 'non_0', 'inf', 'no_int', 'errs'] \
 stats_order_dict = {stat: pos for pos, stat in enumerate(stats_order)}
 
 results = pd.concat(results_dict)
-df = pd.concat(raw_results_dict).reset_index()
-df[df.inf].sort_values(['level_1', 'level_0'])
 
 results2 = results.reset_index().drop(['level_1'], axis=1).\
     rename(columns=dict(level_0='experiment'))
@@ -99,6 +99,27 @@ text = results4.to_latex(bold_rows=True, float_format='%.1f', longtable=True)
 
 with open(file_path, 'w') as f:
     f.write(text)
+
+# EXPERIMENTS comparing quality degradation.
+
+df = pd.concat(raw_results_dict).reset_index().\
+    drop(['level_1'], axis=1).\
+    rename(columns=dict(level_0='experiment')).\
+    set_index(['instance','experiment']).\
+    query('sol_code==1').unstack(1).copy()
+
+df['min_value'] = np.nanmin(df.objective, axis=1)
+# mask = np.any(df.sol_code == ol.LpSolutionOptimal, axis=1)
+# df_objectives = df[mask][['objective', 'sol_code']]
+# df_objectives['min_value'] = np.min(df_objectives, axis=1)
+
+# df_objectives.set_index(['instance','experiment'])
+df.objective.subtract(df.min_value, axis=0)
+
+
+df[df.sol_code == ol.LpSolutionOptimal]
+df[df.inf].sort_values(['level_1', 'level_0'])
+
 
 #####################
 # RELAXATIONS
