@@ -602,7 +602,6 @@ class Model(exp.Experiment):
         end_time = self.instance.get_tasks('end')
         min_assign = self.instance.get_tasks('min_assign')
         candidates = self.instance.get_task_candidates()
-        # candidates = aux.get_property_from_dic(task_data, 'candidates')
 
         # resources
         resources_data = self.instance.get_resources()
