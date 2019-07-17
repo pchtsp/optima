@@ -2,6 +2,7 @@ import pandas as pd
 import package.auxiliar as aux
 import numpy as np
 import pytups.superdict as sd
+import pytups.tuplist as tl
 
 
 def get_parameters(tables):
@@ -188,16 +189,17 @@ def export_input_template(path, data):
     return True
 
 
-def export_output_template(path, data):
+def export_output_template(path, input_data, output_data):
     """
 
     :param path:
-    :param data: solution.data
+    :param output_data: instance.data
+    :param output_data: solution.data
     :return:
     """
     columns = ['avion', 'mois', 'maint', 'aux']
     sol_maints = \
-        sd.SuperDict.from_dict(data['state_m']).\
+        sd.SuperDict.from_dict(output_data['state_m']).\
         to_dictup().\
         to_tuplist().\
         to_df(columns=columns).\
@@ -205,7 +207,7 @@ def export_output_template(path, data):
 
     columns = ['state', 'maint', 'avion', 'mois', 'rem']
     rem_m = \
-        sd.SuperDict.from_dict(data['aux']).\
+        sd.SuperDict.from_dict(output_data['aux']).\
             to_dictup().\
             to_tuplist().\
             to_df(columns=columns).\
@@ -222,7 +224,37 @@ def export_output_template(path, data):
             rename(columns=equiv). \
             sort_values(['avion', 'mois', 'maint'])
 
-    to_write = {'sol_maints': result}
+    input_data = sd.SuperDict.from_dict(input_data)
+    capacities_names = ['default_type2_capacity', 'maint_capacity']
+    capacities = input_data['parameters'].filter(capacities_names)
+    equiv = sd.SuperDict({2: 'default_type2_capacity', 1: 'maint_capacity'})
+    m_cap = \
+        equiv.\
+        vapply(lambda v: capacities[v]).\
+        to_df(columns=['cap'], orient='index').\
+        rename_axis('type').reset_index()
+
+    maint_data = input_data['maintenances']
+    m_usage = maint_data.get_property('capacity_usage')
+    m_type = maint_data.get_property('type')
+    m_info = \
+        pd.DataFrame.\
+        from_dict({'usage': m_usage, 'type': m_type})\
+        .rename_axis('maint').reset_index()
+    m_info.type = m_info.type.astype('int64')
+
+    num_maints = \
+        tl.TupList(sol_maints.to_records()).\
+        to_dict(result_col=1, indices=[2, 3]).\
+        to_lendict().\
+        to_tuplist().\
+        to_df(columns=['period', 'maint', 'number']).\
+        merge(m_info).\
+        assign(total= lambda x: x.number * x.usage).\
+        groupby(['period', 'type'])[['total']].\
+        agg(sum).reset_index().merge(m_cap)
+
+    to_write = {'sol_maints': result, 'sol_stats': num_maints}
 
     with pd.ExcelWriter(path) as writer:
         for sheet, table in to_write.items():
@@ -305,7 +337,8 @@ if __name__ == '__main__':
 
     path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
     data = experiment.solution.data
-    export_output_template(path_out, data)
+    data_in = experiment.instance.data
+    export_output_template(path_out, data_in, data)
 
     path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
     data = import_output_template(path_out)

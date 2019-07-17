@@ -259,7 +259,7 @@ class MainWindow_EXCEC():
         di.export_data(output_path, experiment.instance.data, name="data_in", **_kwags)
         di.export_data(output_path, experiment.solution.data, name="data_out", **_kwags)
         _dir = os.path.join(output_path, 'template_out.xlsx')
-        td.export_output_template(_dir, experiment.solution.data)
+        td.export_output_template(_dir, experiment.instance.data, experiment.solution.data)
         if export_input:
             _dir = os.path.join(output_path, 'template_in.xlsx')
             td.export_input_template(_dir, experiment.instance.data)
