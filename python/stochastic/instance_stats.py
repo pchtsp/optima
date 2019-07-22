@@ -122,6 +122,7 @@ def calculate_stat(instance, coefs, _type):
             , max_consum = consumption.agg('max')
             , cons_min_max=cons_min.agg('max')
             , quant9w = quantsw[2]
+            , geomean_cons=get_geomean(consumption)
 
         )
     missing_info = set(coefs) - set(data)

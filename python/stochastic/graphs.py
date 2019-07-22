@@ -36,7 +36,7 @@ def hist_no_agg(basenames, cases):
     var = 'sec_maint'
     cases_dict = sd.SuperDict(zip(basenames, cases))
     tt = cases_dict.clean(func=lambda v: v is not None).\
-        vapply(sol_status.get_last_maint_date)
+        vapply(sol_status.get_post_2M_dist)
     ttt = pd.DataFrame.from_dict(tt).stack().rename(var).reset_index()
     # ttt = ttt[ttt.sec_maint>0]
     # ttt[ttt.sec_maint >= 40]
@@ -77,7 +77,7 @@ def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, 
     if y_pred:
         plot += ggplot2.geom_point(ggplot2.aes_string(y=y_pred), color='blue', shape=1)
 
-    path_out = path_graphs + r'{}_{}.png'.format(graph_name, name)
+    path_out = path_graphs + r'{1}/{0}_{1}.png'.format(graph_name, name)
     plot.save(path_out)
 
 

@@ -7,12 +7,12 @@ if 'GUROBI_HOME' in os.environ:
         os.environ['LD_LIBRARY_PATH'] = ""
     os.environ['LD_LIBRARY_PATH'] += ':' + os.environ['GUROBI_HOME'] + "/lib"
 
-path_base = r'/home'
-# path_base = r'C:\Users'
-path_root = path_base + '/pchtsp/Documents/projects/'
-path_results = path_base + '/pchtsp/Documents/projects/optima_results/'
-path_results = r'C:\Users\pchtsp\Documents\borrar/'
-path_project = path_root + "OPTIMA/"
+filename = os.path.realpath(__file__)
+directory = os.path.dirname(filename)
+path_project = os.path.join(directory, '..', '..') + '/'
+path_root = os.path.join(path_project, '..') + '/'
+path_results = os.path.join(path_root, 'optima_results/')
+
 
 PATHS = {
     'root': path_root

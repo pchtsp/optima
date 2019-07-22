@@ -3,6 +3,11 @@ import stochastic.instance_stats as istats
 
 
 def get_num_maints(case, _type=0):
+    """
+    :param case:
+    :param _type:
+    :return: total number of maintenances in the planning period
+    """
     res = istats.get_resources_of_type(case.instance, _type=_type)
     maints = \
         case.get_maintenance_starts().\
@@ -11,6 +16,12 @@ def get_num_maints(case, _type=0):
 
 
 def get_prev_1M_dist(case, _type=0):
+    """
+    :param case:
+    :param _type:
+    :return: the distance between the first maintenance and the one before the
+    beginning of the planning period
+    """
     res = istats.get_resources_of_type(case.instance, _type=_type)
     m_starts = case.get_maintenance_starts().filter_list_f(lambda v: v[0] in res)
     dist = case.instance.get_dist_periods
@@ -30,6 +41,11 @@ def get_prev_1M_dist(case, _type=0):
 
 
 def get_1M_2M_dist(case, _type=0):
+    """
+    :param case:
+    :param _type:
+    :return: the distance between the first and second maintenance for each aircraft
+    """
     res = istats.get_resources_of_type(case.instance, _type=_type)
     cycles = case.get_all_maintenance_cycles().filter(list(res))
     dist = case.instance.get_dist_periods
@@ -46,7 +62,12 @@ def get_1M_2M_dist(case, _type=0):
     return pd.Series(cycles_between.values_l())
 
 
-def get_last_maint_date(case, _type=0):
+def get_post_2M_dist(case, _type=0):
+    """
+    :param case:
+    :param _type:
+    :return: the distance between the last maintenance and the end date
+    """
     res = istats.get_resources_of_type(case.instance, _type=_type)
     dist = case.instance.get_dist_periods
     next = case.instance.get_next_period
