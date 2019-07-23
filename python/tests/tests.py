@@ -1,9 +1,8 @@
 import unittest
-import scripts.exec as exec
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
 import os
-import package.auxiliar as aux
+import data.dates as aux
 
 class TestHeuristic(unittest.TestCase):
 

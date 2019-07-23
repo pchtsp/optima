@@ -5,12 +5,10 @@ import pandas as pd
 import numpy as np
 import package.params as pm
 import pytups.superdict as sd
-# import scripts.names as na
-# import numpy as np
 import dfply as dp
 from dfply import X
 import reports.rpy_graphs as rg
-import scripts.names as na
+import strings.names as na
 import orloge as ol
 
 path = '/home/pchtsp/Documents/projects/COR2019/'

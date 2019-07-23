@@ -1,8 +1,7 @@
 # /usr/bin/python3
-import package.auxiliar as aux
 import numpy as np
 import pandas as pd
-import package.data_input as di
+import data.data_input as di
 import package.solution as sol
 import package.instance as inst
 import pytups.tuplist as tl

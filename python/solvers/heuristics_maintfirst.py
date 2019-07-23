@@ -1,6 +1,6 @@
 import pytups.superdict as sd
 import os
-import package.data_input as di
+import data.data_input as di
 import numpy as np
 import package.instance as inst
 import package.solution as sol

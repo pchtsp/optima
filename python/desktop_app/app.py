@@ -2,8 +2,8 @@ import sys
 from PyQt5 import QtWidgets
 from desktop_app.gui import Ui_MainWindow
 
-import package.auxiliar as aux
-import package.data_input as di
+import data.dates as aux
+import data.data_input as di
 import package.instance as inst
 import package.params as params
 import solvers.heuristics as heur

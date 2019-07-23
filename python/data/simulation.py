@@ -3,7 +3,7 @@
 # This simulation complies to the format returned in the function
 # get_model_data in the file data_input.py
 
-import package.auxiliar as aux
+import data.dates as aux
 import random as rn
 import math
 import numpy as np
@@ -248,7 +248,5 @@ def create_dataset(options):
 
 
 if __name__ == "__main__":
-    import pprint as pp
-    import package.params as params
     # create_dataset(params.OPTIONS)
     pass

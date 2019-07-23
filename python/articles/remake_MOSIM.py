@@ -3,7 +3,7 @@ import os
 import package.params as params
 import package.experiment as exp
 import solvers.model as md
-import package.data_input as di
+import data.data_input as di
 
 
 if __name__ == "__main__":

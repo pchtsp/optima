@@ -1,12 +1,9 @@
 # /usr/bin/python3
 
 import numpy as np
-import package.data_input as di
-import pandas as pd
 import math
 import pytups.superdict as sd
 import pytups.tuplist as tl
-import arrow
 
 
 class Instance(object):
@@ -457,7 +454,7 @@ class Instance(object):
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
     # model_data = di.load_data(path + "data_in.json")
-    import package.simulation as sim
+    import data.simulation as sim
     import package.params as params
 
     options = params.OPTIONS

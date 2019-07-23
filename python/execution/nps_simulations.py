@@ -1,10 +1,10 @@
 import sys
 import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import scripts.exec as exec
+import execution.exec as exec
 import datetime as dt
 import pytups.superdict as sd
-import package.simulation as sim
+import data.simulation as sim
 import argparse
 import re
 import copy

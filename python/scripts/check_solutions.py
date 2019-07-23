@@ -7,7 +7,7 @@ from package.params import PATHS
 import pandas as pd
 import pytups.superdict as sd
 import pytups.tuplist as tl
-import scripts.exec as exec
+import execution.exec as exec
 import dfply as dp
 from dfply import X
 import multiprocessing as multi

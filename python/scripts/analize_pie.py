@@ -1,9 +1,8 @@
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
 import package.experiment as exp
 import package.solution as sol
 import pprint as pp
-import package.auxiliar as aux
 from pytups import tuplist as tl
 from pytups import superdict as sd
 

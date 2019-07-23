@@ -31,10 +31,6 @@ def get_next_month(month):
     return shift_month(month, shift=1)
 
 
-def get_property_from_dic(dic, property):
-    return {key: value[property] for key, value in dic.items() if property in value}
-
-
 def get_timestamp(form="%Y%m%d%H%M"):
     return datetime.datetime.now().strftime(form)
 

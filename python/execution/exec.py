@@ -1,15 +1,14 @@
 import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
-import package.auxiliar as aux
-import package.data_input as di
+import data.dates as aux
+import data.data_input as di
 import package.instance as inst
 import package.solution as sol
 import package.experiment as exp
 import solvers.model as md
 import solvers.heuristics as heur
 import solvers.heuristics_maintfirst as mf
-import package.simulation as sim
-import stochastic.instance_stats as istats
+import data.simulation as sim
 import pytups.superdict as sd
 
 import datetime as dt

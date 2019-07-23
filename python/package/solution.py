@@ -1,6 +1,5 @@
 # /usr/bin/python3
 
-import package.auxiliar as aux
 import pytups.superdict as sd
 import pytups.tuplist as tl
 
@@ -25,7 +24,7 @@ class Solution(object):
         if param is None:
             return self.data[category]
         if param in list(self.data[category].values())[0]:
-            return aux.get_property_from_dic(self.data[category], param)
+            return sd.SuperDict.from_dict(self.data[category]).get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_periods(self):
@@ -93,7 +92,7 @@ class Solution(object):
 if __name__ == "__main__":
     path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
     path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712181704/"
-    import package.data_input as di
+    import data.data_input as di
     sol_states = Solution(di.load_data(path_states + "data_out.json"))
     sol_nostates = Solution(di.load_data(path_nostates + "data_out.json"))
     # sol_nostates.graph_maintenances(path="/home/pchtsp/Documents/projects/OPTIMA/img/maintenances.html",

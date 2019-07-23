@@ -1,16 +1,15 @@
-import package.auxiliar as aux
 import pandas as pd
 import package.instance as inst
 import package.experiment as exp
 import pytups.superdict as sd
 import os
 import numpy as np
-import package.data_input as di
+import data.data_input as di
 import tabulate
 import re
 import solvers.heuristics as heur
 from package.params import PATHS
-import scripts.names as na
+import strings.names as na
 
 import dfply as dp
 from dfply import X
@@ -156,7 +155,7 @@ def multi_get_info(path_comp):
     maint_weight = {k: v.instance.get_param('maint_weight') for k, v in experiments.items()}
     unavailable = {k: max(v.solution.get_unavailable().values()) for k, v in experiments.items()}
     maint = {k: max(v.solution.get_in_maintenance().values()) for k, v in experiments.items()}
-    gaps = aux.get_property_from_dic(exps, "gap_out")
+    gaps = sd.SuperDict.from_dict(exps).get_property('gap_out')
 
 
     data_dic = \
@@ -198,8 +197,9 @@ def multi_multiobjective_table():
     # pareto_p2 = {}
     for key, value in data_dic.items():
         # key = '201801141646'
-        x = aux.get_property_from_dic(value, 'maint')
-        y = aux.get_property_from_dic(value, 'unavailable')
+        value = sd.SuperDict.from_dict(value)
+        x = value.get_property('maint')
+        y = value.get_property('unavailable')
         points1 = get_pareto_points(x, y)
         points2 = get_pareto_points(y, x)
         points = np.intersect1d(points1, points2).tolist()

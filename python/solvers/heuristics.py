@@ -1,4 +1,3 @@
-import package.auxiliar as aux
 import numpy as np
 import package.experiment as test
 import package.solution as sol

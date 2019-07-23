@@ -1,9 +1,8 @@
 import os
 import pandas as pd
 import re
-# import unidecode
 import unicodedata
-import package.auxiliar as aux
+import data.dates as aux
 import numpy as np
 import copy
 import ujson as json
@@ -182,7 +181,7 @@ def generate_solution_from_source(source=r'../data/raw/Planifs M2000.xlsm'):
 
 
 def combine_data_states(model_data, historic_data):
-    codes = aux.get_property_from_dic(model_data['resources'], 'code')
+    codes = sd.SuperDict.from_dict(model_data['resources']).get_property('code')
     codes_inv = {value: key for key, value in codes.items()}
     historic_data_n = {
         (codes_inv[code], month): value for (code, month), value in historic_data.items()\
@@ -257,9 +256,9 @@ def import_pie_solution(path_solution, path_input):
     table = table[~pd.isna(table.value)]
     table = table[~(table.value == '-')]
 
-    resources_equiv = aux.get_property_from_dic(model_data["resources"], 'code')
+    resources_equiv = sd.SuperDict.from_dict(model_data["resources"]).get_property('code')
     r_e_i = {v: k for k, v in resources_equiv.items()}
-    tasks_equiv = aux.get_property_from_dic(model_data["tasks"], 'matricule')
+    tasks_equiv = sd.SuperDict.from_dict(model_data["tasks"]).get_property('matricule')
     t_e_i = {v: k for k, v in tasks_equiv.items()}
     start, end = model_data['parameters']['start'], model_data['parameters']['end']
     p_e_i = {k: aux.get_months(start, end)[k-1] for k in periods}
