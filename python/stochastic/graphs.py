@@ -17,7 +17,7 @@ name = params.name
 # histograms
 #####################
 
-def draw_hist(var='maints', bar=True):
+def draw_hist(result_tab, var='maints', bar=True):
     if bar:
         _func = ggplot2.geom_bar(position="identity")
     else:
@@ -27,7 +27,7 @@ def draw_hist(var='maints', bar=True):
            _func + \
            ggplot2.theme_minimal()
 
-    path_out = path_graphs + r'hist_{}_{}.png'.format(var, name)
+    path_out = path_graphs + r'{1}/hist_{0}_{1}.png'.format(var, name)
     plot.save(path_out)
 
 
@@ -46,7 +46,7 @@ def hist_no_agg(basenames, cases):
            ggplot2.scale_y_log10()+\
            ggplot2.theme_minimal()
 
-    path_out = path_graphs + r'hist_all_{}_{}.png'.format(var, name)
+    path_out = path_graphs + r'{1}/hist_all_{0}_{1}.png'.format(var, name)
     plot.save(path_out)
 
 
@@ -57,16 +57,16 @@ def hist_no_agg(basenames, cases):
 #####################
 # consumption + init against vars
 #####################
-def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, jitter=True, **kwargs):
+def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, jitter=True, save=True, **kwargs):
     # x='mean_consum', y=y,
     plot = ggplot2.ggplot(table) + \
            ggplot2.aes_string(**kwargs) + \
            ggplot2.theme_minimal()
 
     if jitter:
-        plot += ggplot2.geom_jitter(alpha=0.8, height=0.2)
+        plot += ggplot2.geom_jitter(alpha=0.4, height=0.2)
     else:
-        plot += ggplot2.geom_point(alpha=0.8, height=0.2)
+        plot += ggplot2.geom_point(alpha=0.4, height=0.2)
 
     if facet:
         plot += ggplot2.facet_grid(ro.Formula(facet))
@@ -75,10 +75,12 @@ def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, 
         plot += ggplot2.geom_smooth(method = 'loess')
 
     if y_pred:
-        plot += ggplot2.geom_point(ggplot2.aes_string(y=y_pred), color='blue', shape=1)
+        plot += ggplot2.geom_point(ggplot2.aes_string(y=y_pred), color='blue', shape=1, alpha=0.8, size=0.5)
 
-    path_out = path_graphs + r'{1}/{0}_{1}.png'.format(graph_name, name)
-    plot.save(path_out)
+    if save:
+        path_out = path_graphs + r'{1}/{0}_{1}.png'.format(graph_name, name)
+        plot.save(path_out)
+    return plot
 
 
 

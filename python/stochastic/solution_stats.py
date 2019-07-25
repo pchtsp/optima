@@ -25,7 +25,7 @@ def get_prev_1M_dist(case, _type=0):
     res = istats.get_resources_of_type(case.instance, _type=_type)
     m_starts = case.get_maintenance_starts().filter_list_f(lambda v: v[0] in res)
     dist = case.instance.get_dist_periods
-    first, last = (case.instance.get_param(p) for p in ['start', 'end'])
+    first, last = case.instance.get_start_end()
     init_ret = case.instance.get_resources('initial_elapsed')
     max_ret = case.instance.get_param('max_elapsed_time')
 
@@ -40,22 +40,38 @@ def get_prev_1M_dist(case, _type=0):
     return dist_to_1M
 
 
-def get_1M_2M_dist(case, _type=0):
+def get_1M_2M_dist(case, _type=0, count_1M=False):
     """
     :param case:
     :param _type:
+    :param count_1M: count or not aircraft with just one maintenance
     :return: the distance between the first and second maintenance for each aircraft
     """
     res = istats.get_resources_of_type(case.instance, _type=_type)
     cycles = case.get_all_maintenance_cycles().filter(list(res))
+
+    # if an aircraft starts a maintenance in the first period,
+    # we need to count the empty cycle until that maintenance.
+    first, last = case.instance.get_start_end()
+    duration = case.instance.get_param('maint_duration')
+    shift = case.instance.shift_period
+    limit = shift(first, duration)
+    cycles_edit = cycles.clean(func=lambda v: v[0][0] == limit).vapply(lambda v: [()]+v)
+    cycles.update(cycles_edit)
+
     dist = case.instance.get_dist_periods
     max_value = case.instance.get_param('max_elapsed_time')
 
-    # now we only want to see the distance when
-    # there is a second maintenance
-    cycles_between = \
-        cycles.clean(func=lambda v: len(v)==3).\
-        apply(lambda k, v: dist(*v[1]) + 1)
+    if count_1M:
+        # we count the second cycle.
+        cycles_between = \
+            cycles.apply(lambda k, v: dist(*v[1]) + 1)
+    else:
+        # we only want to see the distance when
+        # there is a second maintenance
+        cycles_between = \
+            cycles.clean(func=lambda v: len(v)==3).\
+            apply(lambda k, v: dist(*v[1]) + 1)
 
     if not len(cycles_between):
         return pd.Series(max_value)

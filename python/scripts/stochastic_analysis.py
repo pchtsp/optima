@@ -1,6 +1,6 @@
 import package.experiment as exp
 import package.params as params
-import package.data_input as di
+import data.data_input as di
 
 import stochastic.instance_stats as istats
 import stochastic.solution_stats as sol_stats
@@ -10,6 +10,7 @@ import stochastic.models as models
 
 import pytups.superdict as sd
 import pytups.tuplist as tl
+import zipfile
 
 import os
 import numpy as np
@@ -81,19 +82,16 @@ def get_table(cases, _types=1):
 
             # solution dtata:
             cycle_2M_size = sol_stats.get_1M_2M_dist(case, _type=_type)
+            cycle_2M_size_complete = sol_stats.get_1M_2M_dist(case, _type=_type, count_1M=True)
             cycle_1M_size = sol_stats.get_prev_1M_dist(case, _type=_type)
             cycle_2M_quants = cycle_2M_size.quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
             cycle_1M_size_values = cycle_1M_size.values_l()
             cycle_1M_quants = pd.Series(cycle_1M_size_values).quantile([0, 0.25, 0.5, 0.75, 1]).tolist()
-            cy_sum = cycle_2M_size.agg(['mean', 'max', 'min']).tolist()
+            cycle_2M_acum = cycle_2M_size.agg(['mean']).tolist()
+            cycle_2M_complete_acum = cycle_2M_size_complete.agg(['mean', 'max', 'min']).tolist()
             l_maint_date = sol_stats.get_post_2M_dist(case, _type=_type).values_l()
             l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min', 'sum']).tolist()
             num_maints = sol_stats.get_num_maints(case, _type=_type)
-            num_errors = 0
-            # TODO: handle errors outside??
-            # errors = di.load_data(experiment + '/errors.json')
-            # if errors:
-            #     num_errors = sd.SuperDict(errors).to_dictup().len()
             result.append([_case_name] + init_sum +
                           cons_sum +
                           airc_sum +
@@ -103,8 +101,9 @@ def get_table(cases, _types=1):
                           [geomean_cons, geomean_airc] +
                           [num_special_tasks] +
 
-                          [num_maints] + [num_errors] +
-                          cy_sum +
+                          [num_maints]  +
+                          cycle_2M_acum +
+                          cycle_2M_complete_acum +
                           cycle_2M_quants +
                           cycle_1M_quants +
                           l_maint_date_stat)
@@ -117,8 +116,9 @@ def get_table(cases, _types=1):
              'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
              'geomean_cons', 'geomean_airc',
              'spec_tasks'] + \
-             ['maints', 'num_errors',
-             'mean_dist', 'max_dist', 'min_dist',
+             ['maints',
+             'mean_dist',
+             'mean_dist_complete', 'max_dist_complete', 'min_dist_complete',
              'cycle_2M_min', 'cycle_2M_25', 'cycle_2M_50', 'cycle_2M_75', 'cycle_2M_max',
              'cycle_1M_min', 'cycle_1M_25', 'cycle_1M_50', 'cycle_1M_75', 'cycle_1M_max',
              'mean_2maint',  'max_2maint', 'min_2maint', 'sum_2maint']
@@ -129,33 +129,17 @@ def get_table(cases, _types=1):
     # result_tab = result_tab[result_tab.num_errors==0]
 
 def treat_table(result_tab):
-    result_tab['mean_consum_cut'] = pd.qcut(result_tab.mean_consum, q=10).astype(str)
-    indeces = pd.DataFrame({'mean_consum_cut': sorted(result_tab['mean_consum_cut'].unique())}).\
-        reset_index().rename(columns={'index': 'mean_consum_cut_2'})
-    result_tab = result_tab.merge(indeces, on='mean_consum_cut')
 
-    for col in ['init', 'quant75w', 'quant9w', 'quant5w',
-                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9', 'spec_tasks']:
+    for col in ['init', 'quant75w', 'quant9w', 'quant5w', 'geomean_cons',
+                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9', 'spec_tasks', 'mean_consum']:
         result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
 
     # we generate auxiliary variations on consumption.
     # we also scale them.
 
-    cons_median = result_tab.mean_consum.median()
     for grade in range(2, 6):
         result_tab['mean_consum' + str(grade)] = \
             (result_tab.mean_consum ** grade)
-    return result_tab
-
-def merge_table_status(result_tab, logInfo):
-    status_df = get_status_df(logInfo)
-    result_tab = result_tab.merge(status_df, on=['name'], how='left')
-
-    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
-    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
-
-    result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
-    result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
     return result_tab
 
 def get_status_df(logInfo):
@@ -175,32 +159,33 @@ def get_status_df(logInfo):
     status_df['gap_abs'] = status_df.best_solution - status_df.best_bound
     return status_df
 
-
-def get_cases_logs(rel_path):
-    # without zipfile
+def get_cases(relpath):
     path = params.PATHS['results'] + relpath
     experiments = [os.path.join(path, i) for i in os.listdir(path)]
     basenames = [os.path.basename(e) for e in experiments]
-    cases = {c: exp.Experiment.from_dir(e) for c, e in zip(basenames, experiments)}
+    return {c: exp.Experiment.from_dir(e) for c, e in zip(basenames, experiments)}
+
+def get_logs(relpath):
+    path = params.PATHS['results'] + relpath
+    experiments = [os.path.join(path, i) for i in os.listdir(path)]
     log_paths = sd.SuperDict({os.path.basename(e): os.path.join(e, 'results.log')
                               for e in experiments})
-    log_info = \
-        log_paths. \
+    return log_paths. \
             clean(func=os.path.exists). \
             vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=False))
-    return cases, log_info
 
-
-def get_cases_logs_zip(name, relpath):
-    # with zipfile
-    import zipfile
+def get_cases_zip(name, relpath):
     path = params.PATHS['results'] + name + '.zip'
     zipobj = zipfile.ZipFile(path)
     experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
     basenames = [os.path.basename(e) for e in experiments]
-    cases = {c: exp.Experiment.from_zipfile(zipobj, e) for c, e in zip(basenames, experiments)}
-    log_paths = sd.SuperDict({os.path.basename(e): e + '/results.log'
-                              for e in experiments})
+    return {c: exp.Experiment.from_zipfile(zipobj, e) for c, e in zip(basenames, experiments)}
+
+def get_logs_zip(name, relpath):
+    path = params.PATHS['results'] + name + '.zip'
+    zipobj = zipfile.ZipFile(path)
+    experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
+    log_paths = sd.SuperDict({os.path.basename(e): e + '/results.log' for e in experiments})
 
     def _read_zip(x):
         try:
@@ -208,81 +193,50 @@ def get_cases_logs_zip(name, relpath):
         except:
             return 0
 
-    log_info = \
-        log_paths. \
+    return log_paths. \
             vapply(_read_zip). \
             clean(). \
             vapply(lambda x: str(x, 'utf-8')). \
             vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=False, content=True))
-    return cases, log_info
 
-if __name__ == '__main__':
+def get_errors(relpath):
+    path = params.PATHS['results'] + relpath
+    experiments = tl.TupList(os.path.join(path, i) for i in os.listdir(path))
+    base_exp = sd.SuperDict.from_dict({os.path.basename(e): e for e in experiments})
+    load_data = di.load_data
+    errors = \
+        base_exp.\
+            vapply(lambda v: v + '/errors.json').\
+            vapply(load_data).\
+            clean().\
+            vapply(sd.SuperDict.from_dict).\
+            vapply(lambda v: v.to_dictup()).\
+            to_lendict()
 
-    # from importlib import reload
-    # reload(sto_params)
-    # reload(params)
-    # reload(graphs)
-    # reload(models)
+    errors = errors.fill_with_default(base_exp)
+    return errors
 
-    name = sto_params.name
-    use_zip = sto_params.use_zip
-    relpath = name +'/base/'
+def get_errors_zip(name, relpath):
+    path = params.PATHS['results'] + name + '.zip'
+    zipobj = zipfile.ZipFile(path)
+    experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
+    base_exp = sd.SuperDict.from_dict({os.path.basename(e): e for e in experiments})
+    load_data = lambda v: di.load_data_zip(zipobj=zipobj, path=v)
+    errors = \
+        base_exp. \
+        vapply(lambda v: v + '/errors.json'). \
+        vapply(load_data). \
+        clean(). \
+        vapply(sd.SuperDict.from_dict). \
+        vapply(lambda v: v.to_dictup()). \
+        to_lendict()
+    errors = errors.fill_with_default(base_exp)
+    return errors
 
-    if use_zip:
-        cases, log_info = get_cases_logs_zip(name, relpath)
-    else:
-        cases, log_info = get_cases_logs(relpath)
-
-
-    result_tab = get_table(cases, 1)
-    result_tab = treat_table(result_tab)
-    result_tab = merge_table_status(result_tab, log_info)
-
-    # raise ValueError('Stop!')
-
-    # result_tab.best_solution
-    # result_tab.best_bound
-    result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
-    result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
-
-    status_df = result_tab
-    status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
-    status_df.groupby('status').agg('count')['name']
-    status_df.groupby('status').agg('max')['gap_abs']
-    status_df.groupby('status').agg('max')['gap']
-    status_df.groupby('status').agg('median')['gap_abs']
-    status_df.groupby('status').agg('median')['gap']
-
-
-    for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint']:
-        graphs.draw_hist(var)
-
-    graphs.draw_hist('mean_2maint')
-
-    # #########
-    # PLOTTING:
-    # #########
-    for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
-        x = 'mean_consum'
-        graph_name = '{}_vs_{}'.format(x, y)
-        graphs.plotting(result_tab[result_tab.gap_abs<=80], x=x,  y=y, color='status',
-                        facet='init_cut ~ .' , graph_name=graph_name, smooth=True)
-
-    x = 'mean_consum'
-    x= 'init'
-    y = 'sum_2maint'
-    graph_name = '{}_vs_{}_nofacet'.format(x, y)
-    graphs.plotting(result_tab, x=x, y=y,
-                    facet=None, graph_name=graph_name, smooth=True)
-    # for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
-    #     x = 'mean_consum'
-    #     graph_name = '{}_vs_{}_nocolorfacet_optimal'.format(x, y)
-    #     graphs.plotting(result_tab[result_tab.status=='Optimal'], x=x, y=y, facet=None, graph_name=graph_name, smooth=False)
-    # result_tab.best_solution
-
-    # #########
-    # BOUNDS:
-    # #########
+# #########
+# BOUNDS:
+# #########
+def superquantiles():
     # x_vars += ['pos_consum9', 'pos_consum5', 'quant5w', 'quant75w', 'quant9w']
     bound_options = [
         ('maints', True, 0.9),
@@ -311,45 +265,63 @@ if __name__ == '__main__':
             _lambda=0.02, alpha=alpha, plot=True, upper_bound=upper)
         data[b] = sd.SuperDict.from_dict(_dict).clean()
 
-    # #########
-    # REGRESSIONS:
-    # #########
+# #########
+# REGRESSIONS:
+# #########
+def regressions(table):
     x_vars = ['mean_consum', 'mean_consum2', 'init', 'max_consum',
               'var_consum', 'spec_tasks', 'geomean_cons']
-    y_vars = tl.TupList(bound_options).filter(0).unique2()
+    y_vars = ['cycle_2M_min', 'maints', 'mean_dist', 'mean_2maint', 'sum_2maint']
+    method = 'regression'
+    data = {}
     for predict_var in y_vars:
         coefs_df = models.test_regression(table, x_vars, plot=True,
-                                          predict_var=predict_var)
+                                          method=method, y_var=predict_var)
         data[predict_var] = coefs_df
-    # #########
-    # TREES:
-    # #########
+# #########
+# TREES:
+# #########
+def trees(table):
     method='trees'
-    y_vars = tl.TupList(bound_options).filter(0).unique2()
+    data = {}
+    x_vars = ['mean_consum', 'mean_consum2', 'init', 'max_consum',
+              'var_consum', 'spec_tasks', 'geomean_cons']
+    y_vars = ['cycle_2M_min', 'maints', 'mean_dist', 'mean_2maint', 'sum_2maint']
     for predict_var in y_vars:
-        coefs_df = models.test_non_regression(table, x_vars, method='trees',
-                                              y_var=predict_var, max_depth=4)
+        coefs_df = models.test_regression(table, x_vars, method=method,
+                                          y_var=predict_var, max_depth=4)
         data[predict_var] = coefs_df
-    # #########
-    # NN:
-    # #########
+# #########
+# NN:
+# #########
+def neural_networks(table):
     x_vars = ['init', 'mean_consum', 'max_consum', 'var_consum', 'mean_airc',
        'max_airc', 'var_airc', 'maints', 'cons_min_mean', 'cons_min_max',
        'quant5w', 'quant75w', 'quant9w', 'pos_consum5', 'pos_consum75',
        'pos_consum9', 'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
-       'geomean_cons', 'geomean_airc', 'num_errors', 'spec_tasks', 'mean_consum2', 'mean_consum3',
+       'geomean_cons', 'geomean_airc', 'spec_tasks', 'mean_consum2', 'mean_consum3',
        'mean_consum4', 'mean_consum5']
-    method='neural'
-    y_vars = tl.TupList(bound_options).filter(0).unique2()
-    for predict_var in y_vars:
-        coefs_df = models.test_non_regression(table, x_vars, method=method,
-                                              y_var=predict_var)
-        data[predict_var] = coefs_df
 
-    # #########
-    # GradientBoostRegression:
-    # #########
-    x_vars = ['name', 'init',
+    # x_vars = ['mean_consum', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
+    options = [
+        dict(y_var='mean_dist_complete'),
+        dict(y_var='maints'),
+        dict(y_var='mean_2maint')
+    ]
+
+    default = dict(method = 'neural', plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
+    options = tl.TupList(options).apply(lambda v: {**default, **v})
+
+    coefs_df = []
+    for opt in options:
+        coefs_df += [models.test_regression(table, x_vars, **opt)]
+
+
+# #########
+# GradientBoostRegression:
+# #########
+def gradient_boosting_regression(table, **kwargs):
+    x_vars = ['init',
              'mean_consum', 'max_consum', 'var_consum',
              'mean_airc', 'max_airc', 'var_airc',
              'cons_min_mean', 'cons_min_max', 'quant5w', 'quant75w', 'quant9w',
@@ -381,89 +353,222 @@ if __name__ == '__main__':
          'spec_tasks']
     x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'max_consum',
               'var_consum', 'spec_tasks', 'geomean_cons']
-    method='GBR'
-    options = dict(loss="quantile", alpha=0.9, n_estimators=1000)
-    y_vars = tl.TupList(bound_options).filter(0).unique2()
-    for predict_var in y_vars:
-        coefs_df = models.test_non_regression(table, x_vars, method=method,
-                                              y_var=predict_var, **options)
-        data[predict_var] = coefs_df
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'var_consum',
+              'spec_tasks', 'geomean_cons']
+    x_vars = ['mean_consum', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
 
-    best = {}
-
-    # var = y_vars[1]
-    for var in y_vars:
-        best[var] = pd.DataFrame.from_records(
-            zip(x_vars, data[var].feature_importances_)).\
-            sort_values(1).iloc[-5:]
-        best[var] = list(best[var][0])
-    all = [l for _list in best.values() for l in _list]
-
-    summ = sd.SuperDict().fill_with_default(all)
-    for item in all:
-        summ[item] += 1
-
-    summ.clean(1).keys_l()
-
-    # #########
-    # QuantileRegression:
-    # #########
-    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'max_consum',
-              'var_consum', 'spec_tasks', 'geomean_cons']
-    method='QuantReg'
-
-    for predict_var, upper, alpha in bound_options:
-        if not upper:
-            alpha = 1 - alpha
-        options = dict(q=alpha, max_iter=10000)
-        coefs_df = models.test_non_regression(table, x_vars, method=method,
-                                              y_var=predict_var, **options)
-        data[predict_var] = coefs_df
-
-    for y in y_vars:
-        print(y)
-        print(data[y].params)
-
-    data[predict_var].params
-
-    bound_options = [
-        ('maints', True, 0.9),
-        ('cycle_2M_min', False, 0.9),
-        ('mean_dist', False, 0.9),
-        ('mean_2maint', True, 0.9),
-        ('sum_2maint', True, 0.9),
-        ('sum_2maint', False, 0.9),
-        ('mean_2maint', False, 0.9)
+    options = [
+        dict(alpha=0.1, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x = 'init'),
+             bound='lower', y_var='mean_dist_complete'),
+        dict(alpha=0.9, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'),
+             bound='upper', y_var='mean_dist_complete'),
+        dict(alpha=0.9, bound='upper', y_var='maints',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        dict(alpha=0.9, bound='upper', y_var='mean_2maint',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        dict(alpha=0.1, bound='lower', y_var='mean_2maint',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
     ]
-    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
-    method='QuantReg'
-    table = result_tab
-    options = [dict(q=0.1, max_iter=10000, bound='lower', y_var='mean_dist'),
-               dict(q=0.9, max_iter=10000, bound='upper', y_var='maints'),
-               dict(q=0.9, max_iter=10000, bound='upper', y_var='mean_2maint'),
-               dict(q=0.1, max_iter=10000, bound='lower', y_var='mean_2maint')]
+
+    default = dict(method = 'GBR', loss = "quantile", n_estimators = 1000, **kwargs)
+    options = tl.TupList(options).apply(lambda v: {**default, **v})
 
     coefs_df = []
     for opt in options:
-        coefs_df += [models.test_non_regression(table, x_vars, method=method, **opt)]
+        coefs_df += [models.test_regression(table, x_vars, **opt)]
 
-    [print(c.params) for c in coefs_df]
-    coef = coefs_df[0]
+    # for x, u in coefs_df:
+    #     info = pd.DataFrame.from_records(
+    #         zip(x_vars, x.feature_importances_)).\
+    #         sort_values(1)[-8:]
+    #     print(info)
 
-    def coefs_to_dict(options, coefs):
-        values = {}
-        for opt, coef in zip(options, coefs):
-            bound = 'max'
-            if opt['bound']=='lower':
-                bound = 'min'
-            name = bound + '_' + opt['y_var']
-            values[name] = coef.params.to_dict()
-        return values
+    mean_std = \
+        sd.SuperDict.from_dict(coefs_df[0][1]).to_dictup().to_tuplist().\
+        to_dict(2, indices=[1, 0], is_list=False).to_dictdict()
 
+    real_coefs = coefs_to_dict(options, coefs_df, get_params=False)
+    real_coefs.update(mean_std)
+    return real_coefs
+
+def quantile_regressions(table, **kwargs):
+    # sklearn.feature_selection.RFECV¶
+
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
+    # x_vars = ['mean_consum', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
+
+    # options = [dict(q=0.1, bound='lower', plot_args=dict(facet=None), y_var='mean_dist'),
+    #            dict(q=0.9, bound='upper', y_var='maints'),
+    #            dict(q=0.1, bound='lower', plot_args=dict(facet=None),  y_var='cycle_2M_min'),
+    #            dict(q=0.9, bound='upper',  y_var='mean_2maint'),
+    #            dict(q=0.1, bound='lower',  y_var='mean_2maint')
+    #            ]
+
+    options = [
+        dict(q=0.1, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x = 'init'),
+             bound='lower', y_var='mean_dist_complete'),
+        dict(q=0.9, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'),
+             bound='upper', y_var='mean_dist_complete'),
+        dict(q=0.9, bound='upper', y_var='maints',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        dict(q=0.9, bound='upper', y_var='mean_2maint',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        dict(q=0.1, bound='lower', y_var='mean_2maint',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
+    ]
+    default = dict(method = 'QuantReg', max_iter = 10000, **kwargs)
+    options = tl.TupList(options).apply(lambda v: {**default, **v})
+
+    coefs_df = []
+    for opt in options:
+        coefs_df += [models.test_regression(table, x_vars, **opt)]
+
+    # [print(c[0].params) for c in coefs_df]
+    # coef = coefs_df[0]
+
+    mean_std = \
+        sd.SuperDict.from_dict(coefs_df[0][1]).to_dictup().to_tuplist().\
+        to_dict(2, indices=[1, 0], is_list=False).to_dictdict()
 
     real_coefs = coefs_to_dict(options, coefs_df)
+    real_coefs.update(mean_std)
+    return real_coefs
+
+def coefs_to_dict(options, coefs, get_params=True):
+    values = {}
+    for opt, coef in zip(options, coefs):
+        bound = 'max'
+        if opt['bound']=='lower':
+            bound = 'min'
+        name = bound + '_' + opt['y_var']
+        if get_params:
+            values[name] = coef[0].params.to_dict()
+        else:
+            values[name] = coef[0]
+    return values
+
+def support_vector_regression(table):
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
+
+    options = [dict(plot_args=dict(facet=None), y_var='mean_dist'),
+               dict(y_var='maints'),
+               dict(plot_args=dict(facet=None), y_var='cycle_2M_min'),
+               dict(y_var='mean_2maint')
+               ]
+    default = dict(method = 'SVR', bound = 'center')
+    options = tl.TupList(options).apply(lambda v: {**v, **default})
+
+
+    coefs_df = []
+    for opt in options:
+        coefs_df += [models.test_regression(table, x_vars, **opt)]
+
+
+if __name__ == '__main__':
+
+    def reload_all():
+        from importlib import reload
+        reload(sto_params)
+        reload(params)
+        reload(graphs)
+        reload(models)
+        reload(istats)
+
+    name = sto_params.name
+    use_zip = sto_params.use_zip
+    relpath = name +'/base/'
+
+    if use_zip:
+        cases = get_cases_zip(name, relpath)
+        log_info = get_logs_zip(name, relpath)
+        errors = get_errors_zip(name, relpath)
+    else:
+        cases = get_cases(relpath)
+        log_info = get_logs(relpath)
+        errors = get_errors(relpath)
+
+    result_tab_origin = get_table(cases, 1)
+    result_tab = treat_table(result_tab_origin)
+    status_df = get_status_df(log_info)
+    result_tab = result_tab.merge(status_df, on=['name'], how='left')
+    result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
+    result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
+    result_tab['num_errors'] = result_tab.name.map(errors)
+    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
+    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
+
+    # start = cases['201907160210_928'].instance.get_param('start')
+    # _func = lambda v: len([st for st in v.get_maintenance_starts() if st[1]==start])>0
+    # rrr = sd.SuperDict.from_dict(cases).clean(func=lambda v: v is not None).vapply(_func)
+    # rrr.clean()
+    # cases['201907160213_297'].get_maintenance_periods()
+    # cases['201907160213_297'].get_all_maintenance_cycles()
+    # raise ValueError('Stop!')
+
+    # result_tab.best_solution
+    # result_tab.best_bound
+    result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
+    result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
+
+    status_df = result_tab
+    status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
+    status_df.groupby('status').agg('count')['name']
+    status_df.groupby('status').agg('max')['gap_abs']
+    status_df.groupby('status').agg('max')['gap']
+    status_df.groupby('status').agg('median')['gap_abs']
+    status_df.groupby('status').agg('median')['gap']
+
+
+    for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint', 'mean_dist_complete']:
+        graphs.draw_hist(result_tab, var, bar=False)
+
+    graphs.draw_hist('mean_2maint')
+
+    # #########
+    # PLOTTING:
+    # #########
+    col = 'geomean_cons'
+    result_tab[col + '_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
+
+    for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min', 'mean_dist_complete', 'min_dist_complete']:
+        x = 'mean_consum'
+        facet = 'init_cut ~ .'
+        x = 'init'
+        facet = 'mean_consum_cut ~ .'
+        graph_name = '{}_vs_{}'.format(x, y)
+        graphs.plotting(result_tab, x=x,  y=y, color='status',
+                        facet=facet , graph_name=graph_name, smooth=True)
+
+    x = 'mean_consum'
+    # x= 'init'
+    y = 'sum_2maint'
+    graph_name = '{}_vs_{}_nofacet'.format(x, y)
+    graphs.plotting(result_tab, x=x, y=y,
+                    facet=None, graph_name=graph_name, smooth=True)
+    for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
+        x = 'mean_consum'
+        graph_name = '{}_vs_{}_nocolor'.format(x, y)
+        graphs.plotting(result_tab, x=x, y=y, graph_name=graph_name, smooth=False)
+    # result_tab.best_solution
+
+    # #########
+    # PREDICTING:
+    # #########
     case = sd.SuperDict(cases).values_l()[100]
-    real_coefs['max_maints']['Intercept'] = 0
-    result_tab[x_vars].iloc[[100]]
-    coefs_df[1].predict(result_tab[x_vars].iloc[[100]])
-    istats.calculate_stat(case.instance, real_coefs['max_maints'], 0)
+    # result_tab[x_vars].iloc[[100]]
+    # coefs_df[1].predict(result_tab[x_vars].iloc[[100]])
+    table = result_tab[(result_tab.gap_abs < 30) & (result_tab.num_errors == 0)]
+    table = result_tab[(result_tab.num_errors == 0)]
+    # test_perc= 0.1, plot=False
+    real_coefs_gbr = gradient_boosting_regression(table, test_perc= 0.3)
+    mean_std_gbr = sd.SuperDict.from_dict(real_coefs_gbr).filter(['mean', 'std'])
+    istats.predict_stat(case.instance, real_coefs_gbr['max_maints'], _type=0, mean_std=mean_std_gbr)
+    istats.predict_stat(case.instance, real_coefs_gbr['min_mean_dist_complete'], _type=0, mean_std=mean_std_gbr)
+    istats.predict_stat(case.instance, real_coefs_gbr['max_mean_dist_complete'], _type=0, mean_std=mean_std_gbr)
+
+
+    real_coefs_qr = quantile_regressions(table, test_perc= 0.1)
+    mean_std_gr = sd.SuperDict.from_dict(real_coefs_qr).filter(['mean', 'std'])
+    istats.calculate_stat(case.instance, real_coefs_qr['max_maints'], 0, mean_std=mean_std_gr)
+    istats.calculate_stat(case.instance, real_coefs_qr['min_mean_dist_complete'], 0, mean_std=mean_std_gr)
+    istats.calculate_stat(case.instance, real_coefs_qr['max_mean_dist_complete'], 0, mean_std=mean_std_gr)

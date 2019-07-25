@@ -1,6 +1,9 @@
 import pytups.superdict as sd
 import pandas as pd
+
 import stochastic.params as params
+import stochastic.auxiliary as aux
+
 
 def get_resources_of_type(instance, _type=0):
     return sd.SuperDict(instance.get_resources('type')).\
@@ -102,8 +105,7 @@ def get_geomean(consumption):
     return result
 
 
-def calculate_stat(instance, coefs, _type):
-    intercept = coefs.get('intercept', 0)
+def get_stats(instance, _type):
     consumption = get_consumptions(instance, hours=True, _type=_type)
     mean_consum = consumption.mean()
     init = get_init_hours(instance, _type=_type).mean()
@@ -111,11 +113,12 @@ def calculate_stat(instance, coefs, _type):
     rel_consumption = get_rel_consumptions(instance, _type=_type)
     quantsw = rel_consumption.rolling(12).mean().shift(-11).quantile(q=[0.5, 0.75, 0.9]).tolist()
 
-    data = \
+    return \
         sd.SuperDict(
             mean_consum=mean_consum
             , mean_consum2=mean_consum**2
             , mean_consum3=mean_consum**3
+            , mean_consum4=mean_consum**4
             , init = init
             , spec_tasks = get_num_special(instance, _type)
             , var_consum= consumption.agg('var')
@@ -123,13 +126,38 @@ def calculate_stat(instance, coefs, _type):
             , cons_min_max=cons_min.agg('max')
             , quant9w = quantsw[2]
             , geomean_cons=get_geomean(consumption)
-
         )
+
+def predict_stat(instance, clf, _type, mean_std=None):
+    data = get_stats(instance, _type)
+    X = data.vapply(lambda v: [v]).to_df()
+
+    cols = sorted(mean_std['mean'].keys())
+    X_norm = aux.normalize_variables(X[cols], mean_std, orient='columns')
+
+    return clf.predict(X_norm)
+
+
+def calculate_stat(instance, coefs, _type, mean_std=None):
+    _inter = 'intercept'
+    if _inter not in coefs:
+        coefs[_inter] = 0
+    intercept = coefs[_inter]
+
+    if mean_std is None:
+        mean = {}
+        std = {}
+    else:
+        mean = mean_std['mean']
+        std = mean_std['std']
+
+    data = get_stats(instance, _type)
+
     missing_info = set(coefs) - set(data)
     if len(missing_info) > 1:
         # intercept is the only one that should be there
         raise KeyError('missing keys in data: {}'.format(missing_info))
-    return sum(data.apply(lambda k, v: v * coefs.get(k, 0)).values()) + intercept
+    return sum(data.apply(lambda k, v: v/mean.get(k, 1) * coefs.get(k, 0)).values()) + intercept
 
 
 def get_bound_var(instance, variable, _type):
@@ -148,3 +176,16 @@ def get_min_dist_2M(instance, _type):
         return params.get_min_dist_2M_min_elapsed
     data = params.get_bound_var_data['min_cycle_2M_min']
     return round(calculate_stat(instance, coefs=data, _type=_type))
+
+def get_range_dist_2M(instance, _type, tolerance=None):
+    if tolerance is None:
+        tolerance = sd.SuperDict(params.get_min_dist_2M_mean_tolerance)
+    mean_dist = sd.SuperDict(min= 'min_mean_dist_complete', max='max_mean_dist_complete')
+    mean_std = sd.SuperDict(mean='mean', std='std').vapply(lambda v: params.get_bound_var_data[v])
+    coefs = \
+        mean_dist.\
+        vapply(lambda v: params.get_bound_var_data[v]).\
+        vapply(lambda v: calculate_stat(instance, coefs=v, _type=_type, mean_std=mean_std)).\
+        vapply(round).apply(lambda k, v: tolerance[k] + v)
+    return coefs
+

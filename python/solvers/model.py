@@ -561,26 +561,31 @@ class Model(exp.Experiment):
         reduce_2M_window = options['reduce_2M_window']
         duration = param_data['maint_duration']
         types = self.instance.get_types()
-        win_size = reduce_2M_window['window_size']
+        tolerance = reduce_2M_window.get('tolerance_mean')
 
-        min_dist_types = \
-            types.to_dict(result_col=None). \
-                kapply(lambda k: istats.get_min_dist_2M(self.instance, k))
+        min_max_dist_types = \
+            types.to_dict(None). \
+                kapply(lambda k: istats.get_range_dist_2M(self.instance, k, tolerance))
+        min_dist_types = min_max_dist_types.get_property('min')
+        max_dist_types = min_max_dist_types.get_property('max')
 
         max_et = self.instance.get_param('max_elapsed_time')
         max_dist_types = \
+            max_dist_types.\
+            vapply(min, max_et). \
+            vapply(lambda v: v + duration)
+
+        min_dist_types = \
             min_dist_types. \
-                vapply(lambda v: v + win_size + 1). \
-                vapply(min, max_et). \
-                vapply(lambda v: v + duration)
+            vapply(max, 0). \
+            vapply(lambda v: v + duration)
 
         max_elapsed_2M = \
-            sd.SuperDict(self.instance.get_resources('type')). \
-                vapply(lambda v: max_dist_types[v])
+            sd.SuperDict.from_dict(self.instance.get_resources('type')). \
+            vapply(lambda v: sd.SuperDict(min=min_dist_types[v], max=max_dist_types[v])).\
+            to_dictup().to_tuplist().to_dict(result_col=2, indices=[1, 0], is_list=False).to_dictdict()
 
-        min_elapsed_2M = max_elapsed_2M.vapply(lambda v: v - win_size)
-
-        return min_elapsed_2M, max_elapsed_2M
+        return max_elapsed_2M['min'], max_elapsed_2M['max']
 
     def get_domains_sets(self, options):
         states = ['M']

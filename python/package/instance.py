@@ -220,6 +220,9 @@ class Instance(object):
     def get_periods(self):
         return self.get_periods_range(self.get_param('start'), self.get_param('end'))
 
+    def get_start_end(self):
+        return (self.get_param(p) for p in ['start', 'end'])
+
     def get_periods_range(self, start, end):
         pos_period = self.data['aux']['period_i']
         period_pos = self.data['aux']['period_e']

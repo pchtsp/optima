@@ -89,7 +89,8 @@ OPTIONS = {
         'cuts': ['maints', 'mean_2maint', 'mean_dist']
     }, 'reduce_2M_window': {
         'active': False,
-        'window_size': 10
+        'window_size': 10,
+        'tolerance_mean': {'min': -4, 'max': 4}
     }
     # simulation params:
     , 'simulation': {
