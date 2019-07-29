@@ -11,9 +11,9 @@ import copy
 import multiprocessing as multi
 
 # Windows workaround for python 3.7 (sigh...)
-import _winapi
-import multiprocessing.spawn
-multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
+# import _winapi
+# import multiprocessing.spawn
+# multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
 #################
 
 def merge_resources(model_data, initial_data):
@@ -54,6 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--simulation', dest='sim_dict', type=json.loads)
     parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, required=True)
     parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, required=True)
+    parser.add_argument('-nb', '--no_base_case', dest='no_base_case', action='store_true')
 
     args = parser.parse_args()
 
@@ -80,8 +81,9 @@ if __name__ == "__main__":
     case_options = args.case_opt
 
     case_data = [{k: vv, 'name': '{}_{}'.format(re.sub('_', '', k), vv)}
-                 for k, v in case_options.items() for vv in v] + \
-                [{'name': 'base'}]
+                 for k, v in case_options.items() for vv in v]
+    if not args.no_base_case:
+        case_data += [{'name': 'base'}]
 
     seed_backup = sim_data['seed']
     multiproc = options.get('multiprocess')
