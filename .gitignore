@@ -6,6 +6,8 @@ FP-edited
 *.xml
 *.lp
 *.mps
+.idea
+python/.idea
 
 ###################
 # R
