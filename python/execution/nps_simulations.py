@@ -142,5 +142,8 @@ if __name__ == "__main__":
 
     for pos, result in results.items():
         # print('actually running functions')
-        result.get(timeout=time_limit_default)
+        try:
+            result.get(timeout=time_limit_default)
+        except multi.TimeoutError:
+            print('We lacked patience and got a multiprocessing.TimeoutError')
 
