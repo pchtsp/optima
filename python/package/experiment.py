@@ -16,7 +16,6 @@ class Experiment(object):
     These objects represent the unification of both input data and solution.
     Each is represented by their proper objects.
     Methods are especially checks on faisability.
-    In the future I may make this object be a sublass of Solution.
     """
 
     def __init__(self, instance, solution):
@@ -526,84 +525,5 @@ class Experiment(object):
         # return table
 
 
-def clean_experiments(path, clean=True, regex=""):
-    """
-    loads and cleans all experiments that are incomplete
-    :param path: path to experiments
-    :param clean: if set to false it only shows the files instead of deleting them
-    :param regex: optional regex filter
-    :return: deleted experiments
-    """
-    exps_paths = [os.path.join(path, f) for f in os.listdir(path)
-                  if os.path.isdir(os.path.join(path, f))
-                  if re.search(regex, f)
-                  ]
-    to_delete = []
-    for e in exps_paths:
-        exp = Experiment.from_dir(e, format="json")
-        to_delete.append(exp is None)
-    exps_to_delete = sorted(np.array(exps_paths)[to_delete])
-    if clean:
-        for ed in exps_to_delete:
-            shutil.rmtree(ed)
-    return exps_to_delete
-
-
-def exp_get_info(path, get_log_info=True, get_exp_info=True):
-    # print(path)
-    parameters = log_info = inst_info = {}
-    if get_exp_info:
-        exp = Experiment.from_dir(path, format="json")
-        if exp is None:
-            return None
-        parameters = exp.instance.get_param()
-        inst_info = exp.instance.get_info()
-    options_path = os.path.join(path, "options.json")
-    options = di.load_data(options_path)
-    if not options:
-        return None
-    log_path = os.path.join(path, "results.log")
-    if os.path.exists(log_path) and get_log_info:
-        log_info = ol.get_info_solver(log_path, options['solver'])
-    return {**parameters, **options, **log_info, **inst_info}
-
-
-def list_experiments(path, exp_list=None, **kwags):
-    if exp_list is None:
-        exp_list = os.listdir(path)
-    exps_paths = [os.path.join(path, f) for f in exp_list
-                  if os.path.isdir(os.path.join(path, f))]
-    experiments = {}
-    for e in exps_paths:
-        print(e)
-        info = exp_get_info(e, **kwags)
-        if info is None:
-            continue
-        directory = os.path.basename(e)
-        experiments[directory] = info
-    return experiments
-
-
-def list_options(path, exp_list=None):
-    if exp_list is None:
-        exps_paths = [os.path.join(path, f) for f in os.listdir(path)
-                      if os.path.isdir(os.path.join(path, f))]
-    else:
-        exps_paths = [os.path.join(path, f) for f in exp_list
-                      if os.path.isdir(os.path.join(path, f))]
-    experiments = {}
-    for e in exps_paths:
-        options_path = os.path.join(e, "options.json")
-        options = di.load_data(options_path)
-        if not options:
-            continue
-        directory = os.path.basename(e)
-        experiments[directory] = options
-    return experiments
-
-
 if __name__ == "__main__":
-    import package.params as pm
-
-    clean_experiments(pm.PATHS['experiments'], clean=True, regex=r'')
     pass

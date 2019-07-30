@@ -1,22 +1,24 @@
-import reports.reports as rep
 import pandas as pd
 import dfply as dp
 from dfply import X
 import orloge as ol
 import numpy as np
 
+import package.batch as batch
+import package.params as params
+
 # import os
 
-input = ['dell_20190327_cbc_old',
+exp_list = ['dell_20190327_cbc_old',
          'dell_20190327_cbc_new',
          'dell_20190402_cbc_new_new',
          'dell_20190404_new_new_cbc210_6months',
          'dell_20190410_new_new_cbc_sanshours',
-         None,
-         None,
+            None,
+            None,
          'dell_20190426_new_new_cbc_newobjs_rut']
 
-input = [
+exp_list = [
     'dell_20190326_cplex_old_only5',
     'dell_20190327_cplex_new_only5',
     'dell_20190403_new_new_cplex',
@@ -28,13 +30,9 @@ input = [
     'dell_20190430_new_new_gurobi_newobjs_rut'
          ]
 
-
-input = ['dell_20190529_allcuts',
-         'dell_20190529_strcuts',
-         'dell_20190529_nocuts',
-         'dell_20190529_strANDmaxcuts',
-         'dell_20190529_strcutsANDmaints',
-         'dell_20190529_strcutsANDmaxmaints']
+exp_list = \
+    ['IT000125_20190725',
+     'IT000125_20190716']
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cplex_cut_comparison.html'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison.tex'
 # file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cbc_comparison_2.html'
@@ -46,29 +44,34 @@ file_path = r'\\luq\franco.peschiera.fr$\MyDocs\graphs\cuts_comparison.tex'
 
 results_dict = {}
 raw_results_dict = {}
-for name, exp in enumerate(input):
-    if exp is None:
+for name, experiment in enumerate(exp_list):
+    if experiment is None:
         continue
-    table = rep.get_simulation_results(exp)
-    table_errors = rep.get_experiment_errors(exp)
-    table_n = table >> dp.left_join(table_errors, by=['scenario', 'instance'])
+    batch1 = batch.ZipBatch(path=params.PATHS['results'])
+    table = batch1.get_log_df()
+    table_errors = batch1.get_errors_df().drop('instance_name', axis=1)
+    table_n = \
+        table.merge(table_errors, on=['scenario', 'instance'], how='left').\
+        sort_values(['scenario', 'instance']).\
+        reset_index(drop=True)
     raw_results_dict[name] = table_n
     results_dict[name] = \
         table_n >> \
-        dp.mutate(gap_abs = X.objective - X.bound) >> \
-            dp.rename(t= 'time_out', g = 'gap_abs') >> \
+        dp.mutate(gap_abs = X.best_solution - X.best_bound) >> \
+            dp.rename(t= 'time', g = 'gap_abs') >> \
             dp.group_by(X.scenario) >> \
-            dp.mutate(sizet = dp.n(X.t)) >> \
-            dp.filter_by(~X.inf) >> \
+            dp.mutate(sizet = dp.n(X.t),
+                      no_int = X.sol_code==ol.LpSolutionNoSolutionFound) >> \
+            dp.filter_by(~(X.sol_code==ol.LpSolutionInfeasible)) >> \
             dp.summarize(g_med=X.g.median(),
                          g_avg=X.g.mean(),
                          t_max=X.t.max(),
                          t_min=X.t.min(),
                          t_med=X.t.median(),
                          t_avg=X.t.mean(),
-                         cons=X.cons.mean(),
-                         vars=X.vars.mean(),
-                         non_0=X.nonzeros.mean(),
+                         cons=X.matrix_constraints.mean(),
+                         vars=X.matrix_variables.mean(),
+                         non_0=X.matrix_nonzeros.mean(),
                          no_int=X.no_int.sum(),
                          inf=dp.first(X.sizet) - dp.n(X.t),
                          errs=X.errors.sum()
@@ -101,24 +104,47 @@ with open(file_path, 'w') as f:
     f.write(text)
 
 # EXPERIMENTS comparing quality degradation.
-
-df = pd.concat(raw_results_dict).reset_index().\
+############################################
+df = \
+    pd.concat(raw_results_dict).\
+    reset_index().\
     drop(['level_1'], axis=1).\
     rename(columns=dict(level_0='experiment')).\
-    set_index(['instance','experiment']).\
-    query('sol_code==1').unstack(1).copy()
+    set_index(['instance','experiment'])
 
-df['min_value'] = np.nanmin(df.objective, axis=1)
+df_qu = df.query('sol_code==1').unstack(1).copy()
+
+df_qu['min_value'] = np.nanmin(df_qu.best_solution, axis=1)
 # mask = np.any(df.sol_code == ol.LpSolutionOptimal, axis=1)
 # df_objectives = df[mask][['objective', 'sol_code']]
 # df_objectives['min_value'] = np.min(df_objectives, axis=1)
 
 # df_objectives.set_index(['instance','experiment'])
-df.objective.subtract(df.min_value, axis=0)
+ttt = df_qu.best_solution.subtract(df_qu.min_value, axis=0)
+_filt = np.any(ttt.isna(), axis=1)
+ttt[~_filt][0].quantile(0.95)
+
+# EXPERIMENTS comparing errors
+############################################
+df_err = df.query('sol_code>0')['errors'].fillna(0).unstack(1).copy()
+
+df_err['min_value'] = np.nanmin(df_err, axis=1)
+# mask = np.any(df.sol_code == ol.LpSolutionOptimal, axis=1)
+# df_objectives = df[mask][['objective', 'sol_code']]
+# df_objectives['min_value'] = np.min(df_objectives, axis=1)
+
+# df_objectives.set_index(['instance','experiment'])
+_filt = np.any(df_err.isna(), axis=1)
+ttt = df_err.subtract(df_err.min_value, axis=0)
+df_err[~_filt].mean()
 
 
-df[df.sol_code == ol.LpSolutionOptimal]
-df[df.inf].sort_values(['level_1', 'level_0'])
+# EXPERIMENTS comparing performance
+############################################
+# we only compare instances were we found a solution in both
+df_perf = df.query('sol_code>=1').unstack(1).copy()['time']
+_filt = np.any(df_perf.isna(), axis=1)
+df_perf[~_filt].mean()
 
 
 #####################

@@ -1,6 +1,5 @@
-import package.experiment as exp
 import package.params as params
-import data.data_input as di
+import package.batch as ba
 
 import stochastic.instance_stats as istats
 import stochastic.solution_stats as sol_stats
@@ -10,7 +9,6 @@ import stochastic.models as models
 
 import pytups.superdict as sd
 import pytups.tuplist as tl
-import zipfile
 
 import os
 import numpy as np
@@ -28,12 +26,11 @@ import pandas as pd
 # rpyg.gantt_experiment(e+'/')
 
 
-
 def clean_remakes():
     path_remake = params.PATHS['results'] + 'dell_20190515_remakes'
-    ll = di.experiment_to_instances(path_remake)
-    lle = sd.SuperDict(ll).to_dictup().vapply(exp.Experiment.from_dir).\
-        clean(func= lambda v: v is None).keys_l()
+    batch = ba.ZipBatch(path_remake)
+    cases = batch.get_cases()
+    lle = cases.clean(func= lambda v: v is None).keys_l()
     lled = tl.TupList(lle).filter_list_f(lambda x: x[1]!='index.txt').\
         apply(lambda x: os.path.join(path_remake, x[0], x[1]))
 
@@ -92,7 +89,7 @@ def get_table(cases, _types=1):
             l_maint_date = sol_stats.get_post_2M_dist(case, _type=_type).values_l()
             l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min', 'sum']).tolist()
             num_maints = sol_stats.get_num_maints(case, _type=_type)
-            result.append([_case_name] + init_sum +
+            result.append(list(_case_name) + init_sum +
                           cons_sum +
                           airc_sum +
                           cons_min_assign + quantsw +
@@ -108,7 +105,7 @@ def get_table(cases, _types=1):
                           cycle_1M_quants +
                           l_maint_date_stat)
 
-    names = ['name', 'init',
+    names = ['scenario', 'name', 'init',
              'mean_consum', 'max_consum', 'var_consum',
              'mean_airc', 'max_airc', 'var_airc',
              'cons_min_mean', 'cons_min_max', 'quant5w', 'quant75w', 'quant9w',
@@ -142,96 +139,6 @@ def treat_table(result_tab):
             (result_tab.mean_consum ** grade)
     return result_tab
 
-def get_status_df(logInfo):
-    vars_extract = ['sol_code', 'status_code', 'time', 'gap', 'best_bound', 'best_solution']
-    ll = logInfo.vapply(lambda x: {var: x[var] for var in vars_extract})
-
-    master = \
-        pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal,
-                                   ol.LpSolutionInfeasible, ol.LpSolutionNoSolutionFound],
-                      'status': ['IntegerFeasible', 'Optimal', 'Infeasible', 'NoIntegerFound']})
-    status_df =\
-        pd.DataFrame.\
-        from_dict(ll, orient='index').\
-        rename_axis('name').\
-        reset_index().merge(master, on='sol_code')
-
-    status_df['gap_abs'] = status_df.best_solution - status_df.best_bound
-    return status_df
-
-def get_cases(relpath):
-    path = params.PATHS['results'] + relpath
-    experiments = [os.path.join(path, i) for i in os.listdir(path)]
-    basenames = [os.path.basename(e) for e in experiments]
-    return {c: exp.Experiment.from_dir(e) for c, e in zip(basenames, experiments)}
-
-def get_logs(relpath):
-    path = params.PATHS['results'] + relpath
-    experiments = [os.path.join(path, i) for i in os.listdir(path)]
-    log_paths = sd.SuperDict({os.path.basename(e): os.path.join(e, 'results.log')
-                              for e in experiments})
-    return log_paths. \
-            clean(func=os.path.exists). \
-            vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=False))
-
-def get_cases_zip(name, relpath):
-    path = params.PATHS['results'] + name + '.zip'
-    zipobj = zipfile.ZipFile(path)
-    experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
-    basenames = [os.path.basename(e) for e in experiments]
-    return {c: exp.Experiment.from_zipfile(zipobj, e) for c, e in zip(basenames, experiments)}
-
-def get_logs_zip(name, relpath):
-    path = params.PATHS['results'] + name + '.zip'
-    zipobj = zipfile.ZipFile(path)
-    experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
-    log_paths = sd.SuperDict({os.path.basename(e): e + '/results.log' for e in experiments})
-
-    def _read_zip(x):
-        try:
-            return zipobj.read(x)
-        except:
-            return 0
-
-    return log_paths. \
-            vapply(_read_zip). \
-            clean(). \
-            vapply(lambda x: str(x, 'utf-8')). \
-            vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=False, content=True))
-
-def get_errors(relpath):
-    path = params.PATHS['results'] + relpath
-    experiments = tl.TupList(os.path.join(path, i) for i in os.listdir(path))
-    base_exp = sd.SuperDict.from_dict({os.path.basename(e): e for e in experiments})
-    load_data = di.load_data
-    errors = \
-        base_exp.\
-            vapply(lambda v: v + '/errors.json').\
-            vapply(load_data).\
-            clean().\
-            vapply(sd.SuperDict.from_dict).\
-            vapply(lambda v: v.to_dictup()).\
-            to_lendict()
-
-    errors = errors.fill_with_default(base_exp)
-    return errors
-
-def get_errors_zip(name, relpath):
-    path = params.PATHS['results'] + name + '.zip'
-    zipobj = zipfile.ZipFile(path)
-    experiments = [f[:-1] for f in zipobj.namelist() if f.startswith(relpath) and f.endswith('/') and f.count("/") == 3]
-    base_exp = sd.SuperDict.from_dict({os.path.basename(e): e for e in experiments})
-    load_data = lambda v: di.load_data_zip(zipobj=zipobj, path=v)
-    errors = \
-        base_exp. \
-        vapply(lambda v: v + '/errors.json'). \
-        vapply(load_data). \
-        clean(). \
-        vapply(sd.SuperDict.from_dict). \
-        vapply(lambda v: v.to_dictup()). \
-        to_lendict()
-    errors = errors.fill_with_default(base_exp)
-    return errors
 
 # #########
 # BOUNDS:
@@ -473,24 +380,23 @@ if __name__ == '__main__':
         reload(graphs)
         reload(models)
         reload(istats)
+        reload(ba)
 
     name = sto_params.name
     use_zip = sto_params.use_zip
     relpath = name +'/base/'
 
     if use_zip:
-        cases = get_cases_zip(name, relpath)
-        log_info = get_logs_zip(name, relpath)
-        errors = get_errors_zip(name, relpath)
+        batch = ba.ZipBatch(params.PATHS['results']+name)
     else:
-        cases = get_cases(relpath)
-        log_info = get_logs(relpath)
-        errors = get_errors(relpath)
+        batch = ba.Batch(params.PATHS['results']+name)
+    cases = batch.get_cases()
+    errors = batch.get_errors()
+    status_df = batch.get_status_df()
 
     result_tab_origin = get_table(cases, 1)
     result_tab = treat_table(result_tab_origin)
-    status_df = get_status_df(log_info)
-    result_tab = result_tab.merge(status_df, on=['name'], how='left')
+    result_tab = result_tab.merge(status_df, on=['scenario', 'name'], how='left')
     result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
     result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
     result_tab['num_errors'] = result_tab.name.map(errors)

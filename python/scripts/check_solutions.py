@@ -37,14 +37,18 @@ def test2():
     # experiment.
 
 def test4():
+    import package.batch as ba
+
     case1 = '201805232311'
     case2 = '201805232322'
     case3 = '201805241036'
     heuristiques = [case3]
-    path_abs = PATHS['experiments']
-    options_e = exp.list_options(path_abs)
+    path_abs = r'/home/pchtsp/Documents/projects/optima_results_old/experiments/'
+    batch = ba.Batch(path_abs, no_scenario=True)
+    options_e = batch.get_options()
     heuristiques = [o for o, v in options_e.items() if v['solver'] == 'HEUR']
-    experiments_info = exp.list_experiments(path=path_abs, exp_list=heuristiques, get_log_info=False)
+    experiments_info = batch.list_experiments(get_log_info=False, exp_list=heuristiques)
+    # exp.list_experiments(path=path_abs, exp_list=heuristiques, get_log_info=False)
     experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in heuristiques}
     experiments = sd.SuperDict(experiments)
     experiments = experiments.clean(default_value=None)

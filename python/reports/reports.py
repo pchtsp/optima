@@ -1,19 +1,21 @@
-import pandas as pd
 import package.instance as inst
 import package.experiment as exp
-import pytups.superdict as sd
-import os
-import numpy as np
+import package.batch as ba
+
 import data.data_input as di
-import tabulate
-import re
 import solvers.heuristics as heur
-from package.params import PATHS
 import strings.names as na
 
+import pytups.superdict as sd
+import pandas as pd
+import os
+import numpy as np
+import tabulate
+import re
 import dfply as dp
 from dfply import X
 
+from package.params import PATHS
 
 path_root = PATHS['root']
 path_abs = PATHS['experiments']
@@ -56,7 +58,9 @@ def task_table():
 
 
 def get_results_table(path_abs, exp_list=None, **kwargs):
-    exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
+    batch = ba.Batch(path_abs, no_scenario=True)
+    exps = batch.list_experiments(exp_list=exp_list, **kwargs)
+    # exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
     table = pd.DataFrame.from_dict(exps, orient="index")
 
     if exp_list is not None:
@@ -145,7 +149,7 @@ def results_table(dir_origin=path_abs, dir_dest=path_latex + 'MOSIM2018/tables/'
 
 
 def multi_get_info(path_comp):
-    exps = exp.list_experiments(path_comp)
+    exps = ba.Batch(path_comp, no_scenario=True).list_experiments()
     # pp.pprint(exps)
 
     experiments = {path: exp.Experiment.from_dir(path_comp + path)
@@ -222,12 +226,14 @@ def multi_multiobjective_table():
 
 
 def solvers_comp():
-
+    import package.batch as ba
     # exps = sd.SuperDict(exps)
     # solver = exps.get_property('solver')
     # solver.clean('CPO')
     # exps_list = [k for k, v in solver.items()]
-    options_e = exp.list_options(path_abs)
+    batch = ba.Batch(path_abs, no_scenario=True)
+    options_e = batch.get_options()
+    # options_e = exp.list_options(path_abs)
     for e, v in options_e.items():
         if 'end_pos' not in v:
             continue
@@ -235,7 +241,8 @@ def solvers_comp():
         v['periods'] = v['end_pos'] - v['start_pos'] + 1
 
     exps_list = [e for e in options_e if e > '201804']
-    exps_solved = exp.list_experiments(path_abs, get_log_info=False, exp_list=exps_list)
+
+    exps_solved = batch.list_experiments(get_log_info=False, exp_list=exps_list)
 
     experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in exps_solved}
     kpis_info = {e: {'maintenances': len(v.solution.get_maintenance_periods())}
@@ -475,32 +482,6 @@ def print_table_md(table):
 def col_names_collapsed(table):
     return ['.'.join(reversed(col)).strip() for col in table.columns.values]
 
-def get_experiment_errors(experiment):
-    path_exps = path_results + experiment
-    exp_inst = di.experiment_to_instances(path_exps)
-    errors_f = \
-        sd.SuperDict.from_dict(exp_inst)\
-            .to_dictup().\
-            apply(lambda k, v: os.path.join(v, 'errors.json')).\
-            apply(lambda k, v: sd.SuperDict.from_dict(di.load_data(v)) if os.path.exists(v) else sd.SuperDict()).\
-            apply(lambda k, v: v.to_dictup().len()).\
-            to_dictdict()
-    table = \
-        pd.DataFrame.from_dict(errors_f, orient='index').\
-        stack().\
-        reset_index().\
-        rename(columns={'level_0': 'scenario', 'level_1':'instance_name', 0: 'errors'}).\
-        sort_values(['scenario', 'instance_name']).\
-        reset_index(drop=True).\
-        reset_index().\
-        rename(columns={'index': 'instance'})
-
-    table['instance'] = \
-        table.groupby('scenario')['instance'].apply(lambda x: x - x.min())
-
-    table.reset_index(drop=True, inplace=True)
-
-    return table
 
 if __name__ == "__main__":
 

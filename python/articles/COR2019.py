@@ -160,54 +160,6 @@ def get_preprocessing(table):
 
 ############################ TEST:
 
-def test2():
-    experiment = ""
-    path_exps = pm.PATHS['results'] + experiment
-    exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
-
-    # results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
-    exps = {k: exp.list_experiments(path_abs, get_exp_info=False) for k, path_abs in exps.items()}
-    exps = sd.SuperDict.from_dict(exps)
-
-
-    inf = {k: v.get_property('status') for k, v in exps.items()}
-    cut_times = {k: v.get_property('cut_info').get_property('time') for k, v in exps.items()}
-    cuts = {k: v.get_property('cut_info').get_property('cuts') for k, v in exps.items()}
-
-    data = sd.SuperDict(inf).to_dictup().to_tuplist().to_list()
-    data = sd.SuperDict(cuts).to_dictup().to_tuplist().to_list()
-    data = sd.SuperDict(cut_times).to_dictup().to_tuplist().to_list()
-
-    base_names = ['scenario', 'instance']
-    names = base_names + ['status']
-    names = base_names + ['cut', 'num']
-    names = base_names + ['num']
-    table = pd.DataFrame.from_records(data, columns=names).reset_index()
-
-    table_sum  = \
-        table >> \
-        dp.group_by(X.scenario, X.instance) >> \
-        dp.summarize(num = X.num.sum())
-
-    scenarios = table >> dp.distinct(X.scenario) >> dp.select(X.scenario)
-    scenarios = scenarios.reset_index(drop=True) >> dp.mutate(code=X.index)
-
-    table_sum = table_sum >> dp.left_join(scenarios, on='scenario')
-
-    # rg.rpy2_boxplot(table_sum, x='scenario', y='num')
-
-    t = table >> dp.group_by(X.scenario, X.cut) >> dp.summarize(num = X.num.sum())
-    t >> \
-    dp.spread(X.scenario, X.num) >> \
-    dp.select(X.cut, X.base, X.maxelapsedtime_40, X.maxelapsedtime_80, X.elapsedtimesize_40, X.elapsedtimesize_20) >> \
-    dp.rename(mt80=X.maxelapsedtime_80, mt40=X.maxelapsedtime_40, es40=X.elapsedtimesize_40, es20=X.elapsedtimesize_20)
-
-    plot = rep.boxplot_instances(table_sum, column='num_cuts')
-
-
-    print(plot)
-    # pd.io.json.json_normalize(cuts, record_path=['*', '*'])
-
 def statistics_experiment(experiment):
     # experiment = "clust1_20181121"
     # experiment = 'clust1_20181128'
