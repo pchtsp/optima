@@ -2,7 +2,7 @@ import pytups.superdict as sd
 import pandas as pd
 
 import stochastic.params as params
-import stochastic.auxiliary as aux
+import stochastic.tools as aux
 
 
 def get_resources_of_type(instance, _type=0):

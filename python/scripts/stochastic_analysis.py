@@ -37,13 +37,9 @@ def clean_remakes():
     lled.apply(shutil.rmtree)
 
 def write_index(status_df, remakes_path):
-    # sum(_filter)
-    # sum(status_df.sol_code==ol.LpSolutionOptimal)
     not_optimal_status = [ol.LpSolutionIntegerFeasible, ol.LpSolutionNoSolutionFound]
     _filter = np.in1d(status_df.sol_code, not_optimal_status)
-    # _filter = np.all([status_df.sol_code==ol.LpSolutionIntegerFeasible,
-    #                  status_df.gap_abs >= 10], axis=0)
-    # _filter = np.any([status_df.sol_code==ol.LpSolutionNoSolutionFound, _filter], axis=0)
+
     remakes_df = status_df[_filter].sort_values(['gap_abs'], ascending=False)
     status_df.groupby('sol_code').agg('count')
     remakes = remakes_df.name.tolist()
@@ -128,7 +124,8 @@ def get_table(cases, _types=1):
 def treat_table(result_tab):
 
     for col in ['init', 'quant75w', 'quant9w', 'quant5w', 'geomean_cons',
-                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9', 'spec_tasks', 'mean_consum']:
+                'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9',
+                'spec_tasks', 'mean_consum', 'geomean_cons']:
         result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
 
     # we generate auxiliary variations on consumption.
@@ -387,11 +384,12 @@ if __name__ == '__main__':
     relpath = name +'/base/'
 
     if use_zip:
-        batch = ba.ZipBatch(params.PATHS['results']+name)
+        batch = ba.ZipBatch(params.PATHS['results'] + name)
     else:
-        batch = ba.Batch(params.PATHS['results']+name)
+        batch = ba.Batch(params.PATHS['results'] + name)
     cases = batch.get_cases()
     errors = batch.get_errors()
+    errors = errors.to_tuplist().to_dict(2, indices=[1], is_list=False)
     status_df = batch.get_status_df()
 
     result_tab_origin = get_table(cases, 1)
@@ -400,6 +398,7 @@ if __name__ == '__main__':
     result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
     result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
     result_tab['num_errors'] = result_tab.name.map(errors)
+    result_tab['num_errors'].fillna(0, inplace=True)
     result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
     result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
 
@@ -416,15 +415,6 @@ if __name__ == '__main__':
     result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
     result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
 
-    status_df = result_tab
-    status_df.agg('mean')[['gap_abs', 'time', 'best_solution']]
-    status_df.groupby('status').agg('count')['name']
-    status_df.groupby('status').agg('max')['gap_abs']
-    status_df.groupby('status').agg('max')['gap']
-    status_df.groupby('status').agg('median')['gap_abs']
-    status_df.groupby('status').agg('median')['gap']
-
-
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint', 'mean_dist_complete']:
         graphs.draw_hist(result_tab, var, bar=False)
 
@@ -433,9 +423,6 @@ if __name__ == '__main__':
     # #########
     # PLOTTING:
     # #########
-    col = 'geomean_cons'
-    result_tab[col + '_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
-
     for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min', 'mean_dist_complete', 'min_dist_complete']:
         x = 'mean_consum'
         facet = 'init_cut ~ .'
@@ -455,6 +442,8 @@ if __name__ == '__main__':
         x = 'mean_consum'
         graph_name = '{}_vs_{}_nocolor'.format(x, y)
         graphs.plotting(result_tab, x=x, y=y, graph_name=graph_name, smooth=False)
+
+    table = result_tab[result_tab.mean_consum_cut == result_tab.mean_consum_cut[0]]
     # result_tab.best_solution
 
     # #########

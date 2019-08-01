@@ -11,7 +11,7 @@ import pytups.superdict as sd
 
 import stochastic.model_upper_bound as mub
 import stochastic.graphs as graphs
-import stochastic.auxiliary as aux
+import stochastic.tools as aux
 
 ####################
 # Forecasting

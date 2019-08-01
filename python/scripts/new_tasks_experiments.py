@@ -4,9 +4,10 @@ from dfply import X
 import orloge as ol
 import numpy as np
 
-import package.batch as batch
+import package.batch as ba
 import package.params as params
 
+import stochastic.graphs as graphs
 # import os
 
 exp_list = ['dell_20190327_cbc_old',
@@ -47,9 +48,9 @@ raw_results_dict = {}
 for name, experiment in enumerate(exp_list):
     if experiment is None:
         continue
-    batch1 = batch.ZipBatch(path=params.PATHS['results'])
+    batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment)
     table = batch1.get_log_df()
-    table_errors = batch1.get_errors_df().drop('instance_name', axis=1)
+    table_errors = batch1.get_errors_df().drop('name', axis=1)
     table_n = \
         table.merge(table_errors, on=['scenario', 'instance'], how='left').\
         sort_values(['scenario', 'instance']).\
@@ -102,49 +103,6 @@ text = results4.to_latex(bold_rows=True, float_format='%.1f', longtable=True)
 
 with open(file_path, 'w') as f:
     f.write(text)
-
-# EXPERIMENTS comparing quality degradation.
-############################################
-df = \
-    pd.concat(raw_results_dict).\
-    reset_index().\
-    drop(['level_1'], axis=1).\
-    rename(columns=dict(level_0='experiment')).\
-    set_index(['instance','experiment'])
-
-df_qu = df.query('sol_code==1').unstack(1).copy()
-
-df_qu['min_value'] = np.nanmin(df_qu.best_solution, axis=1)
-# mask = np.any(df.sol_code == ol.LpSolutionOptimal, axis=1)
-# df_objectives = df[mask][['objective', 'sol_code']]
-# df_objectives['min_value'] = np.min(df_objectives, axis=1)
-
-# df_objectives.set_index(['instance','experiment'])
-ttt = df_qu.best_solution.subtract(df_qu.min_value, axis=0)
-_filt = np.any(ttt.isna(), axis=1)
-ttt[~_filt][0].quantile(0.95)
-
-# EXPERIMENTS comparing errors
-############################################
-df_err = df.query('sol_code>0')['errors'].fillna(0).unstack(1).copy()
-
-df_err['min_value'] = np.nanmin(df_err, axis=1)
-# mask = np.any(df.sol_code == ol.LpSolutionOptimal, axis=1)
-# df_objectives = df[mask][['objective', 'sol_code']]
-# df_objectives['min_value'] = np.min(df_objectives, axis=1)
-
-# df_objectives.set_index(['instance','experiment'])
-_filt = np.any(df_err.isna(), axis=1)
-ttt = df_err.subtract(df_err.min_value, axis=0)
-df_err[~_filt].mean()
-
-
-# EXPERIMENTS comparing performance
-############################################
-# we only compare instances were we found a solution in both
-df_perf = df.query('sol_code>=1').unstack(1).copy()['time']
-_filt = np.any(df_perf.isna(), axis=1)
-df_perf[~_filt].mean()
 
 
 #####################

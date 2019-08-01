@@ -210,16 +210,22 @@ class ZipBatch(Batch):
         super().__init__(path)
 
     def get_instances_paths(self):
+        # TODO: make it work with self.no_scenario option
+        num_slashes = 2
+        keys_positions = [1, 2]
+        if self.no_scenario:
+            num_slashes = 1
+            keys_positions = 1
         zipobj = zipfile.ZipFile(self.path)
         all_files = tl.TupList(self.dirs_in_zip(zipobj))
         scenario_instances = \
             all_files.\
-                filter_list_f(lambda f: f.count("/") == 2)
+                filter_list_f(lambda f: f.count("/") == num_slashes)
         keys = \
             scenario_instances.\
             apply(str.split, '/').\
                 apply(tuple).\
-                filter([1, 2])
+                filter(keys_positions)
         return sd.SuperDict(zip(keys, scenario_instances))
 
     def re_make_paths(self, scenario_instances):
@@ -266,8 +272,7 @@ class ZipBatch(Batch):
             clean(). \
             vapply(sd.SuperDict.from_dict)
 
-    @staticmethod
-    def parent_dirs(pathname, subdirs=None):
+    def parent_dirs(self, pathname, subdirs=None):
         """Return a set of all individual directories contained in a pathname
 
         For example, if 'a/b/c.ext' is the path to the file 'c.ext':
@@ -281,8 +286,7 @@ class ZipBatch(Batch):
             self.parent_dirs(parent, subdirs)
         return subdirs
 
-    @staticmethod
-    def dirs_in_zip(zf):
+    def dirs_in_zip(self, zf):
         """Return a list of directories that would be created by the ZipFile zf"""
         alldirs = set()
         for fn in zf.namelist():
