@@ -16,6 +16,7 @@ import stochastic.params as sto_params
 def get_df_comparison(exp_list):
     raw_results_dict = {}
     for name, experiment in enumerate(exp_list):
+        # print(name)
         if experiment is None:
             continue
         batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment)
@@ -51,6 +52,7 @@ if __name__ == '__main__':
 
     df = get_df_comparison(exp_list)
 
+    # 2 tasks
     exp_list = \
         ['IT000125_20190730', 'IT000125_20190729']
 
@@ -58,8 +60,18 @@ if __name__ == '__main__':
 
     df = df[df.scenario == 'numparalleltasks_2']
 
+    # 3 tasks
+    exp_list = \
+        ['IT000125_20190730', 'IT000125_20190801']
+
+    df = get_df_comparison(exp_list)
+
+    df = df[df.scenario == 'numparalleltasks_3']
+
+    df[df.index.get_level_values('experiment')==1]
+
     # GENERAL STATS
-    df.agg('mean')[['time', 'best_solution']]
+    # df.agg('mean')[['time', 'best_solution']]
     df.groupby(['experiment', 'status']).agg('count')['name']
     # df.groupby(['experiment', 'status']).agg('max')['gap_abs']
     df.groupby(['experiment', 'status']).agg('max')['gap']
@@ -105,8 +117,6 @@ if __name__ == '__main__':
     ttt2 = ttt2[ttt2 > 0].groupby('experiment').agg("count")
     compare_perc_0_1(ttt2)
 
-
-
     # feasibility
     # 1 task, 4% more infeasible solutions (3 from 5000)
     # 2 tasks 14% more infeasible solutions (6 from 1000)
@@ -114,7 +124,7 @@ if __name__ == '__main__':
         df.query('status_code==-1')['status_code'].\
         groupby('experiment').agg('count')
     (89 - 86)/86* 100
-    (df_infea[0] - df_infea[1]) / df_infea[1] * 100
+    compare_perc_0_1(df_infea)
 
     # EXPERIMENTS comparing performance
     ############################################
@@ -122,6 +132,7 @@ if __name__ == '__main__':
     # Average solving time has a 27% reduction for all integer common feasible instances
     # if we replace not found by 3600: it's 24% gain
     # In 2 tasks, 21% gain and 13%
+    # In 3 tasks, 15%% gain and 9%
     df_perf = df.query('sol_code>=1').unstack(1).copy()['time']
 
     # alternative 1 tab: both found an integer solution
@@ -132,7 +143,7 @@ if __name__ == '__main__':
     tab = df_perf.fillna(3600)
 
     tab.mean()
-    (tab.mean()[0] - tab.mean()[1])/ tab.mean()[1]*100
+    compare_perc_0_1(tab.mean())
     tab.quantile(0.95)
     t_main = \
         tab.reset_index().assign(sum=lambda x: x[1]).sort_values('sum').reset_index(drop=True).\
@@ -168,6 +179,7 @@ if __name__ == '__main__':
     # For common optimal solutions, the reduction was 30% in time
     # if we replace not found solutions by 3600: 50%
     # In 2 taks, it's 43% for both.
+    # In 3 taks, it's 35% and 41%.
     df_perf3 = df.query('sol_code==1').unstack(1).copy()['time']
     _filt = np.any(df_perf3 .isna(), axis=1)
     tab = df_perf3[~_filt]

@@ -38,8 +38,8 @@ if __name__ == "__main__":
     else:
         num_instances = 10
 
-    options = params.OPTIONS = sd.SuperDict(params.OPTIONS)
-    sim_data = options['simulation'] = sd.SuperDict(options['simulation'])
+    options = params.OPTIONS = sd.SuperDict.from_dict(params.OPTIONS)
+    sim_data = options['simulation'] = sd.SuperDict.from_dict(options['simulation'])
     options['PATHS'] = params.PATHS
 
     if args.case_opt:
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             'elapsed_time_size': [20, 40]
         }
 
-    case_data = [{k: vv, 'name': '{}_{}'.format(re.sub('_', '', k), vv)}
+    case_data = [{k: vv, 'name': '{}_{}'.format(re.sub(r'[_\}]', '', k), vv)}
                  for k, v in case_options.items() for vv in v] + \
                 [{'name': 'base'}]
 
@@ -68,8 +68,8 @@ if __name__ == "__main__":
         for sim in range(num_instances):
             if sim_data['seed']:
                 sim_data['seed'] += 1
-            case_sim = sd.SuperDict(case).filter(sim_data.keys_l(), check=False)
-            case_opt = sd.SuperDict(case).filter(options.keys_l(), check=False)
+            case_sim = sd.SuperDict.from_dict(case).filter(sim_data.keys_l(), check=False)
+            case_opt = sd.SuperDict.from_dict(case).filter(options.keys_l(), check=False)
             _options = copy.deepcopy(options)
             _sim_data = _options['simulation']
             _sim_data.update(case_sim)

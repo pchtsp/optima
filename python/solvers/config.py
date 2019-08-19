@@ -109,6 +109,8 @@ class Config(object):
             solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path)
         if self.solver == "CHOCO":
             solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=self.keepfiles, msg=0)
+        if self.solver == "MIPCL":
+            solver = pl.MIPCL_CMD(options=['-time 60'], keepFiles=self.keepfiles, msg=1)
         if solver is not None:
             try:
                 result = model.solve(solver, timeout=self.timeLimit + 60)

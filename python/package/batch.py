@@ -254,7 +254,7 @@ class ZipBatch(Batch):
 
         self.logs = \
             self.get_instances_paths(). \
-            vapply(lambda v: os.path.join(v, 'results.log')).\
+            vapply(lambda v: v + '/results.log').\
             vapply(_read_zip). \
             clean(). \
             vapply(lambda x: str(x, 'utf-8')). \
@@ -267,7 +267,7 @@ class ZipBatch(Batch):
 
         return \
             self.get_instances_paths().\
-            vapply(lambda v: os.path.join(v, name)). \
+            vapply(lambda v: v + '/' + name). \
             vapply(load_data). \
             clean(). \
             vapply(sd.SuperDict.from_dict)
