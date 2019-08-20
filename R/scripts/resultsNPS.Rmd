@@ -5,21 +5,31 @@ date: "August 8, 2019"
 output: html_document
 editor_options: 
   chunk_output_type: console
+params:
+   size: medium
 ---
 
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 library(reticulate)
-use_python('C:/Python36/python.exe')
-use_virtualenv('C:/Users/pchtsp/Documents/projects/optima/python/venv/', required = TRUE)
+library(tidyverse)
+library(knitr)
+library(magrittr)
+library(ggplot2)
+use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
 current_dir = getwd()
-print(current_dir)
-# Sys.getenv('PYTHONHOME')
-# # Sys.setenv(PYTHONPATH='C:/Python36/DLLs')
-# py_available(TRUE)
+# print(current_dir)
 py_discover_config()
+quant_max <- 0.95
+size <- params$size
+aux_compare <- function(table){
+    table %>% 
+    gather(key='indicator', value="value", -experiment) %>% 
+    spread(experiment, value) %>% 
+    mutate(dif_abs = cuts - base,
+           dif_perc = (dif_abs/ base*100) %>% round(2))
 
+}
 
 ```
 
@@ -28,39 +38,274 @@ import pandas as pd
 import numpy as np
 
 import sys, os
-path = os.path.join(r.current_dir, './../../python/')
-print(path)
+opt_path = './'
+opt_path = '../'
+rel_path_python = '{}../python/'.format(opt_path)
+path = os.path.join(r.current_dir, rel_path_python)
+# print(path)
 sys.path.insert(1, path)
 
 import package.batch as ba
-# import package.params as params
+import package.params as params
 
+import stochastic.params as sto_params
+import scripts.compare_stochastic as compare_sto
 
+# This is read now as a paramer in the YAML (above).
+# size = 'small'  # choose small, medium or large
+df = compare_sto.get_instances[r.size]()
+df = df.reset_index()
 
-# from rpy2.robjects import pandas2ri
-# import rpy2.robjects.lib.ggplot2 as ggplot2
-# import rpy2.robjects as ro
-
-# import stochastic.params as sto_params
+name_change = dict(experiment=[0, 1], experiment2=["cuts", "base"])
+name_change = pd.DataFrame(name_change)
+df = df.merge(name_change, on='experiment').drop('experiment', axis=1).rename(columns=dict(experiment2='experiment'))
 
 ```
 
-## R Markdown
+## Nomenclature
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+* `cuts` model with added learning constraints.
+* `base` model without any added constraints.
+* `dif_abs` absolute distance between the two models for the shown quantity.
+* `dif_rel` relative distance between the two models for the shown quantity. Always using (cuts-base)/base.
+* `time_mean` mean time.
+* `time_medi` median time.
+* `errors_q95` number of errors in the percentile 95%.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## General statistics
 
-```{r cars}
-summary(cars)
+The following table shows the general statistics about the instances solved.
+
+```{r stats_general}
+
+summary_stats <- 
+    py$df %>% 
+    mutate(sol_code = if_else(is.na(sol_code), 2, sol_code)) %>% 
+    group_by(experiment) %>%
+    summarise(Infeasible = sum(sol_code==-1),
+              IntegerFeasible=sum(sol_code==2),
+              IntegerInfeasible=sum(sol_code==0),
+              Optimal=sum(sol_code==1),
+              total_instances = n()) %>% 
+  aux_compare
+
+summary_stats %>% kable
+
 ```
 
-## Including Plots
+## Solution quality
 
-You can also embed plots, for example:
+### Optimality degradation
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+We compare the times where both models return an **optimal solution**.
+
+```{r quality_degr}
+
+t1 <- 
+    py$df %>% 
+    filter(sol_code==1) %>% 
+    group_by(instance) %>%
+    mutate(min_value = min(best_solution),
+           dist_min = best_solution - min_value,
+           dist_min_perc = (best_solution - min_value)/abs(min_value)*100
+           )
+t1_rel <- 
+    t1 %>% 
+    select(instance, experiment, dist_min_perc) %>% 
+    spread(key=experiment, value=dist_min_perc) %>% 
+    drop_na() %>% use_series(cuts)
+
+t1_abs <- 
+    t1 %>% 
+    select(instance, experiment, dist_min) %>% 
+    spread(key=experiment, value=dist_min) %>% 
+    drop_na() %>% use_series(cuts)
+
+quality_degr_quant <- t1_rel %>% quantile()
+quality_degr_quant95 <- t1_rel %>% quantile(quant_max)
+quality_degr_nrow <- t1_rel %>% length()
+quality_degr_quant95_abs <- t1_abs %>% quantile(quant_max)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+For `r quant_max*100`\% of the `r quality_degr_nrow` (`r (quant_max*quality_degr_nrow) %>% floor`) instances that comply with this condition, the loss in the objective function was `r quality_degr_quant95 %>% round(2)`\% or less from the optimal. This corresponds to an absolute value of `r quality_degr_quant95_abs %>% round(2)`. As a reference, the absolute gap tolerance used in the solving was of 10.
+
+```{r}
+t1_rel_filt <- t1_rel[t1_rel<20]
+filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
+```
+
+
+The following graph shows the distribution of the gap from the `cuts` model with the `base` model. `r filtered_quant %>% round(2)`\% of outliers were taken out from the right tail.
+
+```{r}
+qplot(t1_rel[t1_rel<20], xlab='Relative gap (in %) among optimal solutions.')
+```
+
+### Mean quality comparison
+
+If we compare among all cases where an **integer solution** was found in the two models, we can obtain an estimate of quality performance for the 1 hour solving time.
+
+```{r quality_perf}
+
+quality_perf <-
+    py$df %>% 
+    filter(sol_code>=1) %>%
+    select(instance, experiment, best_solution) %>% 
+    spread(experiment, best_solution) %>% 
+    drop_na() %>% 
+    mutate(dif_perc = ((cuts-base)/ base*100) %>% round(2))
+  
+  mean_dif <- quality_perf$dif_perc %>%  mean
+  per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
+
+quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
+
+```
+
+```{r}
+filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -5, 5))
+filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
+```
+The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%̀) have been taken out to help better visualize it.
+
+```{r}
+qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.')
+```
+
+
+Of the `r quality_perf_nrow` instances were an **integer solution** was found in both models, the average relative gap between the `cuts` model and the `base` model was of `r mean_dif %>% round(2)`\%. This means that, in average solutions of the `cuts` model were `r (-mean_dif) %>% round(2)`\% better than the `base` model.
+
+In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model.
+
+## Performance analysis
+
+### Average solving time
+
+Just like in the mean quality comparison, we compare among cases where both models found a **integer solution**.
+
+```{r time_perf}
+
+comparison_table <- 
+    py$df %>% 
+    filter(sol_code>=1) %>% 
+    group_by(instance) %>%
+    filter(n()==2) %>% 
+    ungroup() %>% 
+    select(instance, experiment, time) %>% 
+    spread(experiment, time) %>% 
+    arrange(base) %>% 
+    mutate(instance = row_number()) %>% 
+    gather(key = 'experiment',  value='time', -instance)
+
+comparison_table_reorder <- 
+    comparison_table %>% 
+    group_by(experiment) %>% 
+    arrange(experiment, time) %>% 
+    mutate(percentage = row_number()/n()*100)
+
+mean_times <- 
+    comparison_table %>% 
+    group_by(experiment) %>% 
+    summarise(time_mean = mean(time), 
+              time_medi = median(time)) %>% 
+    aux_compare
+
+```
+
+The difference in average and median times can be seen in the following table:
+
+```{r}
+    mean_times %>% kable
+```
+
+In order to get more intuition in the performance per instance, we present a couple of graphs.
+
+The following graph shows the solving times in seconds for each of the `r t1 %>% distinct(instance) %>% nrow` instances were an integer solution was found in both cases. In red are the times for the base model. In green the times for the model with the added cuts.
+
+```{r time_perf_graph} 
+    ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)
+```
+
+If we reorder both models from fastest to slowest, we lose the comparison of individual instances but we gain more insight on the distribution of solving times.
+
+```{r time_perf_graph2} 
+    ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage')
+```
+
+### Average solving time to optimality
+
+Here, we measure the time it took for each model to reach an **optimal solution.** We compare among instances where both models obtained and optimal solution.
+
+```{r time_perf_optim}
+
+comparison_table <- 
+    py$df %>% 
+    filter(sol_code==1) %>% 
+    group_by(instance) %>% 
+    filter(n()==2) %>% 
+    select(experiment, instance, time) %>%
+    group_by(experiment) %>% 
+    summarise(time_mean = mean(time), 
+              time_medi = median(time)) %>% 
+    aux_compare
+
+```
+
+```{r time_perf_optim_graph}
+    comparison_table %>% kable
+```
+
+## Feasiblility analysis
+
+There are two indicators to measure if a model is too constrained. The first one is the fact the model is infeasible. The second one is the accomplishement of the soft constraints in the solution.
+
+```{r infeasible_list}
+
+infeasible_instances <- py$df %>% filter(sol_code==-1) %>% distinct(instance)
+```
+
+### Infeasible solutions
+
+We take all `r infeasible_instances %>% nrow` **infeasible solutions** from the cuts model and obtain statistics on their solution on the base model.
+
+The below table shows the status obtained in the base model. The number of infeasible solutions is very close in both models and for all instances that were identified by infeasible in the `cuts` model, the `base` model was unable to find an integer solution.
+
+```{r infeasible}
+infeasible_stats <- 
+    py$df %>% 
+    inner_join(infeasible_instances) %>% 
+    filter(experiment=="base") %>% 
+    summarise(Infeasible = sum(sol_code==-1),
+              IntegerFeasible=sum(sol_code==2),
+              IntegerInfeasible=sum(sol_code==0),
+              Optimal=sum(sol_code==1),
+              total_instances = n()) %>% 
+    gather(key='status', 'number') %>% 
+  filter(number>0)
+
+infeasible_stats %>% kable
+```
+
+### Soft constraints performance
+
+Regarding the accomplishment of soft constraints, we can analyze for mutually **integer solutions**, the quantity of violations in their solutions.
+
+```{r soft_constraints}
+errors_stats <- 
+    py$df %>% 
+    filter(sol_code>=1) %>% 
+    mutate(errors = replace_na(errors, 0)) %>% 
+    group_by(experiment) %>% 
+    summarise(errors_mean = mean(errors),
+              errors_q95 = quantile(errors, quant_max),
+              errors_medi = median(errors)) %>% 
+    aux_compare
+
+```
+
+The following table shows the difference in soft constraints errors.
+
+```{r soft_constraints_table}
+errors_stats %>% kable
+```

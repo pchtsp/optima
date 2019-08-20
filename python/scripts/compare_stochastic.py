@@ -4,10 +4,6 @@ import numpy as np
 import package.batch as ba
 import package.params as params
 
-from rpy2.robjects import pandas2ri
-import rpy2.robjects.lib.ggplot2 as ggplot2
-import rpy2.robjects as ro
-
 import stochastic.params as sto_params
 
 #####################
@@ -40,36 +36,47 @@ def compare_perc_0_1(table):
     return (table[0] - table[1])/table[1] *100
 
 
-if __name__ == '__main__':
+def get_large_instances():
+    exp_list = \
+        ['IT000125_20190730', 'IT000125_20190801']
+    df = get_df_comparison(exp_list)
+    df = df[df.scenario == 'numparalleltasks_3']
+    return df
 
-    ro.pandas2ri.activate()
+def get_medium_instances():
+    exp_list = \
+        ['IT000125_20190730', 'IT000125_20190729']
 
-    # get info to analyze.
+    df = get_df_comparison(exp_list)
+    df = df[df.scenario == 'numparalleltasks_2']
+    return df
 
+def get_small_instances():
     exp_list = \
         ['IT000125_20190725',
          'IT000125_20190716']
 
     df = get_df_comparison(exp_list)
+    return df
 
-    # 2 tasks
-    exp_list = \
-        ['IT000125_20190730', 'IT000125_20190729']
+get_instances = dict(small= get_small_instances,
+                     medium= get_medium_instances,
+                     large= get_large_instances)
 
-    df = get_df_comparison(exp_list)
+if __name__ == '__main__':
 
-    df = df[df.scenario == 'numparalleltasks_2']
+    from rpy2.robjects import pandas2ri
+    import rpy2.robjects.lib.ggplot2 as ggplot2
+    import rpy2.robjects as ro
 
-    # 3 tasks
-    exp_list = \
-        ['IT000125_20190730', 'IT000125_20190801']
+    ro.pandas2ri.activate()
 
-    df = get_df_comparison(exp_list)
-
-    df = df[df.scenario == 'numparalleltasks_3']
+    # get info to analyze.
+    # df = get_small_instances()
+    # df = get_medium_instances()
+    df = get_large_instances()
 
     df[df.index.get_level_values('experiment')==1]
-
     # GENERAL STATS
     # df.agg('mean')[['time', 'best_solution']]
     df.groupby(['experiment', 'status']).agg('count')['name']
