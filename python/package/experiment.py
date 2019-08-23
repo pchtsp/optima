@@ -338,7 +338,10 @@ class Experiment(object):
         num_periods = self.instance.get_param('num_period')
         ct = self.instance.compare_tups
         all_states = maints + tasks + previous
-        all_states_periods = tl.TupList(all_states).to_start_finish(ct)
+        all_states_periods = \
+            tl.TupList(all_states).\
+                sorted(key=lambda v: (v[0], v[2], v[1])).\
+                to_start_finish(ct, sort=False)
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')

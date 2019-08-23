@@ -179,15 +179,7 @@ class GreedyByMission(test.Experiment):
         periods_maint = self.instance.get_periods_range(maint_start, maint_end)
         log.debug("{} gets {} maint: {} -> {}".
                   format(resource, maint, maint_start, maint_end))
-        for period in periods_maint:
-            # self.set_state(resource, period, cat='state', value=maint)
-            self.set_state(resource, period, maint, cat='state_m', value=1)
-        # Delete auxiliary maintenances if any in relevant periods
-        for m in affected_maints:
-            if m == maint:
-                continue
-            for period in periods_maint:
-                self.del_maint(resource, period, m)
+        self.set_state_and_clean(resource, maint, periods_maint)
         for m in affected_maints:
             self.update_time_maint(resource, periods_maint, time='ret', maint=m)
             self.update_time_maint(resource, periods_maint, time='rut', maint=m)
@@ -408,14 +400,32 @@ class GreedyByMission(test.Experiment):
         :param args: normally: [resource, period]. Can also be: [resource, period, maint]
         :return:
         """
-        # TODO: we should clean after adding M
         self.solution.data[cat].set_m(*args, value=value)
 
         return True
 
+    def set_state_and_clean(self, resource, maint, periods):
+        """
+        :param resource: resource to update
+        :param maint: maintenance name to update
+        :param periods: periods to update (list)
+        :return: True
+        """
+        maint_data = self.instance.data['maintenances'][maint]
+        affected_maints = maint_data['affects']
+        for period in periods:
+            self.set_state(resource, period, maint, cat='state_m', value=1)
+        # Delete auxiliary maintenances if any in relevant periods
+        for m in affected_maints:
+            if m == maint:
+                continue
+            for period in periods:
+                self.del_maint(resource, period, m)
+        return True
+
     def get_maintenance_periods_resource(self, resource, maint='M'):
         periods = [(1, k) for k, v in self.solution.data['state_m'].get(resource, {}).items() if maint in v]
-        result = tl.TupList(periods).tup_to_start_finish(self.instance.compare_tups)
+        result = tl.TupList(periods).to_start_finish(self.instance.compare_tups)
         return result.filter([1, 2])
 
     def get_next_maintenance(self, resource, min_start, maints=None):

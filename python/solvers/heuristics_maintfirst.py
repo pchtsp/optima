@@ -1,4 +1,5 @@
 import pytups.superdict as sd
+import pytups.tuplist as tl
 import os
 import data.data_input as di
 import numpy as np
@@ -10,6 +11,7 @@ import math
 import ujson
 import time
 import logging as log
+import pandas as pd
 
 
 class MaintenanceFirst(heur.GreedyByMission):
@@ -178,12 +180,16 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_size_maints = self.get_candidates_size_maints(errors)
         candidates_min_assign = self.get_candidates_min_max_assign(errors)
         candidates_rut = self.get_candidates_rut(errors)
-        candidates_merge = self.get_candidates_merge()
+        candidates_merge = self.get_candidates_merge_consecutive()
+        more_candidates_merge = []
+        if rn.random() > 0.7:
+            more_candidates_merge = self.get_candidates_merge_non_consecutive()
 
         candidates = candidates_tasks + candidates_maints + \
                      candidates_cluster + candidates_dist_maints + \
                      candidates_min_assign + candidates_rut + \
-                     candidates_size_maints + candidates_merge
+                     candidates_size_maints + candidates_merge + \
+                     more_candidates_merge
         if not len(candidates):
             return []
         # we add a random resource.
@@ -250,21 +256,92 @@ class MaintenanceFirst(heur.GreedyByMission):
                     break
         return candidates
 
-    def get_candidates_merge(self):
+    def get_candidates_merge_consecutive(self):
         next = self.instance.get_next_period
         data = self.solution.data['state_m']
         def consec_list(_list):
             filt = []
             for el, el2 in zip(_list, _list[1:]):
-                if el2 == next(el):
-                    filt.append(el)
-                    filt.append(el2)
+                if el2[0] != next(el[0]):
+                    continue
+                for tup in [el, el2]:
+                    # only add each side if there is only one maintenance.
+                    # small chance to try to change a union of maintenances
+                    if len(tup[1]) == 1 or rn.random() > 0.7:
+                        filt.append(tup[0])
             return filt
 
         return data.\
-            vapply(sorted).\
+            vapply(lambda v: sorted(v.items())).\
             vapply(consec_list).\
             to_tuplist()
+
+    def get_candidates_merge_non_consecutive(self):
+        """
+        1. We get maintenances that do not depend on calendar.
+        2. We get their equivalent in periods using instant consumption
+        3. We search for that number of periods around that maintenance
+        for other maintenances and if their exist, put both as candidate.
+        :return:
+        """
+        data = self.solution.data['state_m']
+        max_elapsed = self.instance.get_maintenances('max_elapsed_time')
+        max_elapsed = max_elapsed.clean(func=lambda v: v is None)
+        used_size = self.instance.get_maintenances('used_time_size')
+        maints_no_elapse = max_elapsed.keys()
+        # max_used.filter(list(maints_no_elapse))
+        func_hours = lambda r, p: self.get_consumption_individual(r, p, time='rut')
+        next_periods = self.instance.get_next_periods
+        get_periods_around = lambda p, num: next_periods(p, num, True) + \
+                                            next_periods(p, num)
+        data_tuplist = \
+            tl.TupList(data.to_dictup()).\
+                to_df(columns=['resource', 'period', 'maint'])
+        _agg = data_tuplist.groupby(['resource', 'period']).\
+            agg('count').reset_index().rename(columns=dict(maint='num'))
+        data_tuplist = data_tuplist.merge(_agg, on=['resource', 'period'])
+        dts = data_tuplist[data_tuplist.maint.isin(maints_no_elapse)].reset_index(drop=True)
+        dts['amount'] = \
+            dts.maint.map(used_size) / \
+            dts[['resource', 'period']].\
+                apply(lambda x: func_hours(*x), axis=1)/2
+        dts['amount'] = dts['amount'].apply(math.floor)
+
+        dts['period2'] = \
+            dts[['period', 'amount']]. \
+            apply(lambda x: get_periods_around(*x), axis=1)
+
+        maints = \
+            dts['period2'].\
+            apply(pd.Series).stack().reset_index().\
+            drop(['level_1'], axis=1).\
+            set_index('level_0').\
+            join(dts).\
+            drop(['period2'], axis=1).\
+            rename(columns={0: 'period2'}).\
+            drop_duplicates(['resource', 'period2']).\
+            query('period != period2')
+
+        data_tuplist_df = \
+            data_tuplist.\
+            rename(columns=dict(period='period2', num='num2')). \
+            drop_duplicates(['resource', 'period2']).\
+            merge(maints, on=['resource', 'period2'])
+
+        list1 = data_tuplist_df.copy()
+        list2 = data_tuplist_df.copy().drop('period', axis=1).rename(columns=dict(period2='period'))
+
+        # we make it unlikely to move groupes maintenances
+        if rn.random() < 0.7:
+            list1 = list1.query("num==1")
+            list2 = list2.query("num2==1")
+
+        data_tuplist_df = \
+            pd.concat([list1[['resource', 'period']],
+                   list2[['resource', 'period']]]).\
+            to_records(index=False)
+
+        return tl.TupList(data_tuplist_df)
 
     def get_candidates_rut(self, errors):
         ct = self.instance.compare_tups
@@ -304,7 +381,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         # We don't count the maintenances that are in the first period... for now
         # but we register them as "found" so as not to
-        delete_maint = []
+        maint_starts = []
         found = set()
         first_period_states = sol.get_period_state(resource, periods[0], 'state_m')
         if first_period_states is not None:
@@ -317,13 +394,16 @@ class MaintenanceFirst(heur.GreedyByMission):
             if (resource, period) in fixed_periods:
                 continue
             states = sol.get_period_state(resource, period, 'state_m')
-            if states is not None:
-                # for each possible maint...
-                for m in states:
-                    # if we already registered it, don't bother
-                    if m in found:
-                        continue
-                    delete_maint.append((period, m))
+            if states is None:
+                continue
+            # for each possible maint...
+            for m in states:
+                # if we already registered it, don't bother
+                if m in found:
+                    continue
+                # if not, register it.
+                found.add(m)
+                maint_starts.append((period, m))
 
         # If the first period is a maintenance: we are not sure it starts there
         # if delete_maint == periods[0]:
@@ -333,7 +413,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         #         delete_maint = prev_period
         #         prev_period = self.instance.get_prev_period(delete_maint)
 
-        return delete_maint
+        return maint_starts
 
     def free_resource(self, candidate):
         """
@@ -437,7 +517,6 @@ class MaintenanceFirst(heur.GreedyByMission):
                 if (resource, period) not in fixed_periods:
                     data['task'][resource].pop(period, None)
                     delete_tasks = 1
-
         # we have several options for deactivating tasks:
         # 1. we eliminate all existing maintenances.
         # 2. we move existing maintenances
@@ -563,14 +642,21 @@ class MaintenanceFirst(heur.GreedyByMission):
         time_size = maint_data['elapsed_time_size']
         if _max is not None:
             _min = _max - time_size
+        else:
+            # this is the case of VS visits
+            _min = 0
             # _max = inst.get_param('num_period') * 2
         end = inst.shift_period(start, duration - 1)
         modif = rn.randint(-math.ceil(duration/2), math.ceil(duration/2))
         ret = self.get_remainingtime(resource, start, 'ret', maint=maint)
         if ret is not None:
             new_ret = ret + modif
+        else:
+            # this is the case of VS visits
+            new_ret = 0
 
-        if _max is not None and (new_ret > _max or new_ret < _min):
+        # we check if the move is legal with respect to ret
+        if _max is not None and not (_min <= new_ret <= _max):
             return None
         if modif > 0:
             periods_to_add = inst.get_next_periods(end, modif + 1)
@@ -596,8 +682,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                 return None
 
         # we arrived here: we're assigning a maintenance:
-        for period in periods_to_add:
-            self.set_state(resource, period, maint, cat='state_m', value=1)
+        self.set_state_and_clean(resource, maint, periods_to_add)
         self.update_time_maint(resource, periods_to_add, time='ret')
         self.update_time_maint(resource, periods_to_add, time='rut')
 

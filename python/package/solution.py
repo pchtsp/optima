@@ -20,8 +20,7 @@ class Solution(object):
     """
 
     def __init__(self, solution):
-        # TODO: delete state
-        data_default = {'state_m': {}, 'state': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
+        data_default = {'state_m': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
         self.data = sd.SuperDict.from_dict(data_default)
         self.data.update(solution)
         # self.data['aux'] = sd.SuperDict()

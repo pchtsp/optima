@@ -4,7 +4,7 @@ import plotly.figure_factory as ff
 import pytups.tuplist as tl
 import package.experiment as exp
 import re
-
+import arrow
 
 def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
     if path and not os.path.isdir(path):
@@ -26,7 +26,9 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
         pos = start_end.filter(0).apply(lambda x: re.search(string=x, pattern='[0-9]+')[0]).apply(int)
     except:
         pos = [1]*len(start_end)
-    transf = lambda item: dict(Task=item[0], Start=item[1]+'-01', Finish=item[2]+'-30', Resource=item[3])
+
+    last_day = lambda month: arrow.get(month + "-01").shift(months=1).shift(days=-2).format("YYYY-MM-DD")
+    transf = lambda item: dict(Task=item[0], Start=item[1]+'-01', Finish=last_day(item[2]), Resource=item[3])
 
     gantt_data = start_end_2.apply(transf)
     tl.TupList([{**v, **{'pos': pos[k]}} for k, v in enumerate(gantt_data)])
@@ -42,9 +44,6 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
          'VI+VS': '#EFCC00'}
 
     # we try to sort according to standard naming.
-    # gantt_data.apply(lambda x: x['Task']).apply(lambda x: )
-    # re.findall(gantt_data['Task'], r'[0-9]+')[0]
-
     gantt_data.apply(lambda x: re.search(x['Task'], r'\d'))
     try:
         gantt_data.sort(key=lambda x: int(x['Task'][2:]))

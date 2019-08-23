@@ -7,6 +7,8 @@ import pandas as pd
 import pytups.superdict as sd
 import package.exec as exec
 import os
+import data.data_input as di
+import reports.gantt as gantt
 
 try:
     import reports.rpy_graphs as rg
@@ -173,24 +175,51 @@ def check_template_data():
     import package.instance as inst
     import package.solution as sol
 
-    path_in = PATHS['data'] + r'template/201903101302/template_in.xlsx'
-    path_sol = PATHS['data'] + r'template/201903101302/template_out.xlsx'
+    _dir = PATHS['data'] + r'template/dassault20190821_3/'
+    path_in = _dir + r'template_in.xlsx'
+    path_sol = _dir + r'template_out.xlsx'
+    path_err = _dir + r'errors.json'
     model_data = td.import_input_template(path_in)
     instance = inst.Instance(model_data)
     sol_data = td.import_output_template(path_sol)
     solution = sol.Solution(sol_data)
+    experiment = heur.MaintenanceFirst(instance, solution)
+    errors_old = di.load_data(path_err)
+    errors = experiment.check_solution().to_dictdict().to_dictup()
+
+    len(sd.SuperDict.from_dict(errors_old).to_dictup())
+    experiment2 = exp.Experiment.from_dir(_dir)
+    experiment2.solution.data['state_m']
+    errors_real = experiment2.check_solution().to_dictdict().to_dictup()
+    len(errors_real)
+    len(errors)
+    # errors.filter(errors_real.keys_l())
+    errors_real.keys() - errors.keys()
+    errors.keys() - errors_real.keys()
+    experiment2.get_status('B3')
+    experiment.get_status('B3')
+    # errors_real.filter()
+    aux1 =  experiment.solution.data['aux'].to_dictup().to_tuplist()
+    aux2 = experiment2.solution.data['aux'].to_dictup().to_tuplist()
+    set(aux2) - set(aux1)
+    # import unittest
+    # unittest.TestCase().assertDictEqual(errors, errors_real)
+    # unittest.
+
+    # gantt.make_gantt_from_experiment(experiment)
 
 def solve_template():
     import data.template_data as td
     import package.instance as inst
 
-    path_in = PATHS['data'] + r'template/201902141830_3/template_in.xlsx'
+    path_in = PATHS['data'] + r'template/dassault20190821/template_in.xlsx'
     model_data = td.import_input_template(path_in)
     instance = inst.Instance(model_data)
     experiment = heur.MaintenanceFirst(instance)
     options = OPTIONS
     options['path'] = os.path.dirname(path_in)
     experiment.solve(options)
+
     pass
 
 
@@ -199,5 +228,7 @@ if __name__ == '__main__':
     # test_rexecute()
     # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
     # graph_check(path)
-    solve_template()
+    # solve_template()
+    check_template_data()
     pass
+

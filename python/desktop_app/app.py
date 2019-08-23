@@ -185,9 +185,7 @@ class MainWindow_EXCEC():
             return
         experiment = exp.Experiment(self.instance, self.solution)
         errors = experiment.check_solution()
-        # errors = sd.SuperDict.from_dict(errors)
         errors = {k: v.to_dictdict() for k, v in errors.items()}
-        # text = json.dumps(errors, cls=di.MyEncoder, indent=4)
         import desktop_app.qjsonmodel as qjs
 
         model = qjs.QJsonModel()
@@ -259,7 +257,11 @@ class MainWindow_EXCEC():
         di.export_data(output_path, experiment.instance.data, name="data_in", **_kwags)
         di.export_data(output_path, experiment.solution.data, name="data_out", **_kwags)
         _dir = os.path.join(output_path, 'template_out.xlsx')
+        errors = experiment.check_solution()
+        errors = {k: v.to_dictdict() for k, v in errors.items()}
         td.export_output_template(_dir, experiment.instance.data, experiment.solution.data)
+        self.generate_gantt(output_path)
+        di.export_data(output_path, errors, name="errors", **_kwags)
         if export_input:
             _dir = os.path.join(output_path, 'template_in.xlsx')
             td.export_input_template(_dir, experiment.instance.data)
@@ -285,17 +287,19 @@ class MainWindow_EXCEC():
         self.export_solution_gen(dirName, export_input=True)
         return 1
 
-    def generate_gantt(self):
+    def generate_gantt(self, path=None):
         if not (self.instance and self.solution):
             self.show_message('Error', 'Gantt cannot be created because a complete instance is needed.')
             return 0
-        path = self.options['path']
+        if not path:
+            path = self.options['path']
         try:
             gantt.make_gantt_from_experiment(path=path)
         except ValueError:
             self.show_message('Error', 'A problem occurred. Be sure to have a valid solution exported in the directory.')
             return 0
         return 1
+
 
 class QPlainTextEditLogger(logging.Handler):
     def __init__(self, parent):

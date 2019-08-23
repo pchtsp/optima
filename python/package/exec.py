@@ -99,7 +99,8 @@ def execute_solve(model_data, options, solution_data=None):
     errors = experiment.check_solution()
     errors = {k: v.to_dictdict() for k, v in errors.items()}
 
-    di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json', exclude_aux=True)
+    exclude_aux = options.get('exclude_aux', True)
+    di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json', exclude_aux=exclude_aux)
     if len(errors):
         di.export_data(output_path, errors, name='errors', file_type="json")
 

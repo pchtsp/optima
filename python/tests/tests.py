@@ -1,5 +1,6 @@
 import unittest
-import package.exec as execimport package.data_input as di
+import package.exec as exec
+import package.data_input as di
 import package.instance as inst
 import os
 import package.auxiliar as aux

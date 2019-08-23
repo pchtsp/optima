@@ -18,7 +18,6 @@ def get_equiv_maint():
         , 'BC_tol': 'elapsed_time_size'
         , 'BH': 'max_used_time'
         , 'BH_tol': 'used_time_size'
-        , 'capacite': 'capacity'
         , 'capacit_utili': 'capacity_usage'
     }
 
@@ -193,7 +192,7 @@ def export_output_template(path, input_data, output_data):
     """
 
     :param path:
-    :param output_data: instance.data
+    :param input_data: instance.data
     :param output_data: solution.data
     :return:
     """
@@ -205,26 +204,32 @@ def export_output_template(path, input_data, output_data):
         to_df(columns=columns).\
         drop('aux', axis=1)
 
+    input_data = sd.SuperDict.from_dict(input_data)
+    maint_data = input_data['maintenances']
+    max_elapsed_time = maint_data.get_property('max_elapsed_time')
+    max_used_time = maint_data.get_property('max_used_time')
     columns = ['state', 'maint', 'avion', 'mois', 'rem']
-    rem_m = \
+    # TODO: I'll have to change this when consumptions won't be constant
+    consumption = input_data['parameters']['min_usage_period']
+
+    remaining = \
         sd.SuperDict.from_dict(output_data['aux']).\
             to_dictup().\
             to_tuplist().\
             to_df(columns=columns).\
-            set_index(columns[:-1]).\
-            unstack('state')
-
-    rem_m.columns = rem_m.columns.droplevel(0)
-    rem_m = rem_m.rename_axis(None, axis=1).reset_index()
+            assign(mois= lambda x: x.mois.map(aux.get_next_month)).\
+            set_index(columns[:-1])[
+            'rem'].unstack('state').reset_index().\
+            assign(ret= lambda x: x.maint.map(max_elapsed_time) - x.ret + 1). \
+            assign(rut=lambda x: x.maint.map(max_used_time) - x.rut + consumption)
 
     equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
     result = \
         sol_maints.\
-            merge(rem_m, on=['maint', 'avion', 'mois'], how='left'). \
+            merge(remaining, on=['maint', 'avion', 'mois'], how='left'). \
             rename(columns=equiv). \
             sort_values(['avion', 'mois', 'maint'])
 
-    input_data = sd.SuperDict.from_dict(input_data)
     capacities_names = ['default_type2_capacity', 'maint_capacity']
     capacities = input_data['parameters'].filter(capacities_names)
     equiv = sd.SuperDict({2: 'default_type2_capacity', 1: 'maint_capacity'})
@@ -234,7 +239,6 @@ def export_output_template(path, input_data, output_data):
         to_df(columns=['cap'], orient='index').\
         rename_axis('type').reset_index()
 
-    maint_data = input_data['maintenances']
     m_usage = maint_data.get_property('capacity_usage')
     m_type = maint_data.get_property('type')
     m_info = \

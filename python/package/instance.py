@@ -137,14 +137,16 @@ class Instance(object):
     def get_category(self, category, param=None, default_dict=None):
         assert category in self.data
         data = self.data[category]
+        data = sd.SuperDict.from_dict(data)
         if not data:
-            return {}
+            return sd.SuperDict()
         if default_dict is not None:
             data = {k: {**default_dict, **v} for k, v in data.items()}
+            data = sd.SuperDict.from_dict(data)
         if param is None:
             return data
         if param in list(data.values())[0]:
-            return aux.get_property_from_dic(data, param)
+            return data.get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):

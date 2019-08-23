@@ -60,6 +60,7 @@ OPTIONS = {
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
     , 'output_template_path': temp_path + 'template_out.xlsx'
+    , 'exclude_aux': False
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
@@ -118,7 +119,6 @@ OPTIONS = {
                 , 'elapsed_time_size': 3
                 , 'used_time_size': 1000
                 , 'type': '1'
-                , 'capacity': None  # right now this is not used
                 , 'depends_on': []
                 , 'affects': []  # this gets filled during initialization
                 , 'priority': 0  # the least, the sooner we assign
@@ -131,7 +131,6 @@ OPTIONS = {
                 , 'elapsed_time_size': 3
                 , 'used_time_size': None
                 , 'type': '2'
-                , 'capacity': 3
                 , 'depends_on': ['M']
                 , 'affects': []
                 , 'priority': 10
@@ -144,7 +143,6 @@ OPTIONS = {
                 , 'elapsed_time_size': 3
                 , 'used_time_size': None
                 , 'type': '2'
-                , 'capacity': 3
                 , 'depends_on': ['M']
                 , 'affects': []
                 , 'priority': 5
@@ -157,7 +155,6 @@ OPTIONS = {
                 , 'elapsed_time_size': None
                 , 'used_time_size': 200
                 , 'type': '2'
-                , 'capacity': 3
                 , 'depends_on': ['M']
                 , 'affects': []
                 , 'priority': 2
@@ -166,7 +163,6 @@ OPTIONS = {
     }
 }
 
-# TODO: favor grouping
 # TODO: grouping improves capacity
 
 # white_list = ['O1', 'O5']
