@@ -20,9 +20,6 @@ import desktop_app.gui as gui
 import reports.gantt as gantt
 
 
-# TODO: integrate json viewer
-# TODO: deploy icon (below screen)
-
 
 class MainWindow_EXCEC():
 
