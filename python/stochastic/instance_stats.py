@@ -164,7 +164,8 @@ def get_bound_var(instance, variable, _type):
     data = params.get_bound_var_data
     if variable not in data:
         raise ValueError('data not found for variable: {}'.format(variable))
-    return calculate_stat(instance, data[variable], _type=_type)
+    mean_std = sd.SuperDict(mean='mean', std='std').vapply(lambda v: params.get_bound_var_data[v])
+    return calculate_stat(instance, data[variable], _type=_type, mean_std=mean_std)
 
 
 def get_min_dist_2M(instance, _type):
