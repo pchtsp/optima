@@ -200,7 +200,7 @@ def export_input_template(path, data):
     res_t['used'] = res_t['used'] - res_t['maint'].map(m_used)
     res_t['elapsed'] = date_add_value(start, res_t['elapsed'])
 
-    equiv = {v: k for k, v in get_equiv_names()}
+    equiv = {v: k for k, v in get_equiv_names().items()}
 
     resources_tab = res_t.rename(columns=equiv)
     avions_tab = resources_tab[['avion']].drop_duplicates().assign(heures=0)

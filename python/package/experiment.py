@@ -49,21 +49,22 @@ class Experiment(object):
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
-            ,'dist_maints': self.check_min_distance_maints
+            # ,'dist_maints': self.check_min_distance_maints
             ,'capacity': self.check_sub_maintenance_capacity
             ,'maint_size': self.check_maints_size
         }
         result = {k: v(**params) for k, v in func_list.items()}
-        return sd.SuperDict.from_dict({k: v for k, v in result.items() if len(v) > 0})
+        return sd.SuperDict({k: v for k, v in result.items() if v})
 
     # @profile
     def check_sub_maintenance_capacity(self, ref_compare=0, periods_to_check=None, **param):
         # we get the capacity per month
         inst = self.instance
-        cap_cal_dict = inst.get_capacity_calendar(periods_to_check)
+        rem = inst.get_capacity_calendar(periods_to_check)
         first, last = inst.get_param('start'), inst.get_param('end')
-        maintenances = sd.SuperDict(inst.get_maintenances())
+        maintenances = inst.get_maintenances()
         types = maintenances.get_property('type')
+        # all_types = set(types.values())
         usage = maintenances.get_property('capacity_usage')
         all_states_tuple = self.get_states()
         if periods_to_check is not None:
@@ -75,7 +76,20 @@ class Experiment(object):
         if not len(all_states_tuple):
             return []
 
-        rem = cap_cal_dict
+        # all_states_tuple_np = np.asarray(all_states_tuple)
+        # a = all_states_tuple_np[:, 2]
+        # periods_np = all_states_tuple_np[:, 1]
+        # types_np = np.zeros_like(a)
+        # usage_np = np.zeros(len(a))
+        # for k, v in types.items():
+        #     types_np[a == k] = v
+        # for k, v in usage.items():
+        #     usage_np[a == k] = v
+        # for _type in all_types:
+        #     _values, _groups = self.sum_by_group(usage_np[types_np==_type],
+        #                                          periods_np[types_np==_type])
+        #
+
         for res, period, maint in all_states_tuple:
             _type = types[maint]
             _usage = usage[maint]
@@ -83,6 +97,19 @@ class Experiment(object):
 
         # TODO extra_cap= dp.n(X.consum) - 1)
         return rem.clean(func=lambda x: x < ref_compare)
+
+    @staticmethod
+    def sum_by_group(values, groups):
+        order = np.argsort(groups)
+        groups = groups[order]
+        values = values[order]
+        values.cumsum(out=values)
+        index = np.ones(len(groups), 'bool')
+        index[:-1] = groups[1:] != groups[:-1]
+        values = values[index]
+        groups = groups[index]
+        values[1:] = values[1:] - values[:-1]
+        return values, groups
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
@@ -424,7 +451,7 @@ class Experiment(object):
         return hours_deficit.clean(func=lambda x: x < 0)
 
     def check_maints_size(self, **params):
-        maints = sd.SuperDict.from_dict(self.instance.get_maintenances())
+        maints = self.instance.get_maintenances()
         duration = maints.get_property('duration_periods')
         inst = self.instance
         start, end = inst.get_param('start'), inst.get_param('end')
@@ -443,17 +470,18 @@ class Experiment(object):
         return tl.TupList(result).to_dict(result_col=2, is_list=False)
 
     # @profile
+    # TODO: avoid pandas
     def check_min_distance_maints(self, **params):
         """
         checks if maintenances have the correct distance between them
         :return:
         """
-        maints = sd.SuperDict.from_dict(self.instance.get_maintenances())
+        maints = self.instance.get_maintenances()
         elapsed_time_size = maints.get_property('elapsed_time_size')
         elapsed_time_size = {k: v if v is not None else 10000 for k, v in elapsed_time_size.items()}
-        rets = sd.SuperDict.from_dict(
-            {m: self.get_remainingtime(time='ret', maint=m) for m in maints}
-        ).\
+        rets = \
+            maints.\
+            kapply(lambda m: self.get_remainingtime(time='ret', maint=m)).\
             to_dictup().to_tuplist()
 
         maint_equiv = \

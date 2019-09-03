@@ -46,6 +46,7 @@ class Instance(object):
             , 'default_type2_capacity': 66
         }
 
+        params = sd.SuperDict.from_dict(params)
         params.update(self.data['parameters'])
         self.data['parameters'] = params
 
@@ -54,7 +55,7 @@ class Instance(object):
         if 'maint_duration' not in params:
             # we're using the new parameters, no need for defaults
             return
-        resources = sd.SuperDict(self.data['resources'])
+        resources = self.data['resources']
 
         maints = {
             'M': {
@@ -70,16 +71,17 @@ class Instance(object):
             }
         }
         if 'maintenances' in self.data:
+            maints = sd.SuperDict.from_dict(maints)
             maints.update(self.data['maintenances'])
         self.data['maintenances'] = maints
 
         if 'initial' not in resources.values_l()[0]:
-            data_resources = sd.SuperDict(self.data['resources'])
+            data_resources = self.data['resources']
             rut_init = data_resources.get_property('initial_used')
             ret_init = data_resources.get_property('initial_elapsed')
             for r in resources:
                 self.data['resources'][r]['initial'] = \
-                    {'M': dict(elapsed=ret_init[r], used=rut_init[r])}
+                    {'M': sd.SuperDict(elapsed=ret_init[r], used=rut_init[r])}
         return
 
     def set_default_maint_types(self):
@@ -124,7 +126,7 @@ class Instance(object):
         # we force the end to be coherent with the num_period parameter
         self.data['parameters']['end'] = aux.shift_month(start, num_periods - 1)
         # we cache the relationships between periods
-        self.data['aux'] = {}
+        self.data['aux'] = sd.SuperDict()
         self.data['aux']['period_e'] = {
             k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
         }
@@ -158,12 +160,11 @@ class Instance(object):
     def get_category(self, category, param=None, default_dict=None):
         assert category in self.data
         data = self.data[category]
-        data = sd.SuperDict.from_dict(data)
         if not data:
             return sd.SuperDict()
         if default_dict is not None:
-            data = {k: {**default_dict, **v} for k, v in data.items()}
-            data = sd.SuperDict.from_dict(data)
+            default_dict = sd.SuperDict.from_dict(default_dict)
+            data.vapply(lambda v: default_dict.update(v))
         if param is None:
             return data
         if param in list(data.values())[0]:
@@ -253,7 +254,7 @@ class Instance(object):
         return False
 
     def get_prev_states(self, resource=None):
-        previous_states = sd.SuperDict.from_dict(self.get_resources("states"))
+        previous_states = self.get_resources("states")
         if resource is not None:
             previous_states = previous_states.filter(resource)
         return previous_states.to_dictup().to_tuplist()

@@ -44,7 +44,7 @@ class Solution(object):
         return tl.TupList(states.keys())
 
     def get_state(self, resource=None):
-        data = sd.SuperDict.from_dict(self.data['state_m'])
+        data = self.data['state_m']
         if resource is not None:
             data = data.filter(resource, check=False)
         return data.to_dictup()
