@@ -180,10 +180,14 @@ class Experiment(object):
     def get_consumption_individual(self, resource, period, time='rut'):
         if time == 'ret':
             return 1
-        task = self.solution.data['task'].get(resource, {}).get(period, '')
-        if task == '':
-            return self.instance.get_param('min_usage_period')
-        return self.instance.data['tasks'].get(task, {}).get('consumption', 0)
+        task = self.solution.data['task'].get_m(resource, period)
+        if task is None:
+            # get default consumption:
+            consumption = self.instance.get_default_consumption(resource, period)
+        else:
+            # get task consumption:
+            consumption = self.instance.data['tasks'].get_m(task, 'consumption', default=0)
+        return consumption
 
     def get_non_maintenance_periods(self, resource=None, state_list=None):
         """

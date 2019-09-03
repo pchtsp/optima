@@ -305,6 +305,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             dts.maint.map(used_size) / \
             dts[['resource', 'period']].\
                 apply(lambda x: func_hours(*x), axis=1)/2
+        dts.loc[dts['amount'] == np.inf, 'amount'] = 5
         dts['amount'] = dts['amount'].apply(math.floor)
 
         dts['period2'] = \

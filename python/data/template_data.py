@@ -11,7 +11,7 @@ def get_parameters(tables):
     return data
 
 
-def get_equiv_maint():
+def get_equiv_names():
     return {
         'duree': 'duration_periods'
         , 'BC': 'max_elapsed_time'
@@ -19,10 +19,17 @@ def get_equiv_maint():
         , 'BH': 'max_used_time'
         , 'BH_tol': 'used_time_size'
         , 'capacit_utili': 'capacity_usage'
+        , 'avion': 'resource'
+        , 'mois_derniere': 'elapsed'
+        , 'heures_derniere': 'used'
+        , 'heures': 'hours'
+        , 'capacite': 'capacity'
+        , 'mois': 'period'
     }
 
+
 def get_maintenance(tables):
-    equiv = get_equiv_maint()
+    equiv = get_equiv_names()
     maint_tab  =\
         tables['maintenances']. \
         rename(columns=equiv). \
@@ -47,15 +54,9 @@ def get_resources(tables):
     params = get_parameters(tables)
     start = params['start']
 
-    equiv = {
-        'avion': 'resource'
-        , 'mois_derniere': 'elapsed'
-        , 'heures_derniere': 'used'
-    }
+    equiv = get_equiv_names()
 
-    states = \
-        tables['etats_initiaux'].\
-        rename(columns=equiv)
+    states = tables['etats_initiaux'].rename(columns=equiv)
 
     maint_tab = tables['maintenances']
 
@@ -63,17 +64,28 @@ def get_resources(tables):
         return pd.Series(len(aux.get_months(p2, value)) - 1 if not pd.isna(p2) else np.nan
                          for p2 in series2)
 
-    equiv = {
-        'avion': 'resource'
-        , 'heures': 'hours'
-    }
-
     resources = tables['avions'].rename(columns=equiv)
-
     resources.resource = resources.resource.astype(str)
     states.resource = states.resource.astype(str)
 
-    resources = \
+    flight_hours_dict = {}
+    min_usage_period = {}
+    if 'heures_vol' in tables:
+        flight_hours = tables['heures_vol'].rename(columns=equiv)
+        flight_hours.resource = states.resource.astype(str)
+        flight_hours_dict = flight_hours.set_index(['resource', 'period'])['min_usage_period'].to_dict()
+        flight_hours_dict = sd.SuperDict.from_dict(flight_hours_dict).to_dictdict()
+
+    if 'min_usage_period' in resources.columns:
+        min_usage_period = resources.set_index('resource')['min_usage_period'].to_dict()
+        min_usage_period = \
+            sd.SuperDict.from_dict(min_usage_period).\
+                clean(func=lambda v: not np.isnan(v)).\
+                vapply(lambda v: {'default': v})
+        min_usage_period.update(flight_hours_dict)
+        min_usage_period = min_usage_period.vapply(lambda v: {'min_usage_period': v})
+
+    resources_initial = \
         pd.merge(resources, states, on='resource'). \
         merge(maint_tab[['maint', 'BC', 'BH']], on='maint'). \
         assign(used = lambda x: x.hours - x.used). \
@@ -87,13 +99,25 @@ def get_resources(tables):
         set_index(['resource', 'initial', 'maint']). \
         to_dict(orient='index')
 
-    resources = sd.SuperDict.from_dict(resources).to_dictdict()
+    resources_tot = sd.SuperDict.from_dict(resources_initial).to_dictdict()
+    resources_tot.update(min_usage_period)
+
     def_resources = {'type': '1', 'capacities': [], 'states': {}, 'code': ''}
+    for r in resources_tot:
+        resources_tot[r].update(def_resources)
 
-    for r in resources:
-        resources[r].update(def_resources)
+    return resources_tot
 
-    return resources
+def get_maint_types(tables):
+
+    equiv = get_equiv_names()
+    maint_type_tab = tables['maint_capacite'].rename(columns=equiv)
+    maint_type_tab.type = maint_type_tab.type.astype(str)
+    maint_type = maint_type_tab.set_index(['type', 'period']).to_dict(orient='index')
+    maint_type = sd.SuperDict.from_dict(maint_type).to_dictdict()
+    maint_type = maint_type.to_dictup().to_tuplist().\
+        to_dict(result_col=3, indices=[0, 2, 1], is_list=False).to_dictdict()
+    return maint_type
 
 def import_input_template(path):
     """
@@ -101,14 +125,22 @@ def import_input_template(path):
     :return: the data needed to create an instance
     """
 
-    sheets = ['maintenances', 'etats_initiaux', 'avions', 'params']
-    tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
+    sheets = ['maintenances', 'etats_initiaux', 'avions', 'params',
+              'heures_vol', 'maint_capacite']
+
+    xl = pd.ExcelFile(path)
+    present_sheets = set(sheets) & set(xl.sheet_names)
+
+    tables = {sh: xl.parse(sh) for sh in present_sheets}
     data = dict(
         parameters = get_parameters(tables)
         , tasks = {}
         , maintenances = get_maintenance(tables)
         , resources = get_resources(tables)
     )
+
+    if 'maint_capacite' in present_sheets:
+        data['maint_type'] = get_maint_types(tables)
 
     return data
 
@@ -118,7 +150,7 @@ def export_input_template(path, data):
     :param data: the instance.data part, dictionary
     :return: nothing
     """
-    equiv = sd.SuperDict(get_equiv_maint()).reverse()
+    equiv = sd.SuperDict(get_equiv_names()).reverse()
     equiv['index'] = 'maint'
 
     for k, v in data['maintenances'].items():
@@ -168,7 +200,7 @@ def export_input_template(path, data):
     res_t['used'] = res_t['used'] - res_t['maint'].map(m_used)
     res_t['elapsed'] = date_add_value(start, res_t['elapsed'])
 
-    equiv = {'elapsed': 'mois_derniere', 'used': 'heures_derniere', 'resource': 'avion'}
+    equiv = {v: k for k, v in get_equiv_names()}
 
     resources_tab = res_t.rename(columns=equiv)
     avions_tab = resources_tab[['avion']].drop_duplicates().assign(heures=0)
@@ -315,20 +347,21 @@ if __name__ == '__main__':
 
     import package.experiment as exp
     import package.params as pm
+    import package.instance as inst
 
-    path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903101307/'
-    self = exp.Experiment.from_dir(path)
-    data = self.instance.data
-    export_input_template(path + 'template_in.xlsx', data)
-    stop
+    # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903101307/'
+    # self = exp.Experiment.from_dir(path)
+    # data = self.instance.data
+    # export_input_template(path + 'template_in.xlsx', data)
+    # stop
 
-    path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in.xlsx'
-    path = '/home/pchtsp/Documents/projects/optima_dassault/data/template_in_out.xlsx'
-    data = import_input_template(path)
+    path = pm.PATHS['data'] + 'template/official/'
+    data = import_input_template(path + 'template_in.xlsx')
+    instance = inst.Instance(data)
+    instance.get_capacity_calendar()
     export_input_template(path, data)
 
     from package.params import PATHS, OPTIONS
-    import package.experiment as exp
 
     path = PATHS['data'] + 'examples/201903041426/'
     experiment = exp.Experiment.from_dir(path)

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>OPTIMA v0.20190823</string>
+   <string>OPTIMA v0.20190904</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -113,6 +113,13 @@
             <property name="sizeConstraint">
              <enum>QLayout::SetDefaultConstraint</enum>
             </property>
+            <item row="2" column="0">
+             <widget class="QLabel" name="max_time_lab">
+              <property name="text">
+               <string>Max solving time                                                                                                         </string>
+              </property>
+             </widget>
+            </item>
             <item row="1" column="1">
              <widget class="QLineEdit" name="num_period">
               <property name="enabled">
@@ -120,10 +127,31 @@
               </property>
              </widget>
             </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="start_date_lab">
+            <item row="3" column="1">
+             <widget class="QComboBox" name="log_level">
+              <item>
+               <property name="text">
+                <string>INFO</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>DEBUG</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="log_level_lab">
               <property name="text">
-               <string>Start date</string>
+               <string>Logging level</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="num_periods_lab">
+              <property name="text">
+               <string>Number of periods</string>
               </property>
              </widget>
             </item>
@@ -146,10 +174,10 @@
               </property>
              </widget>
             </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="max_time_lab">
+            <item row="0" column="0">
+             <widget class="QLabel" name="start_date_lab">
               <property name="text">
-               <string>Max solving time                                                                                                         </string>
+               <string>Start date</string>
               </property>
              </widget>
             </item>
@@ -169,31 +197,23 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="num_periods_lab">
+            <item row="4" column="0">
+             <widget class="QLabel" name="reuse_sol_tab">
               <property name="text">
-               <string>Number of periods</string>
+               <string>Reuse previous solution</string>
               </property>
              </widget>
             </item>
-            <item row="3" column="1">
-             <widget class="QComboBox" name="log_level">
-              <item>
-               <property name="text">
-                <string>INFO</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>DEBUG</string>
-               </property>
-              </item>
-             </widget>
-            </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="log_level_lab">
+            <item row="4" column="1">
+             <widget class="QCheckBox" name="reuse_sol">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
               <property name="text">
-               <string>Logging level</string>
+               <string/>
               </property>
              </widget>
             </item>

@@ -23,13 +23,15 @@ class Instance(object):
     """
 
     def __init__(self, model_data):
-        self.data = model_data
+        self.data = sd.SuperDict.from_dict(model_data)
         self.set_date_params()
         self.set_default_params()
+        self.set_default_resources()
         for time_type in ['used', 'elapsed']:
             self.correct_initial_state(time_type=time_type)
         self.set_default_maintenances()
         self.prepare_maint_params()
+        self.set_default_maint_types()
 
     def set_default_params(self):
         # TODO: take out deprecated params
@@ -80,6 +82,26 @@ class Instance(object):
                     {'M': dict(elapsed=ret_init[r], used=rut_init[r])}
         return
 
+    def set_default_maint_types(self):
+        types = self.get_maintenances('type').values()
+        tups = [('maint_type', t, 'capacity') for t in set(types)]
+        for tup in tups:
+            if self.data.get_m(*tup) is not None:
+                continue
+            self.data.set_m(*tup, value={})
+        return
+
+    def set_default_resources(self):
+        params = self.data['parameters']
+        resources = sd.SuperDict.from_dict(self.data['resources'])
+        default_keys = ('min_usage_period', 'default')
+        default_value = params['min_usage_period']
+        for r in resources:
+            if resources[r].get_m(*default_keys) is None:
+                resources[r].set_m(*default_keys, value=default_value)
+        self.data['resources'] = resources
+        return
+
     def prepare_maint_params(self):
         maints = self.data['maintenances']
         depends_on = sd.SuperDict(maints).get_property('depends_on')
@@ -109,7 +131,6 @@ class Instance(object):
         self.data['aux']['period_i'] = {
             v: k for k, v in self.data['aux']['period_e'].items()
         }
-
 
     def get_param(self, param=None):
         params = self.data['parameters']
@@ -482,31 +503,27 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
-    # def get_maintenance_usage(self):
-    #     """
-    #     :return: for each maintenance, the usage it takes for its capacity {maint: usage}
-    #     """
-    #     usage =
-    #     return {v: capacity[k] for k, v in types.items()}
-
     def get_capacity_calendar(self, periods=None):
         """
         :return: capacity for each maintenance type and period
         indexed by tuples.
         """
-        # TODO merge capacities with defaults
         # This should be replaced by reference to the correct maintenance data
         def_working_days = self.get_param('default_type2_capacity')
         def_capacity = self.get_param('maint_capacity')
-        base_capacity = {'1': def_capacity,
-                         '2': def_working_days}
+        base_capacity = {'1': def_capacity, '2': def_working_days}
+        capacity_period = self.data['maint_type'].get_property('capacity')
         if periods is None:
             periods = self.get_periods()
         caps = {
-            (t, p): base for p in periods
+            (t, p): capacity_period[t].get(p, base) for p in periods
             for t, base in base_capacity.items()
         }
         return sd.SuperDict(caps)
+
+    def get_default_consumption(self, resource, period):
+        min_use = self.data['resources'][resource]['min_usage_period']
+        return min_use.get(period, min_use['default'])
 
     @staticmethod
     def label_rt(time):
@@ -520,7 +537,8 @@ class Instance(object):
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
     # model_data = di.load_data(path + "data_in.json")
-    model_data = di.get_model_data()
+    import data.data_dga as dga
+    model_data = dga.get_model_data()
     instance = Instance(model_data)
     instance.get_categories()
     result = instance.get_total_fixed_maintenances()

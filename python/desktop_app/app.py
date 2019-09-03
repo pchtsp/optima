@@ -3,8 +3,6 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 import os
 import logging
-import json
-import package.auxiliar as aux
 
 import package.instance as inst
 import package.solution as sol
@@ -74,7 +72,6 @@ class MainWindow_EXCEC():
     def update_options(self):
         try:
             self.options['timeLimit'] = float(self.ui.max_time.text())
-            # self.options['start'] = self.ui.start_date.text()
             self.options['num_period'] = float(self.ui.num_period.text())
             self.options['debug'] = self.ui.log_level.currentIndex() == 1
         except:
@@ -113,10 +110,13 @@ class MainWindow_EXCEC():
         if self.solution is None:
             self.ui.solCheck.setText('No solution loaded')
             self.ui.solCheck.setStyleSheet("QLabel { color : red; }")
+            self.ui.reuse_sol.setEnabled(False)
+            self.ui.reuse_sol.setChecked(False)
         else:
             self.ui.solCheck.setText('Solution loaded')
             self.ui.solCheck.setStyleSheet("QLabel { color : green; }")
-
+            self.ui.reuse_sol.setEnabled(True)
+            self.ui.reuse_sol.setChecked(True)
 
         return 1
 
@@ -163,8 +163,9 @@ class MainWindow_EXCEC():
             return
         try:
             model_data = td.import_input_template(options['input_template_path'])
-        except:
-            self.show_message(title="Error in template_in.xlsx", text="There's been an error reading the input file.")
+        except Exception as e:
+            self.show_message(title="Error in template_in.xlsx",
+                              text="There's been an error reading the input file:\n{}.".format(e))
             return
         self.instance = inst.Instance(model_data)
 
@@ -205,7 +206,10 @@ class MainWindow_EXCEC():
         if not self.instance:
             self.show_message(title="Loading needed", text='No instance loaded, so not possible to solve.')
             return
-        experiment = mf.MaintenanceFirst(self.instance, self.solution)
+        solution = None
+        if self.ui.reuse_sol.isChecked():
+            solution = self.solution
+        experiment = mf.MaintenanceFirst(self.instance, solution)
         output_path = options['path']
 
         # TODO: update log live and use worker with multiprocessings
