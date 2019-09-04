@@ -301,6 +301,9 @@ class MaintenanceFirst(heur.GreedyByMission):
             agg('count').reset_index().rename(columns=dict(maint='num'))
         data_tuplist = data_tuplist.merge(_agg, on=['resource', 'period'])
         dts = data_tuplist[data_tuplist.maint.isin(maints_no_elapse)].reset_index(drop=True)
+        if not len(dts):
+            # no visits without elapsed (VS), no candidates to move
+            return []
         dts['amount'] = \
             dts.maint.map(used_size) / \
             dts[['resource', 'period']].\
