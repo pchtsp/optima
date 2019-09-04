@@ -241,19 +241,23 @@ def export_output_template(path, input_data, output_data):
     max_elapsed_time = maint_data.get_property('max_elapsed_time')
     max_used_time = maint_data.get_property('max_used_time')
     columns = ['state', 'maint', 'avion', 'mois', 'rem']
-    # TODO: I'll have to change this when consumptions won't be constant
-    consumption = input_data['parameters']['min_usage_period']
 
     remaining = \
         sd.SuperDict.from_dict(output_data['aux']).\
             to_dictup().\
             to_tuplist().\
-            to_df(columns=columns).\
+            to_df(columns=columns). \
             assign(mois= lambda x: x.mois.map(aux.get_next_month)).\
             set_index(columns[:-1])[
             'rem'].unstack('state').reset_index().\
             assign(ret= lambda x: x.maint.map(max_elapsed_time) - x.ret + 1). \
-            assign(rut=lambda x: x.maint.map(max_used_time) - x.rut + consumption)
+            assign(rut=lambda x: x.maint.map(max_used_time) - x.rut)
+
+    # Here, we calculate the consumption for the specific day
+    min_usage_period = input_data['resources'].get_property('min_usage_period')
+    _func = lambda a, b: min_usage_period[a].get(b, min_usage_period[a]['default'])
+    remaining['cons'] = remaining[['avion', 'mois']].apply(lambda x: _func(*x), axis=1)
+    remaining['rut'] += remaining['cons']
 
     equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
     result = \

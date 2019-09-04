@@ -22,7 +22,6 @@ def config_and_solve(options):
         model_data = sim.create_dataset(options)
     elif options.get('template', False):
         model_data = td.import_input_template(options['input_template_path'])
-        # TODO: read solution and give to algorithm
     else:
         model_data = dga.get_model_data(options['PATHS']['input'])
         historic_data = dga.generate_solution_from_source(options['PATHS']['hist'])
@@ -129,7 +128,6 @@ def execute_solve(model_data, options, solution_data=None):
         # except:
         #     print("No support for R graph functions!")
     elif options.get('graph', False) == 2:
-        # TODO: choose a better temp path
         _file = copy_file_temp(possible_path)
         rscript = options['R_HOME'] + '/bin/Rscript.exe'
         a = subprocess.run([rscript, _file, options['path']], stdout=subprocess.PIPE)

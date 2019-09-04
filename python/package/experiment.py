@@ -1,6 +1,4 @@
 # /usr/bin/python3
-import package.auxiliar as aux
-# TODO: take out dependency on aux
 import numpy as np
 import pandas as pd
 import data.data_input as di
@@ -49,7 +47,7 @@ class Experiment(object):
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
-            # ,'dist_maints': self.check_min_distance_maints
+            ,'dist_maints': self.check_min_distance_maints
             ,'capacity': self.check_sub_maintenance_capacity
             ,'maint_size': self.check_maints_size
         }
@@ -115,10 +113,8 @@ class Experiment(object):
         task_reqs = self.instance.get_tasks('num_resource')
 
         task_assigned = \
-            aux.fill_dict_with_default(
-                self.solution.get_task_num_resources(),
-                self.instance.get_task_period_list()
-            )
+            sd.SuperDict(self.solution.get_task_num_resources()).\
+                fill_with_default(self.instance.get_task_period_list())
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
@@ -536,7 +532,7 @@ class Experiment(object):
         # }
 
     def export_solution(self, path, sheet_name='solution'):
-        tasks = aux.dict_to_tup(self.solution.get_tasks())
+        tasks = self.solution.get_tasks().to_dictup()
         hours = self.instance.get_tasks('consumption')
         tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))
                         for t in tasks]

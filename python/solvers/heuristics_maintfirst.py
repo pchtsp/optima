@@ -429,7 +429,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         # a = self.get_status(candidate[0])
         # a[:50]
         data = self.solution.data
-        # TODO: delete state
         places = [
             data['state_m'],
             data['task'],

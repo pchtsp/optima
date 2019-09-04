@@ -379,11 +379,6 @@ class GreedyByMission(test.Experiment):
         :return:
         """
         try:
-            # TODO: delete this
-            self.solution.data['state'][resource].pop(period, None)
-        except KeyError:
-            pass
-        try:
             periods = self.solution.data['state_m'][resource]
             maints = periods[period]
             if maint is not None:
