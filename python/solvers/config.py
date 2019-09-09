@@ -127,6 +127,8 @@ class Config(object):
             else:
                 solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
                                          mip_start=self.mip_start)
+                # workaround to use temmp files in CBC.
+                solver.tmpDir = os.environ.get("TEMP", solver.tmpDir)
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)

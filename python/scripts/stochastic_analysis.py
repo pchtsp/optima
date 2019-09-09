@@ -123,19 +123,36 @@ def get_table(cases, _types=1):
     return result_tab
     # result_tab = result_tab[result_tab.num_errors==0]
 
+
 def treat_table(result_tab):
 
     for col in ['init', 'quant75w', 'quant9w', 'quant5w', 'geomean_cons',
                 'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9',
                 'spec_tasks', 'mean_consum', 'geomean_cons']:
-        result_tab[col+'_cut'] = pd.qcut(result_tab[col], q=3, duplicates='drop').astype(str)
-
+        try:
+            labels = tl.TupList(['1/3', '2/3', '3/3']).apply(lambda v: '{}: {}'.format(col, v))
+            result_tab[col+'_cut'] = \
+                pd.qcut(result_tab[col], q=3, duplicates='drop', labels=labels).\
+                astype(str)
+        except ValueError:
+            labels = tl.TupList(['2/3', '3/3']).apply(lambda v: '{}: {}'.format(col, v))
+            result_tab[col+'_cut'] = \
+                pd.qcut(result_tab[col], q=3, duplicates='drop', labels=labels).\
+                astype(str)
     # we generate auxiliary variations on consumption.
     # we also scale them.
-
     for grade in range(2, 6):
         result_tab['mean_consum' + str(grade)] = \
             (result_tab.mean_consum ** grade)
+
+    result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
+    result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
+    result_tab['num_errors'].fillna(0, inplace=True)
+    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
+    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
+    result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
+    result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
+
     return result_tab
 
 
@@ -305,17 +322,9 @@ def gradient_boosting_regression(table, **kwargs):
     return real_coefs
 
 def quantile_regressions(table, **kwargs):
-    # sklearn.feature_selection.RFECV¶
+    # sklearn.feature_selection.RFECV
 
     x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
-    # x_vars = ['mean_consum', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
-
-    # options = [dict(q=0.1, bound='lower', plot_args=dict(facet=None), y_var='mean_dist'),
-    #            dict(q=0.9, bound='upper', y_var='maints'),
-    #            dict(q=0.1, bound='lower', plot_args=dict(facet=None),  y_var='cycle_2M_min'),
-    #            dict(q=0.9, bound='upper',  y_var='mean_2maint'),
-    #            dict(q=0.1, bound='lower',  y_var='mean_2maint')
-    #            ]
 
     options = [
         dict(q=0.1, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x = 'init'),
@@ -323,6 +332,8 @@ def quantile_regressions(table, **kwargs):
         dict(q=0.9, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'),
              bound='upper', y_var='mean_dist_complete'),
         dict(q=0.9, bound='upper', y_var='maints',
+             plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        dict(q=0.1, bound='lower', y_var='maints',
              plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
         dict(q=0.9, bound='upper', y_var='mean_2maint',
              plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
@@ -345,6 +356,8 @@ def quantile_regressions(table, **kwargs):
 
     real_coefs = coefs_to_dict(options, coefs_df)
     real_coefs.update(mean_std)
+    if 'intercept' not in real_coefs:
+        real_coefs['intercept'] = 0
     return real_coefs
 
 def coefs_to_dict(options, coefs, get_params=True):
@@ -376,6 +389,28 @@ def support_vector_regression(table):
     for opt in options:
         coefs_df += [models.test_regression(table, x_vars, **opt)]
 
+def get_batch():
+    name = sto_params.name
+    use_zip = sto_params.use_zip
+
+    if use_zip:
+        batch = ba.ZipBatch(params.PATHS['results'] + name)
+    else:
+        batch = ba.Batch(params.PATHS['results'] + name)
+
+    return batch
+
+def get_table_semi_treated(batch):
+    cases = batch.get_cases()
+    errors = batch.get_errors()
+    errors = errors.to_tuplist().to_dict(2, indices=[1], is_list=False)
+    status_df = batch.get_status_df()
+
+    result_tab_origin = get_table(cases, 1)
+    result_tab = result_tab_origin.merge(status_df, on=['scenario', 'name'], how='left')
+    result_tab['num_errors'] = result_tab.name.map(errors)
+
+    return result_tab
 
 if __name__ == '__main__':
 
@@ -388,41 +423,9 @@ if __name__ == '__main__':
         reload(istats)
         reload(ba)
 
-    name = sto_params.name
-    use_zip = sto_params.use_zip
-    relpath = name +'/base/'
-
-    if use_zip:
-        batch = ba.ZipBatch(params.PATHS['results'] + name)
-    else:
-        batch = ba.Batch(params.PATHS['results'] + name)
-    cases = batch.get_cases()
-    errors = batch.get_errors()
-    errors = errors.to_tuplist().to_dict(2, indices=[1], is_list=False)
-    status_df = batch.get_status_df()
-
-    result_tab_origin = get_table(cases, 1)
-    result_tab = treat_table(result_tab_origin)
-    result_tab = result_tab.merge(status_df, on=['scenario', 'name'], how='left')
-    result_tab.loc[result_tab.spec_tasks > 0, 'has_special'] = 'yes'
-    result_tab.loc[result_tab.spec_tasks == 0, 'has_special'] = 'no'
-    result_tab['num_errors'] = result_tab.name.map(errors)
-    result_tab['num_errors'].fillna(0, inplace=True)
-    result_tab.loc[result_tab.num_errors == 0, 'has_errors'] = 'no errors'
-    result_tab.loc[result_tab.num_errors > 0, 'has_errors'] = '>=1 errors'
-
-    # start = cases['201907160210_928'].instance.get_param('start')
-    # _func = lambda v: len([st for st in v.get_maintenance_starts() if st[1]==start])>0
-    # rrr = sd.SuperDict.from_dict(cases).clean(func=lambda v: v is not None).vapply(_func)
-    # rrr.clean()
-    # cases['201907160213_297'].get_maintenance_periods()
-    # cases['201907160213_297'].get_all_maintenance_cycles()
-    # raise ValueError('Stop!')
-
-    # result_tab.best_solution
-    # result_tab.best_bound
-    result_tab.loc[result_tab.gap_abs <= 60, 'gap_stat'] = 'gap_abs<=60'
-    result_tab.loc[result_tab.gap_abs > 60, 'gap_stat'] = 'gap_abs>=60'
+    batch = get_batch()
+    result_tab = get_table_semi_treated(batch)
+    result_tab = treat_table(result_tab)
 
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint', 'mean_dist_complete']:
         graphs.draw_hist(result_tab, var, bar=False)
@@ -462,10 +465,11 @@ if __name__ == '__main__':
     # #########
     # PREDICTING:
     # #########
+    cases = batch.get_cases()
     case = sd.SuperDict(cases).values_l()[100]
     # result_tab[x_vars].iloc[[100]]
     # coefs_df[1].predict(result_tab[x_vars].iloc[[100]])
-    table = result_tab[(result_tab.gap_abs < 30) & (result_tab.num_errors == 0)]
+    table = result_tab[(result_tab.gap_abs < 100) & (result_tab.num_errors == 0)]
     table = result_tab[(result_tab.num_errors == 0)]
     # test_perc= 0.1, plot=False
 
