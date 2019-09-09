@@ -85,7 +85,8 @@ def get_table(cases, _types=1):
             l_maint_date = sol_stats.get_post_2M_dist(case, _type=_type).values_l()
             l_maint_date_stat = pd.Series(l_maint_date).agg(['mean', 'max', 'min', 'sum']).tolist()
             num_maints = sol_stats.get_num_maints(case, _type=_type)
-            result.append(list(_case_name) + init_sum +
+            result.append(list(_case_name) +
+                          init_sum +
                           cons_sum +
                           airc_sum +
                           cons_min_assign + quantsw +
@@ -101,7 +102,8 @@ def get_table(cases, _types=1):
                           cycle_1M_quants +
                           l_maint_date_stat)
 
-    names = ['scenario', 'name', 'init',
+    names = ['scenario', 'name']+ \
+            ['init',
              'mean_consum', 'max_consum', 'var_consum',
              'mean_airc', 'max_airc', 'var_airc',
              'cons_min_mean', 'cons_min_max', 'quant5w', 'quant75w', 'quant9w',
@@ -137,37 +139,44 @@ def treat_table(result_tab):
     return result_tab
 
 
-# #########
-# BOUNDS:
-# #########
-def superquantiles():
-    # x_vars += ['pos_consum9', 'pos_consum5', 'quant5w', 'quant75w', 'quant9w']
-    bound_options = [
-        ('maints', True, 0.9),
-        ('cycle_2M_min', False, 0.9),
-        ('mean_dist', False, 0.9),
-        ('mean_2maint', True, 0.9),
-        ('sum_2maint', True, 0.9),
-        ('sum_2maint', False, 0.9),
-        ('mean_2maint', False, 0.9)
-    ]
-    table = result_tab
-    # table = result_tab.query('mean_consum >=180 and gap_abs <= 30')
-    # table = result_tab[result_tab.mean_consum.between(150, 300)]
-    table = result_tab.query('mean_consum >=150 and mean_consum <=250')
-    # table = result_tab.query('mean_consum >=150 and mean_consum <=250 and num_errors==0')
+def superquantiles(table, **kwargs):
+    x_vars = ['init',
+             'mean_consum', 'max_consum', 'var_consum',
+             'mean_airc', 'max_airc', 'var_airc',
+             'cons_min_mean', 'cons_min_max', 'quant5w', 'quant75w', 'quant9w',
+             'pos_consum5', 'pos_consum75', 'pos_consum9',
+             'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
+             'geomean_cons', 'geomean_airc',
+             'spec_tasks'] + \
+             ['mean_consum2', 'mean_consum3', 'mean_consum4', 'mean_consum5']
+    # x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
 
-    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'max_consum', 'var_consum',
-              'cons_min_mean', 'cons_min_max', 'spec_tasks']
-    data = {}
-    for predict_var, upper, alpha in bound_options:
-        b = 'min_' + predict_var
-        if upper:
-            b = 'max_' + predict_var
-        _dict, norm_info = models.test_superquantiles(
-            table, x_vars=x_vars, predict_var=predict_var,
-            _lambda=0.02, alpha=alpha, plot=True, upper_bound=upper)
-        data[b] = sd.SuperDict.from_dict(_dict).clean()
+    options = [
+        dict(alpha=0.1, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x = 'init'),
+             bound='lower', y_var='mean_dist_complete'),
+        dict(alpha=0.9, plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'),
+             bound='upper', y_var='mean_dist_complete'),
+        # dict(alpha=0.9, bound='upper', y_var='maints',
+        #      plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        # dict(alpha=0.9, bound='upper', y_var='mean_2maint',
+        #      plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init')),
+        # dict(alpha=0.1, bound='lower', y_var='mean_2maint',
+        #      plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
+    ]
+    default = dict(method = 'superquantiles', **kwargs)
+    options = tl.TupList(options).apply(lambda v: {**default, **v})
+
+    coefs_df = []
+    for opt in options:
+        coefs_df += [models.test_regression(table, x_vars, **opt)]
+
+    mean_std = \
+        sd.SuperDict.from_dict(coefs_df[0][1]).to_dictup().to_tuplist().\
+        to_dict(2, indices=[1, 0], is_list=False).to_dictdict()
+
+    real_coefs = coefs_to_dict(options, coefs_df)
+    real_coefs.update(mean_std)
+    return real_coefs
 
 # #########
 # REGRESSIONS:
@@ -204,7 +213,7 @@ def neural_networks(table):
        'quant5w', 'quant75w', 'quant9w', 'pos_consum5', 'pos_consum75',
        'pos_consum9', 'pos_aircraft5', 'pos_aircraft75', 'pos_aircraft9',
        'geomean_cons', 'geomean_airc', 'spec_tasks', 'mean_consum2', 'mean_consum3',
-       'mean_consum4', 'mean_consum5']
+       'mean_consum4', 'mean_consum5'] + ['mean_consum2', 'mean_consum3', 'mean_consum4']
 
     # x_vars = ['mean_consum', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
     options = [
@@ -418,7 +427,8 @@ if __name__ == '__main__':
     for var in ['maints', 'mean_dist', 'max_dist', 'min_dist', 'mean_2maint', 'mean_dist_complete']:
         graphs.draw_hist(result_tab, var, bar=False)
 
-    graphs.draw_hist('mean_2maint')
+    graphs.draw_hist(result_tab, 'mean_dist_complete', bar=False)
+
 
     # #########
     # PLOTTING:
@@ -431,13 +441,16 @@ if __name__ == '__main__':
         graph_name = '{}_vs_{}'.format(x, y)
         graphs.plotting(result_tab, x=x,  y=y, color='status',
                         facet=facet , graph_name=graph_name, smooth=True)
-
-    x = 'mean_consum'
-    # x= 'init'
-    y = 'sum_2maint'
+    # result_tab.columns
+    x = 'init'
+    # x= 'init_cut ~ .'
+    y = 'mean_dist_complete'
+    facet = 'mean_consum_cut ~ .'
+    _args = dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init', y = 'mean_dist_complete')
     graph_name = '{}_vs_{}_nofacet'.format(x, y)
-    graphs.plotting(result_tab, x=x, y=y,
-                    facet=None, graph_name=graph_name, smooth=True)
+    graphs.plotting(result_tab, x=x, y=y, facet=facet, graph_name=graph_name, smooth=True)
+    graphs.plotting(result_tab, graph_name=graph_name, **_args, smooth=True, color='status')
+
     for y in ['maints', 'mean_dist', 'mean_2maint', 'cycle_2M_min']:
         x = 'mean_consum'
         graph_name = '{}_vs_{}_nocolor'.format(x, y)
@@ -455,6 +468,7 @@ if __name__ == '__main__':
     table = result_tab[(result_tab.gap_abs < 30) & (result_tab.num_errors == 0)]
     table = result_tab[(result_tab.num_errors == 0)]
     # test_perc= 0.1, plot=False
+
     real_coefs_gbr = gradient_boosting_regression(table, test_perc= 0.3)
     mean_std_gbr = sd.SuperDict.from_dict(real_coefs_gbr).filter(['mean', 'std'])
     istats.predict_stat(case.instance, real_coefs_gbr['max_maints'], _type=0, mean_std=mean_std_gbr)
@@ -462,8 +476,17 @@ if __name__ == '__main__':
     istats.predict_stat(case.instance, real_coefs_gbr['max_mean_dist_complete'], _type=0, mean_std=mean_std_gbr)
 
 
-    real_coefs_qr = quantile_regressions(table, test_perc= 0.1)
+    real_coefs_qr = quantile_regressions(table, test_perc= 0.3)
+    real_coefs_qr['max_mean_dist_complete']
     mean_std_gr = sd.SuperDict.from_dict(real_coefs_qr).filter(['mean', 'std'])
     istats.calculate_stat(case.instance, real_coefs_qr['max_maints'], 0, mean_std=mean_std_gr)
     istats.calculate_stat(case.instance, real_coefs_qr['min_mean_dist_complete'], 0, mean_std=mean_std_gr)
     istats.calculate_stat(case.instance, real_coefs_qr['max_mean_dist_complete'], 0, mean_std=mean_std_gr)
+
+
+    real_coefs_sq = superquantiles(table, test_perc= 0.3, _lambda=0.0001)
+    real_coefs_sq['max_mean_dist_complete']
+    mean_std_sq = sd.SuperDict.from_dict(real_coefs_sq).filter(['mean', 'std'])
+    istats.calculate_stat(case.instance, real_coefs_sq['max_maints'], 0, mean_std=mean_std_sq)
+    istats.calculate_stat(case.instance, real_coefs_sq['min_mean_dist_complete'], 0, mean_std=mean_std_sq)
+    istats.calculate_stat(case.instance, real_coefs_sq['max_mean_dist_complete'], 0, mean_std=mean_std_sq)

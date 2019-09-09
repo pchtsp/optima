@@ -2,11 +2,13 @@
 title: "ResultsNPS"
 author: "Franco Peschiera"
 date: "August 8, 2019"
-output: html_document
-editor_options: 
-  chunk_output_type: console
+output:
+  html_document: default
+  pdf_document: default
 params:
-   size: medium
+  size: medium
+editor_options:
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -39,7 +41,7 @@ import numpy as np
 
 import sys, os
 opt_path = './'
-opt_path = '../'
+# opt_path = '../'
 rel_path_python = '{}../python/'.format(opt_path)
 path = os.path.join(r.current_dir, rel_path_python)
 # print(path)
@@ -53,8 +55,20 @@ import scripts.compare_stochastic as compare_sto
 
 # This is read now as a paramer in the YAML (above).
 # size = 'small'  # choose small, medium or large
-df = compare_sto.get_instances[r.size]()
-df = df.reset_index()
+# df = compare_sto.get_instances[r.size]()
+
+################# manual alternative...
+# exp_list = ['IT000125_20190808', 'IT000125_20190729']
+# df = compare_sto.get_df_comparison(exp_list)
+# df = df[df.scenario == 'numparalleltasks_2']
+
+exp_list = ['IT000125_20190808', 'IT000125_20190812']
+df = compare_sto.get_df_comparison(exp_list).reset_index()
+# df = df[df.scenario == 'numparalleltasks_3']
+df = df.query("scenario == 'numparalleltasks_3' or experiment==1")
+################# manual alternative...
+
+
 
 name_change = dict(experiment=[0, 1], experiment2=["cuts", "base"])
 name_change = pd.DataFrame(name_change)
@@ -167,7 +181,7 @@ quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
 filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -5, 5))
 filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
 ```
-The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%̀) have been taken out to help better visualize it.
+The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%) have been taken out to help better visualize it.
 
 ```{r}
 qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.')

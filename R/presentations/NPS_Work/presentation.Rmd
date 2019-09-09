@@ -1,7 +1,7 @@
 ---
 title: "What I've been doing at NPS for three months"
 author: "Franco Peschiera"
-date: "MM, 2019"
+date: "Agusut, 2019"
 output:
   slidy_presentation:
     css: ./../../../css/baobab_slidy.css

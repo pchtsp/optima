@@ -14,6 +14,13 @@ def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95):
     :param alpha:
     :return:
     """
+    upper_bound = True
+
+    if alpha < 0.5:
+        upper_bound = False
+        alpha = 1 - alpha
+        Y *= -1
+
     y = Y.tolist()
     X_in = X
 
@@ -66,6 +73,10 @@ def regression_VaR(X, Y, _lambda = 0.1, alpha = 0.95):
 
     c_0 = ((sum_ps - alpha)*Y_aux[limit] + sum(Y_aux[limit+1:])/len_points)/(1- alpha)
     # c_0 = sum(Y_aux[limit:])/(len_points - limit)
+    if not upper_bound:
+        c_0 *= -1
+        c_out = sd.SuperDict.from_dict(c_out).vapply(lambda v: -v)
+
     return c_0, c_out
 
 # sd.SuperDict(up).vapply(pl.value)

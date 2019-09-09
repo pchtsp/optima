@@ -71,62 +71,27 @@ def predict_factory(X_train, y_train, method='regression', **kwargs):
         mod = smrq.QuantReg(endog=y_train, exog=X_train)
         res = mod.fit(**kwargs)
         return res
+    elif method == 'superquantiles':
+        coef0, coefs = mub.regression_VaR(X=X_train, Y=y_train, **kwargs)
+
+        class Clf(object):
+
+            def __init__(self, coefs, coef0):
+                self.coefs = coefs
+                self.coef0 = coef0
+                self.params = dict(coefs)
+                self.params['intercept'] = coef0
+                self.params = pd.Series(self.params)
+
+            def predict(self, new_x_data):
+                return np.sum([v * new_x_data[k] for k, v in self.coefs.items()], axis=0) + self.coef0
+
+        return Clf(coefs, coef0)
     else:
         raise ValueError('method argument has no correct value.')
     clf.fit(X=X_train, y=y_train)
     return clf
 
-
-def test_superquantiles(result_tab, x_vars, predict_var, plot=True, upper_bound=True, _print=True, **kwargs):
-
-    result_tab_f =  result_tab[x_vars + [predict_var]].copy()
-    bound = 'upper'
-    if not upper_bound:
-        result_tab_f[predict_var] *= -1
-        bound = 'lower'
-    result_tab_norm = aux.normalize_variables(result_tab_f)
-    mean_std = aux.get_mean_std(result_tab_f)
-    X_norm = result_tab_norm[x_vars].copy()
-    Y_norm = result_tab_norm[predict_var].copy()
-    # X_norm = normalize_variables(X)
-    # mean_std = get_mean_std(X)
-    # Y_norm = normalize_variables(Y)
-    # mean_std_y = get_mean_std(Y)
-    X_train, X_test, y_train, y_test = train_test_split(X_norm, Y_norm, test_size=0.3)
-    coef0, coefs = mub.regression_VaR(X=X_train, Y=y_train, **kwargs)
-    if not upper_bound:
-        coef0 *= -1
-        coefs = sd.SuperDict.from_dict(coefs).vapply(lambda v: -v)
-    coefs_sans_inter = sd.SuperDict(coefs)
-    coefs.update({'intercept': coef0})
-    if not _print:
-        return coefs
-    X_out_norm = X_test.copy()
-    X_out = aux.denormalize(X_out_norm, mean_std)
-    y_test_dn = aux.denormalize(pd.DataFrame({predict_var:y_test}), mean_std)[predict_var]
-    y_test_dn.reset_index(drop=True, inplace=True)
-    if not upper_bound:
-        y_test_dn *= -1
-    X_out[predict_var] = y_test_dn
-    y_pred = np.sum([v*X_out_norm[k] for k, v in coefs_sans_inter.items()], axis=0) + coef0
-    y_pred = aux.denormalize(pd.DataFrame({predict_var:y_pred}), mean_std)[predict_var]
-    y_pred.reset_index(drop=True, inplace=True)
-    X_out['pred'] = y_pred
-    above = (y_pred > y_test_dn).sum() / y_pred.shape[0] * 100
-    print("above: {}%".format(round(above, 2)))
-    if not plot:
-        return coefs
-    X_out = X_out.join(result_tab, rsuffix='_other')
-    # print(X_out)
-    graph_name = 'superquantiles_mean_consum_init_{}_{}'.format(predict_var, bound)
-    graphs.plotting(table=X_out, x='mean_consum', y=predict_var, y_pred='pred',
-                    graph_name=graph_name, smooth=False, color='status',
-                    shape='has_special', facet='init_cut ~ var_consum_cut')
-
-    return coefs, mean_std
-
-
-    # return (X_norm * X.std()) + X.mean()
 
 if __name__ == '__main__':
     pass
