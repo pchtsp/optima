@@ -29,7 +29,7 @@ def get_df_comparison(exp_list):
         reset_index().\
         drop(['level_1'], axis=1).\
         rename(columns=dict(level_0='experiment')).\
-        set_index(['instance','experiment'])
+        set_index(['instance','experiment']).reset_index()
 
 
 def compare_perc_0_1(table):

@@ -70,11 +70,18 @@ class Batch(object):
         if self.logs is not None:
             return self.logs
 
+        opt_info = self.get_options()
+        try:
+            el = list(opt_info.keys())[0]
+            solver = opt_info[el]['solver']
+        except:
+            solver = 'CPLEX'
+
         self.logs = \
             self.get_instances_paths(). \
             vapply(lambda v: os.path.join(v, 'results.log')).\
             clean(func=os.path.exists). \
-            vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=get_progress))
+            vapply(lambda v: ol.get_info_solver(v, solver, get_progress=get_progress))
         return self.logs
 
     def get_json(self, name):
@@ -246,6 +253,14 @@ class ZipBatch(Batch):
 
         zipobj = zipfile.ZipFile(self.path)
 
+        opt_info = self.get_options()
+        try:
+            el = list(opt_info.keys())[0]
+            solver = opt_info[el]['solver']
+        except:
+            solver = 'CPLEX'
+
+
         def _read_zip(x):
             try:
                 return zipobj.read(x)
@@ -258,7 +273,7 @@ class ZipBatch(Batch):
             vapply(_read_zip). \
             clean(). \
             vapply(lambda x: str(x, 'utf-8')). \
-            vapply(lambda v: ol.get_info_solver(v, 'CPLEX', get_progress=get_progress, content=True))
+            vapply(lambda v: ol.get_info_solver(v, solver, get_progress=get_progress, content=True))
         return self.logs
 
     def get_json(self, name):

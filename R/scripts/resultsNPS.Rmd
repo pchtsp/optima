@@ -13,66 +13,22 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
-library(reticulate)
-library(tidyverse)
-library(knitr)
-library(magrittr)
-library(ggplot2)
-use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
-current_dir = getwd()
-# print(current_dir)
-py_discover_config()
+source('functions/graphs_NPS.R')
+
 quant_max <- 0.95
 size <- params$size
-aux_compare <- function(table){
-    table %>% 
-    gather(key='indicator', value="value", -experiment) %>% 
-    spread(experiment, value) %>% 
-    mutate(dif_abs = cuts - base,
-           dif_perc = (dif_abs/ base*100) %>% round(2))
 
-}
-
-```
-
-```{python}
-import pandas as pd
-import numpy as np
-
-import sys, os
-opt_path = './'
-# opt_path = '../'
-rel_path_python = '{}../python/'.format(opt_path)
-path = os.path.join(r.current_dir, rel_path_python)
-# print(path)
-sys.path.insert(1, path)
-
-import package.batch as ba
-import package.params as params
-
-import stochastic.params as sto_params
-import scripts.compare_stochastic as compare_sto
-
-# This is read now as a paramer in the YAML (above).
-# size = 'small'  # choose small, medium or large
-# df = compare_sto.get_instances[r.size]()
-
-################# manual alternative...
-# exp_list = ['IT000125_20190808', 'IT000125_20190729']
-# df = compare_sto.get_df_comparison(exp_list)
-# df = df[df.scenario == 'numparalleltasks_2']
-
-exp_list = ['IT000125_20190808', 'IT000125_20190812']
-df = compare_sto.get_df_comparison(exp_list).reset_index()
-# df = df[df.scenario == 'numparalleltasks_3']
-df = df.query("scenario == 'numparalleltasks_3' or experiment==1")
-################# manual alternative...
-
-
-
-name_change = dict(experiment=[0, 1], experiment2=["cuts", "base"])
-name_change = pd.DataFrame(name_change)
-df = df.merge(name_change, on='experiment').drop('experiment', axis=1).rename(columns=dict(experiment2='experiment'))
+# alternative 1:
+# exp_list <- c('IT000125_20190808', 'IT000125_20190812')
+# df_original <- compare_sto$get_df_comparison(exp_list)
+# df_original %<>% filter(scenario=='numparalleltasks_3' | experiment==1)
+# alternative 2:
+# compare_sto <- get_compare_sto()
+# df_original <- compare_sto$get_instances[[size]]()
+# df <- df_original %>% mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
+# alternative 3:
+df <- do.call(params$size, args=list())
+# df <- get_4_tasks_aggressive()
 
 ```
 
@@ -92,17 +48,7 @@ The following table shows the general statistics about the instances solved.
 
 ```{r stats_general}
 
-summary_stats <- 
-    py$df %>% 
-    mutate(sol_code = if_else(is.na(sol_code), 2, sol_code)) %>% 
-    group_by(experiment) %>%
-    summarise(Infeasible = sum(sol_code==-1),
-              IntegerFeasible=sum(sol_code==2),
-              IntegerInfeasible=sum(sol_code==0),
-              Optimal=sum(sol_code==1),
-              total_instances = n()) %>% 
-  aux_compare
-
+summary_stats <- get_summary(df)
 summary_stats %>% kable
 
 ```
@@ -115,25 +61,9 @@ We compare the times where both models return an **optimal solution**.
 
 ```{r quality_degr}
 
-t1 <- 
-    py$df %>% 
-    filter(sol_code==1) %>% 
-    group_by(instance) %>%
-    mutate(min_value = min(best_solution),
-           dist_min = best_solution - min_value,
-           dist_min_perc = (best_solution - min_value)/abs(min_value)*100
-           )
-t1_rel <- 
-    t1 %>% 
-    select(instance, experiment, dist_min_perc) %>% 
-    spread(key=experiment, value=dist_min_perc) %>% 
-    drop_na() %>% use_series(cuts)
-
-t1_abs <- 
-    t1 %>% 
-    select(instance, experiment, dist_min) %>% 
-    spread(key=experiment, value=dist_min) %>% 
-    drop_na() %>% use_series(cuts)
+t1 <- get_quality_degr(df)
+t1_rel <- t1 %>% filter(experiment=='cuts') %>% use_series(dist_min_perc)
+t1_abs <- t1 %>% filter(experiment=='cuts') %>% use_series(dist_min)
 
 quality_degr_quant <- t1_rel %>% quantile()
 quality_degr_quant95 <- t1_rel %>% quantile(quant_max)
@@ -153,7 +83,7 @@ filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
 The following graph shows the distribution of the gap from the `cuts` model with the `base` model. `r filtered_quant %>% round(2)`\% of outliers were taken out from the right tail.
 
 ```{r}
-qplot(t1_rel[t1_rel<20], xlab='Relative gap (in %) among optimal solutions.')
+qplot(t1_rel_filt, xlab='Relative gap (in %) among optimal solutions.')
 ```
 
 ### Mean quality comparison
@@ -162,23 +92,16 @@ If we compare among all cases where an **integer solution** was found in the two
 
 ```{r quality_perf}
 
-quality_perf <-
-    py$df %>% 
-    filter(sol_code>=1) %>%
-    select(instance, experiment, best_solution) %>% 
-    spread(experiment, best_solution) %>% 
-    drop_na() %>% 
-    mutate(dif_perc = ((cuts-base)/ base*100) %>% round(2))
-  
-  mean_dif <- quality_perf$dif_perc %>%  mean
-  per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
+quality_perf <- get_quality_perf(df)
+mean_dif <- quality_perf$dif_perc %>%  mean
+per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
 
 quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
 
 ```
 
 ```{r}
-filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -5, 5))
+filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -10, 10))
 filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
 ```
 The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%) have been taken out to help better visualize it.
@@ -200,23 +123,9 @@ Just like in the mean quality comparison, we compare among cases where both mode
 
 ```{r time_perf}
 
-comparison_table <- 
-    py$df %>% 
-    filter(sol_code>=1) %>% 
-    group_by(instance) %>%
-    filter(n()==2) %>% 
-    ungroup() %>% 
-    select(instance, experiment, time) %>% 
-    spread(experiment, time) %>% 
-    arrange(base) %>% 
-    mutate(instance = row_number()) %>% 
-    gather(key = 'experiment',  value='time', -instance)
+comparison_table <- get_time_perf_integer(df)
 
-comparison_table_reorder <- 
-    comparison_table %>% 
-    group_by(experiment) %>% 
-    arrange(experiment, time) %>% 
-    mutate(percentage = row_number()/n()*100)
+comparison_table_reorder <- get_time_perf_integer_reorder(df)
 
 mean_times <- 
     comparison_table %>% 
@@ -230,21 +139,21 @@ mean_times <-
 The difference in average and median times can be seen in the following table:
 
 ```{r}
-    mean_times %>% kable
+mean_times %>% kable
 ```
 
 In order to get more intuition in the performance per instance, we present a couple of graphs.
 
-The following graph shows the solving times in seconds for each of the `r t1 %>% distinct(instance) %>% nrow` instances were an integer solution was found in both cases. In red are the times for the base model. In green the times for the model with the added cuts.
+The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in both cases. In red are the times for the base model. In green the times for the model with the added cuts.
 
 ```{r time_perf_graph} 
-    ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)
+ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)
 ```
 
 If we reorder both models from fastest to slowest, we lose the comparison of individual instances but we gain more insight on the distribution of solving times.
 
 ```{r time_perf_graph2} 
-    ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage')
+ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage')
 ```
 
 ### Average solving time to optimality
@@ -253,21 +162,12 @@ Here, we measure the time it took for each model to reach an **optimal solution.
 
 ```{r time_perf_optim}
 
-comparison_table <- 
-    py$df %>% 
-    filter(sol_code==1) %>% 
-    group_by(instance) %>% 
-    filter(n()==2) %>% 
-    select(experiment, instance, time) %>%
-    group_by(experiment) %>% 
-    summarise(time_mean = mean(time), 
-              time_medi = median(time)) %>% 
-    aux_compare
+comparison_table <- get_time_perf_optim(df)
 
 ```
 
 ```{r time_perf_optim_graph}
-    comparison_table %>% kable
+comparison_table %>% kable
 ```
 
 ## Feasiblility analysis
@@ -275,8 +175,8 @@ comparison_table <-
 There are two indicators to measure if a model is too constrained. The first one is the fact the model is infeasible. The second one is the accomplishement of the soft constraints in the solution.
 
 ```{r infeasible_list}
-
-infeasible_instances <- py$df %>% filter(sol_code==-1) %>% distinct(instance)
+infeasible_instances <- get_infeasible_instances(df)
+infeasible_stats <- get_infeasible_stats(df)
 ```
 
 ### Infeasible solutions
@@ -286,18 +186,6 @@ We take all `r infeasible_instances %>% nrow` **infeasible solutions** from the 
 The below table shows the status obtained in the base model. The number of infeasible solutions is very close in both models and for all instances that were identified by infeasible in the `cuts` model, the `base` model was unable to find an integer solution.
 
 ```{r infeasible}
-infeasible_stats <- 
-    py$df %>% 
-    inner_join(infeasible_instances) %>% 
-    filter(experiment=="base") %>% 
-    summarise(Infeasible = sum(sol_code==-1),
-              IntegerFeasible=sum(sol_code==2),
-              IntegerInfeasible=sum(sol_code==0),
-              Optimal=sum(sol_code==1),
-              total_instances = n()) %>% 
-    gather(key='status', 'number') %>% 
-  filter(number>0)
-
 infeasible_stats %>% kable
 ```
 
@@ -306,15 +194,7 @@ infeasible_stats %>% kable
 Regarding the accomplishment of soft constraints, we can analyze for mutually **integer solutions**, the quantity of violations in their solutions.
 
 ```{r soft_constraints}
-errors_stats <- 
-    py$df %>% 
-    filter(sol_code>=1) %>% 
-    mutate(errors = replace_na(errors, 0)) %>% 
-    group_by(experiment) %>% 
-    summarise(errors_mean = mean(errors),
-              errors_q95 = quantile(errors, quant_max),
-              errors_medi = median(errors)) %>% 
-    aux_compare
+errors_stats <- get_soft_constraints(df, quant_max)
 
 ```
 
