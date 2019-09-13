@@ -31,7 +31,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         self.options = options
         seed = options.get('seed')
         if not seed:
-            seed = rn.random()*10000
+            seed = math.ceil(rn.random() * 100000)
             options['seed'] = seed
         rn.seed(seed)
 

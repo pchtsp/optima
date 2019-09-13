@@ -620,11 +620,6 @@ class Model(exp.Experiment):
         min_elapsed_2M = {r: min_elapsed for r in resources}
         max_elapsed_2M = {r: max_elapsed for r in resources}
 
-        # If the cuts are activated: we replace the defaults.
-        reduce_2M_window = options.get('reduce_2M_window', {})
-        if reduce_2M_window.get('active', False):
-            min_elapsed_2M, max_elapsed_2M = self.get_min_max_2M(options)
-
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
         kt = sd.SuperDict(self.instance.get_cluster_constraints()['num']).keys_l()
@@ -717,15 +712,47 @@ class Model(exp.Experiment):
                                 and len(periods) <= p_pos[t2] + max_elapsed
                                 and t2 < last_period
                                 )
+
         # also, we want to permit incomplete cycles that finish in the last period.
         # the additional possibilities are very similar to the previous ones
         # but with the last_period instead of t2
         # and they do not constraint the min distance between maintenances
         _t2 = last_period
-        att_maints = att_maints_no_last + \
-                     tl.TupList((a, t1, _t2) for (a, t1) in at_M_ini if
-                                p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M[a]
-                                )
+        att_maints_last = ((a, t1, _t2) for (a, t1) in at_M_ini if
+                           p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M[a])
+        att_maints_last = tl.TupList(att_maints_last)
+
+        # as an auxiliary second step, we want to apply the filters based on the stochastic cuts.
+        # we want to keep a certain number of non-conforming cycle combinations.
+        # the number is a percentage of filtered value cuts.
+        reduce_2M_window = options.get('reduce_2M_window', {})
+        if reduce_2M_window.get('active', False):
+            seed = options.get('seed')
+            if not seed:
+                seed = math.ceil(rn.random() * 100000)
+                options['seed'] = seed
+            rn.seed(seed)
+
+            min_elapsed_2M_cut, max_elapsed_2M_cut = self.get_min_max_2M(options)
+            percent_add = reduce_2M_window.get('percent_add', 0)
+            def _filter_funct(args):
+                a, t1, t2 = args
+                return (p_pos[t1] + min_elapsed_2M_cut[a] <= p_pos[t2] < p_pos[t1] + max_elapsed_2M_cut[a])
+
+            def limit_partially(tuplist):
+                tuplist_filtered = tuplist.filter_list_f(_filter_funct)
+                rejected_combos = set(tuplist) - set(tuplist_filtered)
+                size_percent = min(round(len(tuplist_filtered)*percent_add), len(rejected_combos))
+                rejected_combos_accepted = rn.sample(list(rejected_combos), k=size_percent)
+                return tuplist_filtered + tl.TupList(rejected_combos_accepted)
+
+            # we reduce the first list.
+            att_maints_no_last = limit_partially(att_maints_no_last)
+            # we reduce the second one.
+            att_maints_last = limit_partially(att_maints_last)
+
+        # Finally, cuts or not: we sum both sets into a single set of patterns.
+        att_maints = att_maints_no_last + att_maints_last
         att_maints = tl.TupList(att_maints)
 
         # at_cycles are three times for each combination of maints possibility
