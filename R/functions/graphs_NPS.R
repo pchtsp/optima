@@ -87,9 +87,35 @@ get_1_tasks_CBC <- function(){
     compare_sto <- get_compare_sto()
     exp_list <- c('IT000125_20190815', 'IT000125_20190827')
     df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
+    df_original %>%
         mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
+    
 }
+
+get_1_tasks_CBC_CPLEX <- function(){
+    compare_sto <- get_compare_sto()
+    exp_list <- c('IT000125_20190815', 'IT000125_20190827', 'IT000125_20190716')
+    df_original <- compare_sto$get_df_comparison(exp_list)
+    equiv <- list('cbc_cuts', 'cbc_base', 'cplex_base')
+    df_original %>% 
+        filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
+        mutate(experiment=equiv[experiment+1]) %>% 
+        filter_all_exps
+
+}
+
+get_1_tasks_perc_add <- function(){
+    compare_sto <- get_compare_sto()
+    exp_list <- c('IT000125_20190725', 'IT000125_20190716', 'IT000125_20190913')
+    df_original <- compare_sto$get_df_comparison(exp_list)
+    equiv <- list('cuts', 'base', 'perc_add')
+    df_original %>% 
+        filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
+        mutate(experiment=equiv[experiment+1]) %>% 
+        filter_all_exps
+    
+}
+
 
 get_1_tasks_maints <- function(){
     compare_sto <- get_compare_sto()
@@ -97,9 +123,7 @@ get_1_tasks_maints <- function(){
     df_original <- compare_sto$get_df_comparison(exp_list)
     df_original %>% 
         filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
-        group_by(instance) %>% 
-        filter(n()==2) %>% 
-        ungroup %>% 
+        filter_all_exps %>% 
         mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
 }
 
@@ -110,9 +134,7 @@ get_4_tasks_maints <- function(){
     df_original <- compare_sto$get_df_comparison(exp_list)
     df_original %>% 
         filter(scenario=='numparalleltasks_4') %>% 
-        group_by(instance) %>% 
-        filter(n()==2) %>% 
-        ungroup %>% 
+        filter_all_exps %>% 
         mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
 }
 
@@ -153,9 +175,7 @@ get_comparable_sets <- function(raw_df) {
 get_all_same_status <- function(raw_df, code_status){
     raw_df %>% 
         filter(sol_code==code_status) %>% 
-        group_by(instance) %>% 
-        filter(n()==2) %>% 
-        ungroup    
+        filter_all_exps
 }
 
 get_all_optimal <- function(raw_df) get_all_same_status(raw_df, 1)
@@ -165,9 +185,7 @@ get_all_integer_non_optimal <- function(raw_df) get_all_same_status(raw_df, 2)
 get_all_integer <- function(raw_df){
     raw_df %>% 
         filter(sol_code>=1) %>%
-        group_by(instance) %>% 
-        filter(n()==2) %>% 
-        ungroup
+        filter_all_exps
 }
 
 
@@ -177,6 +195,15 @@ get_quality_perf <- function(raw_df){
         select(instance, experiment, best_solution) %>% 
         spread(experiment, best_solution) %>% 
         mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round)
+}
+
+filter_all_exps <- function(table){
+    num <- table %>% distinct(experiment) %>% nrow
+    table %>% 
+        group_by(instance) %>% 
+        filter(n()==num) %>% 
+        ungroup
+        
 }
 
 # get_quality_perf_stats <- function(raw_df){
