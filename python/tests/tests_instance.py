@@ -1,11 +1,11 @@
 import unittest
 import package.exec as exec
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
 import os
 import package.auxiliar as aux
 
-class TestHeuristic(unittest.TestCase):
+class TestInstance(unittest.TestCase):
 
     def setUp(self):
         # directory = '/home/pchtsp/Documents/projects/OPTIMA/data/examples/201811092041/'
