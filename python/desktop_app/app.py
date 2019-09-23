@@ -215,8 +215,7 @@ class MainWindow_EXCEC():
         # TODO: update log live and use worker with multiprocessings
         # options['log_handler'] = QPlainTextEditLogger(self)
         self.solution = experiment.solve(options)
-        self.ui.solCheck.setText('Solution loaded')
-        self.ui.solCheck.setStyleSheet("QLabel { color : green; }")
+        self.update_ui()
         # def _dummy_run(experiment, options):
         #     experiment.solve(options)
         # p = multi.Process(target=_dummy_run, args=[experiment, options])
@@ -254,15 +253,29 @@ class MainWindow_EXCEC():
             self.show_message('Error', 'No solution can be exported because there is no loaded solution.')
             return 0
         experiment = exp.Experiment(self.instance, self.solution)
+
+        # writing output template
+        _dir = os.path.join(output_path, 'template_out.xlsx')
+        try:
+            td.export_output_template(_dir, experiment.instance.data, experiment.solution.data)
+        except PermissionError:
+            self.show_message('Error', 'Output file cannot be overwritten.\nCheck it is not open and you have enough permissions.')
+            return 0
+
+        # writing alternative json files
         _kwags = dict(file_type='json', exclude_aux=True)
         di.export_data(output_path, experiment.instance.data, name="data_in", **_kwags)
         di.export_data(output_path, experiment.solution.data, name="data_out", **_kwags)
-        _dir = os.path.join(output_path, 'template_out.xlsx')
+
+        # writing gantt
+        self.generate_gantt(output_path)
+
+        # writing errors
         errors = experiment.check_solution()
         errors = {k: v.to_dictdict() for k, v in errors.items()}
-        td.export_output_template(_dir, experiment.instance.data, experiment.solution.data)
-        self.generate_gantt(output_path)
         di.export_data(output_path, errors, name="errors", **_kwags)
+
+        # writing input template
         if export_input:
             _dir = os.path.join(output_path, 'template_in.xlsx')
             td.export_input_template(_dir, experiment.instance.data)

@@ -19,6 +19,7 @@ class Instance(object):
         * tasks: data related to tasks
         * resources: data related to resources
         * maintenances: data related to maintenances (smaller for now)
+        * maint_types: data related to capacity or maintenance type
         * aux: cached data (months, for example)
     """
 
@@ -86,7 +87,7 @@ class Instance(object):
 
     def set_default_maint_types(self):
         types = self.get_maintenances('type').values()
-        tups = [('maint_type', t, 'capacity') for t in set(types)]
+        tups = [('maint_types', t, 'capacity') for t in set(types)]
         for tup in tups:
             if self.data.get_m(*tup) is not None:
                 continue
@@ -513,7 +514,7 @@ class Instance(object):
         def_working_days = self.get_param('default_type2_capacity')
         def_capacity = self.get_param('maint_capacity')
         base_capacity = {'1': def_capacity, '2': def_working_days}
-        capacity_period = self.data['maint_type'].get_property('capacity')
+        capacity_period = self.data['maint_types'].get_property('capacity')
         if periods is None:
             periods = self.get_periods()
         caps = {
@@ -525,6 +526,16 @@ class Instance(object):
     def get_default_consumption(self, resource, period):
         min_use = self.data['resources'][resource]['min_usage_period']
         return min_use.get(period, min_use['default'])
+
+    def get_maint_rt(self, maint):
+        maint_data = self.data['maintenances'][maint]
+        return [t for t in ['ret', 'rut'] if
+                  maint_data['max_' + self.label_rt(t) + '_time'] is not None]
+
+    def get_rt_maints(self, rt):
+        maint_data = self.data['maintenances']
+        return [m for m, v in maint_data.items() if
+                v['max_' + self.label_rt(rt) + '_time'] is not None]
 
     @staticmethod
     def label_rt(time):

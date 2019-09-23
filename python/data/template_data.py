@@ -72,7 +72,7 @@ def get_resources(tables):
     min_usage_period = {}
     if 'heures_vol' in tables:
         flight_hours = tables['heures_vol'].rename(columns=equiv)
-        flight_hours.resource = states.resource.astype(str)
+        flight_hours.resource = flight_hours.resource.astype(str)
         flight_hours_dict = flight_hours.set_index(['resource', 'period'])['min_usage_period'].to_dict()
         flight_hours_dict = sd.SuperDict.from_dict(flight_hours_dict).to_dictdict()
 
@@ -140,7 +140,7 @@ def import_input_template(path):
     )
 
     if 'maint_capacite' in present_sheets:
-        data['maint_type'] = get_maint_types(tables)
+        data['maint_types'] = get_maint_types(tables)
 
     return data
 
@@ -258,6 +258,7 @@ def export_output_template(path, input_data, output_data):
     _func = lambda a, b: min_usage_period[a].get(b, min_usage_period[a]['default'])
     remaining['cons'] = remaining[['avion', 'mois']].apply(lambda x: _func(*x), axis=1)
     remaining['rut'] += remaining['cons']
+    remaining.drop(['cons'], axis=1, inplace=True)
 
     equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
     result = \

@@ -12,7 +12,6 @@ class Solution(object):
     They also draw graphs.
     data format:
     {
-    'state': {r: {p: s}}, s = 'M', 'VI'
     'task': {r: {p: task}}, task = 'O10', 'O5'
     'state_m': {r: {p: {s: 1}}}, s = 'M', 'VI'
     }
