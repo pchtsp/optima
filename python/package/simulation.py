@@ -59,6 +59,14 @@ def empty_data():
                 , 'affects': []
                 , 'priority': 0
             } for maint in range(1)
+        },
+        'maint_types': {
+            m_type: {
+                'capacity': {
+                    period: 1
+                    for period in range(1)
+                }
+            } for m_type in range(1)
         }
     }
 

@@ -190,7 +190,7 @@ class GreedyByMission(test.Experiment):
             return True
         start_update_rt = self.instance.get_next_period(maint_end)
         for m in affected_maints:
-            for time in ['ret', 'rut']:
+            for time in self.instance.get_maint_rt(m):
                 self.update_rt_until_next_maint(resource, start_update_rt, m, time)
         return True
 
@@ -202,7 +202,7 @@ class GreedyByMission(test.Experiment):
         :param start_update_rt: start the search for next maintenance.
         :param maint: maintenance type
         :param time: rut or ret
-        :return:
+        :return: updated periods
         """
         horizon_end = self.instance.get_param('end')
         maint_data = self.instance.data['maintenances'][maint]
@@ -213,8 +213,8 @@ class GreedyByMission(test.Experiment):
         else:
             end_update_rt = self.instance.get_prev_period(end_update_rt)
         periods_to_update = self.instance.get_periods_range(start_update_rt, end_update_rt)
-
         self.update_time_usage(resource, periods_to_update, time=time, maint=maint)
+        return periods_to_update
 
     def check_assign_task(self, resource, periods, task):
         """

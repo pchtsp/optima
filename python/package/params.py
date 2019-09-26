@@ -53,9 +53,8 @@ OPTIONS = {
     , 'simulate': True
     , 'template': True
     , 'solve': True
-    , 'graph': 2
+    , 'graph': 0
     , 'warm_start': False
-    , 'R_HOME': r'C:\Users\pchtsp\Downloads\R-Portable\App\R-Portable'
     # data
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
@@ -64,7 +63,7 @@ OPTIONS = {
     # heuristic params:
     , 'seed': 42
     , 'num_change': [0.8, 0.1, 0.1]
-    , 'temperature': 2
+    , 'temperature': 0.5
     , 'prob_free_aircraft': 0.1
     , 'prob_free_periods': 0.5
     , 'cooling': 0.999
@@ -85,7 +84,6 @@ OPTIONS = {
     , 'price_rut_end': 0
     , 'solver_add_opts': params_cplex
     , 'fix_start': False
-    # TODO: this should go and be changed by capacity in each maintenance
     , 'default_type2_capacity': 66
     # simulation params:
     , 'simulation': {
@@ -162,11 +160,3 @@ OPTIONS = {
         }
     }
 }
-
-# TODO: grouping improves capacity
-
-# white_list = ['O1', 'O5']
-# black_list = []
-# black_list = ['O10', 'O8', 'O6']
-# black_list = ['O8']  # this task has less candidates than what it asks.
-

@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import data.data_input as di
+import data.template_data as dt
 import package.solution as sol
 import package.instance as inst
 import pytups.tuplist as tl
@@ -33,6 +34,15 @@ class Experiment(object):
         solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
 
+    @classmethod
+    def from_template_dir(cls, path, format='xlsx', prefix="template_"):
+        files = file_in, file_out = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
+        if not np.all([os.path.exists(f) for f in files]):
+            return None
+        instance = dt.import_input_template(file_in)
+        solution = dt.import_output_template(file_out)
+        return cls(inst.Instance(instance), sol.Solution(solution))
+
     def check_solution_count(self, **params):
         return self.check_solution(**params).to_lendict()
 
@@ -47,7 +57,7 @@ class Experiment(object):
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
-            ,'dist_maints': self.check_min_distance_maints
+            # ,'dist_maints': self.check_min_distance_maints
             ,'capacity': self.check_sub_maintenance_capacity
             ,'maint_size': self.check_maints_size
         }
@@ -274,7 +284,8 @@ class Experiment(object):
         :return:
         """
         maints = self.instance.get_maintenances()
-        return {m: self.set_remaining_usage_time(time=time, maint=m, resource=resource) for m in maints}
+        return {m: self.set_remaining_usage_time(time=time, maint=m, resource=resource)
+                for m in maints if time in self.instance.get_maint_rt(m)}
 
     def set_remaining_usage_time(self, time="rut", maint='M', resource=None):
         """
@@ -333,7 +344,7 @@ class Experiment(object):
             rt_maint = self.solution.data['aux'][time]
 
         return sd.SuperDict(rt_maint).to_dictup().\
-            clean(func=lambda x: x is not None and x < 0)
+            clean(func=lambda x: x is not None and x <= 0)
 
     def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
@@ -602,10 +613,9 @@ class Experiment(object):
         if 'start' not in data['aux']:
             self.set_start_periods()
         data_maints = self.instance.get_maintenances()
-        _rut = {m: data['aux']['rut'][m].get(candidate, {}) for m in data_maints}
+        _rut = {m: data['aux']['rut'][m].get(candidate, {}) for m in self.instance.get_rt_maints('rut')}
         rut = pd.DataFrame.from_dict(_rut)
-        # rut = pd.DataFrame.from_dict(data['aux']['rut']['M'].get(candidate, {}), orient='index')
-        _ret = {m: data['aux']['ret'][m].get(candidate, {}) for m in data_maints}
+        _ret = {m: data['aux']['ret'][m].get(candidate, {}) for m in self.instance.get_rt_maints('ret')}
         ret = pd.DataFrame.from_dict(_ret)
         # ret = pd.DataFrame.from_dict(data['aux']['ret']['M'].get(candidate, {}), orient='index')
         start = pd.DataFrame.from_dict(data['aux']['start'].get(candidate, {}), orient='index')
