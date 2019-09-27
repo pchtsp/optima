@@ -2,21 +2,17 @@ import os, sys
 import subprocess
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-import package.auxiliar as aux
 import data.data_input as di
 import data.data_dga as dga
-import package.instance as inst
-import package.solution as sol
-import solvers.model as md
-import package.experiment as exp
-import solvers.heuristics as heur
-import solvers.heuristics_maintfirst as mf
-import package.simulation as sim
 import data.template_data as td
 
+import package.auxiliar as aux
+import package.instance as inst
+import package.solution as sol
+import package.experiment as exp
+import package.simulation as sim
 
 def config_and_solve(options):
-
     # options = params.OPTIONS
     if options.get('simulate', False):
         model_data = sim.create_dataset(options)
@@ -76,16 +72,21 @@ def execute_solve(model_data, options, solution_data=None):
     if solver == 'CPO':
         raise("The CPO model is not supported for the time being")
     if solver == 'HEUR':
+        import solvers.heuristics as heur
         experiment = heur.GreedyByMission(instance, solution=solution)
     elif solver == 'HEUR_mf':
+        import solvers.heuristics_maintfirst as mf
         experiment = mf.MaintenanceFirst(instance, solution=solution)
     elif solver == 'HEUR_mf_CPLEX':
+        import solvers.model as md
+        import solvers.heuristics_maintfirst as mf
         experiment = mf.MaintenanceFirst(instance, solution=solution)
         solution = experiment.solve(options)
         experiment = md.Model(instance, solution=solution)
         options.update(dict(warm_start= True, solver='CPLEX'))
     else:
         # model with solver
+        import solvers.model as md
         experiment = md.Model(instance, solution=solution)
 
     if options.get('solve', True):
