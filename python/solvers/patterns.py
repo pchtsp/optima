@@ -4,6 +4,7 @@ import ujson as json
 
 
 class Node(object):
+
     """
     corresponds to a combination of: a period t, a maintenance m, and the remaining rets and ruts for all maintenances
     """
@@ -24,8 +25,8 @@ class Node(object):
         self.period = period
         self.resource = resource
         self.maint_data = instance.data['maintenances']
-
-        pass
+        self.hash = hash(json.dumps(self.get_data(), sort_keys=True))
+        return
 
     def __repr__(self):
         return repr('{} => {}'.format(self.period, self.maint))
@@ -57,10 +58,6 @@ class Node(object):
                 opts_ret[m] = _range
                 opts_ret[m] = set(opts_ret[m])
 
-        # max_opts = min(opts_ret.vapply(lambda m: m[-1] + 1).values())
-        # opts_ret = opts_ret.vapply(lambda v: range(v[0], max_opts))
-        num_periods = self.dif_period(last)
-        consumption = self.instance.get_param('min_usage_period')
         acc_cons = 0
         maints_rut = self.get_maints_ruts()
         opts_rut = sd.SuperDict.from_dict({m: set() for m in maints_rut})
@@ -70,9 +67,8 @@ class Node(object):
         # duration_past_maint = data_m.get_m(self.maint, 'duration_periods')
         # if duration_past_maint is None:
             # duration_past_maint = 0
-        for num in range(num_periods):
-            # TODO: handle individual consumption
-            acc_cons += consumption
+        for num, period in enumerate(self.iter_until_period(last)):
+            acc_cons += self.get_consume(period)
             for m in maints_rut:
                 rut_future = self.rut[m] - acc_cons
                 if rut_future < 0:
@@ -127,9 +123,7 @@ class Node(object):
         #     self.rut.\
         #     filter(m_not_affect, check=False).\
         #     clean(func=lambda m: m is not None)
-        # TODO: handle individual consumption
-        consumption = self.instance.get_param('min_usage_period')
-        total_consumption = sum(consumption for p in self.iter_until_period(period))
+        total_consumption = sum(self.get_consume(p) for p in self.iter_until_period(period))
         # duration_past_maint = self.maint_data.get_m(self.maint, 'duration_periods')
         # if duration_past_maint is None:
         #     duration_past_maint = 0
@@ -150,8 +144,7 @@ class Node(object):
         for m in m_affects:
             rut[m] = self.maint_data[m]['max_used_time']
             duration = self.maint_data.get_m(maint, 'duration_periods')
-            # TODO: handle individual consumption
-            fake_consumption = sum(consumption for p in range(duration))
+            fake_consumption = sum(self.get_consume(p) for p in range(duration))
             rut[m] += fake_consumption
 
         return rut
@@ -192,6 +185,9 @@ class Node(object):
     def dif_period(self, period):
         return self.instance.get_dist_periods(self.period, period)
 
+    def get_consume(self, period):
+        return self.instance.get_default_consumption(self.resource, period)
+
     def iter_until_period(self, period):
         current = self.period
         while current < period:
@@ -211,57 +207,80 @@ class Node(object):
         return Node(period=period, maint=maint, rut=rut, ret=ret, **defaults)
 
     def get_data(self):
-        return {'ret': self.ret, 'rut': self.rut, 'maint': self.maint, 'period': self.period}
+        return sd.SuperDict.from_dict({'ret': self.ret, 'rut': self.rut,
+                                       'maint': self.maint, 'period': self.period})
 
     def __hash__(self):
-        return hash(json.dumps(self.get_data(), sort_keys=True))
+        return self.hash
+
+    def __eq__(self, other):
+        data1 = self.get_data().to_dictup().to_tuplist().to_set()
+        data2 = other.get_data().to_dictup().to_tuplist().to_set()
+        dif = data1 ^ data2
+        return len(dif) == 0
+
+
+def walk_over_nodes(node, get_nodes_only=False):
+    remaining_nodes = [(node, [])]
+    # we store the neighbors of visited nodes, not to recalculate them
+    cache_neighbors = {}
+    i = 0
+    final_paths = []
+    # this code gets all combinations
+    while len(remaining_nodes) and i < 10000000:
+        i += 1
+        node, path = remaining_nodes.pop()
+        # we need to make a copy of the path
+        path = path + [node]
+        neighbors = cache_neighbors.get(node)
+        if neighbors is None:
+            cache_neighbors[node] = neighbors = node.get_adjacency_list()
+        elif get_nodes_only:
+            continue
+        if not len(neighbors):
+            final_paths.append(path)
+        remaining_nodes += [(n, path) for n in neighbors]
+        print("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
+    if cache_neighbors:
+        return cache_neighbors
+    return final_paths
+
+
+def resource_to_node(instance, resource):
+    instance.data = sd.SuperDict.from_dict(instance.data)
+    start = instance.get_param('start')
+    period = instance.get_prev_period(start)
+    resources = instance.get_resources()
+
+    maints = instance.get_maintenances()
+    rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
+    ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
+    return Node(instance, resource, period, ret, rut, None)
+
+
+# def adjacency_to_graph(adjacency):
+
+
 
 
 if __name__ == '__main__':
     import package.params as params
     import data.template_data as td
     path = params.PATHS['data'] + 'template/201903120540/template_in.xlsx'
-
     data_in = td.import_input_template(path)
+
+    import data.test_data as test_d
+    def temp():
+        from importlib import reload
+        reload(test_d)
+    data_in = test_d.dataset1()
+
     instance = inst.Instance(data_in)
-    instance.data = sd.SuperDict.from_dict(instance.data)
-    start = instance.get_param('start')
-    period = instance.get_prev_period(start)
-    resources = instance.get_resources()
-    res = resources.keys_l()[10]
-    maints = instance.get_maintenances()
-    rut = maints.kapply(lambda m: resources[res]['initial'][m]['used']).clean(func=lambda v: v)
-    ret = maints.kapply(lambda m: resources[res]['initial'][m]['elapsed']).clean(func=lambda v: v)
-
-    self = Node(instance, res, period, ret, rut, None)
-    # graph = {}
-    # graph = {(self, n) for n in neighbors}
-    # a graph is a dictionary of pairs of nodes.
-
-    # remaining_nodes is a list of tuples (node, path_until_node)
-    remaining_nodes = [(self, [])]
-    current = self
-    i = 0
-    # end_nodes = []
-    final_paths = []
-    while len(remaining_nodes) and i < 10000000:
-        # ttt = ''
-        node, path = remaining_nodes.pop()
-        # we need to make a copy
-        path = path + [node]
-        neighbors = node.get_adjacency_list()
-        # print('node={}\nrut = {}\nret={}\n'.format(node, node.rut, node.ret))
-        # for neighbor in neighbors:
-        #     graph[(node, neighbor)] = 1
-        if not len(neighbors):
-            final_paths.append(path)
-            # end_nodes.append(node)
-            # ttt = '****'
-        # print('current node: {}, remaining: {} {}'.format(node, len(remaining_nodes), ttt))
-        remaining_nodes += [(n, path) for n in neighbors]
-        print("iteration: {}, remaining: {}".format(i, len(remaining_nodes)))
-        i += 1
-
+    res = instance.get_resources().keys_l()[0]
+    node = resource_to_node(instance, res)
+    final_paths = walk_over_nodes(node)
+    all_nodes = walk_over_nodes(node, get_nodes_only=True)
+    len(all_nodes)
     # print(len(graph))
     # print(len(end_nodes))
     print(len(final_paths))
@@ -269,3 +288,4 @@ if __name__ == '__main__':
     # print(len(unique_data))
     print(final_paths[0])
     print(final_paths[-1])
+    # print(final_paths)

@@ -25,7 +25,7 @@ def empty_data():
         'tasks': {
             task: {
                 'start': '2018-01'
-                , 'end': '2018-01'
+                , 'num_period': 0
                 , 'consumption': 0
                 , 'num_resource': 0
                 , 'type_resource': 0

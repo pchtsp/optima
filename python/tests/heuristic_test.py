@@ -14,12 +14,7 @@ class TestHeuristic(unittest.TestCase):
 
     # def solve_example(self):
     #     exec.execute_solve(model_data, options)
-    def test_move_maintenance(self):
-        model_data = {'resources': {'1': {}},
-                      'maintenances': {'VS': {}, 'M': {}},
-                      'taks': {},
-                      'maint_types': {'1': {}, '2': {}}
-                      }
+    def dataset1(self):
         pass
 
 if __name__ == "__main__":
