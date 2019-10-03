@@ -21,8 +21,7 @@ class Solution(object):
     def __init__(self, solution):
         data_default = {'state_m': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
         self.data = sd.SuperDict.from_dict(data_default)
-        self.data.update(solution)
-        # self.data['aux'] = sd.SuperDict()
+        self.data.update(sd.SuperDict.from_dict(solution))
 
     def get_category(self, category, param):
         if param is None:

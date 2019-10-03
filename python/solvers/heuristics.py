@@ -83,7 +83,7 @@ class GreedyByMission(test.Experiment):
     def initialize_resource_states(self, resource):
         """
         Assign fixed states, and calculate ret and rut for resource
-        :param resource:
+        :param str resource:
         :return:
         """
 
@@ -107,6 +107,14 @@ class GreedyByMission(test.Experiment):
         return
 
     def find_assign_task(self, resource, start, end, task):
+        """
+
+        :param str resource:
+        :param str start: period
+        :param str end: period
+        :param str task:
+        :return:
+        """
         periods_to_assign = self.check_assign_task(resource, self.instance.get_periods_range(start, end), task)
         info = self.instance.data['tasks'][task]
         min_asign = info['min_assign']
@@ -144,7 +152,7 @@ class GreedyByMission(test.Experiment):
         self.update_time_usage_all(resource, periods=periods_to_update, time='rut')
         return last_period_to_assign
 
-    def find_assign_maintenance(self, resource, maint_need, max_period=None, which_maint='soonest', maint='M'):
+    def get_and_assign_maintenance(self, resource, maint_need, max_period=None, which_maint='soonest', maint='M'):
         """
         Tries to find the soonest maintenance in the planning horizon
         for a given resource.
@@ -157,10 +165,6 @@ class GreedyByMission(test.Experiment):
         # a[a.period>= periods_maint[0]][:8]
         if max_period is None:
             max_period = self.instance.get_param('end')
-        horizon_end = self.instance.get_param('end')
-        maint_data = self.instance.data['maintenances'][maint]
-        affected_maints = maint_data['affects']
-        duration = maint_data['duration_periods']
         maint_start = None
         if which_maint == 'latest':
             raise NameError('not implemented')
@@ -175,33 +179,16 @@ class GreedyByMission(test.Experiment):
             log.debug("{} has no candidate for maint {}".
                       format(resource, maint))
             return False
-        maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
-        periods_maint = self.instance.get_periods_range(maint_start, maint_end)
-        log.debug("{} gets {} maint: {} -> {}".
-                  format(resource, maint, maint_start, maint_end))
-        self.set_state_and_clean(resource, maint, periods_maint)
-        for m in affected_maints:
-            self.update_time_maint(resource, periods_maint, time='ret', maint=m)
-            self.update_time_maint(resource, periods_maint, time='rut', maint=m)
-        # it doesn't make sense to assign a maintenance after a maintenance
-        if maint_end == self.instance.get_param('end'):
-            # we assigned the last day to maintenance:
-            # there is nothing to update.
-            return True
-        start_update_rt = self.instance.get_next_period(maint_end)
-        for m in affected_maints:
-            for time in self.instance.get_maint_rt(m):
-                self.update_rt_until_next_maint(resource, start_update_rt, m, time)
-        return True
+        return self.assign_maintenance(resource, maint, maint_start)
 
     def update_rt_until_next_maint(self, resource, start_update_rt, maint, time):
         """
         finds next maintenance compatible with the provided maint and
         updates remaining time until the next maintenance
-        :param resource:
-        :param start_update_rt: start the search for next maintenance.
-        :param maint: maintenance type
-        :param time: rut or ret
+        :param str resource:
+        :param str start_update_rt: start the search for next maintenance.
+        :param str maint: maintenance type
+        :param str time: rut or ret
         :return: updated periods
         """
         horizon_end = self.instance.get_param('end')
@@ -221,9 +208,9 @@ class GreedyByMission(test.Experiment):
         Calculates the amount of periods it's possible to assign
         a given task to a resource.
         Based on the usage status of the resource.
-        :param resource: candidate to assign a task
-        :param periods: periods to try to assign the task
-        :param task: task to assign to resource
+        :param str resource: candidate to assign a task
+        :param list periods: periods to try to assign the task
+        :param str task: task to assign to resource
         :return: subset of continuous periods to assign to the resource
         """
         min_usage = self.instance.get_param('min_usage_period')
@@ -288,9 +275,9 @@ class GreedyByMission(test.Experiment):
     def get_random_maint(self, resource, min_period, max_period, maint='M'):
         """
         Finds a random maintenance from all possible assignments in range
-        :param resource: resource (code) to search for maintenance
-        :param min_period: period (month) to start searching for start of maintenance
-        :param max_period: period (month) to end searching for start of maintenance
+        :param str resource: resource (code) to search for maintenance
+        :param str min_period: period (month) to start searching for start of maintenance
+        :param str max_period: period (month) to end searching for start of maintenance
         :return: period (month) or none
         """
         last_period = self.instance.get_param('end')
@@ -319,10 +306,42 @@ class GreedyByMission(test.Experiment):
         start = np.random.choice(a=maint_options, p=probs)
         return start
 
+    def assign_maintenance(self, resource, maint, maint_start):
+        """
+
+        :param resource: resource to assign check
+        :param maint: maintenance to assign check
+        :param maint_start: the start period for the check
+        :return: True
+        """
+        horizon_end = self.instance.get_param('end')
+        maint_data = self.instance.data['maintenances'][maint]
+        affected_maints = maint_data['affects']
+        duration = maint_data['duration_periods']
+        maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
+        periods_maint = self.instance.get_periods_range(maint_start, maint_end)
+        log.debug("{} gets {} maint: {} -> {}".
+                  format(resource, maint, maint_start, maint_end))
+        self.set_state_and_clean(resource, maint, periods_maint)
+        for m in affected_maints:
+            self.update_time_maint(resource, periods_maint, time='ret', maint=m)
+            self.update_time_maint(resource, periods_maint, time='rut', maint=m)
+        # it doesn't make sense to assign a maintenance after a maintenance
+        if maint_end == self.instance.get_param('end'):
+            # we assigned the last day to maintenance:
+            # there is nothing to update.
+            return True
+        start_update_rt = self.instance.get_next_period(maint_end)
+        for m in affected_maints:
+            for time in self.instance.get_maint_rt(m):
+                self.update_rt_until_next_maint(resource, start_update_rt, m, time)
+        return True
+
+
     def get_free_periods_resource(self, resource):
         """
         Finds the list of periods (month) that the resource is available.
-        :param resource: resource code
+        :param str resource: resource code
         :return: periods (month)
         """
         # resource = "A100
@@ -340,18 +359,13 @@ class GreedyByMission(test.Experiment):
         if len(states):
             periods_maint, maints = zip(*states)
             periods_maint = np.asarray(periods_maint, dtype = dtype_date)
-            # _maints = [d.keys() for d in maints]
             filt = ['M' in d.keys() for d in maints]
-            # filt = np.any(_maints=='M', axis=1)
             periods_maint = periods_maint[filt]
         periods_task = np.fromiter(self.solution.data['task'].get(resource, {}), dtype=dtype_date)
-        # a = np.fromiter(, dtype=np.dtype('U7,U4'))
-        # filter = np.asarray(['M'])
-        # a = a[np.in1d(a[:, 1], filter)][:,]
+
         return list(periods_maint) + list(periods_task)
 
     def get_free_starts(self, resource, periods):
-        # dtype = 'U7'
         candidate_periods = \
             np.intersect1d(
             periods,

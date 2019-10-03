@@ -16,23 +16,23 @@ import pandas as pd
 
 class MaintenanceFirst(heur.GreedyByMission):
 
+    status_worse = {2, 3}
+    status_accept = {0, 1, 2}
+
     def __init__(self, instance, solution=None):
 
         super().__init__(instance, solution)
 
         pass
 
-    def get_solution(self):
-        data = self.solution.data
-        data_copy = ujson.loads(ujson.dumps(data))
-        return sd.SuperDict.from_dict(data_copy)
-
-    def set_solution(self, data):
-        data = ujson.loads(ujson.dumps(data))
-        self.solution.data = sd.SuperDict.from_dict(data)
-        return True
-
     def get_objective_function(self, error_cat=None):
+        """
+        Calculates the objective function for the current solution.
+
+        :param sd.SuperDict error_cat: possibility to take a cache of errors
+        :return: objective function
+        :rtype: int
+        """
         if error_cat is None:
             error_cat = self.check_solution().to_lendict()
         num_errors = sum(error_cat.values())
@@ -41,15 +41,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         num_errors += sum(num_periods_maint)/10
         return num_errors
 
-    def solve(self, options):
-        self.options = options
-        seed = options.get('seed')
-        if not seed:
-            seed = rn.random()*10000
-            options['seed'] = seed
-        rn.seed(int(seed))
-        np.random.seed(int(seed))
-
+    @staticmethod
+    def set_log_config(options):
         level = log.INFO
         if options.get('debug', False):
             level = log.DEBUG
@@ -79,24 +72,53 @@ class MaintenanceFirst(heur.GreedyByMission):
             _log.handlers.append(custom_handler)
 
         _log.setLevel(level)
-        max_iters = options.get('max_iters', 99999999)
-        max_time = options.get('timeLimit', 600)
-        cooling = options.get('cooling', 0.995)
-        num_change_probs = options.get('num_change', [1])
-        num_change_pos = [n + 1 for n, _ in enumerate(num_change_probs)]
-        i = 0
+
+    def initialise_solution_stats(self):
         self.previous_solution = self.best_solution = self.solution.data
         errs = self.check_solution()
         error_cat = errs.to_lendict()
         self.prev_objective = self.get_objective_function(error_cat)
         self.best_objective = self.prev_objective
-        self.temperature = self.options.get('temperature', 1)
-        status_worse = {2, 3}
-        status_accept = {0, 1, 2}
+
+    def initialise_seed(self, options):
+        seed = options.get('seed')
+        if not seed:
+            seed = rn.random()*10000
+            options['seed'] = seed
+        rn.seed(int(seed))
+        np.random.seed(int(seed))
+
+    def solve(self, options):
+        """
+        Solves an instance using the metaheuristic.
+
+        :param options: dictionary with options
+        :return: solution to the planning problem
+        :rtype: sol.Solution
+        """
+
+        self.options = options
+
+        # extract all config from options
+        max_iters = options.get('max_iters', 99999999)
+        max_time = options.get('timeLimit', 600)
+        cooling = options.get('cooling', 0.995)
+        num_change_probs = options.get('num_change', [1])
+        temperature = options.get('temperature', 1)
+        num_change_pos = [n + 1 for n, _ in enumerate(num_change_probs)]
+
+        # initialise logging, seed and solution status
+        self.set_log_config(options)
+        self.initialise_solution_stats()
+        self.initialise_seed(options)
+
         time_init = time.time()
         maints = self.instance.get_maintenances('priority')
+
         # M maintenances should always be first
         maints, priori = zip(*sorted(maints.items(), key=lambda x: x[1]))
+
+        i = 0
         while True:
             # 1. assign maints for all aircraft around horizon limits
             for m in maints:
@@ -109,7 +131,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             self.over_assign_missions()
 
             # check quality of solution, store best.
-            status, errors = self.analyze_solution(status_accept)
+            status, errors = self.analyze_solution(temperature)
             error_cat = errors.to_lendict()
             num_errors = sum(error_cat.values())
             objective = self.get_objective_function(error_cat)
@@ -126,13 +148,13 @@ class MaintenanceFirst(heur.GreedyByMission):
                 objective = self.prev_objective = self.best_objective
                 log.info('back to best solution: {}'.format(self.best_objective))
 
-            if status in status_worse:
-                self.temperature *= cooling
+            if status in self.status_worse:
+                temperature *= cooling
             clock = time.time()
             time_now = clock - time_init
 
             log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
-                     format(round(time_now), i, round(self.temperature, 4), objective, self.best_objective, num_errors))
+                     format(round(time_now), i, round(temperature, 4), objective, self.best_objective, num_errors))
             i += 1
 
             if not self.best_objective or i >= max_iters or time_now > max_time:
@@ -140,22 +162,15 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         return sol.Solution(self.best_solution)
 
-    def check_consistency(self):
-        b = set(self.check_solution(recalculate=False).to_dictdict().to_dictup().to_tuplist())
-        a = set(self.check_solution(recalculate=True).to_dictdict().to_dictup().to_tuplist())
-        return a - b
-
-    def get_inconsistency(self):
-        b = self.solution.data['aux'].to_dictup().to_tuplist().to_set()
-        self.check_solution()
-        a = self.solution.data['aux'].to_dictup().to_tuplist().to_set()
-        return a ^ b
-
-
-    def analyze_solution(self, status_accept):
+    def analyze_solution(self, temperature):
         """
+        Compares solution quality with previous and best.
+        Updates the previous solution (always).
+        Updates the current solution based on acceptance criteria (Simulated Annealing)
+        Updates the best solution when relevant.
 
-        :return: (status, errors)
+        :return: (status int, error dictionary)
+        :rtype: tuple
         """
         # This commented function validates if I'm updating correctly rut and ret.
         # self.check_consistency()
@@ -174,7 +189,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             # solution worse than previous
             status = 3
             if self.previous_solution and rn.random() > \
-                    math.exp((self.prev_objective - objective) / self.temperature / 50):
+                    math.exp((self.prev_objective - objective) / temperature / 50):
                 # we were unlucky: we go back to the previous solution
                 status = 2
                 self.set_solution(self.previous_solution)
@@ -190,12 +205,19 @@ class MaintenanceFirst(heur.GreedyByMission):
                 self.best_objective = objective
                 log.info('best solution found: {}'.format(objective))
                 self.best_solution = self.get_solution()
-        if status in status_accept:
+        if status in self.status_accept:
             self.previous_solution = self.get_solution()
             self.prev_objective = objective
         return status, errs
 
     def get_candidates(self, errors, k=5):
+        """
+        Samples candidates from many sources (mainly errors) from the current solution.
+
+        :param sd.SuperDict errors: dictionary with all errors.
+        :param int k: maximum number of candidates to choose
+        :return: chosen candidates
+        """
         candidates_tasks = self.get_candidates_tasks(errors)
         candidates_maints = self.get_candidates_maints(errors)
         candidates_cluster = self.get_candidates_cluster(errors)
@@ -204,9 +226,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         candidates_min_assign = self.get_candidates_min_max_assign(errors)
         candidates_rut = self.get_candidates_rut(errors)
         candidates_merge = self.get_candidates_merge_consecutive()
-        more_candidates_merge = []
-        # if rn.random() > 0.7:
-        more_candidates_merge = self.get_candidates_merge_non_consecutive_2()
+        more_candidates_merge = self.get_candidates_merge_non_consecutive()
 
         candidates = candidates_tasks + candidates_maints + \
                      candidates_cluster + candidates_dist_maints + \
@@ -229,6 +249,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         return candidates_n
 
     def get_candidates_cluster(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return []
@@ -237,23 +261,43 @@ class MaintenanceFirst(heur.GreedyByMission):
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
     def get_candidates_tasks(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         tasks_probs = errors.get('resources', sd.SuperDict()).to_tuplist()
         t_cand = self.instance.get_task_candidates()
         candidates_to_change = [(rn.choice(t_cand[t]), d) for (t, d, n) in tasks_probs]
         return candidates_to_change
 
     def get_candidates_min_max_assign(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         return errors.get('min_assign', sd.SuperDict()).to_tuplist().filter([0, 1])
 
     def get_candidates_dist_maints(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         bad_maints = errors.get('dist_maints', sd.SuperDict())
         return [(r, t) for m, r, t1, t2 in bad_maints for t in [t1, t2]]
 
     def get_candidates_size_maints(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         bad_maints = errors.get('maint_size', sd.SuperDict())
         return bad_maints.keys_l()
 
     def get_candidates_maints(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         maints_probs = errors.get('elapsed', sd.SuperDict())
         if not len(maints_probs):
             return []
@@ -280,6 +324,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         return candidates
 
     def get_candidates_merge_consecutive(self):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         next = self.instance.get_next_period
         data = self.solution.data['state_m']
         def consec_list(_list):
@@ -299,11 +347,13 @@ class MaintenanceFirst(heur.GreedyByMission):
             vapply(consec_list).\
             to_tuplist()
 
-    def get_candidates_merge_non_consecutive_2(self):
+    def get_candidates_merge_non_consecutive(self):
         """
         1. We get maintenances that do not depend on calendar (ret).
         1. If they are alone in the planning horizon, they are a candidate.
-        :return:
+
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
         """
         data = self.solution.data['state_m']
         max_elapsed = self.instance.get_maintenances('max_elapsed_time')
@@ -317,77 +367,6 @@ class MaintenanceFirst(heur.GreedyByMission):
             clean(func=lambda v: v[0] in maints_no_elapsed)
         return tl.TupList(result)
 
-    def get_candidates_merge_non_consecutive(self):
-        """
-        1. We get maintenances that do not depend on calendar (ret).
-        2. We get their equivalent in periods using instant consumption
-        3. We search for that number of periods around that maintenance
-        for other maintenances and if their exist, put both as candidate.
-        :return:
-        """
-        data = self.solution.data['state_m']
-        max_elapsed = self.instance.get_maintenances('max_elapsed_time')
-        max_elapsed = max_elapsed.clean(func=lambda v: v is None)
-        used_size = self.instance.get_maintenances('used_time_size')
-        maints_no_elapse = max_elapsed.keys()
-        # max_used.filter(list(maints_no_elapse))
-        func_hours = lambda r, p: self.get_consumption_individual(r, p, time='rut')
-        next_periods = self.instance.get_next_periods
-        get_periods_around = lambda p, num: next_periods(p, num, True) + \
-                                            next_periods(p, num)
-        data_tuplist = \
-            tl.TupList(data.to_dictup()).\
-                to_df(columns=['resource', 'period', 'maint'])
-        _agg = data_tuplist.groupby(['resource', 'period']).\
-            agg('count').reset_index().rename(columns=dict(maint='num'))
-        data_tuplist = data_tuplist.merge(_agg, on=['resource', 'period'])
-        dts = data_tuplist[data_tuplist.maint.isin(maints_no_elapse)].reset_index(drop=True)
-        if not len(dts):
-            # no visits without elapsed (VS), no candidates to move
-            return []
-        dts['amount'] = \
-            dts.maint.map(used_size) / \
-            dts[['resource', 'period']].\
-                apply(lambda x: func_hours(*x), axis=1)/2
-        dts.loc[dts['amount'] == np.inf, 'amount'] = 5
-        dts['amount'] = dts['amount'].apply(math.floor)
-
-        dts['period2'] = \
-            dts[['period', 'amount']]. \
-            apply(lambda x: get_periods_around(*x), axis=1)
-
-        maints = \
-            dts['period2'].\
-            apply(pd.Series).stack().reset_index().\
-            drop(['level_1'], axis=1).\
-            set_index('level_0').\
-            join(dts).\
-            drop(['period2'], axis=1).\
-            rename(columns={0: 'period2'}).\
-            drop_duplicates(['resource', 'period2']).\
-            query('period != period2')
-
-        data_tuplist_df = \
-            data_tuplist.\
-            rename(columns=dict(period='period2', num='num2')). \
-            drop_duplicates(['resource', 'period2']).\
-            merge(maints, on=['resource', 'period2'])
-
-        list1 = data_tuplist_df.copy()
-        list2 = data_tuplist_df.copy().drop('period', axis=1).rename(columns=dict(period2='period'))
-
-        # we make it unlikely to move groupes maintenances
-        if rn.random() < 0.7:
-            list1 = list1.query("num==1")
-            list2 = list2.query("num2==1")
-
-        data_tuplist_df = \
-            pd.concat([list1[['resource', 'period']],
-                   list2[['resource', 'period']]]).\
-            to_records(index=False)
-
-        return tl.TupList(data_tuplist_df)
-
     def get_candidates_rut(self, errors):
         ct = self.instance.compare_tups
         maints_probs_st = \
@@ -400,8 +379,9 @@ class MaintenanceFirst(heur.GreedyByMission):
     def get_random_periods(self, ref_period):
         """
         Given a reference date, a period around it is created
-        :param ref_period: period (month)
+        :param str ref_period: period (month)
         :return:
+        :rtype: list
         """
         inst = self.instance
         first_h, last_h = inst.get_param('start'), inst.get_param('end')
@@ -413,12 +393,15 @@ class MaintenanceFirst(heur.GreedyByMission):
 
     def get_start_maints_period(self, resource, periods, fixed_periods):
         """
-        gets the maintenance start period for the first maintenance that falls
-        inside "periods" for resource. That is not fixed
-        :param resource:
-        :param periods:
-        :param fixed_periods:
-        :return:
+        Gets the start period for the first non-fixed check that falls
+        inside `periods` and for `resource`, for each maintenance.
+        We assume that only one check for each maintenance is found in the given periods.
+
+        :param str resource: resource to look maintenances
+        :param list periods: periods where maintenance are looked for
+        :param list fixed_periods: list of tuples (resource, period) with fixed periods
+        :return: list of (period, maintenance).
+        :rtype: list
         """
         maint_duration = self.instance.get_maintenances('duration_periods')
         sol = self.solution
@@ -429,11 +412,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         # but we register them as "found" so as not to
         maint_starts = []
         found = set()
-        # This is commented while I test counting maintenances of more than 1 period
-        # first_period_states = sol.get_period_state(resource, periods[0], 'state_m')
-        # if first_period_states is not None:
-        #     for m in first_period_states:
-        #         found.add(m)
         # we check if maint starts at period
         period_0 = periods[0]
         for period in periods:
@@ -458,13 +436,13 @@ class MaintenanceFirst(heur.GreedyByMission):
 
     def free_resource(self, candidate):
         """
-        This function empties totally or partially the assignments
-        (maintenances, tasks) made to a resource.
-        :param candidate: a resource, date tuple
-        :return:
+        Empties totally or partially the assignments
+        (maintenances and tasks) for a resource around some period.
+
+        :param tuple candidate: a (resource, period) combination
+        :return: 1 if success, 0 if failure
+        :rtype: bool
         """
-        # a = self.get_status(candidate[0])
-        # a[:50]
         data = self.solution.data
         places = [
             data['state_m'],
@@ -500,6 +478,15 @@ class MaintenanceFirst(heur.GreedyByMission):
         return self.free_resource_periods(resource, periods)
 
     def free_periods(self, periods):
+        """
+        Takes a list of periods and removes all assignments (maintenances and tasks)
+        for all aircraft between those two periods.
+        Finally, updates aircraft status accordingly.
+
+        :param list periods: list of periods to liberate
+        :return: 1 if success, 0 if failure
+        :rtype: int
+        """
         if not periods:
             return 0
 
@@ -556,6 +543,16 @@ class MaintenanceFirst(heur.GreedyByMission):
         return 1
 
     def free_resource_periods(self, resource, periods):
+        """
+        Takes a list of periods and removes all assignments (maintenances and tasks)
+        for all aircraft between those two periods.
+        Finally, updates aircraft status accordingly.
+
+        :param str resource: resource to free
+        :param list periods: list of periods to free
+        :return: 1 if success, 0 if failure
+        :rtype: bool
+        """
         if not periods:
             return 0
 
@@ -602,7 +599,13 @@ class MaintenanceFirst(heur.GreedyByMission):
                 self.update_rt_until_next_maint(resource, first_period, m, t)
         return 1
 
-    def assign_missing_maints_to_aircraft(self, maint='M'):
+    def assign_missing_maints_to_aircraft(self, maint):
+        """
+        Iterates over all aircraft and assigns maintenances `maint` when missing.
+
+        :param maint: maintenance to assign checks
+        :return: None
+        """
         inst = self.instance
         first = inst.get_param('start')
         maint_data = inst.data['maintenances'][maint]
@@ -611,13 +614,16 @@ class MaintenanceFirst(heur.GreedyByMission):
         min_usage = inst.get_param('min_usage_period')
         if not min_usage:
             min_usage = 10
-        errors = []
+        errors = set()
         it = 0
+        # we're not supposed to reach 1000.
         while it < 1000:
             it += 1
             if max_ret:
                 remaining = self.get_remainingtime(time='ret', maint=maint)
             else:
+                # TODO: this is just a reference. Now this can vary according to the resource
+                # We should at least use the aircraft's default.
                 remaining = self.get_remainingtime(time='rut', maint=maint)
                 remaining_time_size = maint_data['used_time_size'] // min_usage
             maint_candidates = []
@@ -626,6 +632,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                     continue
                 for period, ret in info.items():
                     if ret > 0 or period < first:
+                        # if there's no need of maintenance we skip it
                         continue
                     # This tuple has three components:
                     # (resource, first month to assign maintenance, month with troubles)
@@ -636,19 +643,26 @@ class MaintenanceFirst(heur.GreedyByMission):
                     break
             if not len(maint_candidates):
                 break
+            # TODO: this could be shuffled?
             maint_candidates.sort(key=lambda x: len(inst.get_periods_range(x[1], x[2])))
             for resource, start, end in maint_candidates:
-                result = self.find_assign_maintenance(resource=resource,
-                                                      maint_need=start,
-                                                      max_period=end,
-                                                      which_maint='random',
-                                                      maint=maint)
+                result = self.get_and_assign_maintenance(resource=resource,
+                                                         maint_need=start,
+                                                         max_period=end,
+                                                         which_maint='random',
+                                                         maint=maint)
                 if not result:
                     # we failed, don't continue to try this resource
-                    errors.append(resource)
+                    errors.add(resource)
         return
 
     def over_assign_missions(self):
+        """
+        Finds violations on minimum assignments for missions
+        and corrects that by adding missions where needed.
+
+        :return: None
+        """
         min_assign_err = self.check_min_max_assignment()
         task_periods = self.instance.get_task_period_list(True)
         added = 0
@@ -683,15 +697,15 @@ class MaintenanceFirst(heur.GreedyByMission):
                 if added >= target:
                     break
 
-    def move_maintenance(self, resource, start, maint):
+    def move_maintenance(self, resource, start, maint, modif=None):
         """
-        we move a maintenance that starts at start to the left or right
-        :param resource:
-        :param start: start of maintenance
+        Moves a maintenance that starts at start to the left or right a number of periods.
+
+        :param str resource: resource to move maintenance
+        :param str start: start of maintenance to move
+        :param str maint: maintenance to move
         :return:
         """
-        # a = self.get_status(resource)
-        # a[a.period >= '2021-03'][:8]
         inst = self.instance
         first, last = [inst.get_param(p) for p in ['start', 'end']]
         maint_data = inst.data['maintenances'][maint]
@@ -706,7 +720,8 @@ class MaintenanceFirst(heur.GreedyByMission):
             _min = 0
             # _max = inst.get_param('num_period') * 2
         end = inst.shift_period(start, duration - 1)
-        modif = rn.randint(-math.ceil(duration/2), math.ceil(duration/2))
+        if modif is None:
+            modif = rn.randint(-math.ceil(duration/2), math.ceil(duration/2))
         ret = self.get_remainingtime(resource, start, 'ret', maint=maint)
         if ret is not None:
             new_ret = ret + modif
@@ -763,6 +778,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         return start
 
     def assign_missions(self):
+        """
+        Assigns all remaining missions to aircraft, if possible.
+        :return: None
+        """
         rem_resources = self.check_task_num_resources().to_dictdict()
         tasks = rem_resources.keys_l()
         rn.shuffle(tasks)

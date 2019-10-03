@@ -324,8 +324,11 @@ class Instance(object):
             return task_periods
         return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
 
+    def get_first_last_period(self):
+        return self.get_param('start'), self.get_param('end')
+
     def get_periods(self):
-        return self.get_periods_range(self.get_param('start'), self.get_param('end'))
+        return self.get_periods_range(*self.get_first_last_period())
 
     def get_periods_range(self, start, end):
         pos_period = self.data['aux']['period_i']

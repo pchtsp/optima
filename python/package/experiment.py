@@ -11,6 +11,7 @@ import os
 import shutil
 import re
 import orloge as ol
+import ujson
 
 
 class Experiment(object):
@@ -57,7 +58,7 @@ class Experiment(object):
             ,'available':   self.check_min_available
             ,'hours':       self.check_min_flight_hours
             ,'start_periods': self.check_fixed_assignments
-            # ,'dist_maints': self.check_min_distance_maints
+            ,'dist_maints': self.check_min_distance_maints
             ,'capacity': self.check_sub_maintenance_capacity
             ,'maint_size': self.check_maints_size
         }
@@ -84,6 +85,7 @@ class Experiment(object):
         if not len(all_states_tuple):
             return []
 
+        # TODO: finish this
         # all_states_tuple_np = np.asarray(all_states_tuple)
         # a = all_states_tuple_np[:, 2]
         # periods_np = all_states_tuple_np[:, 1]
@@ -152,10 +154,10 @@ class Experiment(object):
     def set_remainingtime(self, resource, period, time, value, maint='M'):
         """
         This procedure *updates* the remaining time in the aux property of the solution.
-        :param resource:
-        :param period:
-        :param time: ret or rut
-        :param value: remaining time
+        :param str resource:
+        :param str period:
+        :param str time: ret or rut
+        :param float value: remaining time
         :return: True
         """
         tup = [time, maint, resource, period]
@@ -476,71 +478,52 @@ class Experiment(object):
         result = error[['resource', 'start', 'value']].to_records(index=False)
         return tl.TupList(result).to_dict(result_col=2, is_list=False)
 
-    # @profile
-    # TODO: avoid pandas
     def check_min_distance_maints(self, **params):
-        """
-        checks if maintenances have the correct distance between them
-        :return:
-        """
         maints = self.instance.get_maintenances()
-        elapsed_time_size = maints.get_property('elapsed_time_size')
-        elapsed_time_size = {k: v if v is not None else 10000 for k, v in elapsed_time_size.items()}
+        elapsed_time_size = maints.get_property('elapsed_time_size').clean(func=lambda x: x is not None)
+        first, last = self.instance.get_first_last_period()
+        _next = self.instance.get_next_period
+
+        def compare(tup, last_tup, pp):
+            return tup[0]!=last_tup[0] or tup[1]!=last_tup[1] or\
+                tup[3] > last_tup[3]
+
         rets = \
-            maints.\
-            kapply(lambda m: self.get_remainingtime(time='ret', maint=m)).\
-            to_dictup().to_tuplist()
+            elapsed_time_size.\
+            kapply(lambda m: self.get_remainingtime(time='ret', maint=m)).to_dictup()
 
-        maint_equiv = \
-            maints.get_property('affects').\
-            to_df(orient='index').stack().\
-            reset_index().\
-                rename(columns={'level_0': 'maint', 0: 'maint2'}).\
-                filter(['maint', 'maint2'])
+        # periods where there's been too short of a period between maints
+        ret_before_maint = \
+            rets.\
+            to_tuplist().sorted().\
+            to_start_finish(compare_tups=compare, sort=False, pp=2).\
+            filter_list_f(lambda x: x[4] < last).\
+            filter([0, 1, 2, 4]).\
+            to_dict(result_col=None).\
+            kapply(lambda k: (rets[k[0], k[1], k[3]], k[0])).\
+            clean(func=lambda v: v[0] > elapsed_time_size[v[1]]).\
+            vapply(lambda v: v[0])
 
-        def add_periods(series, series2):
-            return pd.Series(self.instance.shift_period(p, p2) for p, p2 in zip(series, series2))
-
-        rets_tab = pd.DataFrame(rets.to_list(), columns=['maint2', 'resource', 'before', 'rem'])
-
-        m_s_tab = pd.DataFrame.from_records(self.get_state_periods().to_list(),
-                                            columns=['resource', 'start', 'maint', 'end'])
-        m_s_tab = m_s_tab.merge(maint_equiv, on='maint')
-        m_s_tab.sort_values(['resource', 'maint2', 'start'], inplace=True)
-        maint_start_tab_agg = m_s_tab.groupby(['maint2', 'resource'])
-        m_s_tab['prev'] = maint_start_tab_agg.start.shift(1)
-        m_s_tab = m_s_tab[~pd.isna(m_s_tab.prev)].copy().reset_index()
-        m_s_tab['dif'] = - 1
-        m_s_tab['before'] = add_periods(m_s_tab.start, m_s_tab.dif)
-        m_s_tab = pd.merge(m_s_tab, rets_tab , on=['resource', 'maint2', 'before'])
-        m_s_tab = m_s_tab[~pd.isna(m_s_tab.rem)]
-        m_s_tab['max_size'] = m_s_tab.maint2.map(elapsed_time_size)
-        rets_bad_min = m_s_tab[m_s_tab.rem > m_s_tab.max_size].copy().reset_index()  # negative
-        rets_bad_min['error'] = rets_bad_min.max_size - rets_bad_min.rem
-        rets_bad_max = m_s_tab[m_s_tab.rem <= 0].copy().reset_index()  # positive
-        rets_bad_max['error'] = - rets_bad_max.rem
-        result = pd.concat([rets_bad_min, rets_bad_max])
-        result = result[['maint2', 'resource', 'start', 'prev', 'error']]
-
-        return tl.TupList(result.to_records(index=False)).\
-            to_dict(result_col=4, is_list=False)
+        # maybe filter resources when getting states:
+        ret_before_maint.keys_tl().filter(1).unique2()
+        states = self.get_states().to_dict(result_col=2, is_list=False)
+        # here we filter the errors to the ones that involve the same
+        # maintenance done twice.
+        return \
+            ret_before_maint.\
+            kapply(lambda k: (k[1], _next(k[3]))).\
+            vapply(lambda v: states.get(v)).\
+            to_tuplist().\
+            filter_list_f(lambda x: x[0] == x[4]).\
+            filter([0, 1, 2, 3]).\
+            to_dict(result_col=None).\
+            vapply(lambda v: ret_before_maint[v])
 
     def get_objective_function(self):
-        raise ValueError("This is no longer supported")
+        raise NotImplementedError("This is no longer supported")
 
     def get_kpis(self):
-        raise ValueError("This is no longer supported")
-        # rut = self.set_remaining_usage_time(time='rut')
-        # ret = self.set_remaining_usage_time(time='ret')
-        # end = self.instance.get_param('end')
-        # starts = self.get_maintenance_periods()
-        # return {
-        #     'unavail': max(self.solution.get_unavailable().values())
-        #     , 'maint': max(self.solution.get_in_maintenance().values())
-        #     , 'rut_end': sum(v[end] for v in rut.values())
-        #     , 'ret_end': sum(v[end] for v in ret.values())
-        #     , 'maintenances': len(starts)
-        # }
+        raise NotImplementedError("This is no longer supported")
 
     def export_solution(self, path, sheet_name='solution'):
         tasks = self.solution.get_tasks().to_dictup()
@@ -555,8 +538,9 @@ class Experiment(object):
 
     def get_states(self, resource=None):
         """
-        :param resource: optional filter
-        :return: (resource, period): state
+        :param str resource: optional filter
+        :return: (resource, period, state) list
+        :rtype: tl.TupList
         """
         # in the input data of the instance
         # (although for now this is the case)
@@ -569,8 +553,9 @@ class Experiment(object):
 
     def get_state_periods(self, resource=None):
         """
-        :param resource: optional filter
-        :return: (resource, start, end): state
+        :param str resource: optional filter
+        :return: (resource, start, end, state) list
+        :rtype: tl.TupList
         """
         all_states = self.get_states(resource)
         ct = self.instance.compare_tups
@@ -578,6 +563,12 @@ class Experiment(object):
         return all_states.to_start_finish(ct)
 
     def get_maintenance_periods(self, resource=None, state_list=None):
+        """
+        :param str resource: optional resource to filter
+        :param set state_list: maintenances to filter
+        :return:
+        :rtype: tl.TupList
+        """
         if state_list is None:
             state_list = set('M')
         all_states = self.get_states(resource)
@@ -629,6 +620,42 @@ class Experiment(object):
         list_names = names[~names].index
         table = table.filter(list_names)
         return table.reset_index().rename(columns={'index': 'period'})
+
+    def get_solution(self):
+        """
+        Makes a deep copy of the current solution.
+
+        :return: dictionary with data
+        :rtype: sd.SuperDict
+        """
+        data = self.solution.data
+        data_copy = ujson.loads(ujson.dumps(data))
+        return sd.SuperDict.from_dict(data_copy)
+
+    def set_solution(self, data):
+        """
+        Updates current solution with a new solution taken as argument.
+
+        :param sd.SuperDict data: dictionary with a solution's data
+        :return: True
+        :rtype: bool
+        """
+        data = ujson.loads(ujson.dumps(data))
+        self.solution.data = sd.SuperDict.from_dict(data)
+        return True
+
+    def get_inconsistency(self):
+        """
+        Checks that the status of aircraft are updated correctly when the solution
+        is modified.
+
+        :return: inconsistencies
+        :rtype: set
+        """
+        b = self.solution.data['aux'].to_dictup().to_tuplist().to_set()
+        self.check_solution()
+        a = self.solution.data['aux'].to_dictup().to_tuplist().to_set()
+        return a ^ b
 
 
 def clean_experiments(path, clean=True, regex=""):
