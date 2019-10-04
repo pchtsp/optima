@@ -1,7 +1,7 @@
 library(rmarkdown)
 # size <- 'medium'
 # options <- c('get_4_tasks_aggressive', 'get_1_tasks_maints', 'get_4_tasks', 'get_1_tasks')
-options <- c('get_2_tasks_aggresive', 'get_3_tasks_aggresive')
+options <- c('get_4_tasks_very_aggresive_percadd')
 format <- 'pdf'
 format <- 'html'
 for (size in options){
@@ -12,5 +12,3 @@ for (size in options){
                       output_format=sprintf('%s_document', format),
                       knit_root_dir=getwd())
 }
-
-    

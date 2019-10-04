@@ -1,146 +1,21 @@
-library(reticulate)
 library(tidyverse)
 library(knitr)
 library(magrittr)
 library(ggplot2)
 library(data.table)
 
-# setup
-get_compare_sto <- function(){
-    # sink()
-    # print('sdfsdfsq')
-    # browser()
-    use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
-    py_discover_config()
-    sysp = import('sys')
-    opt_path = ''
-    python_path <- '%s/%s../python/' %>% sprintf(getwd(), opt_path)
-    sysp$path <- c(python_path, sysp$path)
-    scripts_path = paste0(python_path, 'scripts')
-    compare_sto <- import_from_path('compare_stochastic', path=scripts_path)
-    compare_sto
-}
-
-get_1_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190725', 'IT000125_20190716')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_3_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190801')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_2_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190729')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_2') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_2_tasks_aggresive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190808', 'IT000125_20190729')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_2') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_3_tasks_aggresive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190808', 'IT000125_20190801')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_aggressive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190812', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_1_tasks_CBC <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190815', 'IT000125_20190827')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>%
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
+filter_all_exps <- function(table){
+    num <- table %>% distinct(experiment) %>% nrow
+    table %>% 
+        group_by(scenario, instance) %>% 
+        filter(n()==num) %>% 
+        ungroup
     
-}
-
-get_1_tasks_CBC_CPLEX <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190815', 'IT000125_20190827', 'IT000125_20190716')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    equiv <- list('cbc_cuts', 'cbc_base', 'cplex_base')
-    df_original %>% 
-        filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
-        mutate(experiment=equiv[experiment+1]) %>% 
-        filter_all_exps
-
-}
-
-get_1_tasks_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190725', 'IT000125_20190716', 'IT000125_20190913')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    equiv <- list('cuts', 'base', 'perc_add')
-    df_original %>% 
-        filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
-        mutate(experiment=equiv[experiment+1]) %>% 
-        filter_all_exps
-    
-}
-
-
-get_1_tasks_maints <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190829', 'IT000125_20190716')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_1' | scenario=='base') %>% 
-        filter_all_exps %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_maints <- function(){
-    # too many infeasibles
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190829', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        filter_all_exps %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
 }
 
 aux_compare <- function(raw_df){
     raw_df %>% 
-        gather(key='Indicator', value="value", -experiment) %>% 
+        gather(key='Indicator', value="value", -experiment, -scenario) %>% 
         spread(experiment, value) %>% 
         mutate(dif_abs = cuts - base,
                dif_perc = (dif_abs/ base*100) %>% round(2))
@@ -149,17 +24,20 @@ aux_compare <- function(raw_df){
 
 times_100_round <- function(value) value %>% multiply_by(100) %>% round(2)
 
-get_summary <- function(raw_df){
-
-    raw_df %>% 
+get_summary <- function(raw_df, compare=TRUE){
+    result <- 
+        raw_df %>% 
         mutate(sol_code = if_else(is.na(sol_code), 2, sol_code)) %>% 
-        group_by(experiment) %>%
+        group_by(scenario, experiment) %>%
         summarise(Infeasible = sum(sol_code==-1),
                   IntegerFeasible=sum(sol_code==2),
                   IntegerInfeasible=sum(sol_code==0),
                   Optimal=sum(sol_code==1),
-                  Total = n()) %>% 
-        aux_compare
+                  Total = n())
+    if (!compare){
+        return(result)
+    }
+    result %>% aux_compare
 }
 
 get_comparable_sets <- function(raw_df) {
@@ -197,33 +75,10 @@ get_quality_perf <- function(raw_df){
         mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round)
 }
 
-filter_all_exps <- function(table){
-    num <- table %>% distinct(experiment) %>% nrow
-    table %>% 
-        group_by(instance) %>% 
-        filter(n()==num) %>% 
-        ungroup
-        
-}
-
-# get_quality_perf_stats <- function(raw_df){
-    # quality_perf <- get_quality_perf(raw_df)
-    # 
-    # data.table(
-    #     
-    # )
-    # mean_dif <- quality_perf$dif_perc %>%  mean
-    # max_dif <- quality_perf$dif_perc %>% max
-    # min_dif <- quality_perf$dif_perc %>% min
-    # per_cut <- (sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)) %>% times_100_round
-    # med_dif <- quality_perf$dif_perc %>%  median
-    
-# }
-
 get_quality_degr <- function(raw_df){
     raw_df %>% 
         get_all_optimal %>% 
-        group_by(instance) %>%
+        group_by(scenario, instance) %>%
         mutate(min_value = min(best_solution),
                dist_min = best_solution - min_value,
                dist_min_perc = (best_solution - min_value)/abs(min_value)*100
@@ -233,11 +88,20 @@ get_quality_degr <- function(raw_df){
 get_time_perf_integer <- function(raw_df){
     raw_df %>% 
         get_all_integer %>% 
-        select(instance, experiment, time) %>% 
+        select(scenario, instance, experiment, time) %>% 
         spread(experiment, time) %>% 
         arrange(base) %>% 
         mutate(instance = row_number()) %>% 
-        gather(key = 'experiment',  value='time', -instance)
+        gather(key = 'experiment',  value='time', -instance, -scenario)
+}
+
+get_time_perf_integer_summ <- function(raw_df){
+    raw_df %>% 
+        get_time_perf_integer %>% 
+        group_by(scenario, experiment) %>% 
+        summarise(time_mean = mean(time), 
+                  time_medi = median(time)) %>% 
+        aux_compare
 }
 
 get_time_perf_integer_reorder <- function(raw_df){
@@ -251,8 +115,8 @@ get_time_perf_integer_reorder <- function(raw_df){
 get_time_perf_optim <- function(raw_df){
     raw_df %>% 
         get_all_optimal %>% 
-        select(experiment, instance, time) %>%
-        group_by(experiment) %>% 
+        select(scenario, experiment, instance, time) %>%
+        group_by(scenario, experiment) %>% 
         summarise(time_mean = mean(time), 
                   time_medi = median(time)) %>% 
         aux_compare
@@ -276,18 +140,85 @@ get_infeasible_stats <- function(raw_df){
                   Total = n()) %>% 
         gather(key='Status', 'number') %>% 
         filter(number>0)
-    
 }
 
-get_soft_constraints <- function(raw_df, quant_max){
-    raw_df %>% 
+get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
+    result <- 
+        raw_df %>% 
         get_all_optimal %>% 
         mutate(errors = replace_na(errors, 0)) %>% 
-        group_by(experiment) %>% 
+        group_by(scenario, experiment) %>% 
         summarise(errors_mean = mean(errors),
-                  errors_q95 = quantile(errors, quant_max)) %>% 
-        aux_compare
+                  errors_q95 = quantile(errors, quant_max))
+    if (!compare){
+        return(result)
+    }
+    result %>% aux_compare
 }
+
+get_mega_summary <- function(df){
+    # comparison table.
+    # for each experiment
+    # feasability:
+    # extra infeasible instances as percent of total
+    # extra soft constraints violations (avg, 95%)
+    # performance:
+    # extra feasible instances as percent of total
+    # time to solve: median, avg
+    # optimality:
+    # distance from integer: 
+    # distance from optimal: 
+    
+    
+    # feasibility
+    summary_stats <- get_summary(df, compare=FALSE)
+    errors_stats <- get_soft_constraints(df, 0.95, compare=FALSE)
+    feasibility <- 
+        summary_stats %>% 
+        mutate(InfPerc=(Infeasible/Total) %>% times_100_round) %>% 
+        select(experiment, InfPerc) %>% 
+        inner_join(errors_stats)
+    # performance
+    times <- get_time_perf_integer(df)
+    performance <- 
+        summary_stats %>% 
+        mutate(Feasible=((IntegerFeasible+Optimal)/Total) %>% times_100_round) %>% 
+        select(experiment, Feasible)
+    performance <- 
+        times %>% 
+        group_by(scenario, experiment) %>% 
+        summarise(time_mean = mean(time), 
+                  time_medi = median(time)) %>% 
+        inner_join(performance)
+    # optimality
+    optim_degr <- get_quality_degr(df)
+    optimality <- 
+        optim_degr %>% 
+        select(scenario, instance, experiment, dist_min_perc) %>% 
+        group_by(scenario, experiment) %>% 
+        summarise(q_mean= mean(dist_min_perc) %>% round(2),
+                  q_medi= median(dist_min_perc) %>% round(2),
+                  q_q95 = quantile(dist_min_perc, 0.95) %>% round(2))
+    comparison <- 
+        feasibility %>% 
+        inner_join(performance) %>%
+        inner_join(optimality) %>% 
+        aux_compare
+    
+    # dif_abs:
+    dif_abs <- data.table(Indicator=c('Feasible', 'InfPerc', 'q_mean', 'q_medi', 'q_q95'))
+    comp_dif_abs <- 
+        comparison %>% 
+        semi_join(dif_abs) %>% 
+        select(scenario, Indicator, dif=dif_abs)
+    
+    comparison %>% 
+        anti_join(dif_abs) %>% 
+        select(scenario, Indicator, dif=dif_perc) %>% 
+        bind_rows(comp_dif_abs) %>% 
+        spread(Indicator, dif)
+}
+
 
 if (FALSE){
 
