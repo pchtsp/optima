@@ -277,6 +277,8 @@ class Model(exp.Experiment):
             for t in types:
                 self.add_stochastic_cuts(model, start_M, _type=t, options=options)
 
+        if options.get('DetermCuts', False):
+            self.get_valid_cuts(model=model, start_M=start_M, start_T=start_T)
         # ##################################
         # SOLVING
         # ##################################
@@ -699,7 +701,6 @@ class Model(exp.Experiment):
 
         # first maintenance starts possibilities because of initial state of aircraft
         at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
-                    if ret_init[a] <= len(periods)
                     if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
                     ])
 
@@ -853,101 +854,124 @@ class Model(exp.Experiment):
         , 'vtt2_between_att': vtt2_between_att
         }
 
-    def get_valid_cuts(self):
+    def get_valid_cuts(self, model, start_M, start_T):
         l = self.domains
         if not len(l):
             raise ValueError('No domains are generated: aborting.')
-        # l = sd.SuperDict(l)
         resources = l['resources']
         periods = l['periods']
         att_maints_no_last = l['att_maints_no_last']
         first, last = self.instance.get_start_end()
+        U_min = self.instance.get_param('min_usage_period')
+        RftInit = self.instance.get_resources('initial_used')
+        M = self.instance.get_param('maint_duration')
+        maxH = self.instance.get_param('max_used_time')
+        _shift = self.instance.shift_period
+        _prev = self.instance.get_prev_period
 
         # 6.1 Accumulated checks per aircraft and period
         TM1_set = att_maints_no_last.to_dict(result_col=[1], indices=[0]).vapply(set)
-        TM1 = sd.SuperDict(min=TM1_set.vapply(min), max= TM1_set.vapply(max))
-        # TODO: take into account the default consumption U: start + rut/U for TM1_max
+        TM1 = sd.SuperDict(min=TM1_set.vapply(min),
+                           max=TM1_set.vapply(max))
+        if U_min:
+            _TM1_max = RftInit.vapply(lambda v: _shift(first, math.floor(v / U_min)))
+            TM1['max'] = TM1['max'].sapply(min, _TM1_max)
         TM2_set = att_maints_no_last.to_dict(result_col=[2], indices=[0]).vapply(set)
-        TM2 = sd.SuperDict(min=TM2_set.vapply(min), max=TM2_set.vapply(max))
-        # TODO: take into account the default consumption U: TM1_max + M + H / U for TM2_max
-        # TODO: check that:
-        # assert TM1_min => TM1_max
-        # assert TM2_min => TM2_max
+        TM2 = sd.SuperDict(min=TM2_set.vapply(min),
+                           max=TM2_set.vapply(max))
+        if U_min:
+            _TM2_max = TM1['max'].vapply(_shift, M + math.floor(maxH / U_min))
+            TM2['max'] = TM2['max'].sapply(min, _TM2_max)
+
+        for r in resources:
+            assert TM1['min'][r] <= TM1['max'][r]
+            assert TM2['min'][r] <= TM2['max'][r]
 
         def get_M_Acc_S(r, t, sense='min'):
             if sense=='min':
                 ref1 = TM1['max']
                 ref2 = TM2['max']
             else:  # sense=='max'
-                ref1 = TM1['min']
-                ref2 = TM2['min']
+                ref1 = TM1['min'].vapply(_prev)
+                ref2 = TM2['min'].vapply(_prev)
             if t <= ref1[r]:
                 return 0
-            elif ref1[r] <= t < ref2[r]:
+            elif ref1[r] < t <= ref2[r]:
                 return 1
-            elif t > ref2[r]:
+            elif last > t > ref2[r]:
                 return 2
             else:
                 return None
 
-        _shift = self.instance.shift_period
-        duration = self.instance.get_param('maint_duration')
-        # TODO: check last two periods. Weird behavior.
         M_Acc_S = {
             sense: {
                 (r, t): get_M_Acc_S(r, t, sense=sense)
-                for r in resources for t in periods}
+                for r in resources for t in periods[:-1]}
             for sense in ['min', 'max']
         }
         M_Acc_S = sd.SuperDict.from_dict(M_Acc_S)
-        backM_periods = lambda k:  (k[0], _shift(k[1], -duration))
+        backM_periods = lambda k:  (k[0], _shift(k[1], -M))
         M_Acc_F = M_Acc_S.vapply(lambda v: v.kapply(lambda k: v.get(backM_periods(k))))
 
-        # 6.2 ccumulated checks at the end of the horizon per aircraft
-        I_1M = M_Acc_S['max'].to_dictdict().clean(func=lambda v: v[last]==1).keys_l()
-        I_2M = M_Acc_S['min'].to_dictdict().clean(func=lambda v: v[last]==2).keys_l()
-        # TODO: add cuts
+        # 6.2 Accumulated checks at the end of the horizon per aircraft
+        I_1M = M_Acc_S['max'].to_dictdict().clean(func=lambda v: v[_prev(last)]==1).keys_l()
+        I_2M = M_Acc_S['min'].to_dictdict().clean(func=lambda v: v[_prev(last)]==2).keys_l()
+
+        for r in I_1M:
+            for (t1, t2) in l['tt_maints_a'][r]:
+                _tup = r, t1, t2
+                if t2 != last and _tup in start_M:
+                    model += start_M[_tup] == 0
+                # model += pl.lpSum(start_M[r, t, last] for t in l['t_a_M_ini'][r]) == 1
+        for r in I_2M:
+            for t1 in l['t_a_M_ini'][r]:
+                _tup = r, t1, last
+                if _tup in start_M:
+                    model += start_M[_tup] == 0
+                # start_M.pop((r, t, last))
 
         # 6.3 Mission assignments at the start of the horizon for each aircraft
-        list(l.keys())
         tup_r = {r: (r, first, _shift(TM1['min'][r], -1)) for r in resources}
-        # update article to subtract 1 from TM1
         _range = self.instance.get_periods_range
         _dist = lambda *x: self.instance.get_dist_periods(*x) + 1
-        init_assigns = {r: l['vtt2_between_att'].get(tup_r[r]) for r in resources}
-        init_assigns = sd.SuperDict(init_assigns)
-        init_rut = self.instance.get_resources('initial_used')
+        init_assigns = {r: l['vtt2_between_att'].get(_tup) for r, _tup in tup_r.items()}
+        init_assigns = sd.SuperDict(init_assigns).clean(func=lambda v: v)
         consum = self.instance.get_tasks('consumption')
-        min_usage = self.instance.get_param('min_usage_period')
         res_type = self.instance.get_resources('type')
-        # .vapply(lambda v: [v]).list_reverse()
+
         # TODO: check this with data
         acc_consum = \
             init_assigns.\
-            clean(func=lambda v: v).\
             list_reverse().\
-            kapply(lambda k: (consum[k[0]] - min_usage) * _dist(k[1], k[2]))
+            kapply(lambda k: (consum[k[0]] - U_min) * _dist(k[1], k[2]))
         # init_assigns.vapply()
-        acc_usage = {r: min_usage*(_dist(t1, t2)) for r, t1, t2 in tup_r}
-        # TODO: add two cuts
-        # for r in resources:
-            # sum(acc_consum[tup] * start_t[tup] for tup in init_assigns) + acc_usage[i] <= init_rut[i]
+        acc_min_usage = {r: U_min*(_dist(t1, t2)) for r, t1, t2 in tup_r.values()}
+
+        for r in resources:
+            for tup in init_assigns[r]:
+                if RftInit[r] < acc_consum[tup] + acc_min_usage[r]:
+                    model += start_T[tup] == 0
+                    # start_T.pop(tup, 0)
+        for r in resources:
+            model += pl.lpSum(acc_consum[tup] * start_T[tup] for tup in init_assigns[r])\
+                     + acc_min_usage[r] <= RftInit[r]
 
         # 6.4 Accumulated checks per aircraft type and period
-        # TODO: YM_Acc_S
-        YM_Acc_S = sd.SuperDict()
-        YM1_Acc_F = sd.SuperDict()
-        for bound, info in M_Acc_F.items():
-            for (res, period), value in info.items():
-                if value is None:
-                    continue
-                new_key = (res_type[res], period)
-                prev_val = YM1_Acc_F.get_m(bound, new_key, default=0)
-                YM1_Acc_F.set_m(bound, new_key, value=prev_val + value)
+        def agg_by_type(M_Acc):
+            YM1_Acc = sd.SuperDict()
+            for bound, info in M_Acc.items():
+                for (res, period), value in info.items():
+                    if value is None:
+                        continue
+                    new_key = res_type[res], period
+                    prev_val = YM1_Acc.get_m(bound, new_key, default=0)
+                    YM1_Acc.set_m(bound, new_key, value=prev_val + value)
+            return YM1_Acc
 
-        _prev = self.instance.get_prev_period
+        YM_Acc_S = agg_by_type(M_Acc_S)
+        YM1_Acc_F = agg_by_type(M_Acc_F)
+
         task_units = self.instance.get_tasks('num_resource')
-        list(l.keys())
         v_first = l['vt'].to_dict(1).vapply(min)
         v_last = l['vt'].to_dict(1).vapply(max)
         JR_Acc = \
@@ -956,9 +980,9 @@ class Model(exp.Experiment):
         # I need to fill the following periods with the last one's value:
         # for it to be a try accumulate
         for t in periods:
-            for v, _v_last in v_last.items():
-                if t > _v_last:
-                    JR_Acc[v, t] = JR_Acc[v, _v_last]
+            for v in v_last:
+                if t > v_last[v]:
+                    JR_Acc[v, t] = JR_Acc[v, v_last[v]]
                 elif t < v_first[v]:
                     JR_Acc[v, t] = 0
 
@@ -974,28 +998,26 @@ class Model(exp.Experiment):
              for tt, num in type_num.items() for t in periods}
         IR_Acc = sd.SuperDict.from_dict(IR_Acc)
         YM2_Acc_F = sd.SuperDict()
-        YM2_Acc_F['max'] = IR_Acc.vapply(lambda v: math.floor(v/duration))
+        YM2_Acc_F['max'] = IR_Acc.vapply(lambda v: math.floor(v/M))
 
         YH_Acc= \
             IR_Acc.kapply(lambda tup:
                       sum(consum[v] * JR_Acc[v, tup[1]]
                           for v in type_tasks[tup[0]])
                       )
-        maxH = self.instance.get_param('max_used_time')
         YM2_Acc_F['min'] = YH_Acc.apply(
-            lambda k, v: (v - sum(init_rut[a] for a in type_res[k[0]]))/maxH
+            lambda k, v: (v - sum(RftInit[a] for a in type_res[k[0]]))/maxH
         ).vapply(math.ceil).vapply(max, 0)
 
         YM_Acc_F = sd.SuperDict()
-        # YM2_Acc_F['min'].keys() ^ YM1_Acc_F['min'].keys()
-        # YM2_Acc_F['max'].keys() ^ YM1_Acc_F['max'].keys()
-        YM_Acc_F['min'] = YM1_Acc_F['min'].apply(lambda k, v: max(v, YM2_Acc_F['min'][k]))
-        YM_Acc_F['max'] = YM1_Acc_F['max'].apply(lambda k, v: min(v, YM2_Acc_F['max'][k]))
+        YM_Acc_F['min'] = YM1_Acc_F['min'].sapply(max, YM2_Acc_F['min'])
+        YM_Acc_F['max'] = YM1_Acc_F['max'].sapply(min, YM2_Acc_F['max'])
         t1_t1 = l['att_maints'].filter([1, 2]).unique2()
+
         def _QM(tup):
             t, t1, t2 = tup
-            t1_M = _shift(t1, duration)
-            t2_M = _shift(t2, duration)
+            t1_M = _shift(t1, M)
+            t2_M = _shift(t2, M)
             if t < t1_M:
                 return 0
             elif t1_M <= t < t2_M:
@@ -1005,19 +1027,35 @@ class Model(exp.Experiment):
 
         QM = {(t, t1, t2): 1 for t1, t2 in t1_t1 for t in periods}
         QM = sd.SuperDict.from_dict(QM).kapply(_QM)
-        # TODO: add cuts (29)
-        # YM_Acc_F['min'] <= sum(maint_start * QM)
-        # YM_Acc_F['max'] >= sum(maint_start * QM)
+
+        for t in periods:
+            for y, _resources in type_res.items():
+                _expresion = pl.lpSum(start_M[r, t1, t2] * QM[t, t1, t2]
+                                      for r in _resources
+                                      for t1, t2 in l['tt_maints_a'][r]
+                                      if QM[t, t1, t2] > 0)
+                model += _expresion >= YM_Acc_F['min'][t, y]
+                model += _expresion <= YM_Acc_F['max'][t, y]
 
         # 6.5 Accumulated checks per period
-
         _YM_Acc_F = YM_Acc_F.to_dictdict().to_dictup().to_tuplist().to_dict(3, False, [0, 2, 1]).to_dictdict()
-        # TM_Acc_S = YM_Acc_S
-        TM_Acc_F = {(s, t): sum(info2.values())
-                    for s, info in _YM_Acc_F.items()
+        TM1_Acc_F = {(b, t): sum(info2.values())
+                    for b, info in _YM_Acc_F.items()
                     for t, info2 in info.items()}
-        # TODO: finish this
-        pass
+        TM1_Acc_F = sd.SuperDict.from_dict(TM1_Acc_F).to_dictdict()
+        capacity = self.instance.get_param('maint_capacity')
+        TM2_Acc_F_max = {t: math.floor(_dist(first, t) / M) * capacity for t in periods}
+        TM_Acc_F = TM1_Acc_F
+        TM_Acc_F['max'] = TM1_Acc_F['max'].sapply(min, TM2_Acc_F_max)
+
+        for t in periods:
+            _expresion = pl.lpSum(start_M[r, t1, t2] * QM[t, t1, t2]
+                                  for r in resources
+                                  for t1, t2 in l['tt_maints_a'][r]
+                                  if QM[t, t1, t2] > 0)
+            model += _expresion >= TM_Acc_F['min'][t]
+            model += _expresion <= TM_Acc_F['max'][t]
+        return True
 
 
 if __name__ == "__main__":
@@ -1033,4 +1071,5 @@ if __name__ == "__main__":
     self.get_valid_cuts()
 
 
+    pass
     pass
