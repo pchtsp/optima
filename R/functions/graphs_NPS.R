@@ -248,6 +248,7 @@ get_time_perf_integer_reorder <- function(raw_df){
         mutate(percentage = row_number()/n()*100)
 }
 
+# TODO: aux_compare before making mean??
 get_time_perf_optim <- function(raw_df){
     raw_df %>% 
         get_all_optimal %>% 
@@ -276,7 +277,19 @@ get_infeasible_stats <- function(raw_df){
                   Total = n()) %>% 
         gather(key='Status', 'number') %>% 
         filter(number>0)
-    
+}
+
+get_infeasible_times <- function(raw_df){
+    # aux_compare %>% 
+    raw_df %>% 
+        get_all_infeasible %>% 
+        inner_join(raw_df) %>%
+        select(experiment, time) %>% 
+        gather(key='Indicator', value="value", -experiment) %>% 
+        spread(experiment, value) %>% 
+        mutate(dif_abs = cuts - base,
+               dif_perc = dif_abs/base*100
+        )
 }
 
 get_soft_constraints <- function(raw_df, quant_max){
