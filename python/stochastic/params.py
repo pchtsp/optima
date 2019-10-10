@@ -1,5 +1,5 @@
 path_graphs = r'\\luq\franco.peschiera.fr$\MyDocs\graphs/'
-path_graphs = r'C:\Users\pchtsp\Documents\borrar/'
+path_graphs = r'C:\Users\pchtsp\Nextcloud\OPTIMA_documents\NPS2019\graphs/'
 # name = 'dell_20190502_num_maint_2'
 # name = 'dell_20190501'
 # name = 'dell_20190505'

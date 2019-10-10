@@ -6,7 +6,7 @@ output:
   html_document: default
   pdf_document: default
 params:
-  size: medium
+  size: get_3_tasks_aggresive_perc_add
 editor_options:
   chunk_output_type: console
 ---
@@ -14,7 +14,7 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 source('functions/graphs_NPS.R')
-
+source('functions/datasets_NPS.R')
 quant_max <- 0.95
 size <- params$size
 
@@ -27,7 +27,7 @@ size <- params$size
 # df_original <- compare_sto$get_instances[[size]]()
 # df <- df_original %>% mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
 # alternative 3:
-df <- do.call(params$size, args=list())
+df <- do.call(size, args=list())
 # df <- get_4_tasks_aggressive()
 
 ```
@@ -95,6 +95,7 @@ If we compare among all cases where an **integer solution** was found in the two
 quality_perf <- get_quality_perf(df)
 mean_dif <- quality_perf$dif_perc %>%  mean
 per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
+q95_cut <- quality_perf$dif_perc %>% quantile(0.95)
 
 quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
 
@@ -113,7 +114,7 @@ qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solution
 
 Of the `r quality_perf_nrow` instances were an **integer solution** was found in both models, the average relative gap between the `cuts` model and the `base` model was of `r mean_dif %>% round(2)`\%. This means that, in average solutions of the `cuts` model were `r (-mean_dif) %>% round(2)`\% better than the `base` model.
 
-In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model.
+In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model. 95\% of instances are less than `r q95_cut %>% round(2)`\% away from the best known solution.
 
 ## Performance analysis
 
@@ -129,7 +130,7 @@ comparison_table_reorder <- get_time_perf_integer_reorder(df)
 
 mean_times <- 
     comparison_table %>% 
-    group_by(experiment) %>% 
+    group_by(scenario, experiment) %>% 
     summarise(time_mean = mean(time), 
               time_medi = median(time)) %>% 
     aux_compare

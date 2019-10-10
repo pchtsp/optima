@@ -55,8 +55,8 @@ OPTIONS = {
     ) + '/'
     , 'simulate': True
     , 'exclude_aux': False
-    # heuristic params:
     , 'seed': 42
+    # heuristic params:
     , 'num_change': [0.8, 0.1, 0.1]
     , 'temperature': 2
     , 'prob_free_aircraft': 0.1
@@ -84,18 +84,19 @@ OPTIONS = {
     , 'do_not_solve': False
     # stats-cut-data
     , 'StochCuts' : {
-        'active': False,
-        'bounds': ['min', 'max'],  # ['min', 'max']
-        'cuts': ['maints', 'mean_2maint', 'mean_dist']
+        'active': 0,
+        'bounds': ['max'],  # ['min', 'max']
+        'cuts': ['maints']
     }, 'reduce_2M_window': {
         'active': False,
         'window_size': 10,
+        'percent_add': 0,
         'tolerance_mean': {'min': -4, 'max': 4}
     }
     # simulation params:
     , 'simulation': {
-        'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 1
+        'num_resources': 45  # this depends on the number of tasks actually
+        , 'num_parallel_tasks': 3
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
