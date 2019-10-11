@@ -1,6 +1,7 @@
 from rpy2.robjects import pandas2ri
 import rpy2.robjects.lib.ggplot2 as ggplot2
 import rpy2.robjects as ro
+from rpy2.robjects.vectors import FactorVector
 
 import pandas as pd
 import pytups.superdict as sd
@@ -70,6 +71,13 @@ def plotting(table, graph_name, facet='init_cut ~ .', y_pred=None, smooth=True, 
 
     if facet:
         plot += ggplot2.facet_grid(ro.Formula(facet))
+        # levels = ro.StrVector(tuple(["low", "mid", "high"]))
+        # geomean_cons_cut = FactorVector(table.geomean_cons_cut, levels=levels)
+        # mean_consum_cut = FactorVector(table.mean_consum_cut, levels=levels)
+        # for col in ['geomean_cons_cut', 'mean_consum_cut']:
+        #     table[col] = FactorVector(table[col], levels=levels)
+
+        # plot += ggplot2.facet_grid(rows=geomean_cons_cut, cols=mean_consum_cutz)
 
     if smooth:
         plot += ggplot2.geom_smooth(method = 'loess')

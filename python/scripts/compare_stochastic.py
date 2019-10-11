@@ -68,13 +68,25 @@ if __name__ == '__main__':
     from rpy2.robjects import pandas2ri
     import rpy2.robjects.lib.ggplot2 as ggplot2
     import rpy2.robjects as ro
-
+    import orloge as ol
     ro.pandas2ri.activate()
 
     # get info to analyze.
     # df = get_small_instances()
     # df = get_medium_instances()
-    df = get_large_instances()
+    df = get_medium_instances()
+
+    infeasible = \
+        df[df.status_code==ol.LpStatusInfeasible][
+        ['instance', 'experiment', 'time']].\
+        set_index(['instance', 'experiment']).\
+        unstack(1)
+    _filt = np.any(~infeasible.isna(), axis=1)
+    ttt = infeasible[_filt]['time']
+    ttt['dif'] = (ttt[0] - ttt[1])/ttt[1]*100
+    ttt['dif'].mean()
+    mean = ttt.mean()
+    (mean[0] - mean[1])/mean[1]*100
 
     df[df.index.get_level_values('experiment')==1]
     # GENERAL STATS
@@ -170,7 +182,7 @@ if __name__ == '__main__':
             rename_axis(['instance', 'experiment']).reset_index(name='time')
 
     # end alternative table
-
+    exp_list = ['aaaa', 'aaaa']
     t_main.experiment = t_main.experiment.astype(str)
     graph_name = 'comparison/{}_instance_time'.format('_'.join(exp_list))
     plot = ggplot2.ggplot(t_main) + \

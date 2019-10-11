@@ -175,29 +175,30 @@ knitr::include_graphics(imgs)
 
 ### Experiments
 
-* Number of instances: small (5000), medium (1000) and large (1000).
+* Number of instances: small (5000), medium (1000) and large (1000) and very large (1000).
 * Time limit at 3600 seconds.
 * We seeded instance generation for better comparison.
 * CPLEX running 1 thread.
 
-Large instances have:
+Largest instances have:
 
-* 45 aircraft
+* 60 aircraft
 * 90 months
-* +20 missions (3 active missions at any given time).
+* ~30 missions (4 active missions at any given time).
 
 ---
 
 ### How good is it (performance)
 
-Better solutions, more solutions.
+Faset solutions, more solutions. (Large instances aggresive cuts).
 
 .pull-left[
 For instances were an integer solution was found: 
 
-* in ~85% of instances we outperformed base model.
-* ~105% average gain in objective function.
+* +75% worse solutions (caveat).
+* most solutions are between 0-5% of best known.
 * ~18% less time in average to solve.
+* ~53% less time to "optimal".
 ]
 
 --
