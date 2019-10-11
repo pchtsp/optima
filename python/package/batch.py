@@ -217,7 +217,6 @@ class ZipBatch(Batch):
         super().__init__(path)
 
     def get_instances_paths(self):
-        # TODO: make it work with self.no_scenario option
         num_slashes = 2
         keys_positions = [1, 2]
         if self.no_scenario:

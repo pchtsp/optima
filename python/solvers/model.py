@@ -200,7 +200,6 @@ class Model(exp.Experiment):
         # # ##################################
 
         # remaining used time calculations:
-        # TODO: what about, if task assigned from X to Y, I know the relationship between period Y and X
         for at in l['at']:
             a, t = at
             v_at = l['v_at'].get(at, [])  # possible missions for that "at"
@@ -279,6 +278,7 @@ class Model(exp.Experiment):
 
         if options.get('DetermCuts', False):
             self.get_valid_cuts(model=model, start_M=start_M, start_T=start_T)
+
         # ##################################
         # SOLVING
         # ##################################
@@ -921,13 +921,17 @@ class Model(exp.Experiment):
             for (t1, t2) in l['tt_maints_a'][r]:
                 _tup = r, t1, t2
                 if t2 != last and _tup in start_M:
-                    model += start_M[_tup] == 0
+                    start_M[_tup].setInitialValue(0)
+                    start_M[_tup].fixValue()
+                    # model += start_M[_tup] == 0
                 # model += pl.lpSum(start_M[r, t, last] for t in l['t_a_M_ini'][r]) == 1
         for r in I_2M:
             for t1 in l['t_a_M_ini'][r]:
                 _tup = r, t1, last
                 if _tup in start_M:
-                    model += start_M[_tup] == 0
+                    start_M[_tup].setInitialValue(0)
+                    start_M[_tup].fixValue()
+                    # model += start_M[_tup] == 0
                 # start_M.pop((r, t, last))
 
         # 6.3 Mission assignments at the start of the horizon for each aircraft
@@ -939,7 +943,6 @@ class Model(exp.Experiment):
         consum = self.instance.get_tasks('consumption')
         res_type = self.instance.get_resources('type')
 
-        # TODO: check this with data
         acc_consum = \
             init_assigns.\
             list_reverse().\
@@ -947,14 +950,16 @@ class Model(exp.Experiment):
         # init_assigns.vapply()
         acc_min_usage = {r: U_min*(_dist(t1, t2)) for r, t1, t2 in tup_r.values()}
 
-        for r in resources:
-            for tup in init_assigns[r]:
-                if RftInit[r] < acc_consum[tup] + acc_min_usage[r]:
-                    model += start_T[tup] == 0
-                    # start_T.pop(tup, 0)
-        for r in resources:
-            model += pl.lpSum(acc_consum[tup] * start_T[tup] for tup in init_assigns[r])\
+        for r, _tuplist in init_assigns.items():
+            # we make a cut for all assignments in general.
+            model += pl.lpSum(acc_consum[vtt] * start_T[(r, *vtt)] for vtt in _tuplist)\
                      + acc_min_usage[r] <= RftInit[r]
+
+            for vtt in _tuplist:
+                # we take out the worst assignments
+                if RftInit[r] < acc_consum[vtt] + acc_min_usage[r]:
+                    start_T[(r, *vtt)].setInitialValue(0)
+                    start_T[(r, *vtt)].fixValue()
 
         # 6.4 Accumulated checks per aircraft type and period
         def agg_by_type(M_Acc):
@@ -1028,14 +1033,13 @@ class Model(exp.Experiment):
         QM = {(t, t1, t2): 1 for t1, t2 in t1_t1 for t in periods}
         QM = sd.SuperDict.from_dict(QM).kapply(_QM)
 
-        for t in periods:
-            for y, _resources in type_res.items():
-                _expresion = pl.lpSum(start_M[r, t1, t2] * QM[t, t1, t2]
-                                      for r in _resources
-                                      for t1, t2 in l['tt_maints_a'][r]
-                                      if QM[t, t1, t2] > 0)
-                model += _expresion >= YM_Acc_F['min'][t, y]
-                model += _expresion <= YM_Acc_F['max'][t, y]
+        for y, t in YM_Acc_F['min']:
+            _expresion = pl.lpSum(start_M[r, t1, t2] * QM[t, t1, t2]
+                                  for r in type_res[y]
+                                  for t1, t2 in l['tt_maints_a'][r]
+                                  if QM[t, t1, t2] > 0)
+            model += _expresion >= YM_Acc_F['min'][y, t]
+            model += _expresion <= YM_Acc_F['max'][y, t]
 
         # 6.5 Accumulated checks per period
         _YM_Acc_F = YM_Acc_F.to_dictdict().to_dictup().to_tuplist().to_dict(3, False, [0, 2, 1]).to_dictdict()
@@ -1048,7 +1052,7 @@ class Model(exp.Experiment):
         TM_Acc_F = TM1_Acc_F
         TM_Acc_F['max'] = TM1_Acc_F['max'].sapply(min, TM2_Acc_F_max)
 
-        for t in periods:
+        for t in TM_Acc_F['min']:
             _expresion = pl.lpSum(start_M[r, t1, t2] * QM[t, t1, t2]
                                   for r in resources
                                   for t1, t2 in l['tt_maints_a'][r]
@@ -1068,7 +1072,6 @@ if __name__ == "__main__":
     instance = inst.Instance(model_data)
     self = Model(instance)
     l = self.domains = self.get_domains_sets(options)
-    self.get_valid_cuts()
 
 
     pass

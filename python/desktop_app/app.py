@@ -12,8 +12,6 @@ import arrow
 import pprint as pp
 from io import StringIO
 
-# TODO: add dialog when it finds a solution
-
 
 class MainWindow_EXCEC():
 

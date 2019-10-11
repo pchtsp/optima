@@ -236,7 +236,6 @@ class GreedyByMission(test.Experiment):
             log.debug("resource {} has already a maintenance {} after the need {}.".
                       format(resource, last_maint_prev, maint_need))
             return False
-        # TODO: this swap is not checking everything: sometimes make infeasible choices
         if next_maint is not None and False:
             # we need to take out the old one, that happens *after* the new.
             # and choose carefully the periods to update.
