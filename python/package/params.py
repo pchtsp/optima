@@ -91,7 +91,7 @@ OPTIONS = {
         'active': False,
         'window_size': 10,
         'tolerance_mean': {'min': -4, 'max': 4}
-    }
+    }, 'DetermCuts': True
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually

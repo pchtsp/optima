@@ -3,7 +3,6 @@ import package.batch as ba
 
 import stochastic.instance_stats as istats
 import stochastic.solution_stats as sol_stats
-import stochastic.graphs as graphs
 import stochastic.params as sto_params
 import stochastic.models as models
 
@@ -389,9 +388,11 @@ def support_vector_regression(table):
     for opt in options:
         coefs_df += [models.test_regression(table, x_vars, **opt)]
 
-def get_batch():
-    name = sto_params.name
-    use_zip = sto_params.use_zip
+def get_batch(name=None, use_zip=None):
+    if name is None:
+        name = sto_params.name
+    if use_zip is None:
+        use_zip = sto_params.use_zip
 
     if use_zip:
         batch = ba.ZipBatch(params.PATHS['results'] + name)
@@ -412,7 +413,16 @@ def get_table_semi_treated(batch):
 
     return result_tab
 
+
+def get_table_complete(*args, **kwargs):
+    batch = get_batch(*args, **kwargs)
+    result_tab = get_table_semi_treated(batch)
+    return treat_table(result_tab)
+
+
 if __name__ == '__main__':
+
+    import stochastic.graphs as graphs
 
     def reload_all():
         from importlib import reload

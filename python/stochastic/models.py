@@ -10,7 +10,6 @@ import pandas as pd
 import pytups.superdict as sd
 
 import stochastic.model_upper_bound as mub
-import stochastic.graphs as graphs
 import stochastic.tools as aux
 
 ####################
@@ -25,6 +24,8 @@ def create_X_Y(result_tab, x_vars, y_var, test_perc):
 
 
 def test_regression(result_tab, x_vars, y_var, method, bound='', plot_args=None, test_perc=0.3, plot=True, **kwargs):
+    import stochastic.graphs as graphs
+
     x_vars = sorted(x_vars)
     X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var, test_perc)
     X_train_norm = aux.normalize_variables(X_train)
