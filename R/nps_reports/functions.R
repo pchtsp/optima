@@ -10,7 +10,6 @@ filter_all_exps <- function(table){
         group_by(scenario, instance) %>% 
         filter(n()==num) %>% 
         ungroup
-    
 }
 
 aux_compare <- function(raw_df){
@@ -19,7 +18,6 @@ aux_compare <- function(raw_df){
         spread(experiment, value) %>% 
         mutate(dif_abs = cuts - base,
                dif_perc = (dif_abs/ base*100) %>% round(2))
-    
 }
 
 times_100_round <- function(value) value %>% multiply_by(100) %>% round(2)
@@ -112,7 +110,7 @@ get_time_perf_integer_reorder <- function(raw_df){
         mutate(percentage = row_number()/n()*100)
 }
 
-# TODO: aux_compare before making mean??
+# when comparing times we compare averages, not average relative differences.
 get_time_perf_optim <- function(raw_df){
     raw_df %>% 
         get_all_optimal %>% 
@@ -158,16 +156,24 @@ get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
 }
 
 get_infeasible_times <- function(raw_df){
-    # aux_compare %>% 
     raw_df %>% 
         get_all_infeasible %>% 
-        inner_join(raw_df) %>%
-        select(experiment, time) %>% 
-        gather(key='Indicator', value="value", -experiment) %>% 
-        spread(experiment, value) %>% 
-        mutate(dif_abs = cuts - base,
-               dif_perc = dif_abs/base*100
-        )
+        group_by(scenario, experiment) %>% 
+        summarise(time_mean = mean(time), 
+                  time_medi = median(time)) %>% 
+        aux_compare
+}
+
+# TODO: there are some weird things with a few instances that have variance=NA
+# it is because the experiment did not load. I have to check the files...
+# they are not that many so we will deal with that later.
+get_variances <- function(raw_df){
+    raw_df %>% 
+        get_all_integer %>% 
+        select(instance, experiment, variance) %>% 
+        spread(experiment, variance) %>% 
+        mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round) %>% 
+        filter(dif_perc %>% is.na %>% not)
 }
 
 get_mega_summary <- function(df){
@@ -176,6 +182,8 @@ get_mega_summary <- function(df){
     # feasability:
     # extra infeasible instances as percent of total
     # extra soft constraints violations (avg, 95%)
+    # TODO: time to detect infeasible.
+    # TODO: sum of variances.
     # performance:
     # extra feasible instances as percent of total
     # time to solve: median, avg

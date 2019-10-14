@@ -1,5 +1,5 @@
-source('functions/graphs_NPS.R')
-source('functions/datasets_NPS.R')
+source('nps_reports/functions.R')
+source('nps_reports/datasets.R')
 library(stringr)
 
 path_export_img <- '../../NPS2019/img/'

@@ -92,11 +92,11 @@ OPTIONS = {
         'window_size': 10,
         'percent_add': 0,
         'tolerance_mean': {'min': -4, 'max': 4}
-    }
+    }, 'DetermCuts': True
     # simulation params:
     , 'simulation': {
-        'num_resources': 45  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 3
+        'num_resources': 15  # this depends on the number of tasks actually
+        , 'num_parallel_tasks': 1
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance

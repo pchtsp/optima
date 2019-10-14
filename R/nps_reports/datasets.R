@@ -1,6 +1,6 @@
 library(tidyverse)
 library(reticulate)
-source('functions/graphs_NPS.R')
+source('nps_reports/functions.R')
 
 get_python_module <- function(rel_path, name){
     use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
