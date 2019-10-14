@@ -64,17 +64,20 @@ def get_1M_2M_dist(case, _type=0, count_1M=False):
 
     dist = case.instance.get_dist_periods
     max_value = case.instance.get_param('max_elapsed_time')
+    size_horizon = dist(first, last) + 1
 
     if count_1M:
         # we count the second cycle.
+        # sometimes an aircraft has no maintenances done.
+        # (I thought this was impossible...)
         cycles_between = \
-            cycles.apply(lambda k, v: dist(*v[1]) + 1)
+            cycles.vapply(lambda v: dist(*v[1]) + 1 if len(v)>1 else size_horizon)
     else:
         # we only want to see the distance when
         # there is a second maintenance
         cycles_between = \
             cycles.clean(func=lambda v: len(v)==3).\
-            apply(lambda k, v: dist(*v[1]) + 1)
+            vapply(lambda v: dist(*v[1]) + 1 if len(v)>1 else size_horizon)
 
     if not len(cycles_between):
         return pd.Series(max_value)

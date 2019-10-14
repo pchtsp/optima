@@ -4,6 +4,7 @@ source('nps_reports/functions.R')
 
 get_python_module <- function(rel_path, name){
     use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
+    # use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
     py_discover_config()
     sysp = import('sys')
     opt_path = ''

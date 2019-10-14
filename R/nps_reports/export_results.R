@@ -73,6 +73,7 @@ ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment
 
 # infeasible
 infeasible_stats <- get_infeasible_stats(df)
+# infeasible_times <- get_infeasible_times(df)
 
 path <- '%sinfeas_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
 infeasible_stats %>% 
@@ -119,7 +120,12 @@ comparison_table %>%
     summarise(time_mean = mean(time), 
               time_medi = median(time))
 
-
+# variance
+variances <- get_variances(df)
+var_per <- variances$dif_perc
+path <- '%svariance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
+qplot(var_per, xlab='Relative difference in variance among solutions.')+
+    theme(text = element_text(size=20)) + ggsave(path)
 
 # prediction models -------------------------------------------------------
 
@@ -141,7 +147,7 @@ ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) +
     ggsave(path)
 
 # quantiles
-
+# TODO: quantiles
 
 
 

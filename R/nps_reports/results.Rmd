@@ -13,8 +13,10 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
-source('functions.R')
-source('datasets.R')
+# setwd('../')
+# browser()
+source('nps_reports/functions.R')
+source('nps_reports/datasets.R')
 quant_max <- 0.95
 size <- params$size
 df <- do.call(size, args=list())
@@ -202,15 +204,20 @@ The following table shows the difference in soft constraints errors.
 errors_stats %>% kable
 ```
 
-### Reducing variance
-
-The variance in the frequency of maintenances is a side objective that was not been taken into account previously. To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
-As can be seen, in almost all of the cases there is a reduction in the variance. The mean relative difference is `r mean_var_reduction` and 95\% of instances have less than `r quant95_var_reduction`.
-
 ```{r variances}
 variances <- get_variances(df)
 var_per <- variances$dif_perc
 mean_var_reduction <- var_per %>% mean
 quant95_var_reduction <- var_per %>% quantile(quant_max)
+```
+
+### Making aircraft usage more homogeneous
+
+The variance in the frequency of maintenances is a side objective that was not been taken into account previously. The higher the variance, the more difference there is between amount of flight hours between one aircraft and another.
+To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
+As can be seen, in almost all of the cases there is a reduction in the variance. The mean relative difference is `r mean_var_reduction %>% round(2)`\%  and `r quant_max*100`\% of instances have less than `r quant95_var_reduction`\% extra variance.
+
+```{r graph_variances}
+
 qplot(var_per, xlab='Relative difference in variance (in % of base case) among integer solutions.')
 ```
