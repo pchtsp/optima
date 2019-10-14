@@ -1,5 +1,6 @@
 import pandas as pd
 import stochastic.instance_stats as istats
+import numpy as np
 
 
 def get_num_maints(case, _type=0):
@@ -56,6 +57,8 @@ def get_1M_2M_dist(case, _type=0, count_1M=False):
     duration = case.instance.get_param('maint_duration')
     shift = case.instance.shift_period
     limit = shift(first, duration)
+    # if an aircraft starts a maintenance in the first period;
+    # we artificially add a shadow cycle before it
     cycles_edit = cycles.clean(func=lambda v: v[0][0] == limit).vapply(lambda v: [()]+v)
     cycles.update(cycles_edit)
 
@@ -100,3 +103,8 @@ def get_post_2M_dist(case, _type=0):
         vapply(lambda v: dist(v[1], last))
 
     return last_dist
+
+
+def get_variance_dist(case, _type=0):
+    distances = get_1M_2M_dist(case, _type=0, count_1M=True)
+    return np.var(distances)

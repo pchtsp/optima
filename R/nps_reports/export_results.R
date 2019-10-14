@@ -1,4 +1,4 @@
-source('nps_reports/graphs.R')
+source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
 library(stringr)
 

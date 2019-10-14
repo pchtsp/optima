@@ -5,9 +5,22 @@ import package.batch as ba
 import package.params as params
 
 import stochastic.params as sto_params
-
+import stochastic.solution_stats as sol_stats
 #####################
 # INFO
+
+
+def get_sum_variances(case, types):
+    return sum(sol_stats.get_variance_dist(case, t) for t in types)
+
+
+def get_solstats(batch):
+    cases = batch.get_cases().clean(func=lambda v: v)
+    types = cases.vapply(lambda v: v.instance.get_types())
+    variances = cases.apply(lambda k, v: {'variance': get_sum_variances(v, types[k])})
+    var_table = batch.format_df(variances).drop('name', axis=1)
+    return var_table
+
 
 def get_df_comparison(exp_list):
     raw_results_dict = {}
@@ -18,8 +31,11 @@ def get_df_comparison(exp_list):
         batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment)
         table = batch1.get_log_df()
         table_errors = batch1.get_errors_df().drop('name', axis=1)
+        sol_stats_table = get_solstats(batch1)
         table_n = \
-            table.merge(table_errors, on=['scenario', 'instance'], how='left').\
+            table.\
+            merge(table_errors, on=['scenario', 'instance'], how='left').\
+            merge(sol_stats_table, on=['scenario', 'instance'], how='left').\
             sort_values(['scenario', 'instance']).\
             reset_index(drop=True)
         raw_results_dict[name] = table_n
@@ -31,6 +47,7 @@ def get_df_comparison(exp_list):
         rename(columns=dict(level_0='experiment')).\
         set_index(['instance','experiment']).reset_index()
 
+# The following is obsolete because we now do the comparison in R:
 
 def compare_perc_0_1(table):
     return (table[0] - table[1])/table[1] *100
@@ -59,9 +76,6 @@ def get_small_instances():
     df = get_df_comparison(exp_list)
     return df
 
-get_instances = dict(small= get_small_instances,
-                     medium= get_medium_instances,
-                     large= get_large_instances)
 
 if __name__ == '__main__':
 
@@ -75,6 +89,10 @@ if __name__ == '__main__':
     # df = get_small_instances()
     # df = get_medium_instances()
     df = get_medium_instances()
+    weird = df[~np.isnan(df.best_solution) & np.isnan(df.variance)]
+    # import package.experiment as exp
+    #
+    # path = params.PATHS['results'] + 'IT000125_20190730'
 
     infeasible = \
         df[df.status_code==ol.LpStatusInfeasible][

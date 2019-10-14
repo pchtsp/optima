@@ -13,8 +13,8 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
-source('nps_reports/graphs_NPS.R')
-source('nps_reports/datasets_NPS.R')
+source('functions.R')
+source('datasets.R')
 quant_max <- 0.95
 size <- params$size
 
@@ -178,6 +178,7 @@ There are two indicators to measure if a model is too constrained. The first one
 ```{r infeasible_list}
 infeasible_instances <- get_infeasible_instances(df)
 infeasible_stats <- get_infeasible_stats(df)
+infeasible_times <- get_infeasible_times(df)
 ```
 
 ### Infeasible solutions
@@ -186,9 +187,16 @@ We take all `r infeasible_instances %>% nrow` **infeasible solutions** from the 
 
 The below table shows the status obtained in the base model. The number of infeasible solutions is very close in both models and for all instances that were identified by infeasible in the `cuts` model, the `base` model was unable to find an integer solution.
 
-```{r infeasible}
+```{r infeasible_stats}
 infeasible_stats %>% kable
 ```
+
+In addition, the times to detect the infeaseability of a given instance have been greatly reduced (to half, approximately) as can be see in the following table:
+
+```{r infeasible_times}
+infeasible_times %>% kable
+```
+
 
 ### Soft constraints performance
 
@@ -203,4 +211,17 @@ The following table shows the difference in soft constraints errors.
 
 ```{r soft_constraints_table}
 errors_stats %>% kable
+```
+
+### Reducing variance
+
+The variance in the frequency of maintenances is a side objective that was not been taken into account previously. To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
+As can be seen, in almost all of the cases there is a reduction in the variance. The mean relative difference is `r mean_var_reduction` and 95\% of instances have less than `r quant95_var_reduction`.
+
+```{r variances}
+variances <- get_variances(df)
+var_per <- variances$dif_perc
+mean_var_reduction <- var_per %>% mean
+quant95_var_reduction <- var_per %>% quantile(quant_max)
+qplot(var_per, xlab='Relative difference in variance (in % of base case) among integer solutions.')
 ```

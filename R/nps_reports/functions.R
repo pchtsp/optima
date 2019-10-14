@@ -10,7 +10,6 @@ filter_all_exps <- function(table){
         group_by(scenario, instance) %>% 
         filter(n()==num) %>% 
         ungroup
-    
 }
 
 aux_compare <- function(raw_df){
@@ -19,7 +18,6 @@ aux_compare <- function(raw_df){
         spread(experiment, value) %>% 
         mutate(dif_abs = cuts - base,
                dif_perc = (dif_abs/ base*100) %>% round(2))
-    
 }
 
 times_100_round <- function(value) value %>% multiply_by(100) %>% round(2)
@@ -166,12 +164,16 @@ get_infeasible_times <- function(raw_df){
         aux_compare
 }
 
+# TODO: there are some weird things with a few instances that have variance=NA
+# it is because the experiment did not load. I have to check the files...
+# they are not that many so we will deal with that later.
 get_variances <- function(raw_df){
     raw_df %>% 
         get_all_integer %>% 
-        select(instance, experiment, best_solution) %>% 
-        spread(experiment, best_solution) %>% 
-        mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round)
+        select(instance, experiment, variance) %>% 
+        spread(experiment, variance) %>% 
+        mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round) %>% 
+        filter(dif_perc %>% is.na %>% not)
 }
 
 get_mega_summary <- function(df){

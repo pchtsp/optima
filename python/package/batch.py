@@ -230,8 +230,8 @@ class ZipBatch(Batch):
         keys = \
             scenario_instances.\
             apply(str.split, '/').\
-                apply(tuple).\
-                filter(keys_positions)
+            apply(tuple).\
+            filter(keys_positions)
         return sd.SuperDict(zip(keys, scenario_instances))
 
     def re_make_paths(self, scenario_instances):
