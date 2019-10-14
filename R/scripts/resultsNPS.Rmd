@@ -17,18 +17,7 @@ source('functions/graphs_NPS.R')
 source('functions/datasets_NPS.R')
 quant_max <- 0.95
 size <- params$size
-
-# alternative 1:
-# exp_list <- c('IT000125_20190808', 'IT000125_20190812')
-# df_original <- compare_sto$get_df_comparison(exp_list)
-# df_original %<>% filter(scenario=='numparalleltasks_3' | experiment==1)
-# alternative 2:
-# compare_sto <- get_compare_sto()
-# df_original <- compare_sto$get_instances[[size]]()
-# df <- df_original %>% mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-# alternative 3:
 df <- do.call(size, args=list())
-# df <- get_4_tasks_aggressive()
 
 ```
 
