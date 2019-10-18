@@ -190,6 +190,9 @@ class Instance(object):
         :param time_type:
         :return:
         """
+        # TODO: this needs to be corrected somehow. Look at the merge.
+        first_period = self.get_param('start')
+        prev_first_period = self.get_prev_period(first_period)
         if time_type not in ["elapsed", "used"]:
             raise KeyError("Wrong type in time_type parameter: elapsed or used only")
 
@@ -207,12 +210,19 @@ class Instance(object):
         # If it is: we assign the rt_max (according to convention).
         fixed_maints = self.get_fixed_maintenances()
         res_in_maint = set([res for res, period in fixed_maints])
-        rt_fixed = {a: rt_max for a in rt_read if a in res_in_maint}
+        res_maints = \
+            self.get_fixed_maintenances(resource=resource).\
+            filter_list_f(lambda x: x[1] >= prev_first_period).\
+            to_dict(result_col=1).\
+            to_lendict()
+        if time_type == 'elapsed':
+            rt_fixed = {k: rt_max + v - 1 for k, v in res_maints.items()}
+        else:
+            rt_fixed = {k: rt_max for k, v in res_maints.items()}
 
         rt_init = {a: rt_max for a in rt_read}
         rt_init.update(rt_read)
         rt_init.update(rt_fixed)
-        rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
         for r in rt_init:
             self.data['resources'][r][key_initial] = rt_init[r]
         return rt_init

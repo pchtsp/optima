@@ -15,10 +15,14 @@ base = importr('base')
 # grdevices = importr('grDevices')
 # grid.activate()
 
+# in windows you need to copy to R installation folder
+# , lib_loc=r'\\luq\franco.peschiera.fr$\MyDocs\R\win-library\3.5/'
+
 def example():
     import rpy2.robjects.lib.ggplot2 as ggplot2
     stats = importr('stats')
     datasets = importr('datasets')
+    ggplot2 = importr('ggplot2')
     mtcars = data(datasets).fetch('mtcars')['mtcars']
     rnorm = stats.rnorm
     dataf_rnorm = robjects.DataFrame({'value': rnorm(300, mean=0) + rnorm(100, mean=3),

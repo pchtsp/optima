@@ -1,0 +1,26 @@
+\definecolor{color1}{HTML}{FFFFCC}
+\definecolor{color2}{HTML}{FFEDA0}
+\definecolor{color3}{HTML}{ff0000}
+\definecolor{color4}{HTML}{00ff00}
+\newcommand\Dganttbar[5]{
+    \ganttbar[#5]{#1}{#3}{#4}\ganttbar[inline,bar label font=\tiny\bfseries, #5]{#2}{#3}{#4}
+}
+\begin{ganttchart}[
+    expand chart=\textwidth,
+    hgrid,
+    vgrid,
+    time slot format=isodate,
+    time slot unit=month
+]{2017-08-01}{2024-06-01}
+    % \gantttitlecalendar{year} \\
+    \Dganttbar{(b)}{M}{2019-02-01}{2019-07-01}{bar/.append style={fill=color1}}
+    \ganttvrule[
+    vrule label node/.append style={anchor=north east}
+    ]{\hspace{-40pt}$\mathcal{T}^{m_{ini}}_i$}{2018-05-01}
+    \ganttvrule[
+    vrule label node/.append style={anchor=north east}
+    ]{\hspace{-80pt}$\mathcal{T}^{M_{ini}}_i$}{2020-01-01}
+    % \ganttvrule[
+    % vrule label node/.append style={anchor=north west}
+    % ]{}{2020-02-01}
+\end{ganttchart}
