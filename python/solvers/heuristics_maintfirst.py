@@ -44,7 +44,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         # the time between each VS maintenance and the end period.
         instance = self.instance
         # TODO: Hard coding of VS
-        VS_maints = all_maints.to_dictup().to_tuplist()._filter(lambda v: v[2]=='VS')
+        VS_maints = all_maints.to_dictup().to_tuplist().vfilter(lambda v: v[2]=='VS')
         first, last = instance.get_first_last_period()
         _dist = lambda v: instance.get_dist_periods(v, last)
         sum_of_dates = VS_maints.vapply(lambda v: _dist(v[1]))
@@ -153,7 +153,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
             # check quality of solution, store best.
             objective, status, errors = self.analyze_solution(temperature)
-            num_errors = errors.to_lendict().values_tl().apply(sum)
+            num_errors = sum(errors.to_lendict().values_tl())
 
             # 3. check if feasible. If not, un-assign (some/ all) or move maints
             num_change = rn.choices(num_change_pos, num_change_probs)[0]
