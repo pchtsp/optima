@@ -8,18 +8,9 @@ import numpy as np
 import pytups.superdict as sd
 
 """
-cases:
-
-1. 
-There is a M maintenance and a VS that start at the same time.
-We take out the M maintenance. Everything should be updated correctly.
-Same if the VS is in the second period of the M.
-
-2.
-move_maintenances. right, left, 1 period, 2 periods.
-
-4. get_candidates 
-
+TODO:
+template reading and writing.
+ 
 
 """
 

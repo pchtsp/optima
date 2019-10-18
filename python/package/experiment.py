@@ -8,8 +8,6 @@ import package.instance as inst
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
-import shutil
-import re
 import orloge as ol
 import ujson
 
@@ -657,28 +655,8 @@ class Experiment(object):
         a = self.solution.data['aux'].to_dictup().to_tuplist().to_set()
         return a ^ b
 
-
-def clean_experiments(path, clean=True, regex=""):
-    """
-    loads and cleans all experiments that are incomplete
-    :param path: path to experiments
-    :param clean: if set to false it only shows the files instead of deleting them
-    :param regex: optional regex filter
-    :return: deleted experiments
-    """
-    exps_paths = [os.path.join(path, f) for f in os.listdir(path)
-                  if os.path.isdir(os.path.join(path, f))
-                  if re.search(regex, f)
-                  ]
-    to_delete = []
-    for e in exps_paths:
-        exp = Experiment.from_dir(e, format="json")
-        to_delete.append(exp is None)
-    exps_to_delete = sorted(np.array(exps_paths)[to_delete])
-    if clean:
-        for ed in exps_to_delete:
-            shutil.rmtree(ed)
-    return exps_to_delete
+    def solve(self, **kwargs):
+        raise NotImplementedError('An experiment needs to be subclassed and be given a solve method.')
 
 
 def exp_get_info(path, get_log_info=True, get_exp_info=True):
@@ -700,42 +678,7 @@ def exp_get_info(path, get_log_info=True, get_exp_info=True):
     return {**parameters, **options, **log_info, **inst_info}
 
 
-def list_experiments(path, exp_list=None, **kwags):
-    if exp_list is None:
-        exp_list = os.listdir(path)
-    exps_paths = [os.path.join(path, f) for f in exp_list
-                  if os.path.isdir(os.path.join(path, f))]
-    experiments = {}
-    for e in exps_paths:
-        print(e)
-        info = exp_get_info(e, **kwags)
-        if info is None:
-            continue
-        directory = os.path.basename(e)
-        experiments[directory] = info
-    return experiments
-
-
-def list_options(path, exp_list=None):
-    if exp_list is None:
-        exps_paths = [os.path.join(path, f) for f in os.listdir(path)
-                      if os.path.isdir(os.path.join(path, f))]
-    else:
-        exps_paths = [os.path.join(path, f) for f in exp_list
-                      if os.path.isdir(os.path.join(path, f))]
-    experiments = {}
-    for e in exps_paths:
-        options_path = os.path.join(e, "options.json")
-        options = di.load_data(options_path)
-        if not options:
-            continue
-        directory = os.path.basename(e)
-        experiments[directory] = options
-    return experiments
-
-
 if __name__ == "__main__":
     import package.params as pm
 
-    clean_experiments(pm.PATHS['experiments'], clean=True, regex=r'')
     pass

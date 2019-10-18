@@ -1,22 +1,22 @@
 import pytups.superdict as sd
 import pytups.tuplist as tl
 import os
+import package.solution as sol
 import data.data_input as di
 import numpy as np
-import package.instance as inst
-import package.solution as sol
 import solvers.heuristics as heur
 import random as rn
 import math
 import ujson
 import time
 import logging as log
-import pandas as pd
 
 
 class MaintenanceFirst(heur.GreedyByMission):
 
+    # statuses for detecting a new worse solution
     status_worse = {2, 3}
+    # statuses for detecting if we accept a solution
     status_accept = {0, 1, 2}
 
     def __init__(self, instance, solution=None):
@@ -37,12 +37,29 @@ class MaintenanceFirst(heur.GreedyByMission):
             error_cat = self.check_solution().to_lendict()
         num_errors = sum(error_cat.values())
         #  we add to num_errors the number of non empty assignments.
-        num_periods_maint = self.solution.data['state_m'].to_lendict().values()
+        all_maints = self.solution.data['state_m']
+        num_periods_maint = all_maints.to_lendict().values()
         num_errors += sum(num_periods_maint)/10
+        # finally, we add as a less important criteria:
+        # the time between each VS maintenance and the end period.
+        instance = self.instance
+        # TODO: Hard coding of VS
+        VS_maints = all_maints.to_dictup().to_tuplist()._filter(lambda v: v[2]=='VS')
+        first, last = instance.get_first_last_period()
+        _dist = lambda v: instance.get_dist_periods(v, last)
+        sum_of_dates = VS_maints.vapply(lambda v: _dist(v[1]))
+        scale = instance.data['resources'].len()*_dist(first)
+        num_errors += sum(sum_of_dates)/scale
+
         return num_errors
 
     @staticmethod
     def set_log_config(options):
+        """
+        Sets logging according to options
+        :param options: options dictionary
+        :return: None
+        """
         level = log.INFO
         if options.get('debug', False):
             level = log.DEBUG
@@ -74,6 +91,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         _log.setLevel(level)
 
     def initialise_solution_stats(self):
+        """
+        Initializes caches of best and past solution
+        :return: None
+        """
         self.previous_solution = self.best_solution = self.solution.data
         errs = self.check_solution()
         error_cat = errs.to_lendict()
@@ -131,10 +152,8 @@ class MaintenanceFirst(heur.GreedyByMission):
             self.over_assign_missions()
 
             # check quality of solution, store best.
-            status, errors = self.analyze_solution(temperature)
-            error_cat = errors.to_lendict()
-            num_errors = sum(error_cat.values())
-            objective = self.get_objective_function(error_cat)
+            objective, status, errors = self.analyze_solution(temperature)
+            num_errors = errors.to_lendict().values_tl().apply(sum)
 
             # 3. check if feasible. If not, un-assign (some/ all) or move maints
             num_change = rn.choices(num_change_pos, num_change_probs)[0]
@@ -208,7 +227,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         if status in self.status_accept:
             self.previous_solution = self.get_solution()
             self.prev_objective = objective
-        return status, errs
+        return objective, status, errs
 
     def get_candidates(self, errors, k=5):
         """
@@ -535,7 +554,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         for (resource, m), period in res_maint_first_period.items():
             for rt in self.instance.get_maint_rt(m):
-                if rt=='ret' and (resource, m) not in res_maint_first_period:
+                if rt == 'ret' and (resource, m) not in res_maint_first_period:
                     continue
                 self.update_rt_until_next_maint(resource, period, m, rt)
 
@@ -610,22 +629,27 @@ class MaintenanceFirst(heur.GreedyByMission):
         first = inst.get_param('start')
         maint_data = inst.data['maintenances'][maint]
         max_ret = maint_data['max_elapsed_time']
-        remaining_time_size = maint_data['elapsed_time_size']
-        min_usage = inst.get_param('min_usage_period')
-        if not min_usage:
-            min_usage = 10
+        remaining_time_size = \
+            inst.get_resources().\
+            vapply(lambda v: maint_data['elapsed_time_size'])
+        if not max_ret:
+            # if we have a VS, we need to re-adapt the size of hour window.
+            rt = "rut"
+            min_usage = \
+                inst.get_resources('min_usage_period').\
+                get_property('default').\
+                vapply(lambda v: v if v else 10)
+            remaining_time_size = min_usage.\
+                vapply(lambda v: maint_data['used_time_size'] / v).\
+                vapply(math.floor)
+        else:
+            rt = "ret"
         errors = set()
         it = 0
         # we're not supposed to reach 1000.
         while it < 1000:
             it += 1
-            if max_ret:
-                remaining = self.get_remainingtime(time='ret', maint=maint)
-            else:
-                # TODO: this is just a reference. Now this can vary according to the resource
-                # We should at least use the aircraft's default.
-                remaining = self.get_remainingtime(time='rut', maint=maint)
-                remaining_time_size = maint_data['used_time_size'] // min_usage
+            remaining = self.get_remainingtime(time=rt, maint=maint)
             maint_candidates = []
             for res, info in remaining.items():
                 if res in errors:
@@ -637,7 +661,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                     # This tuple has three components:
                     # (resource, first month to assign maintenance, month with troubles)
                     tup = res, \
-                          max(first, inst.shift_period(period, -remaining_time_size + 1)), \
+                          max(first, inst.shift_period(period, -remaining_time_size[res] + 1)), \
                           max(first, period)
                     maint_candidates.append(tup)
                     break
@@ -790,6 +814,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
 if __name__ == "__main__":
     import package.params as pm
+    import package.instance as inst
 
     directory = pm.PATHS['data'] + 'examples/201811092041/'
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
