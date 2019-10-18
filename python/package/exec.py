@@ -13,7 +13,6 @@ import package.experiment as exp
 import package.simulation as sim
 
 def config_and_solve(options):
-    # options = params.OPTIONS
     if options.get('simulate', False):
         model_data = sim.create_dataset(options)
     elif options.get('template', False):
