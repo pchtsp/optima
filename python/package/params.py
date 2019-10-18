@@ -51,7 +51,15 @@ OPTIONS = {
     , 'start': '2018-01'
     , 'num_period': 90
     , 'simulate': True
-
+    , 'template': True
+    , 'solve': True
+    , 'graph': 0
+    , 'warm_start': False
+    # data
+    , 'path': temp_path
+    , 'input_template_path': temp_path + 'template_in.xlsx'
+    , 'output_template_path': temp_path + 'template_out.xlsx'
+    , 'exclude_aux': False
     , 'multiprocess': None
     # heuristic params:
     , 'seed': 42
@@ -152,4 +160,5 @@ OPTIONS = {
             }
         }
     }
+}
 
