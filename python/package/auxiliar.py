@@ -2,9 +2,6 @@
 
 import arrow
 import datetime
-# import bokeh.plotting as bokehplot
-
-# TODO: migrate all relevant methods to tuplist and superdict
 
 def get_months(start_month, end_month):
     """

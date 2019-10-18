@@ -1,0 +1,45 @@
+{
+    "timeLimit": 200,
+    "solver": "HEUR_mf",
+    "black_list": [
+        "O8",
+        "O10",
+        "O6"
+    ],
+    "white_list": [],
+    "start": "2018-01",
+    "num_period": 60,
+    "simulate": true,
+    "template": true,
+    "graph": true,
+    "R_HOME": "C:\\Users\\pchtsp\\Downloads\\R-Portable\\App\\R-Portable",
+    "seed": 42,
+    "num_change": [
+        0.8,
+        0.1,
+        0.1
+    ],
+    "temperature": 2,
+    "prob_free_aircraft": 0.1,
+    "prob_free_periods": 0.5,
+    "cooling": 0.999,
+    "debug": false,
+    "max_iters": 99999999,
+    "prob_delete_maint": 0.5,
+    "log_output": [
+        "file",
+        "console"
+    ],
+    "noise_assignment": true,
+    "gap": 0,
+    "gap_abs": 40,
+    "memory": null,
+    "slack_vars": "No",
+    "integer": false,
+    "writeLP": false,
+    "writeMPS": false,
+    "price_rut_end": 0,
+    "mip_start": false,
+    "fix_start": false,
+    "default_type2_capacity": 66
+}

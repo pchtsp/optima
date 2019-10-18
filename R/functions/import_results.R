@@ -1,3 +1,11 @@
+packs <- installed.packages()
+packages <- 
+    c('tidyverse', 'readxl', 'magrittr', 'stringr', 'zoo', 'data.table', 'lubridate', 'timevis', 'Hmisc', 'RColorBrewer', 'htmlwidgets', 'jsonlite')
+to_install <- !(packages %in% packs)
+for (p in packages[to_install]){
+    install.packages(p, repos='https://cloud.r-project.org')
+}
+
 library(tidyverse)
 library(readxl)
 library(magrittr)
@@ -140,23 +148,56 @@ get_states <- function(exp_directory, style_config=list()){
     solution <- read_json(solution_path)
     input <- read_json(input_path)
     
+    # maintenance colors
+    maints_tab <- 
+        data.table(state=c('VG', 'VI', 'VS', 'M', 'VG+VI', 'VG+VS', 'VG+VI+VS', 'VI+VS'), 
+                   color=c('#4cb33d', '#00c8c3', '#31c9ff', '#878787', rep('#EFCC00', 4))) %>% 
+        mutate(hours=0)
+    # maints_tab <- 
+    #     input %>% 
+    #     extract2('maintenances') %>% 
+    #     lapply("[[", 'priority') %>% 
+    #     bind_rows() %>% 
+    #     gather(key='state', value = 'hours') %>% 
+    #     mutate(hours=0) %>% 
+    #     right_join(colors_maint)
+    
+    # tasks colors
     task_hours <-
         input %>% 
         extract2('tasks') %>% 
         lapply("[[", 'consumption') %>% 
         bind_rows() %>% 
-        gather(key='state', value = 'hours') %>% 
-        bind_rows(data.table(state='M', hours=0)) %>% 
-        mutate(bucket= hours %>% as.integer %>% multiply_by(-1) %>% cut2(g= 4),
-               color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket]) %>% 
-        mutate(color = if_else(state=='M', '#D3D3D3', color))
+        gather(key='state', value = 'hours')
+    if (nrow(task_hours)>0){
+        task_hours <-
+            task_hours %>% 
+            mutate(bucket= hours %>% as.integer %>% multiply_by(-1) %>% cut2(g= 4),
+                   color = RColorBrewer::brewer.pal(4, "RdYlGn")[bucket]) %>% 
+            select(state, hours, color)
+    } else {
+        task_hours <- data.table(color=as.character(), state=as.character(), hours=as.integer())
+    }
+    task_hours <- 
+        task_hours %>% 
+        # merge with maintenances
+        bind_rows(maints_tab)
     
+    # get task assignments
     tasks <- 
         solution %>% 
         extract2('task') %>% 
-        bind_rows(.id = "resource") %>% 
-        gather(key = 'month', value = 'state', -resource) %>% 
-        filter(state %>% is.na %>% not)
+        bind_rows(.id = "resource")
+    
+    if (nrow(tasks)>0){
+        tasks <- 
+            tasks %>% 
+            gather(key = 'month', value = 'state', -resource) %>% 
+            filter(state %>% is.na %>% not)        
+    } else {
+        tasks <- data.table(resource=as.character(), month=as.character(), state=as.character())
+    }
+
     
     # def_style_config = list(font_size='15px')
     font_size = style_config$font_size
@@ -164,20 +205,49 @@ get_states <- function(exp_directory, style_config=list()){
         font_size <- '15px'
     }
 
+    # get maintenance assignments
+    treat_maint <- function(res){
+        res %>% 
+            bind_rows(.id = "month") %>% 
+            gather(-month, key = 'state', value = 'ind') %>% 
+            filter(is.na(ind) %>% not) %>% 
+            select(month, state)
+    }
+
+    # solution %>% 
+    #     extract2('state_m') %>% 
+    #     lapply(treat_maint) %>% 
+    #     bind_rows(.id = "resource") %>% 
+    #     filter(state %>% is.na %>% not) %>% 
+    #     group_by(resource, month) %>% 
+    #     summarise(state = paste0(state, collapse = '+')) %>% 
+    #     mutate(num = n()) %>% 
+    #     filter(num > 1) %>% 
+    #     arrange(resource, month)
+
     states <- 
         solution %>% 
-        extract2('state') %>% 
+        extract2('state_m') %>% 
+        lapply(treat_maint) %>% 
         bind_rows(.id = "resource") %>% 
-        gather(key = 'month', value = 'state', -resource) %>% 
-        filter(state %>% is.na %>% not) %>% 
+        filter(state %>% is.na %>% not) %>%
+        arrange(resource, month, state) %>% 
+        group_by(resource, month) %>% 
+        summarise(state = paste0(state, collapse = '+')) %>% 
+        ungroup() %>% 
+        # merge tasks
         bind_rows(tasks) %>% 
+        # start finish format
         collapse_states() %>% 
+        # merge colors and format
         inner_join(task_hours) %>% 
         mutate(id= c(1:nrow(.)),
-               style= sprintf("background-color:%s;border-color:%s;font-size: %s", color, color, font_size),
-               content = if_else(state=='M', 'M', sprintf('%sh', hours))
+               style= sprintf("background-color:%s;border-color:%s;font-size: %s", color, color, font_size)
         ) %>% 
-        rename(start= month, end= post_month, group= resource)
+        left_join(maints_tab %>%  distinct(state) %>% mutate(maint=TRUE)) %>% 
+        rename(start= month, end= post_month, group= resource) %>% 
+        mutate(maint= maint %>% is.na %>% not,
+               content = if_else(maint, state, sprintf('%sh', hours)))
     states
 }
 
@@ -197,7 +267,7 @@ timevis_from_states <- function(states, max_resources=NULL, ...){
         orientation = "top",
         snap = NULL,
         margin = 0,
-        zoomable= FALSE
+        zoomable= TRUE
     )
     
     timevis(states, groups= groups, options= config, ...)
@@ -282,3 +352,9 @@ if (FALSE){
     saveWidget(result, file = "/home/pchtsp/Downloads/test.html", selfcontained = FALSE)
 }
 
+args = commandArgs(trailingOnly = TRUE)
+
+if (length(args)==1){
+    exp_directory = args[1]
+    print_solution_and_print(exp_directory, width='100%')
+}

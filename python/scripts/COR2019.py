@@ -1,21 +1,20 @@
+import reports.reports as rep
 import os
+import package.experiment as exp
 import pandas as pd
 import numpy as np
-import orloge as ol
+import package.params as pm
+import pytups.superdict as sd
+# import scripts.names as na
+# import numpy as np
 import dfply as dp
 from dfply import X
-
-import package.reports as rep
-import package.experiment as exp
-import package.params as pm
-import package.superdict as sd
-import package.rpy_graphs as rg
+import reports.rpy_graphs as rg
 import scripts.names as na
-import package.heuristics_maintfirst as heur
-import package.data_input as di
+import orloge as ol
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
-path = r'H:\MyDocs\projects\COR2019/'
+
 
 def boxplot_times(table, experiment):
     str_tup = 'time_out', 'Solving time', '_times'
@@ -164,10 +163,9 @@ def get_preprocessing(table):
 ############################ TEST:
 
 def test2():
-    experiment = "clust1_20190408"
+    experiment = ""
     path_exps = pm.PATHS['results'] + experiment
     exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
-
 
     # results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
     exps = {k: exp.list_experiments(path_abs, get_exp_info=False) for k, path_abs in exps.items()}
@@ -213,9 +211,13 @@ def test2():
     # pd.io.json.json_normalize(cuts, record_path=['*', '*'])
 
 def statistics_experiment(experiment):
+    # experiment = "clust1_20181121"
+    # experiment = 'clust1_20181128'
     table = rep.get_simulation_results(experiment)
     boxplot_times(table, experiment)
     boxplot_gaps(table, experiment)
+    # bars_no_int(table, experiment)
+    # bars_inf(table, experiment)
     summary_to_latex(table, experiment)
 
 def cut_comparison():
@@ -290,11 +292,11 @@ def statistics_relaxations(experiment):
     table_n =\
         table >>\
             dp.bind_cols(table_cuts) >>\
-            dp.mutate(opt = X.sol_code == ol.LpSolutionOptimal,
+            dp.mutate(opt = X.sol_code==ol.LpSolutionOptimal,
                       gap_init = 100*(X.best_solution - X.first_relaxed)/X.best_solution,
                       gap_cuts = 100*(X.best_solution - X.cuts_best_bound)/X.best_solution,
                       gap_cuts_int = 100*(X.cuts_best_solution - X.best_solution) / X.best_solution
-                      ) >>\
+                      )  >>\
             dp.select(X.scenario, X.instance, X.opt,  X.nodes, X.gap_init, X.gap_cuts, X.gap_cuts_int)
 
     table_n_sum =\
@@ -325,86 +327,18 @@ def statistics_relaxations(experiment):
     with open(file_path, 'w') as f:
         f.write(latex)
 
-def table_heuristic(experiment):
-    path_exps = pm.PATHS['results'] + experiment
-    exps_inst = {name: {p: v for p, v in rep.path_contents_dict(path).items()}
-                 for name, path in rep.path_contents_dict(path_exps).items()}
-    exps_inst = sd.SuperDict.from_dict(exps_inst).to_dictup()
-    # for each instance, we get info from the logs.
-    # also, we calculate the objective function from the solution.
-    paths_log = exps_inst.apply(lambda k, v: heur.parse_log_file(v + 'output.log'))
-    exps_dict = exps_inst.apply(lambda k, v: exp.Experiment.from_dir(v))
-    opts_dict = exps_inst.apply(lambda k, v: di.load_data(v + 'options.json'))
-    exps_obj = exps_dict.apply(lambda k, v: v.get_objective_function(opts_dict[k]))
-
-    results = pd.DataFrame.from_dict(paths_log, orient='index').reset_index()
-    results.rename(columns=dict(level_0='scenario', level_1='date'), inplace=True)
-    results['no_int'] = results.errors > 0
-    results.set_index(['scenario', 'date'], inplace=True)
-    results['best_solution'] = results.index.map(exps_obj)
-    results.reset_index(inplace=True)
-
-    return results
-
-
-def model_vs_heuristic_vs_remake(table_solver, table_remake, table_heur):
-
-    table_mhr = table_solver.\
-        merge(table_heur, on=['scenario', 'id'], how='inner'). \
-        merge(table_remake, on=['scenario', 'id'], how='inner')
-
-    table_mhr['gap_abs_heur'] = table_mhr.best_solution - table_mhr.objective_x
-    table_mhr['gap_rel_heur'] = table_mhr.gap_abs_heur / table_mhr.objective_x * 100
-
-    # table_mhr = table_mh
-    table_mhr['gap_abs_rem'] = table_mhr.objective_y - table_mhr.objective_x
-    table_mhr['gap_rel_rem'] = table_mhr.gap_abs_rem / table_mhr.objective_x * 100
-
-    agg_total = table_solver.groupby('scenario').agg({'sol_code': lambda x: len(x)})
-
-    renames = dict(time_out_x='timeM',
-                   time_out_y='timeHM',
-                   time='timeH',
-                   no_int_y='numH',
-                   sol_code='numM',
-                   gap_out_x='gapM',
-                   gap_out_y='gapHM')
-
-    results_agg = \
-        table_mhr.\
-        groupby('scenario').\
-        agg({'time_out_x': 'mean',
-             'time_out_y': 'mean',
-             'gap_rel_heur': 'mean',
-             'gap_rel_rem': 'mean',
-             'no_int_y': 'count',
-             'time': 'mean',
-             'gap_out_x': 'mean',
-             'gap_out_y': 'mean'}). \
-        merge(agg_total, on='scenario').\
-        rename(columns=renames)
-
-    return results_agg
-
-
-def correct_date(series):
-    aux = series.str.split('_', expand=True)
-    return aux[0] + '_' + aux[1].fillna("").str.pad(width=3, fillchar='0')
-
 
 if __name__ == "__main__":
     ####################
     # Scenario analysis
     ####################
     experiments = ["clust1_20181121"]
-    experiments = ['clust_params2_cplex_v2', 'clust_params1_cplex_v2']
-    experiments = ['clust_params1_cplex_v2']
-    experiments = ['clust1_20190408_remake']
+    experiments = ['clust_params2_cplex', 'clust_params1_cplex']
     for experiment in experiments:
         # statistics_experiment(experiment)
-        # statistics_relaxations(experiment)
-        pass
-    # cuts_relaxation_comparison()
+        statistics_relaxations(experiment)
+    cuts_relaxation_comparison()
+
 
     ####################
     # Scenario comparison
@@ -412,95 +346,20 @@ if __name__ == "__main__":
     # cut_comparison()
 
     ####################
-    # Get model results
-    ####################
-    cols_rename = {
-        'time': 'time_out', 'index': 'id', 'best_solution': 'objective',
-        'gap': 'gap_out', 'best_bound': 'bound', 'first_solution': 'first_solution',
-        'sol_code': 'sol_code', 'status_code': 'status_code', 'date': 'date'
-    }
-    # make  get_first_solution return time, nodes. Same for first_relax.
-    table_solver = rep.get_simulation_results(experiment='clust1_20190322',
-                                              cols_rename=cols_rename)
-
-    table_solver['date2'] = correct_date(table_solver.date)
-    table_solver.sort_values(['scenario', 'date2'], inplace=True)
-    table_solver['id'] = \
-        table_solver.groupby('scenario')['date'].\
-        transform(lambda x: range(len(x)))
-
-    # we get only feasible instances
-    feasible = table_solver.sol_code.isin([ol.LpSolutionOptimal, ol.LpSolutionIntegerFeasible])
-    table_solver = table_solver[feasible].copy()
-
-    names = na.config_to_latex(table_solver.scenario)
-
-    ####################
-    # Get heuristic results
+    # Other?
     ####################
 
-    table_heur = table_heuristic('clust1_20190408')
-    table_heur['date2'] = correct_date(table_heur.date)
-    # table_heur['date2'] = table_heur.date.apply(len).apply(str) + table_heur.date
-    table_heur.sort_values(['scenario', 'date2'], inplace=True)
-    table_heur['id'] = \
-        table_heur.groupby('scenario')['date'].\
-        transform(lambda x: range(len(x)))
-    table_heur = table_heur[~table_heur.no_int]
-
-    ##DELETE
-    # check why clust1_20190408\numparalleltasks_3\201904090442_16 is infeasible in the model.
-    # table_solver[['scenario', 'date2', 'id', 'sol_code']].query("scenario=='numparalleltasks_3'")
-    # table_heur[['scenario', 'date2', 'id']]
-    # ttt = table_solver.merge(table_heur, on=['scenario', 'id'], how='inner')
-    # feasible = ttt.sol_code.isin([ol.LpSolutionOptimal, ol.LpSolutionIntegerFeasible])
-    # ttt[~feasible][['scenario', 'date_x', 'date_y', 'id']]
-    ##
-
-    ####################
-    # Get remake results
-    ####################
-
-    table_remake = rep.get_simulation_results(experiment='clust1_20190408_remake',
-                                              cols_rename=cols_rename)
-    table_remake['date2'] = correct_date(table_remake.date)
-    table_remake.sort_values(['scenario', 'date2'], inplace=True)
-    table_remake['id'] = table_remake.groupby('scenario')['date'].transform(lambda x: range(len(x)))
-
-
-    # ###################
-    # formatting
-    # ###################
-
-    table_HMR = model_vs_heuristic_vs_remake(table_solver, table_remake, table_heur)
-
-    ####################
-    # only one table
-    ####################
-    table_HMR['perc_init'] = table_HMR.numH / table_HMR.numM * 100
-    renames =  [
-               ('case', 'case')
-    		   ,('timeM', '$t^{avg}_M$')
-               ,('timeH', '$t^{avg}_H$')
-               ,('timeHM', '$t^{avg}_{M+H}$')
-               ,('gapM', '$g^{avg}_M$')
-               ,('gapHM', '$g^{avg}_{M+H}$')
-               , ('gap_rel_heur', '$\%Dif_H$')
-               ,('perc_init', '$\%Init_H$')
-               ]
-    _, new_names = zip(*renames)
-    result =\
-        table_HMR.\
-        round(1).\
-        rename(columns=dict(renames)). \
-        merge(names, on='scenario'). \
-        filter(new_names)
-
-    # result.columns
-    latex = result.to_latex(float_format='%.1f', escape=False, index=False)
-
-    file_path = os.path.join(path + 'tables/', 'remake_comp.tex')
-    with open(file_path, 'w') as f:
-        f.write(latex)
-
-    rep.print_table_md(table_HMR)
+        # latex = table_n.to_latex(float_format='%.1f', escape=False, index=False)
+        # file_path = os.path.join(path, '{}.tex'.format(experiment))
+        # with open(file_path, 'w') as f:
+        #     f.write(latex)
+#
+# def scrap1():
+#     table.sol_code
+#     table.status_code
+#     table >> dp.select(X.status, X.gap_out)
+#     table >> \
+#         dp.filter_by(X.scenario=='minusageperiod_20') >> \
+#         dp.select(X.instance, X.gap_out, X.inf, X.objective, X.no_int) >>\
+#         dp.arrange(X.gap_out)
+#     table.columns

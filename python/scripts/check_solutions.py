@@ -1,16 +1,20 @@
 import package.experiment as exp
+import solvers.heuristics_maintfirst as heur
 import pprint as pp
 from package.params import PATHS, OPTIONS
 import package.auxiliar as aux
-import package.data_input as di
 import pandas as pd
-import package.superdict as sd
-import scripts.exec as exec
+import pytups.superdict as sd
+import package.exec as exec
 import os
-import package.model as md
-import package.rpy_graphs as rg
-import dfply as dp
-from dfply import X
+import data.data_input as di
+import reports.gantt as gantt
+
+try:
+    import reports.rpy_graphs as rg
+except:
+    print("No support for R graph functions!")
+
 
 def test2():
     # e = '201809121711'
@@ -57,22 +61,24 @@ def test4():
 
     pass
 
-def graph_check():
-    path = PATHS['experiments'] + "201902061522/"
-    path = PATHS['experiments'] + "201902111621/"
+def graph_check(path):
+    # path = PATHS['experiments'] + "201902061522/"
+    # path = PATHS['experiments'] + "201902111621/"
     # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
     experiment = exp.Experiment.from_dir(path)
-    experiment.check_min_distance_maints()
-    status = experiment.get_status('9')
-    status.reset_index(inplace=True)
-    status.columns = ['period', 'rut', 'ret', 'state', 'task']
-    status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
+    # experiment.check_min_distance_maints()
+    # status = experiment.get_status('9')
+    # status.reset_index(inplace=True)
+    # status.columns = ['period', 'rut', 'ret', 'state', 'task']
+    # status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    rg.gantt_experiment(path)
+    # experiment.get_status('1')
 
+    # rg.gantt_experiment(path, './../../R/functions/import_results.R')
+    # experiment.check_maints_size()
     experiment.check_solution()
 
     # input_data = di.load_data(PATHS['experiments'] + "201810051701/data_in.json")
@@ -142,8 +148,12 @@ def check_over_assignments():
     def listdir_fullpath(d):
         return [os.path.join(d, f) for f in os.listdir(d)]
 
-    exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/') for p in listdir_fullpath(path_exps) for e in listdir_fullpath(p)}
-    exp_scenario = {os.path.basename(e): os.path.basename(p) for p in listdir_fullpath(path_exps) for e in             listdir_fullpath(p)}
+    exps = {os.path.basename(e): exp.Experiment.from_dir(e+'/')
+            for p in listdir_fullpath(path_exps)
+            for e in listdir_fullpath(p)}
+    exp_scenario = {os.path.basename(e): os.path.basename(p)
+                    for p in listdir_fullpath(path_exps)
+                    for e in listdir_fullpath(p)}
     checks = {e: v.check_task_num_resources(strict=True) for e, v in exps.items() if v is not None}
 
 
@@ -160,9 +170,65 @@ def check_over_assignments():
     result.sort_index(inplace=True)
     return result
 
+def check_template_data():
+    import data.template_data as td
+    import package.instance as inst
+    import package.solution as sol
+
+    _dir = PATHS['data'] + r'template/dassault20190821_3/'
+    path_in = _dir + r'template_in.xlsx'
+    path_sol = _dir + r'template_out.xlsx'
+    path_err = _dir + r'errors.json'
+    model_data = td.import_input_template(path_in)
+    instance = inst.Instance(model_data)
+    sol_data = td.import_output_template(path_sol)
+    solution = sol.Solution(sol_data)
+    experiment = heur.MaintenanceFirst(instance, solution)
+    errors_old = di.load_data(path_err)
+    errors = experiment.check_solution().to_dictdict().to_dictup()
+
+    len(sd.SuperDict.from_dict(errors_old).to_dictup())
+    experiment2 = exp.Experiment.from_dir(_dir)
+    experiment2.solution.data['state_m']
+    errors_real = experiment2.check_solution().to_dictdict().to_dictup()
+    len(errors_real)
+    len(errors)
+    # errors.filter(errors_real.keys_l())
+    errors_real.keys() - errors.keys()
+    errors.keys() - errors_real.keys()
+    experiment2.get_status('B3')
+    experiment.get_status('B3')
+    # errors_real.filter()
+    aux1 =  experiment.solution.data['aux'].to_dictup().to_tuplist()
+    aux2 = experiment2.solution.data['aux'].to_dictup().to_tuplist()
+    set(aux2) - set(aux1)
+    # import unittest
+    # unittest.TestCase().assertDictEqual(errors, errors_real)
+    # unittest.
+
+    # gantt.make_gantt_from_experiment(experiment)
+
+def solve_template():
+    import data.template_data as td
+    import package.instance as inst
+
+    path_in = PATHS['data'] + r'template/dassault20190821/template_in.xlsx'
+    model_data = td.import_input_template(path_in)
+    instance = inst.Instance(model_data)
+    experiment = heur.MaintenanceFirst(instance)
+    options = OPTIONS
+    options['path'] = os.path.dirname(path_in)
+    experiment.solve(options)
+
+    pass
+
 
 if __name__ == '__main__':
     # check_over_assignments()
     # test_rexecute()
-    test_rexecute()
+    # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
+    # graph_check(path)
+    # solve_template()
+    check_template_data()
     pass
+
