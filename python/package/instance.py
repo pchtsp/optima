@@ -190,9 +190,9 @@ class Instance(object):
         :param time_type:
         :return:
         """
-        # TODO: this needs to be corrected somehow. Look at the merge.
         first_period = self.get_param('start')
         prev_first_period = self.get_prev_period(first_period)
+
         if time_type not in ["elapsed", "used"]:
             raise KeyError("Wrong type in time_type parameter: elapsed or used only")
 
@@ -201,31 +201,35 @@ class Instance(object):
         resources = sd.SuperDict(self.get_resources())
         res1 = resources.keys_l()[0]
         if key_initial not in res1:
-            # we're not using these parameters anymore
+            # this means we're already using the good nomenclature
             return
         rt_read = resources.get_property(key_initial)
         rt_max = self.get_param(key_max)
 
-        # we also check if the resources is currently in maintenance.
-        # If it is: we assign the rt_max (according to convention).
-        fixed_maints = self.get_fixed_maintenances()
-        res_in_maint = set([res for res, period in fixed_maints])
+        # in case of resources with fixed maintenances we need to assign
+        # the max value for the ret and rut.
+        # In the case of ret, we need to assign a little more depending on how many
+        # fixed maintenances the resources has.
+
+        # here, we calculate the number of fixed maintenances.
         res_maints = \
-            self.get_fixed_maintenances(resource=resource).\
-            filter_list_f(lambda x: x[1] >= prev_first_period).\
+            self.get_fixed_maintenances().\
+            vfilter(lambda x: x[1] >= prev_first_period).\
             to_dict(result_col=1).\
             to_lendict()
+
         if time_type == 'elapsed':
+            # this extra is only for ret, not for rut
             rt_fixed = {k: rt_max + v - 1 for k, v in res_maints.items()}
         else:
             rt_fixed = {k: rt_max for k, v in res_maints.items()}
 
-        rt_init = {a: rt_max for a in rt_read}
-        rt_init.update(rt_read)
+        rt_init = dict(rt_read)
         rt_init.update(rt_fixed)
         for r in rt_init:
-            self.data['resources'][r][key_initial] = rt_init[r]
+            self.data['resources'][r]['M'][key_initial] = rt_init[r]
         return rt_init
+
 
     def get_initial_state(self, time_type, resource=None, maint='M'):
         """
