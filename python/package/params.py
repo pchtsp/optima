@@ -44,7 +44,7 @@ params_cbc = ["presolve on",
 
 OPTIONS = {
     'timeLimit': 600  # seconds
-    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
+    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX, FixLP.CPLEX
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
@@ -71,7 +71,8 @@ OPTIONS = {
     , 'gap_abs': 40
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
-    , 'integer': False
+    , 'integer': False  # force all vars to integer
+    , 'relax': False  # force all vars to LpContinuous
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
@@ -92,7 +93,7 @@ OPTIONS = {
         'window_size': 10,
         'percent_add': 0,
         'tolerance_mean': {'min': -4, 'max': 4}
-    }, 'DetermCuts': True
+    }, 'DetermCuts': False
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
