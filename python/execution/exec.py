@@ -5,9 +5,6 @@ import data.data_input as di
 import package.instance as inst
 import package.solution as sol
 import package.experiment as exp
-import solvers.model as md
-import solvers.heuristics as heur
-import solvers.heuristics_maintfirst as mf
 import data.simulation as sim
 import pytups.superdict as sd
 
@@ -79,6 +76,12 @@ def re_execute_instance(directory, new_options=None, new_input=None):
 
 
 def execute_solve(model_data, options, solution_data=None):
+
+    import solvers.model as md
+    import solvers.heuristics as heur
+    import solvers.heuristics_maintfirst as mf
+    import solvers.model_fixingLP as fixingLP
+
     instance = inst.Instance(model_data)
     solution = None
 
@@ -91,18 +94,25 @@ def execute_solve(model_data, options, solution_data=None):
     di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
-    solver = options.get('solver', 'CPLEX')
-    if solver == 'CPO':
-        raise("The CPO model is not supported for the time being")
-    if solver == 'HEUR':
+    engine = options.get('solver', 'CPLEX')
+    # there is the possibilty to have two solvers separated by .
+    solver = None
+    if '.' in engine:
+        engine, solver = engine.split('.')
+        options['solver'] = solver
+    if engine == 'CPO':
+        raise NotImplementedError("The CPO model is not supported for the time being")
+    if engine == 'HEUR':
         experiment = heur.GreedyByMission(instance, solution=solution)
-    elif solver == 'HEUR_mf':
+    elif engine == 'HEUR_mf':
         experiment = mf.MaintenanceFirst(instance, solution=solution)
-    elif solver == 'HEUR_mf_CPLEX':
-        experiment = mf.MaintenanceFirst(instance, solution=solution)
-        solution = experiment.solve(options)
-        experiment = md.Model(instance, solution=solution)
-        options.update(dict(mip_start= True, solver='CPLEX'))
+        if solver is not None:
+            # if we added a solver, we want a two-step solving
+            solution = experiment.solve(options)
+            experiment = md.Model(instance, solution=solution)
+            options.update(dict(mip_start= True))
+    elif engine == 'FixLP':
+        experiment = fixingLP.ModelFixLP(instance, solution=solution)
     else:
         # model with solver
         experiment = md.Model(instance, solution=solution)

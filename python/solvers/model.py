@@ -22,11 +22,20 @@ class Model(exp.Experiment):
         super().__init__(instance, solution)
 
         self.domains = {}
+        self.start_M = {}
+        self.start_T = {}
+        self.rut = {}
+        self.slack_kts_h = {}
+        self.slack_kts = {}
+        self.slack_ts = {}
+        self.model = None
 
     def solve(self, options=None):
-        self.domains = l = self.get_domains_sets(options)
+        l = self.domains
+        if not self.domains or options.get('calculate_domains', True):
+            l = self.domains = self.get_domains_sets(options)
         ub = self.get_variable_bounds()
-        first_period, last_period = (self.instance.get_param(d) for d in ['start', 'end'])
+        first_period, last_period = self.instance.get_start_end()
         consumption = sd.SuperDict.from_dict(self.instance.get_tasks('consumption'))
         requirement = self.instance.get_tasks('num_resource')
         rut_init = self.instance.get_initial_state("used")
@@ -55,21 +64,26 @@ class Model(exp.Experiment):
             price_assign = {(a, v): rn.random() for v in l['tasks'] for a in l['candidates'][v]}
 
         # Sometimes we want to force variables to be integer.
-        var_type = pl.LpContinuous
+        normally_continuous = pl.LpContinuous
+        normally_integer = pl.LpInteger
         integer_problem = options.get('integer', False)
+        relaxed_problem = options.get('relax', False)
         if integer_problem:
-            var_type = pl.LpInteger
+            normally_continuous = pl.LpInteger
+        elif relaxed_problem:
+            normally_integer = pl.LpContinuous
 
         # VARIABLES:
+        # we save all variables as part in the object.
         # binary:
         # mission assignment
-        start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        self.start_T = start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1, cat=normally_integer)
         # maintenance cycle
-        start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1, cat=pl.LpInteger)
+        self.start_M = start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1, cat=normally_integer)
 
         # numeric:
         # remaining flight hours per period
-        rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=var_type)
+        self.rut = rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=normally_continuous)
 
         # slack variables:
         price_slack_kts = {s: (p+1)*50 for p, s in enumerate(l['slots'])}
@@ -80,29 +94,33 @@ class Model(exp.Experiment):
         for tup in l['kts']:
             k, t, s = tup
             slack_kts[tup] = pl.LpVariable(name="slack_kts_{}".format(tup), lowBound=0,
-                                           upBound=ub['slack_kts'][s], cat=var_type)
+                                           upBound=ub['slack_kts'][s], cat=normally_continuous)
         for tup in l['kts']:
             k, t, s = tup
             slack_kts_h[tup] = pl.LpVariable(name="slack_kts_h_{}".format(tup), lowBound=0,
-                                          upBound=ub['slack_kts_h'][k, s], cat=var_type)
+                                          upBound=ub['slack_kts_h'][k, s], cat=normally_continuous)
         for tup in l['ts']:
             t, s = tup
             slack_ts[tup] = pl.LpVariable(name="slack_ts_{}".format(tup), lowBound=0,
-                                          upBound=ub['slack_ts'][s], cat=var_type)
+                                          upBound=ub['slack_ts'][s], cat=normally_continuous)
+
+        self.slack_ts = slack_ts
+        self.slack_kts_h = slack_kts_h
+        self.slack_kts = slack_kts
 
         slack_vt = {tup: 0 for tup in l['vt']}
         slack_at = {tup: 0 for tup in l['at']}
 
         slack_p = options.get('slack_vars')
         if slack_p == 'Yes':
-            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=var_type)
-            slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=var_type)
+            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=normally_continuous)
+            slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=normally_continuous)
         elif slack_p is int:
             # first X months only
             first_months = self.instance.get_next_periods(first_period, slack_p)
             _vt = [(v, t) for v, t in l['vt'] if t in first_months]
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
-            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=var_type)
+            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=normally_continuous)
 
         vs = {
             'start_T': start_T
@@ -114,7 +132,7 @@ class Model(exp.Experiment):
         }
 
         if options.get('mip_start') and self.solution is not None:
-            self.fill_initial_solution(vs)
+            self.fill_initial_solution()
             vars_to_fix = []
             # vars_to_fix = [start_M, start_T]
             if vars_to_fix is not None:
@@ -123,7 +141,7 @@ class Model(exp.Experiment):
                         var.fixValue()
 
         # MODEL
-        model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
+        self.model = model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
 
         # try to make the second maintenance the most late possible
         period_pos = self.instance.data['aux']['period_i']
@@ -301,13 +319,12 @@ class Model(exp.Experiment):
             return None
         print('model solved correctly')
 
-        self.solution = self.get_solution(variables=vs)
+        self.solution = self.get_solution()
 
         return self.solution
 
-    def fill_initial_solution(self, variables):
+    def fill_initial_solution(self):
         """
-        :param variables: variable dictionary to unpack
         :param vars_to_fix: possible list of variables to fix. List of dicts assumed)
         :return:
         """
@@ -318,9 +335,9 @@ class Model(exp.Experiment):
         first = self.instance.get_param('start')
         last = self.instance.get_param('end')
 
-        start_M = variables['start_M']
-        start_T = variables['start_T']
-        rut = variables['rut']
+        start_M = self.start_M
+        start_T = self.start_T
+        rut = self.rut
 
         _next = self.instance.get_next_period
         _prev = self.instance.get_prev_period
@@ -383,18 +400,18 @@ class Model(exp.Experiment):
 
         return True
 
-    def get_solution(self, variables):
+    def get_solution(self):
 
         l = self.domains
         if not len(l):
             raise ValueError('Model has not been solved yet. No domains are generated')
 
-        start_M = variables['start_M']
-        start_T = variables['start_T']
-        rut = variables['rut']
-        slack_kts_h = variables['slack_kts_h']
-        slack_kts = variables['slack_kts']
-        slack_ts = variables['slack_ts']
+        start_M = self.start_M
+        start_T = self.start_T
+        rut = self.rut
+        slack_kts_h = self.slack_kts_h
+        slack_kts = self.slack_kts
+        slack_ts = self.slack_ts
 
         first_period = self.instance.get_param('start')
         last_period = self.instance.get_param('end')
@@ -763,9 +780,6 @@ class Model(exp.Experiment):
         cycles = [str(n) for n in range(3)]
         att_cycles = tl.TupList((a, n) for a in resources for n in cycles)
 
-        # these are the periods where we know we have to do a second maintenance, given we did a maintenance in t.
-        # (OBSOLETE)
-        att_M = att_maints.filter_list_f(lambda x: p_pos[x[1]] + max_elapsed < len(periods))
         # this is the TTT_t set.
         # periods that are maintenance periods because of having assign a maintenance
         attt_maints = tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t1), []))
@@ -786,7 +800,6 @@ class Model(exp.Experiment):
         t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
-        t_at_M = att_M.to_dict(result_col=2, is_list=True).fill_with_default(at, [])
         t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
         tt_maints_at = attt_maints.to_dict(result_col=[1, 2], is_list=True)
         att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
@@ -816,7 +829,6 @@ class Model(exp.Experiment):
         ,'vt'               :  vt
         ,'avt'              :  avt
         ,'at'               :  at
-        ,'at_maint'         :  at_maint
         ,'at_mission_m'     : at_mission_m
         ,'ast'              :  ast
         ,'at_start'         :  list(at_start + at_free_start)
@@ -834,16 +846,13 @@ class Model(exp.Experiment):
         ,'avtt'             : avtt
         , 'avtt2'           : avtt2
         , 'tt2_avt'         : tt2_avt
-        , 'att_m'           : att_m
-        , 't_at_M'          : t_at_M
-        , 'att_M'           : att_M
-        , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
         , 'slots'           : slots
         , 'k'               : k
         , 'kts'             : kts
         , 'ts'              : ts
+        ,'at_maint'         :  at_maint
         , 'att_maints'      : att_maints
         , 'att_cycles'      : att_cycles
         , 'cycles'          : cycles
