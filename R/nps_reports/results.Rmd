@@ -66,7 +66,8 @@ quality_degr_quant95_abs <- t1_abs %>% quantile(quant_max)
 For `r quant_max*100`\% of the `r quality_degr_nrow` (`r (quant_max*quality_degr_nrow) %>% floor`) instances that comply with this condition, the loss in the objective function was `r quality_degr_quant95 %>% round(2)`\% or less from the optimal. This corresponds to an absolute value of `r quality_degr_quant95_abs %>% round(2)`. As a reference, the absolute gap tolerance used in the solving was of 10.
 
 ```{r}
-t1_rel_filt <- t1_rel[t1_rel<20]
+# this takes 10% from right side
+t1_rel_filt <- t1_rel[t1_rel<quantile(t1_rel, 0.90)]
 filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
 ```
 
@@ -93,7 +94,9 @@ quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
 ```
 
 ```{r}
-filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -10, 10))
+
+# this takes 5% from each side
+filtered_q_perf <- quality_perf %>% filter(dif_perc %>% between(., quantile(., c(0.05)), quantile(., c(0.95))))
 filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
 ```
 The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%) have been taken out to help better visualize it.

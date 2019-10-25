@@ -66,16 +66,24 @@ class Batch(object):
         self.cases = self.get_instances_paths().vapply(load_data)
         return self.cases
 
+    def get_solver(self):
+        opt_info = self.get_options()
+        try:
+            el = list(opt_info.keys())[0]
+            engine = opt_info[el]['solver']
+            if '.' in engine:
+                engine, solver = engine.split('.')
+            else:
+                solver = engine
+        except:
+            solver = 'CPLEX'
+        return solver
+
     def get_logs(self, get_progress=False):
         if self.logs is not None:
             return self.logs
 
-        opt_info = self.get_options()
-        try:
-            el = list(opt_info.keys())[0]
-            solver = opt_info[el]['solver']
-        except:
-            solver = 'CPLEX'
+        solver = self.get_solver()
 
         self.logs = \
             self.get_instances_paths(). \
@@ -251,14 +259,7 @@ class ZipBatch(Batch):
             return self.logs
 
         zipobj = zipfile.ZipFile(self.path)
-
-        opt_info = self.get_options()
-        try:
-            el = list(opt_info.keys())[0]
-            solver = opt_info[el]['solver']
-        except:
-            solver = 'CPLEX'
-
+        solver = self.get_solver()
 
         def _read_zip(x):
             try:
