@@ -78,9 +78,6 @@ def re_execute_instance(directory, new_options=None, new_input=None):
 def execute_solve(model_data, options, solution_data=None):
 
     import solvers.model as md
-    import solvers.heuristics as heur
-    import solvers.heuristics_maintfirst as mf
-    import solvers.model_fixingLP as fixingLP
 
     instance = inst.Instance(model_data)
     solution = None
@@ -103,8 +100,10 @@ def execute_solve(model_data, options, solution_data=None):
     if engine == 'CPO':
         raise NotImplementedError("The CPO model is not supported for the time being")
     if engine == 'HEUR':
+        import solvers.heuristics as heur
         experiment = heur.GreedyByMission(instance, solution=solution)
     elif engine == 'HEUR_mf':
+        import solvers.heuristics_maintfirst as mf
         experiment = mf.MaintenanceFirst(instance, solution=solution)
         if solver is not None:
             # if we added a solver, we want a two-step solving
@@ -112,7 +111,11 @@ def execute_solve(model_data, options, solution_data=None):
             experiment = md.Model(instance, solution=solution)
             options.update(dict(mip_start= True))
     elif engine == 'FixLP':
-        experiment = fixingLP.ModelFixLP(instance, solution=solution)
+        import solvers.model_fixingLP as FixLP
+        experiment = FixLP.ModelFixLP(instance, solution=solution)
+    elif engine == 'FlexFixLP':
+        import solvers.model_fixing_flexibleLP as FlexFixLP
+        experiment = FlexFixLP.ModelFixFlexLP(instance, solution=solution)
     else:
         # model with solver
         experiment = md.Model(instance, solution=solution)
