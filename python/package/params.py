@@ -46,7 +46,7 @@ OPTIONS = {
     'timeLimit': 600  # seconds
     # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
     # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX
-    , 'solver': "ModelANOR.CPLEX"
+    , 'solver': "CPLEX"
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
