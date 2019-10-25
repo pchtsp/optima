@@ -75,6 +75,29 @@ def re_execute_instance(directory, new_options=None, new_input=None):
     execute_solve(model_data, options, solution_data)
 
 
+def engine_factory(engine):
+    if engine == 'CPO':
+        raise NotImplementedError("The CPO model is not supported for the time being")
+    elif engine == 'HEUR':
+        import solvers.heuristics as heur
+        return heur.GreedyByMission
+    elif engine == 'HEUR_mf':
+        import solvers.heuristics_maintfirst as mf
+        return mf.MaintenanceFirst
+    elif engine == 'FixLP':
+        import solvers.model_fixingLP as FixLP
+        return FixLP.ModelFixLP
+    elif engine == 'FlexFixLP':
+        import solvers.model_fixing_flexibleLP as FlexFixLP
+        return FlexFixLP.ModelFixFlexLP
+    elif engine == 'ModelANOR':
+        import solvers.model_anor as model_anor
+        return model_anor.ModelANOR
+    else:
+        import solvers.model as md
+        return md.Model
+
+
 def execute_solve(model_data, options, solution_data=None):
 
     import solvers.model as md
@@ -93,33 +116,13 @@ def execute_solve(model_data, options, solution_data=None):
     # solving part:
     engine = options.get('solver', 'CPLEX')
     # there is the possibilty to have two solvers separated by .
-    solver = None
     if '.' in engine:
         engine, solver = engine.split('.')
         options['solver'] = solver
-    if engine == 'CPO':
-        raise NotImplementedError("The CPO model is not supported for the time being")
-    if engine == 'HEUR':
-        import solvers.heuristics as heur
-        experiment = heur.GreedyByMission(instance, solution=solution)
-    elif engine == 'HEUR_mf':
-        import solvers.heuristics_maintfirst as mf
-        experiment = mf.MaintenanceFirst(instance, solution=solution)
-        if solver is not None:
-            # if we added a solver, we want a two-step solving
-            solution = experiment.solve(options)
-            experiment = md.Model(instance, solution=solution)
-            options.update(dict(mip_start= True))
-    elif engine == 'FixLP':
-        import solvers.model_fixingLP as FixLP
-        experiment = FixLP.ModelFixLP(instance, solution=solution)
-    elif engine == 'FlexFixLP':
-        import solvers.model_fixing_flexibleLP as FlexFixLP
-        experiment = FlexFixLP.ModelFixFlexLP(instance, solution=solution)
-    else:
-        # model with solver
-        experiment = md.Model(instance, solution=solution)
 
+    # TODO: engine HEUR_mf and CPLEX now don't work automatically
+    engine_obj = engine_factory(engine)
+    experiment = engine_obj(instance, solution=solution)
     solution = experiment.solve(options)
 
     if solution is None:

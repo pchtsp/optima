@@ -122,15 +122,6 @@ class Model(exp.Experiment):
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
             slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=normally_continuous)
 
-        vs = {
-            'start_T': start_T
-            , 'start_M': start_M
-            , 'rut': rut
-            , 'slack_kts_h': slack_kts_h
-            , 'slack_ts': slack_ts
-            , 'slack_kts': slack_kts
-        }
-
         if options.get('mip_start') and self.solution is not None:
             self.fill_initial_solution()
             vars_to_fix = []
@@ -694,7 +685,8 @@ class Model(exp.Experiment):
         # when I could have started maintenance (t2s) to be still in maintenance in period t1
         t2_at1 = att.to_dict(result_col=2, is_list=True)
         # start-assignment options for task assignments.
-        avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
+        # We assume assignments can happen anywhere to really apply the constraint correctly.
+        avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
                 p_pos[t1] <= p_pos[t2] < p_pos[t1] + min_assign[v]
                 ])
         # Start-stop options for task assignments.
@@ -780,6 +772,9 @@ class Model(exp.Experiment):
         cycles = [str(n) for n in range(3)]
         att_cycles = tl.TupList((a, n) for a in resources for n in cycles)
 
+        # these are the periods where we know we have to do a second maintenance, given we did a maintenance in t.
+        # (OBSOLETE)
+        att_M = att_maints.filter_list_f(lambda x: p_pos[x[1]] + max_elapsed < len(periods))
         # this is the TTT_t set.
         # periods that are maintenance periods because of having assign a maintenance
         attt_maints = tl.TupList((a, t1, t2, t) for a, t1, t2 in att_maints for t in t2_at1.get((a, t1), []))
@@ -799,7 +794,9 @@ class Model(exp.Experiment):
         at1_t2 = att.to_dict(result_col=[0, 1], is_list=True)
         t1_at2 = att.to_dict(result_col=1, is_list=True).fill_with_default(at, [])
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
+        t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
+        t_at_M = att_M.to_dict(result_col=2, is_list=True)
         t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
         tt_maints_at = attt_maints.to_dict(result_col=[1, 2], is_list=True)
         att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
@@ -846,6 +843,10 @@ class Model(exp.Experiment):
         ,'avtt'             : avtt
         , 'avtt2'           : avtt2
         , 'tt2_avt'         : tt2_avt
+        , 'att_m'           : att_m
+        , 't_at_M'          : t_at_M
+        , 'att_M'           : att_M
+        , 'at_m_ini'        : at_m_ini
         , 't_a_M_ini'       : t_a_M_ini
         , 'kt'              : kt
         , 'slots'           : slots
