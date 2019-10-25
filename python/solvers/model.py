@@ -124,12 +124,7 @@ class Model(exp.Experiment):
 
         if options.get('mip_start') and self.solution is not None:
             self.fill_initial_solution()
-            vars_to_fix = []
-            # vars_to_fix = [start_M, start_T]
-            if vars_to_fix is not None:
-                for _vars in vars_to_fix:
-                    for var in _vars.values():
-                        var.fixValue()
+            self.fix_variables(options.get('fix_vars', []))
 
         # MODEL
         self.model = model = pl.LpProblem("MFMP_v0003", pl.LpMinimize)
@@ -390,6 +385,14 @@ class Model(exp.Experiment):
                     rut[a, t].setInitialValue(v, check=False)
 
         return True
+    
+    def fix_variables(self, vars_names):
+        if not vars_names:
+            return
+        vars_to_fix = [getattr(self, el) for el in vars_names]
+        for _vars in vars_to_fix:
+            for var in _vars.values():
+                var.fixValue()
 
     def get_solution(self):
 

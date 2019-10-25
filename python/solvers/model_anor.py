@@ -101,27 +101,30 @@ class ModelANOR(md.Model):
 
         if options.get('mip_start') and self.solution is not None:
             self.fill_initial_solution()
-            vars_to_fix = []
-            # vars_to_fix = [start_M, start_T]
-            if vars_to_fix is not None:
-                for _vars in vars_to_fix:
-                    for var in _vars.values():
-                        var.fixValue()
+            self.fix_variables(options.get('fix_vars', []))
 
         # MODEL
         model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
         # try to make the second maintenance the most late possible
         period_pos = self.instance.data['aux']['period_i']
+        # the following costs tries to imitate the penalization for doing a
+        # second maintenance
+        cost_maint = l['att_maints'].\
+            take([0, 2]).\
+            to_dict(None).\
+            kapply(lambda k: period_pos[k[1]]).\
+            fill_with_default(l['at_start'])
 
         # OBJECTIVE:
         # maints
         objective = \
             pl.lpSum(price_assign[a, v] * task for (a, v, t), task in start_T.items()) + \
-            + 10*pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
-            + 10*pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
-            + 10*pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
-            - pl.lpSum(start_M[a, t] * period_pos[t] for a, t in l['at_start'])\
+            + 10 * pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
+            + 10 * pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
+            + 10 * pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
+            - pl.lpSum(start_M[a, t] * cost_maint[a, t] for a, t in l['at_start']) \
+            + pl.lpSum(start_M.values())* period_pos[last_period] \
             + 1000000 * pl.lpSum(slack_vt.values()) \
             + 1000 * pl.lpSum(slack_at.values())
 
@@ -290,73 +293,64 @@ class ModelANOR(md.Model):
         :param vars_to_fix: possible list of variables to fix. List of dicts assumed)
         :return:
         """
-        raise NotImplementedError('Not yet!')
-    #     l = self.domains
-    #     if not len(l):
-    #         raise ValueError('Model has not been solved yet. No domains are generated')
-    #
-    #     first = self.instance.get_param('start')
-    #     last = self.instance.get_param('end')
-    #     main_starts = self.get_maintenance_periods()
-    #     min_usage = self.instance.get_param('min_usage_period')
-    #
-    #     start_M = variables['start_M']
-    #     task = variables['task']
-    #     start_T = variables['start_T']
-    #     rut = variables['rut']
-    #     usage = variables['usage']
-    #
-    #     # Initialize values:
-    #     for tup in start_M:
-    #         start_M[tup].setInitialValue(0)
-    #
-    #     for tup in task:
-    #         task[tup].setInitialValue(0)
-    #
-    #     for tup in start_T:
-    #         start_T[tup].setInitialValue(0)
-    #
-    #     for a, t in l['at']:
-    #         usage[a, t].setInitialValue(min_usage)
-    #
-    #     number_maint = 0
-    #     for (a, t, t2) in main_starts:
-    #         if (a, t) in l['at_start']:
-    #             # we check this because of fixed maints
-    #             start_M[a, t].setInitialValue(1)
-    #             number_maint += 1
-    #         periods = self.instance.get_periods_range(t, t2)
-    #         for p in periods:
-    #             if (a, p) in usage:
-    #                 # we check because of previous assignments
-    #                 usage[a, p].setInitialValue(0)
-    #
-    #     start_periods = self.get_task_periods()
-    #     task_usage = self.instance.get_tasks('consumption')
-    #     for (a, t, v, t2) in start_periods:
-    #         if (a, v, t) in start_T:
-    #             start_T[a, v, t].setInitialValue(1)
-    #         periods = self.instance.get_periods_range(t, t2)
-    #         for p in periods:
-    #             if (a, v, p) in task:
-    #                 task[a, v, p].setInitialValue(1)
-    #             if (a, p) in usage:
-    #                 usage[a, p].setInitialValue(task_usage[v])
-    #
-    #     rut_data = self.set_remaining_usage_time('rut')
-    #     for a, date_info in rut_data.items():
-    #         for t, v in date_info.items():
-    #             if (a, t) in rut:
-    #                 rut[a, t].setInitialValue(v)
-    #
-    #     num_maint.setInitialValue(number_maint)
-    #
-    #     if options.get('fix_start', False):
-    #         # vars_to_fix = [start_M]
-    #         vars_to_fix = [start_T, task, start_M, rut, usage, {0: rut_obj_var}, {0: num_maint}]
-    #         for _vars in vars_to_fix:
-    #             for var in _vars.values():
-    #                 var.fixValue()
+        # raise NotImplementedError('Not yet!')
+        l = self.domains
+        if not len(l):
+            raise ValueError('Model has not been solved yet. No domains are generated')
+
+        first = self.instance.get_param('start')
+        last = self.instance.get_param('end')
+        main_starts = self.get_maintenance_periods()
+        min_usage = self.instance.get_param('min_usage_period')
+
+        start_M = self.start_M
+        task = self.task
+        start_T = self.start_T
+        rut = self.rut
+        usage = self.usage
+
+        # Initialize values:
+        for tup in start_M:
+            start_M[tup].setInitialValue(0)
+
+        for tup in task:
+            task[tup].setInitialValue(0)
+
+        for tup in start_T:
+            start_T[tup].setInitialValue(0)
+
+        for a, t in l['at']:
+            usage[a, t].setInitialValue(min_usage)
+
+        # number_maint = 0
+        for (a, t, t2) in main_starts:
+            if (a, t) in l['at_start']:
+                # we check this because of fixed maints
+                start_M[a, t].setInitialValue(1)
+
+            # periods = self.instance.get_periods_range(t, t2)
+            # for p in periods:
+            #     if (a, p) in usage:
+            #         # we check because of previous assignments
+            #         usage[a, p].setInitialValue(0)
+
+        start_periods = self.get_task_periods()
+        # task_usage = self.instance.get_tasks('consumption')
+        for (a, t, v, t2) in start_periods:
+            if (a, v, t) in start_T:
+                start_T[a, v, t].setInitialValue(1)
+            periods = self.instance.get_periods_range(t, t2)
+            for p in periods:
+                if (a, v, p) in task:
+                    task[a, v, p].setInitialValue(1)
+        #         if (a, p) in usage:
+        #             usage[a, p].setInitialValue(task_usage[v])
+        #
+        # rut_data = self.set_remaining_usage_time('rut')
+        # for a, date_info in rut_data.items():
+        #     for t, v in date_info.items():
+        #         if (a, t) in rut:
+        #             rut[a, t].setInitialValue(v)
 
     def get_solution(self):
 

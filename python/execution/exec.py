@@ -100,8 +100,6 @@ def engine_factory(engine):
 
 def execute_solve(model_data, options, solution_data=None):
 
-    import solvers.model as md
-
     instance = inst.Instance(model_data)
     solution = None
 

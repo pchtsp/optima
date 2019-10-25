@@ -44,7 +44,9 @@ params_cbc = ["presolve on",
 
 OPTIONS = {
     'timeLimit': 600  # seconds
-    , 'solver': "CPLEX"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX, FixLP.CPLEX
+    # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
+    # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX
+    , 'solver': "ModelANOR.CPLEX"
     , 'black_list': ['O8', 'O10', 'O6']
     , 'white_list': []
     , 'start': '2018-01'
@@ -78,7 +80,7 @@ OPTIONS = {
     , 'price_rut_end': 0
     , 'solver_add_opts': {'CPLEX': params_cplex, 'CBC': params_cbc}
     , 'mip_start': False
-    , 'fix_start': False
+    , 'fix_vars': []
     , 'threads': None
     , 'solver_path': None
     , 'keepfiles': 0
