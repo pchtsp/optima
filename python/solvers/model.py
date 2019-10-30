@@ -370,13 +370,13 @@ class Model(exp.Experiment):
                 # we check this because of fixed maints
                 start_M[a, t, t2].setInitialValue(1)
             else:
-                print('fail fixing maintenance in {}'.format(a, t, t2))
+                print('fail fixing maintenance in {}'.format((a, t, t2)))
 
         for (a, t, v, t2) in start_periods:
             if (a, v, t, t2) in start_T:
                 start_T[a, v, t, t2].setInitialValue(1)
             else:
-                print('fail fixing task assginment in {}'.format(a, v, t, t2))
+                print('fail fixing task assginment in {}'.format((a, v, t, t2)))
 
         rut_data = self.set_remaining_usage_time('rut')
         for a, date_info in rut_data.items():
@@ -701,7 +701,8 @@ class Model(exp.Experiment):
         avtt2_fixed = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in t_v[v] if
                             (p_pos[t2] >= p_pos[t1]) and
                             ((a, v, t1) in at_mission_m_horizon or
-                             (a, v, t2) in at_mission_m_horizon)
+                             (a, v, t2) in at_mission_m_horizon or
+                             (a, v, previous[t1]) in at_mission_m)
                 ])
         avtt2.extend(avtt2_fixed)
         # we had a repetition problem:
@@ -831,7 +832,7 @@ class Model(exp.Experiment):
         ,'at'               :  at
         ,'at_mission_m'     : at_mission_m
         ,'ast'              :  ast
-        ,'at_start'         :  list(at_start + at_free_start)
+        ,'at_start_maint'   :  tl.TupList(at_start + at_free_start)
         ,'at0'              :  at0
         ,'att'              :  att
         ,'a_t'              :  a_t
@@ -840,7 +841,7 @@ class Model(exp.Experiment):
         ,'t1_at2'           :  t1_at2
         ,'at1_t2'           :  at1_t2
         ,'t2_at1'           :  t2_at1
-        ,'at_avail'         : list(at_free + at_mission)
+        ,'at_avail'         : tl.TupList(at_free + at_mission)
         ,'t2_avt1'          : t2_avt1
         ,'t1_avt2'          : t1_avt2
         ,'avtt'             : avtt

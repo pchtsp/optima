@@ -55,7 +55,7 @@ class ModelANOR(md.Model):
         # binary:
         self.start_T = start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avt'], lowBound=0, upBound=1, cat=normally_integer)
         self.task = task = pl.LpVariable.dicts(name="task", indexs=l['avt'], lowBound=0, upBound=1, cat=normally_integer)
-        self.start_M = start_M = pl.LpVariable.dicts(name="start_M", indexs=l['at_start'], lowBound=0, upBound=1, cat=normally_integer)
+        self.start_M = start_M = pl.LpVariable.dicts(name="start_M", indexs=l['at_start_maint'], lowBound=0, upBound=1, cat=normally_integer)
 
         # numeric:
         self.rut = rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=normally_continuous)
@@ -114,7 +114,7 @@ class ModelANOR(md.Model):
             take([0, 2]).\
             to_dict(None).\
             kapply(lambda k: period_pos[k[1]]).\
-            fill_with_default(l['at_start'])
+            fill_with_default(l['at_start_maint'])
 
         # OBJECTIVE:
         # maints
@@ -123,7 +123,7 @@ class ModelANOR(md.Model):
             + 10 * pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
             + 10 * pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
             + 10 * pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
-            - pl.lpSum(start_M[a, t] * cost_maint[a, t] for a, t in l['at_start']) \
+            - pl.lpSum(start_M[a, t] * cost_maint[a, t] for a, t in l['at_start_maint']) \
             + pl.lpSum(start_M.values())* period_pos[last_period] \
             + 1000000 * pl.lpSum(slack_vt.values()) \
             + 1000 * pl.lpSum(slack_at.values())
@@ -145,7 +145,7 @@ class ModelANOR(md.Model):
             if len(v_at) + len(t1_at2) == 0:
                 continue
             model += pl.lpSum(task[a, v, t] for v in v_at) + \
-                     pl.lpSum(start_M[a, _t] for _t in t1_at2 if (a, _t) in l['at_start']) + \
+                     pl.lpSum(start_M[a, _t] for _t in t1_at2 if (a, _t) in l['at_start_maint']) + \
                      (at in l['at_maint']) <= 1
 
         # ##################################
@@ -190,7 +190,7 @@ class ModelANOR(md.Model):
         for (k, t), num in cluster_data['num'].items():
             model += \
                 pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
-                         if (a, _t) in l['at_start']
+                         if (a, _t) in l['at_start_maint']
                          if a in c_candidates[k]) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
 
         # Each cluster has a minimum number of usage hours to have
@@ -256,9 +256,15 @@ class ModelANOR(md.Model):
 
         # max number of maintenances:
         for t in l['periods']:
-            model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start']) + \
+            model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start_maint']) + \
                      num_resource_maint[t] <= \
                      maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in l['slots'])
+
+        # we need to cap the number of maintenances to 2.
+        # so it is equivalent to the present model.
+        a_t_start_maint = l['at_start_maint'].to_dict(result_col=1)
+        for a, _periods in a_t_start_maint.items():
+            model += pl.lpSum(start_M.get((a, t), 0) for t in _periods) <= 2
 
         # ##################################
         # SOLVING
@@ -324,7 +330,7 @@ class ModelANOR(md.Model):
 
         # number_maint = 0
         for (a, t, t2) in main_starts:
-            if (a, t) in l['at_start']:
+            if (a, t) in l['at_start_maint']:
                 # we check this because of fixed maints
                 start_M[a, t].setInitialValue(1)
 
