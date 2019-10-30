@@ -22,13 +22,18 @@ def get_solstats(batch):
     return var_table
 
 
-def get_df_comparison(exp_list):
+def get_df_comparison(exp_list, scenarios=None):
+    """
+    :param list exp_list: list of names of experiments
+    :param list scenarios: optional list of scenarios to filter batches
+    :return: pandas data frame
+    """
     raw_results_dict = {}
     for name, experiment in enumerate(exp_list):
         # print(name)
         if experiment is None:
             continue
-        batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment)
+        batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment, scenarios=scenarios)
         table = batch1.get_log_df()
         table_errors = batch1.get_errors_df().drop('name', axis=1)
         sol_stats_table = get_solstats(batch1)

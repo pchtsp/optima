@@ -34,7 +34,7 @@ class Batch(object):
     /PATH/TO/BATCH/instanceY/
     """
 
-    def __init__(self, path, no_scenario=False):
+    def __init__(self, path, no_scenario=False, scenarios=None):
         self.path = path
         self.cases = None
         self.logs = None
@@ -42,9 +42,12 @@ class Batch(object):
         self.options = None
         self.seeds = None
         self.no_scenario = no_scenario
+        self.scenarios = scenarios
 
     def get_instances_paths(self):
-        scenarios = os.listdir(self.path)
+        scenarios = self.scenarios
+        if scenarios:
+            scenarios = os.listdir(self.path)
         scenario_paths = {s: os.path.join(self.path, s) for s in scenarios}
         if self.no_scenario:
             return sd.SuperDict.from_dict(scenario_paths)
@@ -216,13 +219,13 @@ class ZipBatch(Batch):
     """
     Only difference is it's contained inside a zip file.
     """
-    def __init__(self, path):
+    def __init__(self, path, *args, **kwargs):
         name, ext = os.path.splitext(path)
         if not ext:
             path = name + '.zip'
         elif ext != 'zip':
             raise ValueError('Only zip is supported')
-        super().__init__(path)
+        super().__init__(path, *args, **kwargs)
 
     def get_instances_paths(self):
         num_slashes = 2
@@ -234,13 +237,19 @@ class ZipBatch(Batch):
         all_files = tl.TupList(self.dirs_in_zip(zipobj))
         scenario_instances = \
             all_files.\
-                filter_list_f(lambda f: f.count("/") == num_slashes)
+                vfilter(lambda f: f.count("/") == num_slashes)
         keys = \
             scenario_instances.\
             apply(str.split, '/').\
             apply(tuple).\
             filter(keys_positions)
-        return sd.SuperDict(zip(keys, scenario_instances))
+        result_dict = sd.SuperDict(zip(keys, scenario_instances))
+        if self.scenarios:
+            scenarios = set(self.scenarios)
+            return result_dict.kfilter(lambda k: k[0] in scenarios)
+        else:
+            return result_dict
+
 
     def re_make_paths(self, scenario_instances):
         pass
