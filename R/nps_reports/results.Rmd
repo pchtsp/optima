@@ -142,13 +142,13 @@ In order to get more intuition in the performance per instance, we present a cou
 The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in both cases. In red are the times for the base model. In green the times for the model with the added cuts.
 
 ```{r time_perf_graph} 
-ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)
+ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)+ theme(text = element_text(size=20))
 ```
 
 If we reorder both models from fastest to slowest, we lose the comparison of individual instances but we gain more insight on the distribution of solving times.
 
 ```{r time_perf_graph2} 
-ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage')
+ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20))
 ```
 
 ### Average solving time to optimality
