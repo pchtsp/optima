@@ -27,14 +27,16 @@ get_result_tab <- function(name){
     result_tab
 }
 
-get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL){
+get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, get_progress=FALSE){
     compare_sto <- get_compare_sto()
     if (exp_names %>% is.null){
         # This assumes the dataset_list has only two datasets!
         # (which is the most likely option)
         exp_names <- list('cuts', 'base')
     }
-    df_original <- compare_sto$get_df_comparison(exp_list=dataset_list, scenarios=c(scenario_filter, 'WORKAROUND'))
+    df_original <- compare_sto$get_df_comparison(exp_list=dataset_list, 
+                                                 scenarios=c(scenario_filter, 'WORKAROUND'), 
+                                                 get_progress=get_progress)
     dataset_names <- dataset_list %>% lapply(function(x) x)
     df_original %<>% 
         mutate(dataset=dataset_names[experiment+1] %>% unlist,
@@ -266,15 +268,29 @@ get_fixLP_2_tasks <- function(){
 }
 
 get_old_new_2_tasks <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191025_2'), 
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191030'), 
                         exp_names = list('base', 'cuts'), 
-                        scenario_filter='numparalleltasks_2') %>% 
+                        scenario_filter='numparalleltasks_2', get_progress=FALSE) %>% 
+        correct_old_model
+    # substract 2* fleet_size * horizon_size from objectives.
+}
+get_old_new_3_tasks <- function(){
+    get_generic_compare(c('IT000125_20190801', 'IT000125_20191030'), 
+                        exp_names = list('base', 'cuts'), 
+                        scenario_filter='numparalleltasks_3', get_progress=FALSE) %>% 
+        correct_old_model
+    # substract 2* fleet_size * horizon_size from objectives.
+}
+get_old_new_1_tasks <- function(){
+    get_generic_compare(c('IT000125_20190716', 'IT000125_20191030'), 
+                        exp_names = list('base', 'cuts'), 
+                        scenario_filter='numparalleltasks_1', get_progress=FALSE) %>% 
         correct_old_model
     # substract 2* fleet_size * horizon_size from objectives.
 }
 get_old_all <- function(){
     exp_names <- c(rep('base', 3), "cuts")  %>% lapply(function(x) x)
-    result <- get_generic_compare(c('IT000125_20190729', 'IT000125_20190801', 'IT000125_20190828', 'IT000125_20191025_2'), 
+    result <- get_generic_compare(c('IT000125_20190729', 'IT000125_20190801', 'IT000125_20190828', 'IT000125_20191030'), 
                         exp_names = exp_names)
     result %>% correct_old_model
 
@@ -291,10 +307,35 @@ get_old_new_4_agg_tasks <- function(){
                         scenario_filter='numparalleltasks_4') %>% 
         correct_old_model
 }
+get_old_cuts_4_agg_tasks <- function(){
+    get_generic_compare(c('IT000125_20190917', 'IT000125_20191025_2'), 
+                        exp_names = list('base', 'cuts'), 
+                        scenario_filter='numparalleltasks_4') %>% 
+        correct_old_model
+}
 get_flexFixLP_2_tasks <- function(){
     get_generic_compare(c('IT000125_20190729', 'IT000125_20191025', 'IT000125_20190915', 'IT000125_20191023'), 
                         exp_names = list('base', 'cuts', 'cuts_ref', 'cuts_relax'), 
                         scenario_filter='numparalleltasks_2')
+}
+
+get_all_compare_2 <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191023', 'IT000125_20191025'),
+                        exp_names = list('base', 'determ', 'cuts_sto', 'fixLP', 'flexLP'),
+                        scenario_filter='numparalleltasks_2')
+}
+
+get_determ_2 <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915'),
+                        exp_names = list('base', 'determ', 'cuts_sto'),
+                        scenario_filter='numparalleltasks_2')
+}
+
+get_determ_3 <- function(){
+    get_generic_compare(c('IT000125_20190801', 'IT000125_20191017', 'IT000125_20190917', 'IT000125_20191030'),
+                        exp_names = list('base', 'cuts_determ', 'cuts_sto', 'old'),
+                        scenario_filter='numparalleltasks_3') %>% 
+        correct_old_model
 }
 
 correct_old_model <- function(data){
@@ -303,7 +344,7 @@ correct_old_model <- function(data){
     # The fixed number depends on the size of the problem, the time horizon.
     # This assumes that the input dataframe has "dataset=IT000125_20191025_2" for the old model
     correction <- 
-        data.table(dataset='IT000125_20191025_2', horizon=90, num_tasks=c(1, 2, 3, 4)) %>% 
+        CJ(dataset=c('IT000125_20191025_2', 'IT000125_20191030'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
         mutate(scenario=sprintf("numparalleltasks_%s", num_tasks),
                correction_value = 2*15*num_tasks*horizon) %>% 
         select(dataset, scenario, correction_value)

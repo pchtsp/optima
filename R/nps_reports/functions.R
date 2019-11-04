@@ -15,9 +15,10 @@ filter_all_exps <- function(table){
 aux_compare <- function(raw_df){
     raw_df %>% 
         gather(key='Indicator', value="value", -experiment, -scenario) %>% 
-        spread(experiment, value) %>% 
-        mutate(dif_abs = cuts - base,
-               dif_perc = (dif_abs/ base*100) %>% round(2))
+        spread(experiment, value) 
+    # %>% 
+    #     mutate(dif_abs = cuts - base,
+    #            dif_perc = (dif_abs/ base*100) %>% round(2))
 }
 
 times_100_round <- function(value) value %>% multiply_by(100) %>% round(2)
@@ -64,23 +65,36 @@ get_all_integer <- function(raw_df){
         filter_all_exps
 }
 
+dif_perc_with_base <- function(value, base) ((value-base)/abs(base)) %>% times_100_round
+
+compare_objectives_perc <- function(df, column='best_solution'){
+    aux <- 
+        df %>% 
+        filter(experiment=='base') %>% 
+        select(instance, base=column) %>%
+        inner_join(df)
+    
+    column_value <- aux[[column]]
+    aux %>% 
+        mutate(dif_perc = dif_perc_with_base(column_value, base),
+               dif = column_value - base) %>% 
+        filter(experiment!='base')
+}
+
+get_quality_perf_2 <- function(raw_df){
+    raw_df %>% get_all_integer %>% compare_objectives_perc('best_solution')
+}
+
+get_quality_degr_2 <- function(raw_df){
+    raw_df %>% get_all_optimal %>% compare_objectives_perc('best_solution')
+}
 
 get_quality_perf <- function(raw_df){
-    raw_df %>% 
-        get_all_integer %>% 
-        select(instance, experiment, best_solution) %>% 
-        spread(experiment, best_solution) %>% 
-        mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round)
+    raw_df %>% get_quality_perf_2 %>% filter(experiment=='cuts')
 }
 
 get_quality_degr <- function(raw_df){
-    raw_df %>% 
-        get_all_optimal %>% 
-        group_by(scenario, instance) %>%
-        mutate(min_value = min(best_solution),
-               dist_min = best_solution - min_value,
-               dist_min_perc = (best_solution - min_value)/abs(min_value)*100
-        )
+    raw_df %>% get_quality_degr_2 %>% filter(experiment=='cuts')
 }
 
 get_time_perf_integer <- function(raw_df){
@@ -124,28 +138,28 @@ get_time_perf_optim <- function(raw_df){
 get_infeasible_instances <- function(raw_df){
     raw_df %>% 
         filter(sol_code==-1) %>% 
-        distinct(instance)
+        distinct(experiment, instance)
 }
 
 get_infeasible_stats <- function(raw_df){
     raw_df %>% 
-        get_infeasible_instances %>% 
-        inner_join(raw_df) %>% 
         filter(experiment=="base") %>% 
+        select(-experiment) %>% 
+        inner_join(get_infeasible_instances(raw_df)) %>% 
+        filter(experiment!="base") %>% 
+        group_by(scenario, experiment) %>% 
         summarise(Infeasible = sum(sol_code==-1),
                   IntegerFeasible=sum(sol_code==2),
                   IntegerInfeasible=sum(sol_code==0),
                   Optimal=sum(sol_code==1),
                   Total = n()) %>% 
-        gather(key='Status', 'number') %>% 
-        filter(number>0)
+        aux_compare
 }
 
 get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
     result <- 
         raw_df %>% 
-        get_all_optimal %>% 
-        mutate(errors = replace_na(errors, 0)) %>% 
+        get_soft_constraints_2 %>%  
         group_by(scenario, experiment) %>% 
         summarise(errors_mean = mean(errors),
                   errors_q95 = quantile(errors, quant_max))
@@ -154,6 +168,15 @@ get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
     }
     result %>% aux_compare
 }
+
+get_soft_constraints_2 <- function(raw_df){
+    raw_df %>% 
+        get_all_optimal %>% 
+        mutate(errors = replace_na(errors, 0)) %>% 
+        compare_objectives_perc('errors')
+}
+
+
 
 get_infeasible_times <- function(raw_df){
     raw_df %>% 
@@ -170,9 +193,7 @@ get_infeasible_times <- function(raw_df){
 get_variances <- function(raw_df){
     raw_df %>% 
         get_all_integer %>% 
-        select(instance, experiment, variance) %>% 
-        spread(experiment, variance) %>% 
-        mutate(dif_perc = ((cuts-base)/ abs(base)) %>% times_100_round) %>% 
+        compare_objectives_perc('variance') %>% 
         filter(dif_perc %>% is.na %>% not)
 }
 

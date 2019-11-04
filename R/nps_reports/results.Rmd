@@ -20,6 +20,7 @@ source('nps_reports/datasets.R')
 quant_max <- 0.95
 size <- params$size
 df <- do.call(size, args=list())
+value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
 
 ```
 
@@ -48,73 +49,80 @@ summary_stats %>% kable
 
 ### Optimality degradation
 
-We compare the times where both models return an **optimal solution**.
-
 ```{r quality_degr}
 
-t1 <- get_quality_degr(df)
-t1_rel <- t1 %>% filter(experiment=='cuts') %>% use_series(dist_min_perc)
-t1_abs <- t1 %>% filter(experiment=='cuts') %>% use_series(dist_min)
+quality_degr_all <- get_quality_degr_2(df)
 
+t1_rel <- quality_degr_all %>% filter(experiment=='cuts') %>% use_series(dif_perc)
+t1_abs <- quality_degr_all %>% filter(experiment=='cuts') %>% use_series(dif)
 quality_degr_quant <- t1_rel %>% quantile()
 quality_degr_quant95 <- t1_rel %>% quantile(quant_max)
-quality_degr_nrow <- t1_rel %>% length()
 quality_degr_quant95_abs <- t1_abs %>% quantile(quant_max)
 
-```
+right_tail <- 0.10
+quality_degr_all_filt <- 
+  quality_degr_all %>% 
+  group_by(experiment) %>% 
+  filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
-For `r quant_max*100`\% of the `r quality_degr_nrow` (`r (quant_max*quality_degr_nrow) %>% floor`) instances that comply with this condition, the loss in the objective function was `r quality_degr_quant95 %>% round(2)`\% or less from the optimal. This corresponds to an absolute value of `r quality_degr_quant95_abs %>% round(2)`. As a reference, the absolute gap tolerance used in the solving was of 10.
+```
+We compare the times where all models return an **optimal solution** (`r quality_degr_all %>% distinct(instance) %>% nrow` instances).
+
+<!-- For `r quant_max*100`\% of the `r quality_degr_nrow` (`r (quant_max*quality_degr_nrow) %>% floor`) instances that comply with this condition, the loss in the objective function was `r quality_degr_quant95 %>% round(2)`\% or less from the optimal. This corresponds to an absolute value of `r quality_degr_quant95_abs %>% round(2)`. As a reference, the absolute gap tolerance used in the solving was of 10. -->
+
+
+The following boxplot shows the distribution of the gap from the models with respect to the `base` model.
 
 ```{r}
-# this takes 10% from right side
-t1_rel_filt <- t1_rel[t1_rel<quantile(t1_rel, 0.90)]
-filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
-```
+ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective') + theme(text = element_text(size=20)) + coord_flip()
 
-
-The following graph shows the distribution of the gap from the `cuts` model with the `base` model. `r filtered_quant %>% round(2)`\% of outliers were taken out from the right tail.
-
-```{r}
-qplot(t1_rel_filt, xlab='Relative gap (in %) among optimal solutions.')
 ```
 
 ### Mean quality comparison
 
-If we compare among all cases where an **integer solution** was found in the two models, we can obtain an estimate of quality performance for the 1 hour solving time.
-
 ```{r quality_perf}
 
-quality_perf <- get_quality_perf(df)
+quality_perf_all <- get_quality_perf_2(df)
+
+quality_perf <- quality_perf_all %>% filter(experiment=='cuts')
 mean_dif <- quality_perf$dif_perc %>%  mean
 per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
 q95_cut <- quality_perf$dif_perc %>% quantile(0.95)
 
-quality_perf_nrow <- quality_perf %>% distinct(instance) %>% nrow
-
 ```
+
+If we compare among all cases where an **integer solution** (`r quality_perf_all %>% distinct(instance) %>% nrow` instances) was found in the two models, we can obtain an estimate of quality performance for the 1 hour solving time.
 
 ```{r}
 
-# this takes 5% from each side
-filtered_q_perf <- quality_perf %>% filter(dif_perc %>% between(., quantile(., c(0.05)), quantile(., c(0.95))))
-filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
+# this takes some % from each side
+each_tail <- 0.15
+
+quality_perf_all_filt <- 
+  quality_perf_all %>% 
+  group_by(experiment) %>% 
+  filter(dif_perc %>% value_filt_tails(c(each_tail, each_tail)))
 ```
-The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the `cuts` model outperformed the `base` model in that particular instance. Both extreme tails (`r filtered_quant %>% round(2)`\%) have been taken out to help better visualize it.
+
+The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the model outperformed the `base` model in that particular instance. Both extreme tails (`r (each_tail*100) %>% round(2)`\%) have been taken out to help better visualize it.
 
 ```{r}
-qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.')
+
+ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective') + theme(text = element_text(size=20)) + coord_flip()
+
+
 ```
 
+<!-- Of the `r quality_perf_nrow` instances were an **integer solution** was found in all model. -->
+<!-- the average relative gap between the `cuts` model and the `base` model was of `r mean_dif %>% round(2)`\%. This means that, in average solutions of the `cuts` model were `r (-mean_dif) %>% round(2)`\% better than the `base` model. -->
 
-Of the `r quality_perf_nrow` instances were an **integer solution** was found in both models, the average relative gap between the `cuts` model and the `base` model was of `r mean_dif %>% round(2)`\%. This means that, in average solutions of the `cuts` model were `r (-mean_dif) %>% round(2)`\% better than the `base` model.
-
-In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model. 95\% of instances are less than `r q95_cut %>% round(2)`\% away from the best known solution.
+<!-- In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model. 95\% of instances are less than `r q95_cut %>% round(2)`\% away from the best known solution. -->
 
 ## Performance analysis
 
 ### Average solving time
 
-Just like in the mean quality comparison, we compare among cases where both models found a **integer solution**.
+Just like in the mean quality comparison, we compare among cases where all models found a **integer solution**.
 
 ```{r time_perf}
 
@@ -139,21 +147,21 @@ mean_times %>% kable
 
 In order to get more intuition in the performance per instance, we present a couple of graphs.
 
-The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in both cases. In red are the times for the base model. In green the times for the model with the added cuts.
+The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in all cases. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
 
-```{r time_perf_graph} 
-ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5)+ theme(text = element_text(size=20))
-```
 
-If we reorder both models from fastest to slowest, we lose the comparison of individual instances but we gain more insight on the distribution of solving times.
+<!-- ```{r time_perf_graph}  -->
+<!-- ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + theme(text = element_text(size=20)) + guides(color = guide_legend(override.aes = list(size=5))) -->
+<!-- ``` -->
+
 
 ```{r time_perf_graph2} 
-ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20))
+ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20)) + guides(color = guide_legend(override.aes = list(size=5)))
 ```
 
 ### Average solving time to optimality
 
-Here, we measure the time it took for each model to reach an **optimal solution.** We compare among instances where both models obtained and optimal solution.
+Here, we measure the time it took for each model to reach an **optimal solution.** We compare among instances where all models obtained and optimal solution.
 
 ```{r time_perf_optim}
 
@@ -177,9 +185,9 @@ infeasible_times <- get_infeasible_times(df)
 
 ### Infeasible solutions
 
-We take all `r infeasible_instances %>% nrow` **infeasible solutions** from the cuts model and obtain statistics on their solution on the base model.
+We take all `r infeasible_instances %>% distinct(instance) %>% nrow` **infeasible solutions** from the models and obtain statistics on their solution on the base model.
 
-The below table shows the status obtained in the base model. The number of infeasible solutions is very close in both models and for all instances that were identified by infeasible in the `cuts` model, the `base` model was unable to find an integer solution.
+The below table shows the status obtained in the base model. The number of infeasible solutions is very close in both models and for all instances that were identified by infeasible in the a model, the `base` model was unable to find an integer solution.
 
 ```{r infeasible_stats}
 infeasible_stats %>% kable
@@ -194,7 +202,7 @@ infeasible_times %>% kable
 
 ### Soft constraints performance
 
-Regarding the accomplishment of soft constraints, we can analyze for mutually **integer solutions**, the quantity of violations in their solutions.
+Regarding the accomplishment of soft constraints, we can analyze for mutually **optimal solutions**, the quantity of violations in their solutions.
 
 ```{r soft_constraints}
 errors_stats <- get_soft_constraints(df, quant_max)
@@ -208,19 +216,30 @@ errors_stats %>% kable
 ```
 
 ```{r variances}
-variances <- get_variances(df)
-var_per <- variances$dif_perc
-mean_var_reduction <- var_per %>% mean
-quant95_var_reduction <- var_per %>% quantile(quant_max)
+variances_all <- get_variances(df)
+# var_per <- variances_all %>% filter(experiment=='cuts') %>% use_series(dif_perc)
+# mean_var_reduction <- var_per %>% mean
+# quant95_var_reduction <- var_per %>% quantile(quant_max)
+
+right_tail <- 0.1
+
+variances_all_filt <- 
+  variances_all %>% 
+  group_by(experiment) %>% 
+  filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
+
 ```
 
 ### Making aircraft usage more homogeneous
 
 The variance in the frequency of maintenances is a side objective that was not been taken into account previously. The higher the variance, the more difference there is between amount of flight hours between one aircraft and another.
 To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
-As can be seen, in almost all of the cases there is a reduction in the variance. The mean relative difference is `r mean_var_reduction %>% round(2)`\%  and `r quant_max*100`\% of instances have less than `r quant95_var_reduction`\% extra variance.
+As can be seen, in almost all of the cases there is a reduction in the variance.
 
 ```{r graph_variances}
 
-qplot(var_per, xlab='Relative difference in variance (in % of base case) among integer solutions.')
+# qplot(var_per, xlab='')
+
+ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('Difference in variance (in % of base case)') + theme(text = element_text(size=20)) + coord_flip()
+
 ```
