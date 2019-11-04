@@ -85,11 +85,14 @@ def engine_factory(engine):
         import solvers.heuristics_maintfirst as mf
         return mf.MaintenanceFirst
     elif engine == 'FixLP':
-        import solvers.model_fixingLP as FixLP
-        return FixLP.ModelFixLP
+        import solvers.model_fixingLP as model
+        return model.ModelFixLP
     elif engine == 'FlexFixLP':
-        import solvers.model_fixing_flexibleLP as FlexFixLP
-        return FlexFixLP.ModelFixFlexLP
+        import solvers.model_fixingLP as model
+        return model.ModelFixFlexLP
+    elif engine == 'FlexFixLP_3':
+        import solvers.model_fixingLP as model
+        return model.ModelFixFlexLP_3
     elif engine == 'ModelANOR':
         import solvers.model_anor as model_anor
         return model_anor.ModelANOR
@@ -118,7 +121,6 @@ def execute_solve(model_data, options, solution_data=None):
         engine, solver = engine.split('.')
         options['solver'] = solver
 
-    # TODO: engine HEUR_mf and CPLEX now don't work automatically
     engine_obj = engine_factory(engine)
     experiment = engine_obj(instance, solution=solution)
     solution = experiment.solve(options)

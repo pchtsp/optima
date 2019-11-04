@@ -142,8 +142,8 @@ class Batch(object):
         table['instance'] = table.index.map(seeds)
         return table.rename_axis(axis_name).reset_index()
 
-    def get_log_df(self):
-        log_info = self.get_logs()
+    def get_log_df(self, **kwargs):
+        log_info = self.get_logs(**kwargs)
         table = self.format_df(log_info)
 
         for name in ['matrix', 'presolve', 'matrix_post']:
