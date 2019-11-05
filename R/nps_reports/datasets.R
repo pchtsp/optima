@@ -325,16 +325,24 @@ get_all_compare_2 <- function(){
                         scenario_filter='numparalleltasks_2')
 }
 
-get_determ_2 <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915'),
-                        exp_names = list('base', 'determ', 'cuts_sto'),
-                        scenario_filter='numparalleltasks_2')
+get_all_2 <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030', 'IT000125_20191025'),
+                        exp_names = list('base', 'cuts_determ', 'cuts_sto', 'old', 'cuts_FlexLP'),
+                        scenario_filter='numparalleltasks_2') %>% 
+        correct_old_model
 }
 
 get_determ_3 <- function(){
     get_generic_compare(c('IT000125_20190801', 'IT000125_20191017', 'IT000125_20190917', 'IT000125_20191030'),
                         exp_names = list('base', 'cuts_determ', 'cuts_sto', 'old'),
                         scenario_filter='numparalleltasks_3') %>% 
+        correct_old_model
+}
+
+get_all_fixLP <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191104', 'IT000125_20191023', 'IT000125_20191025', 'IT000125_20190917'),
+                        exp_names = list('base', 'FlexLP_3', 'fixLP', 'FlexLP', 'ML'),
+                        scenario_filter='numparalleltasks_2') %>% 
         correct_old_model
 }
 

@@ -161,8 +161,8 @@ get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
         raw_df %>% 
         get_soft_constraints_2 %>%  
         group_by(scenario, experiment) %>% 
-        summarise(errors_mean = mean(errors),
-                  errors_q95 = quantile(errors, quant_max))
+        summarise(errors_mean = mean(dif),
+                  errors_q95 = quantile(dif, quant_max))
     if (!compare){
         return(result)
     }

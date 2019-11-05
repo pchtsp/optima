@@ -18,9 +18,13 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
 quant_max <- 0.95
+really_small_number <- 0.000001
 size <- params$size
 df <- do.call(size, args=list())
 value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
+
+scaleFUN <- function(x) sprintf("%.2f", x)
+
 
 ```
 
@@ -28,8 +32,6 @@ value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., 
 
 * `cuts` model with added learning constraints.
 * `base` model without any added constraints.
-* `dif_abs` absolute distance between the two models for the shown quantity.
-* `dif_rel` relative distance between the two models for the shown quantity. Always using (cuts-base)/base.
 * `time_mean` mean time.
 * `time_medi` median time.
 * `errors_q95` number of errors in the percentile 95%.
@@ -59,22 +61,20 @@ quality_degr_quant <- t1_rel %>% quantile()
 quality_degr_quant95 <- t1_rel %>% quantile(quant_max)
 quality_degr_quant95_abs <- t1_abs %>% quantile(quant_max)
 
-right_tail <- 0.10
+right_tail <- 0.0
 quality_degr_all_filt <- 
   quality_degr_all %>% 
-  group_by(experiment) %>% 
+  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
 ```
 We compare the times where all models return an **optimal solution** (`r quality_degr_all %>% distinct(instance) %>% nrow` instances).
 
-<!-- For `r quant_max*100`\% of the `r quality_degr_nrow` (`r (quant_max*quality_degr_nrow) %>% floor`) instances that comply with this condition, the loss in the objective function was `r quality_degr_quant95 %>% round(2)`\% or less from the optimal. This corresponds to an absolute value of `r quality_degr_quant95_abs %>% round(2)`. As a reference, the absolute gap tolerance used in the solving was of 10. -->
 
-
-The following boxplot shows the distribution of the gap from the models with respect to the `base` model.
+The following boxplot shows the distribution of the gap from the models with respect to the `base` model. Results are shown in logaritmic scale and so we have replace all negative values for a very small one.
 
 ```{r}
-ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective') + theme(text = element_text(size=20)) + coord_flip()
+ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
 
 ```
 
@@ -96,27 +96,23 @@ If we compare among all cases where an **integer solution** (`r quality_perf_all
 ```{r}
 
 # this takes some % from each side
-each_tail <- 0.15
+each_tail <- 0
 
 quality_perf_all_filt <- 
   quality_perf_all %>% 
-  group_by(experiment) %>% 
+  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(each_tail, each_tail)))
 ```
 
-The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the model outperformed the `base` model in that particular instance. Both extreme tails (`r (each_tail*100) %>% round(2)`\%) have been taken out to help better visualize it.
+The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the model outperformed the `base` model in that particular instance. Results are shown in logaritmic scale and so we have replace all negative values for a very small one.
 
-```{r}
+```{r quality_perf_plot}
 
-ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective') + theme(text = element_text(size=20)) + coord_flip()
+ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
 
 
 ```
 
-<!-- Of the `r quality_perf_nrow` instances were an **integer solution** was found in all model. -->
-<!-- the average relative gap between the `cuts` model and the `base` model was of `r mean_dif %>% round(2)`\%. This means that, in average solutions of the `cuts` model were `r (-mean_dif) %>% round(2)`\% better than the `base` model. -->
-
-<!-- In addition, in `r (per_cut*100) %>% round(2)`\% of instances (`r (quality_perf_nrow*per_cut) %>% floor` of `r quality_perf_nrow`) the `cuts` model outperform the solution from the base model. 95\% of instances are less than `r q95_cut %>% round(2)`\% away from the best known solution. -->
 
 ## Performance analysis
 
@@ -150,12 +146,7 @@ In order to get more intuition in the performance per instance, we present a cou
 The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in all cases. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
 
 
-<!-- ```{r time_perf_graph}  -->
-<!-- ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + theme(text = element_text(size=20)) + guides(color = guide_legend(override.aes = list(size=5))) -->
-<!-- ``` -->
-
-
-```{r time_perf_graph2} 
+```{r time_perf_graph2, out.width='100%'}
 ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20)) + guides(color = guide_legend(override.aes = list(size=5)))
 ```
 
@@ -193,7 +184,7 @@ The below table shows the status obtained in the base model. The number of infea
 infeasible_stats %>% kable
 ```
 
-In addition, the times to detect the infeaseability of a given instance have been greatly reduced (to half, approximately) as can be see in the following table:
+In addition, the times to detect the infeaseability of a given instance can be seen in the following table:
 
 ```{r infeasible_times}
 infeasible_times %>% kable
@@ -202,10 +193,12 @@ infeasible_times %>% kable
 
 ### Soft constraints performance
 
-Regarding the accomplishment of soft constraints, we can analyze for mutually **optimal solutions**, the quantity of violations in their solutions.
+Regarding the accomplishment of soft constraints, we can analyze for mutually **optimal solutions**, the quantity of violations in their solutions. For each model and instance, we subtract the `base` model errors. We show only the extra errors (in number) compared to the `base` case.
 
 ```{r soft_constraints}
 errors_stats <- get_soft_constraints(df, quant_max)
+errors_all <- get_soft_constraints_2(df) %>% 
+  mutate(dif= if_else(dif<=0, really_small_number, dif))
 
 ```
 
@@ -213,6 +206,15 @@ The following table shows the difference in soft constraints errors.
 
 ```{r soft_constraints_table}
 errors_stats %>% kable
+```
+
+And the complete distributions in logaritmic scale:
+
+```{r soft_constraints_plot}
+
+ggplot(data=errors_all, aes(x=experiment, y=dif)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('absolute difference in errors  (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
+
+
 ```
 
 ```{r variances}
@@ -225,8 +227,9 @@ right_tail <- 0.1
 
 variances_all_filt <- 
   variances_all %>% 
-  group_by(experiment) %>% 
-  filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
+  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc))
+  # group_by(experiment) %>% 
+  # filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
 ```
 
@@ -234,12 +237,12 @@ variances_all_filt <-
 
 The variance in the frequency of maintenances is a side objective that was not been taken into account previously. The higher the variance, the more difference there is between amount of flight hours between one aircraft and another.
 To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
-As can be seen, in almost all of the cases there is a reduction in the variance.
+To better visualize the results, we use a log 2 scale.
 
 ```{r graph_variances}
 
 # qplot(var_per, xlab='')
 
-ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('Difference in variance (in % of base case)') + theme(text = element_text(size=20)) + coord_flip()
+ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('Difference in variance (in % of base case) (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
 
 ```
