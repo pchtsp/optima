@@ -7,7 +7,7 @@ import package.auxiliar as aux
 import random as rn
 import math
 import numpy as np
-import package.superdict as sd
+import pytups.superdict as sd
 import string as st
 
 def empty_data():
