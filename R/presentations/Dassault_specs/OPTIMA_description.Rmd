@@ -1,0 +1,148 @@
+---
+title: "OPTIMA: spécifications"
+author: "ISAE SUPAERO"
+date: "Août 21, 2018"
+output:
+  html_document:
+    df_print: paged
+    css: ./../../css/baobab_docs.css
+    toc: yes
+  pdf_document: default
+  word_document: default
+institute: ISAE SUPAERO
+# geometry: margin=1.5in
+---
+
+## Glossaire:
+
+* **Maintenance**: opération d'entretien (préventive) technique nécessitant l'immobilisation de l'avion concerné. Aussi appelée "visite". Les maintenances considérées sont de quatre types. Chaque type de visite a des caractéristiques spécifiques: une durée, une périodicité, une capacité, etc.
+    * Visite de sécurité (VS).
+    * Visite de graissage (VG).
+    * Visite intermédiaire (VI).
+    * Grande visite (VX ou M).
+* **Heures de vol (HDV)**: nombre d'heures de l'utilisation effective d'un avion pendant un certain temps (un mois, un an).
+* **Butée calendaire (BC)**: intervalle de temps calendaire de durée maximale entre deux visites consécutives du même type. Unité: jours.
+* **Butée horaire (BH)**: nombre d’heures de vol autorisées entre deux visites consécutives du même type. Unité: heures (de vol).
+* **Flotte**: ensemble des avions concernés par la planification. Chaque avion a ses caractéristiques techniques et son historique des maintenances et des heures de vol effectuées.
+* **Livraison**: arrivée d’un nouvel avion dans la flotte. 
+* **Base aérienne**: endroit où sont réalisées les visites de la flotte. Pour chaque type de visite, le nombre d’avions est limité par une capacité de maintenance de ce type.
+* **Vieillissement**: le nombre d’heures effectuées par un avion depuis son entrée en service. Pour l’instant,  les indices de fatigue ne sont pas considérés.
+* **Vieillissement homogène**: l’objectif recherché est d’avoir le ratio « vieillissement/temps depuis l'entrée en service » le plus homogène possible pour les différents avions de la flotte.
+* **Indices de fatigue**: indices spécifiques de différents composants de l’avion dont l’analyse peut déclencher une maintenance.
+
+
+## Aéronefs
+
+Chaque avion a un état défini au moment de la planification :
+
+* **Vieillissement**.
+* **Date d'entrée en service**.
+
+et pour chaque type de visite:
+
+* **Date de la dernière visite**.
+* **Nombre d'heures de vol après la dernière visite**.
+
+Il est considéré qu'en dépassant 5000 HDV, l'avion ne peut plus être utilisé pour voler.
+La flotte aura une taille de 60 avions au début de l'horizon de planification.
+
+### Livraisons
+
+Les livraisons de nouveaux avions se font par lot avec une moyenne annuelle. En partant d'une quantité annuelle, les avions arrivent par lot tout au long de l'année.
+
+Par exemple, avec une moyenne de 10 avions livrés et un lot de taille 4, la distribution serait la suivante :
+
+* Avril: 4 avions.
+* Août: 4 avions.
+* Décembre: 2 avions.
+
+## Missions / Heures de vol
+
+### Heures par défaut
+
+Au moment de décider les maintenance, on suppose une charge en heures de vol à réaliser par avion. Cette demande annuelle est équivalente à $200 \frac{HDV}{avion-année} \times Q \frac{avions}{flotte}$. L'utilisation particulière de chaque avion pourra être configuré de manière indépendante et par périodé.
+
+* Un avion effectue normalement entre 180 et 220 HDV/ an.
+* La demande est repartie sur l'année en fonction des livraisons: un avion qui arrive en juillet effectue 100 HDV/ an.
+* L'homogénéisation de la flotte est le critère utilisé pour décider de l'affectation réelle des heures de vol.
+* Tout avion qui n'est pas en maintenance doit être utilisé pour effectuer une quantité d'heures équivalente à sa moyenne annuelle.
+
+### Missions
+
+Les affectations d'avions aux missions se font une fois les visites ont été décidées. Dans ce sens, les affectations doivent être compatibles avec les visites déjà présentes. Ces compatibilités sont les suivantes :
+
+1. Un avion ne peut pas voler plus de 500 h (ou la butée horaire VS correspondante) en sommant toutes les heures résultantes des affectations, entre une visite VS et une visite M (VX). Ici, nous comptons pas les heures de vol par défaut de l'avion, vu que ces heures peuvent être réduites en fonction des heures de vol des affectations.
+2. Un avion ne peut pas être affecté à une mission pendant une visite de sécurité ou une grande visite.
+3. Un avion affecté à une mission réduit la capacité de maintenance en une fraction correspondant à le pourcentage que l'avion représente de la flotte. La formule serait 
+
+
+## Maintenances
+
+La base aérienne dispose d'un nombre de jours ouvrés par an (200 par défaut) pour effectuer des opérations de maintenance. La distribution de ces jours ouvrés sur l'année n'est pas homogène.
+
+Chaque type de maintenance se différencie par les paramètres suivants :
+
+* **Durée (mois)**: durée d'affectation de l'opération en périodes.
+* **BC (mois)**: nombre maximal de mois entre deux visites du même type.
+* **BC (tol.)**: taille de l'interval de tolérance (en mois) de la BC.
+* **BH (HDV)**: nombre maximal d'heures de vol entre deux visites du même type.
+* **BH (tol)**: taille de l'interval de tolérance (en heures de vol) de la BH.
+* **Utilisation**: utilisation unitère du résource de capacité.
+* **Type**: Type de maintenance. Les visite du même type partage la même capacité.
+
+|Caractéristique|VG  |VI  |VS  |VX  |
+|-----------    |----|----|----|----|
+|Durée (mois)   | 1  | 1  | 1  | 4 |
+|BC (mois)      |8   | 16 | -  |60  |
+|BC (tol.)      |2   | 2  | -  | 4  |
+|BH (HDV)       |  - | -  | 500|1000|
+|BH (tol.)      | -  | -  | 100|  - |
+|Capacité       | 3  | 3  | 3  | 4  |
+|Type           | 2  |2 | 2  | 1  |
+
+La validation d'un seul critère de maintenance suffit pour immobiliser l'avion.
+
+## Types de maintenances et capacités
+
+
+
+* **Capacité**: nombre maximal d'avions en maintenance du même type à chaque moment.
+
+
+Cependant, tout type de maintenance ne possède pas l'ensemble de ces paramètres. Pour les quatre types de maintenance considérés, voici les paramètres à prendre en compte : 
+
+
+
+
+Les trois premières types de visite (VS, VG, VI) sont faites sur chaque base aérien. La quatrième visite (VX) se fait sur l'atelier dédié de façon indépendant. Donc, la capacité des visites qui se déroulent sur la base aérien est partagée.
+
+La visite VX (M) inclut déjà toutes les autres visites et, donc, réinitialise les BC et BH des avions pour les autres 3 visites.
+
+Les visites sur la base récupère le potentiel au début de l'opération. Pour la visite VX, le potentiel est récupéré à la fin de la visite.
+
+Pour la VS les clients préfère déclencher la visite toutes les 500 - 600 h de vol.
+
+### Regroupements de visites
+
+Il existe la possibilité de regrouper deux ou plus de visites. Un tel regroupement permet d'économiser un jour par visite regroupée. Par exemple, si les visites `VG` et `VI` sont regroupées, leur durée totale sera de $3 + 6 - 1 = 8$ jours. Si les visites `VG`, `VI` et `VS`  sont regroupées, leur durée totale sera de $3 + 6 + 4 - 2 = 11$ jours. C'est aussi possible de faire les visites `VG` et `VS` sans faire la visite `VI`.
+
+### Calendrier de visites
+
+La capacité de maintenance dépend des nombres de jours disponibles par mois. Les grandes visites (VX) ont un calendrier et les visites sur la base aérien ont un autre calendrier.
+
+## Stockage
+
+Il est possible de stocker un avion pendant un temps déterminé. L'avion stocké est immobilisé et son service est arrêté, ce qui signifie que le temps de stockage est exclu du calcul des butées calendaires.
+
+* Le temps de stockage correspond normalement à 24 mois. Les options considérées de stockage seront les suivantes: 12 mois, 18 mois et 24 mois.
+* L'avion stocké est considéré comme indisponible.
+* Il n'y a pas de limite sur le nombre d'avions stockés.
+* La mise en stockage d'un avion (et la sortie du stockage) prend entre 1 et 2 jours et utilise les ressources des maintenances dans la base.
+
+## Objectifs
+
+L'objectif principal est de maximiser la disponibilité de la flotte.
+
+La prise en compte des incertitudes notamment sur la durée des maintenances se fera dans un deuxième temps.
+
+L'horizon de planification est de 30 ans.
