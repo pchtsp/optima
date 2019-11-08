@@ -11,10 +11,8 @@ class Solution(object):
     The methods are made to make it easy to get information.
     They also draw graphs.
     data format:
-    {
-    'task': {r: {p: task}}, task = 'O10', 'O5'
-    'state_m': {r: {p: {s: 1}}}, s = 'M', 'VI'
-    }
+
+    >>> {'task': {'RESOURCE_1': {'PERIOD_1': 'TASK_1'}}, 'state_m': {'RESOURCE_1': {'PERIOD_2': {'MAINT_1': 1}}}}
 
     """
 
@@ -27,12 +25,12 @@ class Solution(object):
         if param is None:
             return self.data[category]
         if param in list(self.data[category].values())[0]:
-            return sd.SuperDict.from_dict(self.data[category], param)
+            return aux.get_property_from_dic(self.data[category], param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_periods(self):
         resource_period = list(self.get_tasks().keys())
-        return sorted(tl.TupList(resource_period).to_dict(0).keys())
+        return sorted(aux.tup_to_dict(resource_period, result_col=0).keys())
 
     def get_tasks(self):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
@@ -49,9 +47,7 @@ class Solution(object):
 
     def get_task_resources(self):
         task_solution = self.get_tasks()
-        task_resources = \
-            sd.SuperDict.from_dict(task_solution).\
-            to_tuplist().to_dict(0, is_list=True)
+        task_resources = aux.tup_to_dict(aux.dict_to_tup(task_solution), 0, is_list=True)
         return {(a, t): v for (t, a), v in task_resources.items()}
 
     def get_task_num_resources(self):

@@ -14,29 +14,24 @@ class Config(object):
 
         default_options = {
             'timeLimit': 300
-            , 'gap': None
-            , 'solver': "GUROBI"
             , 'path':
                 os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
-            , 'memory': None
-            , 'writeMPS': False
-            , 'writeLP': False
-            , 'gap_abs': None
         }
 
         # the following merges the two configurations (replace into):
         options = {**default_options, **options}
 
 
-        self.gap = options['gap']
+        self.gap = options.get('gap')
         self.path = options['path']
         self.timeLimit = options['timeLimit']
-        self.solver = options['solver']
+        self.solver = options.get('solver', 'GUROBI')
         self.solver_add_opts = options.get('solver_add_opts', [])
         self.mip_start = options.get('mip_start', False)
-        self.gap_abs = options['gap_abs']
+        self.gap_abs = options.get('gap_abs')
         self.log_path = os.path.join(self.path, 'results.log')
         self.result_path = os.path.join(self.path, 'results.sol')
+        self.threads = options.get('threads')
 
         if options['memory'] is None:
             if hasattr(os, "sysconf"):
@@ -44,9 +39,9 @@ class Config(object):
             else: # windows
                 self.memory = None
         else:
-            self.memory = options['memory']
-        self.writeMPS = options['writeMPS']
-        self.writeLP = options['writeLP']
+            self.memory = options.get('memory')
+        self.writeMPS = options.get('writeMPS', False)
+        self.writeLP = options.get('writeLP', False)
 
         if not os.path.exists(self.path):
             os.mkdir(self.path)
@@ -57,6 +52,7 @@ class Config(object):
             dict(timeLimit="sec {}",
                  gap = "ratio {}",
                  gap_abs = 'allow {}',
+                 threads = 'threads {}'
                  )
         params = [v.format(getattr(self, k)) for k, v in params_eq.items()
                   if getattr(self, k) is not None] + self.solver_add_opts

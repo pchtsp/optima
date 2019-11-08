@@ -210,7 +210,7 @@ def solve_template():
     import data.template_data as td
     import package.instance as inst
 
-    path_in = PATHS['data'] + r'template/dassault20190821/template_in.xlsx'
+    path_in = PATHS['data'] + r'template/Test3/template_in.xlsx'
     model_data = td.import_input_template(path_in)
     instance = inst.Instance(model_data)
     experiment = heur.MaintenanceFirst(instance)
@@ -243,6 +243,6 @@ if __name__ == '__main__':
     # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'
     # graph_check(path)
     # solve_template()
-    check_template_data()
+    solve_template()
     pass
 

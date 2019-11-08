@@ -159,6 +159,8 @@ class GreedyByMission(test.Experiment):
         :param resource: resource to find maintenance
         :param maint_need: date when the resource needs the maintenance
         :param max_period: date when the resource can no longer start the maintenance
+        :param which_maint: three techniques to choose the position of the maintenance
+        :param maint: maintenance to schedule
         :return:
         """
         # a = self.get_status(resource)
@@ -232,7 +234,6 @@ class GreedyByMission(test.Experiment):
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]
 
-    # @profile
     def get_non_free_periods_maint(self, maint='M', periods_to_check=None):
         """
         finds the periods where maintenance capacity is not full
@@ -262,6 +263,14 @@ class GreedyByMission(test.Experiment):
         #                          num < self.instance.get_param('maint_capacity')]
 
     def get_maintenance_candidates(self, resource, min_period, max_period, maint):
+        """
+        Obtaines candidate periods to start a maintenance.
+        :param resource:
+        :param min_period:
+        :param max_period:
+        :param maint:
+        :return:
+        """
         inst = self.instance
         maint_needed = set(inst.get_periods_range(min_period, max_period))
         maint_not_possible = set(self.get_non_free_periods_maint(maint, maint_needed))
@@ -308,7 +317,7 @@ class GreedyByMission(test.Experiment):
 
     def assign_maintenance(self, resource, maint, maint_start):
         """
-
+        Assigns a given maintenance to a resources at a specific time
         :param resource: resource to assign check
         :param maint: maintenance to assign check
         :param maint_start: the start period for the check
@@ -344,7 +353,6 @@ class GreedyByMission(test.Experiment):
         :param str resource: resource code
         :return: periods (month)
         """
-        # resource = "A100
         dtype_date = 'U7'
         blocked = self.get_blocked_periods_resource(resource)
         return np.setdiff1d(
@@ -353,6 +361,11 @@ class GreedyByMission(test.Experiment):
         )
 
     def get_blocked_periods_resource(self, resource):
+        """
+        All periods where the resource is being used to a task or a maintenance
+        :param resource:
+        :return: list of periods
+        """
         dtype_date = 'U7'
         states = self.solution.data['state_m'].get(resource, {}).items()
         periods_maint = np.array([], dtype = dtype_date)
@@ -366,6 +379,12 @@ class GreedyByMission(test.Experiment):
         return list(periods_maint) + list(periods_task)
 
     def get_free_starts(self, resource, periods):
+        """
+        Gets a start-stop list of free periods for a resource.
+        :param resource: resource to look for
+        :param periods: list of periods to look for
+        :return:
+        """
         candidate_periods = \
             np.intersect1d(
             periods,
@@ -379,6 +398,15 @@ class GreedyByMission(test.Experiment):
         return startend.filter([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut', maint='M'):
+        """
+        Updates ret or rut for a resource on certain periods for a given maintenance.
+        It sets it to the maximum of that maintenance.
+        :param str resource:
+        :param list periods:
+        :param str time:
+        :param str maint:
+        :return: True
+        """
         value = self.instance.get_max_remaining_time(time=time, maint=maint)
         for period in periods:
             self.set_remainingtime(resource, period, time, value, maint)
@@ -433,11 +461,25 @@ class GreedyByMission(test.Experiment):
         return True
 
     def get_maintenance_periods_resource(self, resource, maint='M'):
+        """
+        Given a resource and a maintenance, it returns the periods
+        where that maint starts
+        :param resource: resource to look for
+        :param maint: maintenance to look for
+        :return:
+        """
         periods = [(1, k) for k, v in self.solution.data['state_m'].get(resource, {}).items() if maint in v]
         result = tl.TupList(periods).to_start_finish(self.instance.compare_tups)
         return result.filter([1, 2])
 
     def get_next_maintenance(self, resource, min_start, maints=None):
+        """
+        Looks for the inmediate next maintenance start
+        :param resource: resource to look
+        :param min_start: date to start looking
+        :param set maints: maintenances to look for
+        :return:
+        """
         last = self.instance.get_param('end')
         if maints is None:
             maints = {'M'}

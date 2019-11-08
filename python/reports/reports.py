@@ -1,13 +1,19 @@
+import package.auxiliar as aux
 import pandas as pd
+import package.instance as inst
+import package.experiment as exp
 import os
 import numpy as np
-
+import data.data_input as di
 import tabulate
 import re
 
+import solvers.heuristics as heur
 from package.params import PATHS
 import scripts.names as na
 
+import dfply as dp
+from dfply import X
 
 
 path_root = PATHS['root']
@@ -58,10 +64,10 @@ def get_results_table(path_abs, exp_list=None, **kwargs):
         table = table.loc[exp_list]
     if not len(table):
         return table
+    # table = table.sort_values(['tasks', 'periods']).reset_index()
     table.reset_index(inplace=True)
     table['date'] = table['index']
     table['ref'] = table['index'].str.slice(8)
-    table = table.sort_values('date').reset_index()
     table['index'] = ['I\_' + str(num) for num in table.index]
     return table
 
@@ -192,8 +198,8 @@ def multi_multiobjective_table():
     # pareto_p2 = {}
     for key, value in data_dic.items():
         # key = '201801141646'
-        x = sd.SuperDict.from_dict(value).get_property("maint")
-        y = sd.SuperDict.from_dict(value).get_property('unavailable')
+        x = aux.get_property_from_dic(value, 'maint')
+        y = aux.get_property_from_dic(value, 'unavailable')
         points1 = get_pareto_points(x, y)
         points2 = get_pareto_points(y, x)
         points = np.intersect1d(points1, points2).tolist()
@@ -373,22 +379,20 @@ def get_simulation_results(experiment, cols_rename=None):
 
     results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
     # table.columns
-    table = pd.concat(results_list).filter(list(cols_rename.keys()))
-        # dp.select()
+    table = \
+        pd.concat(results_list) >> \
+        dp.select(list(cols_rename.keys()))
 
     table = \
-        table.rename(columns=cols_rename).reset_index().\
-            rename(columns={'level_0':'scenario', 'level_1': 'instance'})
-    # table.columns
+        table.rename(columns=cols_rename).reset_index() >> \
+        dp.rename(scenario=X.level_0, instance=X.level_1)
+
     # here we join the sub columns from the matrix
     if 'matrix' in table.columns:
-        new_cols = table.matrix.apply(pd.Series)
-        if 0 in new_cols.columns:
-            new_cols = new_cols.drop(0, axis=1)
-        table = pd.concat([table, new_cols], axis=1).\
-            rename(columns=dict(variables='vars', constraints='cons', nonzeros='nonzeros'))
-                # dp.rename(vars = X.variables, cons = X.constraints, nonzeros = X.nonzeros)
-    # [f.dataType for f in table.schema.fields]
+        table = table >> \
+                dp.bind_cols(table.matrix.apply(pd.Series)) >> \
+                dp.rename(vars = X.variables, cons = X.constraints, nonzeros = X.nonzeros)
+
     names_df = na.config_to_latex(table.scenario)
     scenarios = table >> dp.distinct(X.scenario) >> dp.select(X.scenario)
     scenarios = scenarios.reset_index(drop=True) >> dp.mutate(code = X.index)
@@ -465,19 +469,11 @@ def summary_to_latex(experiment, table, path):
 
 
 def print_table_md(table):
-    print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe', showindex=False))
+    print(table.pipe(tabulate.tabulate, headers='keys', tablefmt='pipe'))
 
 
 def col_names_collapsed(table):
     return ['.'.join(reversed(col)).strip() for col in table.columns.values]
-
-
-def path_contents_dict(path):
-    if not os.path.exists(path):
-        raise ValueError('path is not a real path')
-    results = {k: os.path.join(path, k) + '/' for k in os.listdir(path)}
-    return sd.SuperDict(results)
-
 
 if __name__ == "__main__":
 

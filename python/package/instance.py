@@ -2,7 +2,6 @@
 
 import numpy as np
 import package.auxiliar as aux
-import data.data_input as di
 import math
 import pytups.superdict as sd
 import pytups.tuplist as tl
@@ -15,12 +14,13 @@ class Instance(object):
     The methods help get useful information from the dataset.
     The data is stored in .data at it consists on a dictionary of dictionaries.
     The structure is:
-        * parameters: 1-dimension data
-        * tasks: data related to tasks
-        * resources: data related to resources
-        * maintenances: data related to maintenances (smaller for now)
-        * maint_types: data related to capacity or maintenance type
-        * aux: cached data (months, for example)
+
+    - parameters: 1-dimension data
+    - tasks: data related to tasks
+    - resources: data related to resources
+    - maintenances: data related to maintenances (smaller for now)
+    - maint_types: data related to capacity or maintenance type
+    - aux: cached data (months, for example)
     """
 
     def __init__(self, model_data):
@@ -190,6 +190,9 @@ class Instance(object):
         :param time_type:
         :return:
         """
+        first_period = self.get_param('start')
+        prev_first_period = self.get_prev_period(first_period)
+
         if time_type not in ["elapsed", "used"]:
             raise KeyError("Wrong type in time_type parameter: elapsed or used only")
 
@@ -198,24 +201,35 @@ class Instance(object):
         resources = sd.SuperDict(self.get_resources())
         res1 = resources.keys_l()[0]
         if key_initial not in res1:
-            # we're not using these parameters anymore
+            # this means we're already using the good nomenclature
             return
         rt_read = resources.get_property(key_initial)
         rt_max = self.get_param(key_max)
 
-        # we also check if the resources is currently in maintenance.
-        # If it is: we assign the rt_max (according to convention).
-        fixed_maints = self.get_fixed_maintenances()
-        res_in_maint = set([res for res, period in fixed_maints])
-        rt_fixed = {a: rt_max for a in rt_read if a in res_in_maint}
+        # in case of resources with fixed maintenances we need to assign
+        # the max value for the ret and rut.
+        # In the case of ret, we need to assign a little more depending on how many
+        # fixed maintenances the resources has.
 
-        rt_init = {a: rt_max for a in rt_read}
-        rt_init.update(rt_read)
+        # here, we calculate the number of fixed maintenances.
+        res_maints = \
+            self.get_fixed_maintenances().\
+            vfilter(lambda x: x[1] >= prev_first_period).\
+            to_dict(result_col=1).\
+            to_lendict()
+
+        if time_type == 'elapsed':
+            # this extra is only for ret, not for rut
+            rt_fixed = {k: rt_max + v - 1 for k, v in res_maints.items()}
+        else:
+            rt_fixed = {k: rt_max for k, v in res_maints.items()}
+
+        rt_init = dict(rt_read)
         rt_init.update(rt_fixed)
-        rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
         for r in rt_init:
-            self.data['resources'][r][key_initial] = rt_init[r]
+            self.data['resources'][r]['M'][key_initial] = rt_init[r]
         return rt_init
+
 
     def get_initial_state(self, time_type, resource=None, maint='M'):
         """
@@ -238,6 +252,12 @@ class Instance(object):
 
     def get_max_assign(self):
 
+        # max_assign = dict(M = self.get_param('maint_duration'))
+        return sd.SuperDict(self.get_maintenances('duration_periods'))
+
+    def get_max_remaining_time(self, time, maint):
+        time_label = 'max_' + self.label_rt(time) + '_time'
+        return self.data['maintenances'][maint][time_label]
 
     def compare_tups(self, tup1, tup2, pp):
         for n, (v1, v2) in enumerate(zip(tup1, tup2)):
@@ -379,9 +399,7 @@ class Instance(object):
         return num_resource_working
 
     def get_total_fixed_maintenances(self):
-        in_maint_dict = \
-            tl.TupList(self.get_fixed_maintenances()).\
-                to_dict(result_col=0, is_list=True)
+        in_maint_dict = aux.tup_to_dict(self.get_fixed_maintenances(), 0, is_list=True)
         return {k: len(v) for k, v in in_maint_dict.items()}
 
     def check_enough_candidates(self):
@@ -394,8 +412,7 @@ class Instance(object):
     def get_info(self):
         assign = \
             sum(v * self.data['tasks'][k]['num_resource'] for k, v in
-                sd.SuperDict.from_dict(self.get_task_period_list(True)).
-                to_dictdict().items())
+                aux.dict_to_lendict(self.get_task_period_list(True)).items())
 
         return {
             'periods': len(self.get_periods()),
@@ -442,10 +459,10 @@ class Instance(object):
         cluster = self.get_clusters()
         kt = [(c, period) for c in cluster.values() for period in self.get_periods()]
         num_res_maint = \
-            sd.SuperDict.from_dict(self.get_fixed_maintenances_cluster()).\
+            sd.SuperDict(self.get_fixed_maintenances_cluster()).\
                 to_lendict().\
                 fill_with_default(keys=kt)
-        c_num_candidates = sd.SuperDict.from_dict(self.get_cluster_candidates()).to_lendict()
+        c_num_candidates = sd.SuperDict(self.get_cluster_candidates()).to_lendict()
         c_slack = {tup: c_num_candidates[tup[0]] - num_res_maint[tup]
                    for tup in kt}
         c_min = {(k, t): min(
@@ -507,6 +524,46 @@ class Instance(object):
         return fixed_per_period_cluster
 
 
+    def get_capacity_calendar(self, periods=None):
+        """
+        :param periods: optional filter for horizon periods
+        :return: capacity for each maintenance type and period indexed by tuples.
+        """
+        # This should be replaced by reference to the correct maintenance data
+        def_working_days = self.get_param('default_type2_capacity')
+        def_capacity = self.get_param('maint_capacity')
+        base_capacity = {'1': def_capacity, '2': def_working_days}
+        capacity_period = self.data['maint_types'].get_property('capacity')
+        if periods is None:
+            periods = self.get_periods()
+        caps = {
+            (t, p): capacity_period[t].get(p, base) for p in periods
+            for t, base in base_capacity.items()
+        }
+        return sd.SuperDict(caps)
+
+    def get_default_consumption(self, resource, period):
+        min_use = self.data['resources'][resource]['min_usage_period']
+        return min_use.get(period, min_use['default'])
+
+    def get_maint_rt(self, maint):
+        maint_data = self.data['maintenances'][maint]
+        return [t for t in ['ret', 'rut'] if
+                  maint_data['max_' + self.label_rt(t) + '_time'] is not None]
+
+    def get_rt_maints(self, rt):
+        maint_data = self.data['maintenances']
+        return [m for m, v in maint_data.items() if
+                v['max_' + self.label_rt(rt) + '_time'] is not None]
+
+    @staticmethod
+    def label_rt(time):
+        if time == "rut":
+            return 'used'
+        elif time == 'ret':
+            return 'elapsed'
+        else:
+            raise ValueError("time needs to be rut or ret")
 
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
