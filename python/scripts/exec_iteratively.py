@@ -7,6 +7,7 @@ import package.superdict as sd
 import argparse
 import re
 import copy
+import multiprocessing as multi
 
 if __name__ == "__main__":
 
@@ -58,6 +59,12 @@ if __name__ == "__main__":
                 [{'name': 'base'}]
 
     seed_backup = sim_data['seed']
+    multiproc = options.get('multiprocess')
+    results = {}
+    pos = 0
+    if multiproc:
+        pool = multi.Pool(processes=multiproc)
+
     for case in case_data:
         sim_data['seed'] = seed_backup
         path_exp = params.PATHS['experiments'] = \
@@ -78,18 +85,22 @@ if __name__ == "__main__":
             _sim_data['num_resources'] = 15*_sim_data['num_parallel_tasks']
             _path_instance = path_instance = _options['path'] = \
                 os.path.join(path_exp, dt.datetime.now().strftime("%Y%m%d%H%M"))
-            num = 1
 
+            num = 1
             while os.path.exists(_path_instance):
                 _path_instance = path_instance + "_{}".format(num)
                 num += 1
             _options['path'] = path_instance = _path_instance + '/'
-            try:
-                exec.config_and_solve(_options)
-            except Exception as e:
-                if not os.path.exists(path_instance):
-                    os.mkdir(path_instance)
-                str_fail = "Unexpected error in case: \n{}".format(repr(e))
-                with open(path_instance + 'failure.txt', 'w') as f:
-                    f.write(str_fail)
+
+            if not os.path.exists(_path_instance):
+                os.mkdir(_path_instance)
+
+            if multiproc:
+                results[pos] = pool.apply_async(exec.solve_errors, [_options, path_instance])
+                pos += 1
+            else:
+                exec.solve_errors(_options, path_instance)
             # time.sleep(60)
+
+    for pos, result in results.items():
+        result = result.get(timeout=10000)

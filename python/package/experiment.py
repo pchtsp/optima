@@ -1,5 +1,4 @@
 # /usr/bin/python3
-import package.auxiliar as aux
 import numpy as np
 import pandas as pd
 import package.data_input as di
@@ -78,10 +77,8 @@ class Experiment(object):
         task_reqs = self.instance.get_tasks('num_resource')
 
         task_assigned = \
-            aux.fill_dict_with_default(
-                self.solution.get_task_num_resources(),
-                self.instance.get_task_period_list()
-            )
+            sd.SuperDict.from_dict(self.solution.get_task_num_resources()).\
+                fill_with_default(self.instance.get_task_period_list())
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
@@ -154,8 +151,8 @@ class Experiment(object):
 
     def get_non_maintenance_periods(self, resource=None):
         """
-        :return: a dictionary with the following structure:
-        resource: [(start_period1, end_period1), (start_period2, end_period2), ..., (start_periodN, end_periodN)]
+        :return: a tuplist with the following structure:
+        resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
         two consecutive periods being separated by a maintenance operation.
         It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
@@ -163,9 +160,9 @@ class Experiment(object):
         # a = self.get_status(resource)
         # a[a.period>='2019-02'][:8]
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
-        maintenances = aux.tup_to_dict(
-            self.get_maintenance_periods(resource)
-            , result_col=[1, 2])
+        maintenances = \
+            tl.TupList(self.get_maintenance_periods(resource)).\
+                to_dict(result_col=[1, 2])
         if resource is None:
             resources = self.instance.get_resources()
         else:
@@ -180,12 +177,13 @@ class Experiment(object):
             if first_maint_start > first:
                 nonmaintenances.append((res, first, self.instance.get_prev_period(first_maint_start)))
             for maint1, maint2 in zip(maints, maints[1:]):
-                nonmaintenances.append(
-                    (res, self.instance.get_next_period(maint1[1]), self.instance.get_prev_period(maint2[0]))
-                                       )
+                start = self.instance.get_next_period(maint1[1])
+                end = self.instance.get_prev_period(maint2[0])
+                nonmaintenances.append((res, start, end))
             if last_maint_end != last:
-                nonmaintenances.append((res, self.instance.get_next_period(last_maint_end), last))
-        return nonmaintenances
+                start = self.instance.get_next_period(last_maint_end)
+                nonmaintenances.append((res, start, last))
+        return tl.TupList(nonmaintenances)
 
     def set_start_periods(self):
         """
@@ -252,7 +250,7 @@ class Experiment(object):
         else:
             rt = self.solution.data['aux'][time]
 
-        rt_tup = aux.dictdict_to_dictup(rt)
+        rt_tup = sd.SuperDict.from_dict(rt).to_dictup()
         return sd.SuperDict({k: v for k, v in rt_tup.items() if v < 0})
 
     def check_resource_state(self, **params):
@@ -391,12 +389,20 @@ class Experiment(object):
         maint_periods = self.get_maintenance_periods()
         # we check if the size of the maintenance is equal to its duration
 
-    def get_objective_function(self):
-        weight1 = self.instance.get_param("maint_weight")
-        weight2 = self.instance.get_param("unavail_weight")
-        unavailable = max(self.solution.get_unavailable().values())
-        in_maint = max(self.solution.get_in_maintenance().values())
-        return in_maint * weight1 + unavailable * weight2
+    def get_objective_function(self, options):
+        max_usage = self.instance.get_param('max_used_time')
+        maints = self.get_maintenance_starts()
+        ct = self.instance.compare_tups
+        fixed_maints = self.instance.get_fixed_maintenances().tup_to_start_finish(ct)
+        total_mains = len(maints) - len(fixed_maints)
+        price_rut_end = options.get('price_rut_end', 1)
+        sum_last = 0
+        if price_rut_end:
+            ruts = self.set_remaining_usage_time('rut')
+            last = self.instance.get_param('end')
+            sum_last = sum(r[last] for r in ruts.values()) * price_rut_end
+
+        return total_mains * max_usage - sum_last
 
     def get_kpis(self):
         rut = self.set_remaining_usage_time(time='rut')
@@ -412,11 +418,13 @@ class Experiment(object):
         }
 
     def export_solution(self, path, sheet_name='solution'):
-        tasks = aux.dict_to_tup(self.solution.get_tasks())
+        tasks = sd.SuperDict.from_dict(self.solution.get_tasks()).to_tuplist()
         hours = self.instance.get_tasks('consumption')
         tasks_edited = [(t[0], t[1], '{} ({}h)'.format(t[2], hours[t[2]]))
                         for t in tasks]
-        statesMissions = aux.dict_to_tup(self.solution.get_state()) + tasks_edited
+        statesMissions = sd.SuperDict.from_dict(self.solution.get_state()).\
+                             to_tuplist() + \
+                         tasks_edited
         table = pd.DataFrame(statesMissions, columns=['resource', 'period', 'state'])
         table = table.pivot(index='resource', columns='period', values='state')
         table.to_excel(path, sheet_name=sheet_name)

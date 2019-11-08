@@ -14,6 +14,7 @@ import package.heuristics_maintfirst as mf
 import package.simulation as sim
 import package.superdict as sd
 import datetime as dt
+import json
 
 
 def config_and_solve(options):
@@ -100,9 +101,19 @@ def execute_solve(model_data, options, solution_data=None):
         di.export_data(output_path, errors, name='errors', file_type="json")
 
 
+def solve_errors(_options, path_instance):
+    try:
+        config_and_solve(_options)
+    except Exception as e:
+        if not os.path.exists(path_instance):
+            os.mkdir(path_instance)
+        str_fail = "Unexpected error in case: \n{}".format(repr(e))
+        with open(path_instance + 'failure.txt', 'w') as f:
+            f.write(str_fail)
+
+
 if __name__ == "__main__":
 
-    import json
     parser = argparse.ArgumentParser(description='Solve an instance MFMP.')
     parser.add_argument('-c', dest='file', default="package.params",
                         help='config file (default: package.params)')
@@ -125,5 +136,4 @@ if __name__ == "__main__":
 
     options = params.OPTIONS
     options['PATHS'] = params.PATHS
-    # import package.params as params
     config_and_solve(options)

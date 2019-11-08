@@ -74,7 +74,7 @@ class Instance(object):
         if param is None:
             return data
         if param in list(data.values())[0]:
-            return aux.get_property_from_dic(data, param)
+            return sd.SuperDict.from_dict(data).get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):
@@ -98,12 +98,12 @@ class Instance(object):
 
         key_initial = "initial_" + time_type
         key_max = "max_" + time_type + "_time"
-        param_resources = sd.SuperDict(self.get_resources())
+        param_resources = sd.SuperDict.from_dict(self.get_resources())
         if resource is not None:
             param_resources.filter(resource)
         rt_max = self.get_param(key_max)
 
-        rt_read = aux.get_property_from_dic(param_resources, key_initial)
+        rt_read = sd.SuperDict.from_dict(param_resources).get_property(key_initial)
 
         # we also check if the resources is currently in maintenance.
         # If it is: we assign the rt_max (according to convention).
@@ -126,7 +126,7 @@ class Instance(object):
 
     def get_max_assign(self):
         max_assign = dict(M = self.get_param('maint_duration'))
-        return sd.SuperDict(max_assign)
+        return sd.SuperDict.from_dict(max_assign)
 
     def compare_tups(self, tup1, tup2, pp):
         for n, (v1, v2) in enumerate(zip(tup1, tup2)):
@@ -265,7 +265,9 @@ class Instance(object):
         return num_resource_working
 
     def get_total_fixed_maintenances(self):
-        in_maint_dict = aux.tup_to_dict(self.get_fixed_maintenances(), 0, is_list=True)
+        in_maint_dict = \
+            tl.TupList(self.get_fixed_maintenances()).\
+                to_dict(result_col=0, is_list=True)
         return {k: len(v) for k, v in in_maint_dict.items()}
 
     def check_enough_candidates(self):
@@ -278,7 +280,8 @@ class Instance(object):
     def get_info(self):
         assign = \
             sum(v * self.data['tasks'][k]['num_resource'] for k, v in
-                aux.dict_to_lendict(self.get_task_period_list(True)).items())
+                sd.SuperDict.from_dict(self.get_task_period_list(True)).
+                to_dictdict().items())
 
         return {
             'periods': len(self.get_periods()),
@@ -325,10 +328,10 @@ class Instance(object):
         cluster = self.get_clusters()
         kt = [(c, period) for c in cluster.values() for period in self.get_periods()]
         num_res_maint = \
-            sd.SuperDict(self.get_fixed_maintenances_cluster()).\
+            sd.SuperDict.from_dict(self.get_fixed_maintenances_cluster()).\
                 to_lendict().\
                 fill_with_default(keys=kt)
-        c_num_candidates = sd.SuperDict(self.get_cluster_candidates()).to_lendict()
+        c_num_candidates = sd.SuperDict.from_dict(self.get_cluster_candidates()).to_lendict()
         c_slack = {tup: c_num_candidates[tup[0]] - num_res_maint[tup]
                    for tup in kt}
         c_min = {(k, t): min(
@@ -389,29 +392,6 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
-    # def cluster_candidates(instance, options=None):
-    #     l = instance.get_domains_sets()
-    #     av = list(set(aux.tup_filter(l['avt'], [0, 1])))
-    #     a_v = aux.tup_to_dict(av, result_col=0, is_list=True)
-    #     candidate = pl.LpVariable.dicts("cand", av, 0, 1, pl.LpInteger)
-    #
-    #     model = pl.LpProblem("Candidates", pl.LpMinimize)
-    #     for v, num in instance.get_tasks('num_resource').items():
-    #         model += pl.lpSum(candidate[(a, v)] for a in a_v[v]) >= max(num + 4, num * 1.1)
-    #
-    #     # # objective function:
-    #     # max_unavail = pl.LpVariable("max_unavail")
-    #     model += pl.lpSum(candidate[tup] for tup in av)
-    #
-    #     # MODEL
-    #
-    #     # # OBJECTIVE:
-    #     # model += max_unavail + max_maint * maint_weight
-    #
-    #     config = conf.Config(options)
-    #     result = config.solve_model(model)
-    #
-    #     return {}
 
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
