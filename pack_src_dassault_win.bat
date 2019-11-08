@@ -2,9 +2,9 @@ SET target=src_dassault
 rem SET branch=multiple_maintenances
 SET branch=HEAD
 
-IF NOT EXIST %target% GOTO TARGETEXISTS
+IF NOT EXIST %target% GOTO TARGETNOTEXISTS
 rd /s /q %target%
-:TARGETEXISTS
+:TARGETNOTEXISTS
 mkdir %target%
 rem git archive --format=tar %branch% python | (cd %target% && tar xf -)
 git archive --format=tar %branch% python/data | (cd %target% && tar xf -)
@@ -19,5 +19,8 @@ git archive --format=tar %branch% python/optima.spec | (cd %target% && tar xf -)
 git archive --format=tar %branch% build_dassault_win.bat | (cd %target% && tar xf -)
 rem git archive --format=tar %branch% R/functions/import_results.R | (cd %target% && tar xf -)
 git archive --format=tar %branch% data/template | (cd %target% && tar xf -)
+
+rem symbolic link for venv for testing.
+rem Xcopy /E /I %cd%\python\venv %cd%\%target%\python\venv
 
 pause
