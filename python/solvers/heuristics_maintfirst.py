@@ -153,7 +153,8 @@ class MaintenanceFirst(heur.GreedyByMission):
 
             # check quality of solution, store best.
             objective, status, errors = self.analyze_solution(temperature)
-            num_errors = errors.to_lendict().values_tl().apply(sum)
+            num_errors = errors.to_lendict().values_tl()
+            num_errors = sum(num_errors)
 
             # 3. check if feasible. If not, un-assign (some/ all) or move maints
             num_change = rn.choices(num_change_pos, num_change_probs)[0]

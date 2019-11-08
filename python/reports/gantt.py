@@ -23,14 +23,14 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
     start_end.sort()
     start_end_2 = start_end.to_dict(result_col=[2]).vapply(lambda x: '+'.join(x)).to_tuplist()
     try:
-        pos = start_end.filter(0).apply(lambda x: re.search(string=x, pattern='[0-9]+')[0]).apply(int)
+        pos = start_end.filter(0).vapply(lambda x: re.search(string=x, pattern='[0-9]+')[0]).vapply(int)
     except:
         pos = [1]*len(start_end)
 
     last_day = lambda month: arrow.get(month + "-01").shift(months=1).shift(days=-2).format("YYYY-MM-DD")
     transf = lambda item: dict(Task=item[0], Start=item[1]+'-01', Finish=last_day(item[2]), Resource=item[3])
 
-    gantt_data = start_end_2.apply(transf)
+    gantt_data = start_end_2.vapply(transf)
     tl.TupList([{**v, **{'pos': pos[k]}} for k, v in enumerate(gantt_data)])
 
     colors = \
@@ -44,7 +44,7 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
          'VI+VS': '#EFCC00'}
 
     # we try to sort according to standard naming.
-    gantt_data.apply(lambda x: re.search(x['Task'], r'\d'))
+    gantt_data.vapply(lambda x: re.search(x['Task'], r'\d'))
     try:
         gantt_data.sort(key=lambda x: int(x['Task'][2:]))
     except:
