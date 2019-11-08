@@ -222,6 +222,22 @@ def solve_template():
 
     pass
 
+def solve_dataset():
+    import package.instance as inst
+    import solvers.heuristics_maintfirst as heur
+    from data import test_data
+    def ttt():
+        from importlib import reload
+        reload(test_data)
+    model_data = test_data.dataset2()
+    instance = inst.Instance(model_data)
+    experiment = heur.MaintenanceFirst(instance)
+    solution = experiment.solve(dict(timeLimit=10, path=".",
+                                     prob_free_aircraft=0.1,
+                                     prob_free_periods=0.5,
+                                     prob_delete_maint=0.1))
+    solution.data['state_m']
+
 
 if __name__ == '__main__':
     # check_over_assignments()
