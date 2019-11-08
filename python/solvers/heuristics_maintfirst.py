@@ -115,7 +115,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         :param options: dictionary with options
         :return: solution to the planning problem
-        :rtype: sol.Solution
+        :rtype: :py:class:`package.solution.Solution`
         """
 
         self.options = options
@@ -387,6 +387,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         return tl.TupList(result)
 
     def get_candidates_rut(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
         ct = self.instance.compare_tups
         maints_probs_st = \
             errors.get('usage', sd.SuperDict()).\

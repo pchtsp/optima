@@ -8,7 +8,6 @@ import package.instance as inst
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
-import orloge as ol
 import ujson
 
 
@@ -187,14 +186,14 @@ class Experiment(object):
 
     def update_time_usage(self, resource, periods, previous_value=None, time='rut', maint='M'):
         """
+        This procedure *updates* the time of each period using set_remainingtime.
+        It assumes all periods do not have a maintenance.
+        So the periods should be filled with a task or nothing.
         :param resource: a resource to update
         :param periods: a list of consecutive periods to update. ordered.
         :param previous_value: optional value for the remaining time before the first period
         :param time: rut or ret depending if it's usage time or elapsed time
         :return: True
-        This procedure *updates* the time of each period using set_remainingtime.
-        It assumes all periods do not have a maintenance.
-        So the periods should be filled with a task or nothing.
         """
         if self.instance.get_max_remaining_time(time, maint) is None or not periods:
             # we do not update maints that do not check this
@@ -224,14 +223,12 @@ class Experiment(object):
 
     def get_non_maintenance_periods(self, resource=None, state_list=None):
         """
-        :return: a tuplist with the following structure:
-        resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
-        two consecutive periods being separated by a maintenance operation.
-        It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
+        :return: a tuplist with the following structure:
+            resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
+            two consecutive periods being separated by a maintenance operation.
+            It's built using the information of the maintenance operations.
         """
-        # a = self.get_status(resource)
-        # a[a.period>='2019-02'][:8]
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
         maintenances = \
             self.get_maintenance_periods(resource, state_list=state_list).\
@@ -362,9 +359,9 @@ class Experiment(object):
     def check_min_max_assignment(self, **params):
         """
         :return: periods were the min assignment (including maintenance)
-        in format: (resource, start, end): error.
-        if error negative: bigger than max. Otherwise: less than min
-        is not respected
+            in format: (resource, start, end): error.
+            if error negative: bigger than max. Otherwise: less than min
+            is not respected
         """
         tasks = self.solution.get_tasks().to_tuplist()
         maints = self.solution.get_state_tuplist()
@@ -624,7 +621,7 @@ class Experiment(object):
         Makes a deep copy of the current solution.
 
         :return: dictionary with data
-        :rtype: sd.SuperDict
+        :rtype: :py:class:`pytups.SuperDict`
         """
         data = self.solution.data
         data_copy = ujson.loads(ujson.dumps(data))
@@ -657,25 +654,6 @@ class Experiment(object):
 
     def solve(self, **kwargs):
         raise NotImplementedError('An experiment needs to be subclassed and be given a solve method.')
-
-
-def exp_get_info(path, get_log_info=True, get_exp_info=True):
-    # print(path)
-    parameters = log_info = inst_info = {}
-    if get_exp_info:
-        exp = Experiment.from_dir(path, format="json")
-        if exp is None:
-            return None
-        parameters = exp.instance.get_param()
-        inst_info = exp.instance.get_info()
-    options_path = os.path.join(path, "options.json")
-    options = di.load_data(options_path)
-    if not options:
-        return None
-    log_path = os.path.join(path, "results.log")
-    if os.path.exists(log_path) and get_log_info:
-        log_info = ol.get_info_solver(log_path, options['solver'])
-    return {**parameters, **options, **log_info, **inst_info}
 
 
 if __name__ == "__main__":
