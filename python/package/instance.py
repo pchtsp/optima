@@ -14,12 +14,13 @@ class Instance(object):
     The methods help get useful information from the dataset.
     The data is stored in .data at it consists on a dictionary of dictionaries.
     The structure is:
-    * parameters: 1-dimension data
-    * tasks: data related to tasks
-    * resources: data related to resources
-    * maintenances: data related to maintenances (smaller for now)
-    * maint_types: data related to capacity or maintenance type
-    * aux: cached data (months, for example)
+
+    - parameters: 1-dimension data
+    - tasks: data related to tasks
+    - resources: data related to resources
+    - maintenances: data related to maintenances (smaller for now)
+    - maint_types: data related to capacity or maintenance type
+    - aux: cached data (months, for example)
     """
 
     def __init__(self, model_data):

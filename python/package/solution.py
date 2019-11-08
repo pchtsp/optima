@@ -11,10 +11,8 @@ class Solution(object):
     The methods are made to make it easy to get information.
     They also draw graphs.
     data format:
-    {
-    'task': {r: {p: task}}, task = 'O10', 'O5'
-    'state_m': {r: {p: {s: 1}}}, s = 'M', 'VI'
-    }
+
+    >>> {'task': {'RESOURCE_1': {'PERIOD_1': 'TASK_1'}}, 'state_m': {'RESOURCE_1': {'PERIOD_2': {'MAINT_1': 1}}}}
 
     """
 
