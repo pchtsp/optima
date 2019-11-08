@@ -1,9 +1,8 @@
 import package.auxiliar as aux
-import package.data_input as di
+import data.data_input as di
 import package.instance as inst
-import package.model as md
+import solvers.model as md
 import multiprocessing as multi
-import datetime
 
 
 def solve_write(instance, options):

@@ -1,15 +1,14 @@
+import reports.reports as rep
 import os
 import pandas as pd
 import numpy as np
-import orloge as ol
+import package.params as pm
+import pytups.superdict as sd
+# import scripts.names as na
+# import numpy as np
 import dfply as dp
 from dfply import X
-
-import package.reports as rep
-import package.experiment as exp
-import package.params as pm
-import package.superdict as sd
-import package.rpy_graphs as rg
+import reports.rpy_graphs as rg
 import scripts.names as na
 import package.heuristics_maintfirst as heur
 import package.data_input as di

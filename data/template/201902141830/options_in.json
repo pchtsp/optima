@@ -1,0 +1,26 @@
+{
+  "timeLimit": 10,
+  "solver": "HEUR_mf",
+  "num_period": 90,
+  "simulate": false,
+  "template": true,
+  "graph": true,
+  "seed": null,
+  "R_HOME": "C:/Users/pchtsp/Downloads/R-Portable/App/R-Portable",
+  "num_change": [
+    0.8,
+    0.1,
+    0.1
+  ],
+  "temperature": 2,
+  "prob_free_aircraft": 0.1,
+  "prob_free_periods": 0.1,
+  "cooling": 0.9995,
+  "debug": false,
+  "max_iters": 99999999,
+  "prob_delete_maint": 1,
+  "log_output": [
+    "file",
+    "console"
+  ]
+}

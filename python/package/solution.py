@@ -1,7 +1,8 @@
 # /usr/bin/python3
 
-import package.superdict as sd
-import package.tuplist as tl
+import package.auxiliar as aux
+import pytups.superdict as sd
+import pytups.tuplist as tl
 
 class Solution(object):
     """
@@ -11,14 +12,16 @@ class Solution(object):
     They also draw graphs.
     data format:
     {
-    'state': {(r, p): state}, state = 'M',
-    'task': {(r, p): task}, task = 'O10', 'O5'
+    'task': {r: {p: task}}, task = 'O10', 'O5'
+    'state_m': {r: {p: {s: 1}}}, s = 'M', 'VI'
     }
 
     """
 
     def __init__(self, solution):
-        self.data = solution
+        data_default = {'state_m': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
+        self.data = sd.SuperDict.from_dict(data_default)
+        self.data.update(sd.SuperDict.from_dict(solution))
 
     def get_category(self, category, param):
         if param is None:
@@ -34,8 +37,12 @@ class Solution(object):
     def get_tasks(self):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
 
+    def get_state_tuplist(self, resource=None):
+        states = self.get_state(resource)
+        return tl.TupList(states.keys())
+
     def get_state(self, resource=None):
-        data = sd.SuperDict.from_dict(self.data['state'])
+        data = self.data['state_m']
         if resource is not None:
             data = data.filter(resource, check=False)
         return data.to_dictup()
@@ -52,7 +59,7 @@ class Solution(object):
         return {key: len(value) for key, value in task_resources.items()}
 
     def get_state_tasks(self):
-        statesMissions = self.get_state().to_tuplist() + self.get_tasks().to_tuplist()
+        statesMissions = self.get_state_tuplist() + self.get_tasks().to_tuplist()
         return tl.TupList(statesMissions)
 
     def get_schedule(self, compare_tups):
@@ -62,12 +69,12 @@ class Solution(object):
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.tup_to_start_finish(compare_tups)
+        result = statesMissions.tup_to_start_finish(ct=compare_tups)
         return result
 
     def get_unavailable(self):
         num_tasks = self.get_in_task()
-        in_maint = self.get_in_maintenance()
+        in_maint = self.get_in_some_maintenance()
         return {k: in_maint[k] + num_tasks[k] for k in in_maint}  # in_maint has all periods already
 
     def get_in_task(self):
@@ -77,27 +84,32 @@ class Solution(object):
             to_lendict().\
             fill_with_default(self.get_periods())
 
-    def get_in_maintenance(self):
-        states = [(t, r) for (r, t), v in self.get_state().items() if v == 'M']
-        return tl.TupList(states). \
-            to_dict(1, is_list=True). \
-            to_lendict(). \
-            fill_with_default(self.get_periods())
+    def get_in_some_maintenance(self):
+        raise ValueError("This is no longer supported")
+        # _states = self.get_state_tuplist()
+        # states = [(t, r) for r, t, v in _states if maint in v]
+        # in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
+        # # fixed maintenances should be included in the states already
+        # return aux.fill_dict_with_default(in_maint, self.get_periods())
 
-    def get_number_maintenances(self, resource):
-        return sum(v == 'M' for v in self.data['state'].get(resource, {}).values())
+    def get_period_state(self, resource, period, cat):
+        try:
+            return self.data[cat][resource][period]
+        except KeyError:
+            return None
 
     def is_resource_free(self, resource, period):
-        if self.data['task'].get(resource, {}).get(period) is not None:
+        if self.get_period_state(resource, period, 'task') is not None:
             return False
-        if self.data['state'].get(resource, {}).get(period) is not None:
+        states = self.get_period_state(resource, period, 'state_m')
+        if states is not None and 'M' in states:
             return False
         return True
 
 if __name__ == "__main__":
     path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
     path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712181704/"
-    import package.data_input as di
+    import data.data_input as di
     sol_states = Solution(di.load_data(path_states + "data_out.json"))
     sol_nostates = Solution(di.load_data(path_nostates + "data_out.json"))
     # sol_nostates.graph_maintenances(path="/home/pchtsp/Documents/projects/OPTIMA/img/maintenances.html",

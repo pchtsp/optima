@@ -2,11 +2,10 @@
 
 import numpy as np
 import package.auxiliar as aux
-import package.data_input as di
-import pandas as pd
+import data.data_input as di
 import math
-import package.superdict as sd
-import package.tuplist as tl
+import pytups.superdict as sd
+import pytups.tuplist as tl
 
 
 class Instance(object):
@@ -15,15 +14,28 @@ class Instance(object):
     It doesn't include the solution.
     The methods help get useful information from the dataset.
     The data is stored in .data at it consists on a dictionary of dictionaries.
-    The structure will vary in the future but right now is:
-        * parameters: adimentional data
+    The structure is:
+        * parameters: 1-dimension data
         * tasks: data related to tasks
         * resources: data related to resources
+        * maintenances: data related to maintenances (smaller for now)
+        * maint_types: data related to capacity or maintenance type
         * aux: cached data (months, for example)
     """
 
     def __init__(self, model_data):
-        self.data = model_data
+        self.data = sd.SuperDict.from_dict(model_data)
+        self.set_date_params()
+        self.set_default_params()
+        self.set_default_resources()
+        for time_type in ['used', 'elapsed']:
+            self.correct_initial_state(time_type=time_type)
+        self.set_default_maintenances()
+        self.prepare_maint_params()
+        self.set_default_maint_types()
+
+    def set_default_params(self):
+        # TODO: take out deprecated params
         params = {
             'maint_weight': 1
             , 'unavail_weight': 1
@@ -32,13 +44,90 @@ class Instance(object):
             , 'min_avail_percent': 0.1
             , 'min_avail_value': 1
             , 'min_hours_perc': 0.2
+            , 'default_type2_capacity': 66
         }
+
+        params = sd.SuperDict.from_dict(params)
         params.update(self.data['parameters'])
         self.data['parameters'] = params
 
+    def set_default_maintenances(self):
+        params = self.data['parameters']
+        if 'maint_duration' not in params:
+            # we're using the new parameters, no need for defaults
+            return
+        resources = self.data['resources']
+
+        maints = {
+            'M': {
+                'duration_periods': params['maint_duration']
+                , 'capacity_usage': 1
+                , 'max_used_time': params['max_used_time']
+                , 'max_elapsed_time': params['max_elapsed_time']
+                , 'elapsed_time_size': params['elapsed_time_size']
+                , 'used_time_size': params['max_used_time']
+                , 'type': 1
+                , 'capacity': params['maint_capacity']
+                , 'depends_on': []
+            }
+        }
+        if 'maintenances' in self.data:
+            maints = sd.SuperDict.from_dict(maints)
+            maints.update(self.data['maintenances'])
+        self.data['maintenances'] = maints
+
+        if 'initial' not in resources.values_l()[0]:
+            data_resources = self.data['resources']
+            rut_init = data_resources.get_property('initial_used')
+            ret_init = data_resources.get_property('initial_elapsed')
+            for r in resources:
+                self.data['resources'][r]['initial'] = \
+                    {'M': sd.SuperDict(elapsed=ret_init[r], used=rut_init[r])}
+        return
+
+    def set_default_maint_types(self):
+        types = self.get_maintenances('type').values()
+        tups = [('maint_types', t, 'capacity') for t in set(types)]
+        for tup in tups:
+            if self.data.get_m(*tup) is not None:
+                continue
+            self.data.set_m(*tup, value={})
+        return
+
+    def set_default_resources(self):
+        params = self.data['parameters']
+        resources = sd.SuperDict.from_dict(self.data['resources'])
+        default_keys = ('min_usage_period', 'default')
+        default_value = params['min_usage_period']
+        for r in resources:
+            if resources[r].get_m(*default_keys) is None:
+                resources[r].set_m(*default_keys, value=default_value)
+        self.data['resources'] = resources
+        return
+
+    def prepare_maint_params(self):
+        maints = self.data['maintenances']
+        depends_on = sd.SuperDict(maints).get_property('depends_on')
+        for m in depends_on:
+            if m not in maints[m]['depends_on']:
+                maints[m]['depends_on'].append(m)
+        affects = depends_on.list_reverse()
+        for m, v in affects.items():
+            maints[m]['affects'] = v
+        return maints
+
+    def set_date_params(self):
+        """
+        This makes a cache of periods to later access it to move
+        between periods inside the planning horizon
+        :return:
+        """
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
-        self.data['aux'] = {}
+        # we force the end to be coherent with the num_period parameter
+        self.data['parameters']['end'] = aux.shift_month(start, num_periods - 1)
+        # we cache the relationships between periods
+        self.data['aux'] = sd.SuperDict()
         self.data['aux']['period_e'] = {
             k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
         }
@@ -59,6 +148,9 @@ class Instance(object):
         result = {}
         for category, value in self.data.items():
             # if type(value) is dict:
+            if not len(value):
+                result[category] = []
+                continue
             elem = list(value.keys())[0]
             if type(value[elem]) is dict:
                 result[category] = list(value[elem].keys())
@@ -69,12 +161,15 @@ class Instance(object):
     def get_category(self, category, param=None, default_dict=None):
         assert category in self.data
         data = self.data[category]
+        if not data:
+            return sd.SuperDict()
         if default_dict is not None:
-            data = {k: {**default_dict, **v} for k, v in data.items()}
+            default_dict = sd.SuperDict.from_dict(default_dict)
+            data.vapply(lambda v: default_dict.update(v))
         if param is None:
             return data
         if param in list(data.values())[0]:
-            return sd.SuperDict.from_dict(data).get_property(param)
+            return data.get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):
@@ -85,12 +180,14 @@ class Instance(object):
         default_resources = {'states': {}}
         return self.get_category('resources', param, default_resources)
 
-    def get_initial_state(self, time_type, resource=None):
+    def get_maintenances(self, param=None):
+        return self.get_category('maintenances', param)
+
+    def correct_initial_state(self, time_type):
         """
         Returns the correct initial states for resources.
         It corrects it using the max and whether it is in maintenance.
-        :param time_type: elapsed or used
-        :param resource: optional value to filter only one resource
+        :param time_type:
         :return:
         """
         if time_type not in ["elapsed", "used"]:
@@ -98,35 +195,49 @@ class Instance(object):
 
         key_initial = "initial_" + time_type
         key_max = "max_" + time_type + "_time"
-        param_resources = sd.SuperDict.from_dict(self.get_resources())
-        if resource is not None:
-            param_resources.filter(resource)
+        resources = sd.SuperDict(self.get_resources())
+        res1 = resources.keys_l()[0]
+        if key_initial not in res1:
+            # we're not using these parameters anymore
+            return
+        rt_read = resources.get_property(key_initial)
         rt_max = self.get_param(key_max)
-
-        rt_read = sd.SuperDict.from_dict(param_resources).get_property(key_initial)
 
         # we also check if the resources is currently in maintenance.
         # If it is: we assign the rt_max (according to convention).
-        res_in_maint = set([res for res, period
-                            in self.get_fixed_maintenances(resource=resource)])
-        rt_fixed = {a: rt_max for a in param_resources if a in res_in_maint}
+        fixed_maints = self.get_fixed_maintenances()
+        res_in_maint = set([res for res, period in fixed_maints])
+        rt_fixed = {a: rt_max for a in rt_read if a in res_in_maint}
 
-        rt_init = {a: rt_max for a in param_resources}
+        rt_init = {a: rt_max for a in rt_read}
         rt_init.update(rt_read)
         rt_init.update(rt_fixed)
-
         rt_init = {k: min(rt_max, v) for k, v in rt_init.items()}
-
+        for r in rt_init:
+            self.data['resources'][r][key_initial] = rt_init[r]
         return rt_init
+
+    def get_initial_state(self, time_type, resource=None, maint='M'):
+        """
+        :param time_type: elapsed or used
+        :param resource: optional value to filter only one resource
+        :return:
+        """
+        if time_type not in ["elapsed", "used"]:
+            raise KeyError("Wrong type in time_type parameter: elapsed or used only")
+
+        initials = sd.SuperDict(self.get_resources('initial'))
+        if resource is not None:
+            initials = initials.filter(resource, check=False)
+        return sd.SuperDict({k: v[maint][time_type] for k, v in initials.items()})
 
     def get_min_assign(self):
         min_assign = dict(self.get_tasks('min_assign'))
-        min_assign['M'] = self.get_param('maint_duration')
+        min_assign.update(self.get_maintenances('duration_periods'))
         return min_assign
 
     def get_max_assign(self):
-        max_assign = dict(M = self.get_param('maint_duration'))
-        return sd.SuperDict.from_dict(max_assign)
+
 
     def compare_tups(self, tup1, tup2, pp):
         for n, (v1, v2) in enumerate(zip(tup1, tup2)):
@@ -139,7 +250,7 @@ class Instance(object):
         return False
 
     def get_prev_states(self, resource=None):
-        previous_states = sd.SuperDict.from_dict(self.get_resources("states"))
+        previous_states = self.get_resources("states")
         if resource is not None:
             previous_states = previous_states.filter(resource)
         return previous_states.to_dictup().to_tuplist()
@@ -160,7 +271,7 @@ class Instance(object):
         # we turn them into a start-finish tuple
         # we filter it so we only take the start-finish periods that end before the horizon
         assignments = \
-            previous_states.tup_to_start_finish(compare_tups=self.compare_tups).\
+            previous_states.to_start_finish(self.compare_tups).\
                 filter_list_f(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \
@@ -208,8 +319,11 @@ class Instance(object):
             return task_periods
         return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
 
+    def get_first_last_period(self):
+        return self.get_param('start'), self.get_param('end')
+
     def get_periods(self):
-        return self.get_periods_range(self.get_param('start'), self.get_param('end'))
+        return self.get_periods_range(*self.get_first_last_period())
 
     def get_periods_range(self, start, end):
         pos_period = self.data['aux']['period_i']
@@ -393,10 +507,12 @@ class Instance(object):
         return fixed_per_period_cluster
 
 
+
 if __name__ == "__main__":
     # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
     # model_data = di.load_data(path + "data_in.json")
-    model_data = di.get_model_data()
+    import data.data_dga as dga
+    model_data = dga.get_model_data()
     instance = Instance(model_data)
     instance.get_categories()
     result = instance.get_total_fixed_maintenances()

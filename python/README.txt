@@ -1,83 +1,117 @@
- Python
+---
+title: "README.txt"
+author: "Franco Peschiera"
+---
 
-Here all the code related to python technology will be included.
-
-For example:
-
-* models done in `pulp`.
-* data wrangling scripts done with `pandas`.
-* applications done with `flask`.
-
-Code is organized as follows:
-
-* **scripts**: python scripts done for data wrangling.
-* **package**: core code with models, data proessing and main logic.
-* **desktop_app**: PyQt gui for app.
+# Python
 
 ## Get the software
 
 Steps to set up development environment:
 
-Windows:
-
-    git clone git@github.com:pchtsp/ROADEF2018.git
-    cd ROADEF2018\python
-    python3 -m venv venv
-    venv\Scripts\activate
-    pip install numpy
-    pip3 install -r requirements.txt
-
 Ubuntu:
 
-    git clone git@github.com:pchtsp/ROADEF2018.git
-    cd ROADEF2018/python
-    python3 -m venv venv
+    git clone git@github.com:pchtsp/optima.git
+    cd optima/python
+    python -m venv venv
     source venv/bin/activate
     pip3 install -r requirements.txt
+
+Windows:
+
+Only difference is using `venv\Scripts\activate` instead of `source venv/bin/activate`.
 
 ## Requirements
 
 Requirements:
 
-* python >= 3.5
-* pip install virtualenv
+* python >= 3.6
+
+Recommended:
+
 * git
-* R
-* gurobipy => install manually.
 
 ### Ubuntu:
 
-    sudo apt-get install python3 r-core pip git r-base
-    pip install virtualenv --user
+    sudo apt-get install python3 git
 
 ### Windows
 
-    choco install python3 git r.project pip -y
-    pip install virtualenv --user
+    choco install python3 git -y
 
 ## For installing requirements in Windows:
 
-I only had to install `numpy` and the build tools 2017.
+Sometimes there are problems with using `pip` directly to install libraries.
+
+I only had to install `numpy` and the build tools 2017. But some other libraries may fail during pip installation (`rpy2`, for example). In order to solve them, the first option is going to where the binaries are and download the one corresponding to the python version (3.5, 3.6, 3.7) and system architecture (32 bits, 64 bits):
+https://www.lfd.uci.edu/~gohlke/pythonlibs and installing them manually:
+
+    cd optima/python
+    source venv/bin/activate
+    pip install rpy2-2.9.5-cp36-cp36m-win_amd64.whl
+
+Other resources below:
 
 Check: https://stackoverflow.com/a/32064281
-
 Check: https://wiki.python.org/moin/WindowsCompilers
-
 https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
-
 https://visualstudio.microsoft.com/es/downloads/?rr=https%3A%2F%2Fwiki.python.org%2Fmoin%2FWindowsCompilers
 
 * Build Tools 2017: http://landinghub.visualstudio.com/visual-cpp-build-tools
 * numpy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy
-* Scipy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy
-* cx_freeze in github version, not pip.
-* specific configuration for windows?
+* scipy from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#scipy
+* rpy2 from wheel: https://www.lfd.uci.edu/~gohlke/pythonlibs/#rpy2
 
-## Examples of using some scripts
+## Examples running from source
 
-`exec_iteratively` and `exec.py` both accept json-styled options. They replace the default parameters.
+If not loaded, the python environment needs to be loaded:
 
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}" > log.txt &
-    python3 python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
-    python3 python/scripts/exec.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
+    cd optima/python
+    source venv/bin/activate
 
+### Example of using the template
+
+Then, the command to take a given `template_in.xlsx` file inside the directory `201902141830`. Additionally, an `options_in.json` file can be next to the template file.
+
+    python python/scripts/main.py -id C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\
+
+### Other more advanced examples
+
+`exec_iteratively` and `main.py` both accept json-styled options. They replace the default parameters.
+
+    python python/scripts/exec_iteratively.py -p "{\"results\": \"/home/pchtsp/Documents/projects/OPTIMA/results/\"}" -d "{\"solver\": \"CPLEX\"}" > log.txt &
+    python python/scripts/exec_iteratively.py -p "{\"results\": \"/home/disc/f.peschiera/Documents/projects/optima/results/clust1_20181015/\"}" -d "{\"solver\": \"CPLEX\"}" > log_20181015.txt &
+    python python/scripts/main.py -d "{\"solver\": \"GUROBI\"}" > log.txt &
+
+## Output parameters
+
+The solving process creates several output files. Below a description of the files:
+
+* **template_out.xlsx**:  output data following excel template.
+* **output.log**:  solving process.
+* **errors.json**:  best solution infeasibilities.
+* **options.json**: all options used in the configuration.
+* **data_in.json**: input data in json format.
+* **data_out.json**: complete solution in json format.
+* **solution.html**: web gantt produced with the best found solution.
+
+## Building executable
+
+The following commands build the application. Warning: it assumes a virtual environment named `venv` with the required packages is inside the python directory.
+
+    ./build_dassault_win.bat
+
+## Using the executable
+
+It's equivalent to calling the `main.py` script.
+
+    optima/optima.exe -id "C:\Users\pchtsp\Documents\projects\optima\data\template\201902141830\"
+
+### Example of opening the GUI app from compiled files
+
+The easiest way to use the application is to double click in the runOptima file that is generated by the compilation. It should open the application window.
+An alternative is to run the application with the `-gui` flag:
+
+    optima/optima.exe -gui
+
+.

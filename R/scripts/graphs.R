@@ -5,7 +5,7 @@ source('functions/gantt_tasks.R')
 source('functions/pdf_gantt.R')
 
 # main functions ----------------------------------------------------------
-
+exp_directory <- 'C:/Users/pchtsp/Documents/borrar/dell_20190515_all/base/201905151456_2/'
 exp_directory = PATHS[['experiments']] %>% paste0('201801131817/')
 # PATHS[['experiments']] %>% paste0('201802061201/')
 exp_directory = PATHS[['experiments']] %>% paste0('../hp_20181104/base/201811061411/')

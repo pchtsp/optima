@@ -1,0 +1,182 @@
+{
+    "timeLimit": 200,
+    "solver": "HEUR_mf",
+    "black_list": [
+        "O8",
+        "O10",
+        "O6"
+    ],
+    "white_list": [],
+    "start": "2018-01",
+    "num_period": 90,
+    "simulate": true,
+    "template": true,
+    "graph": true,
+    "R_HOME": "C:\\Users\\pchtsp\\Downloads\\R-Portable\\App\\R-Portable",
+    "path": "C:/Users/pchtsp/Documents/borrar/experiments/201903120545/",
+    "input_template_path": "C:/Users/pchtsp/Documents/borrar/experiments/201903120545/template_in.xlsx",
+    "output_template_path": "C:/Users/pchtsp/Documents/borrar/experiments/201903120545/template_out.xlsx",
+    "seed": 42,
+    "num_change": [
+        0.8,
+        0.1,
+        0.1
+    ],
+    "temperature": 2,
+    "prob_free_aircraft": 0.1,
+    "prob_free_periods": 0.5,
+    "cooling": 0.999,
+    "debug": true,
+    "max_iters": 99999999,
+    "prob_delete_maint": 0.5,
+    "log_output": [
+        "file",
+        "console"
+    ],
+    "noise_assignment": true,
+    "gap": 0,
+    "gap_abs": 40,
+    "memory": null,
+    "slack_vars": "No",
+    "integer": false,
+    "writeLP": false,
+    "writeMPS": false,
+    "price_rut_end": 0,
+    "solver_add_opts": [
+        "set mip cuts flowcovers 1",
+        "set mip cuts mircut 1",
+        "set mip strategy backtrack 0.1",
+        "set mip strategy heuristicfreq 100",
+        "set mip strategy presolvenode 2",
+        "set mip strategy probe 3",
+        "set mip limits gomorycand 10000",
+        "set mip limits gomorypass 10"
+    ],
+    "mip_start": false,
+    "fix_start": false,
+    "default_type2_capacity": 66,
+    "simulation": {
+        "num_resources": 30,
+        "num_parallel_tasks": 0,
+        "maint_duration": 6,
+        "max_used_time": 1000,
+        "max_elapsed_time": 60,
+        "elapsed_time_size": 30,
+        "min_usage_period": 15,
+        "perc_capacity": 0.3,
+        "min_avail_percent": 0,
+        "min_avail_value": 0,
+        "min_hours_perc": 0.05,
+        "seed": 47,
+        "t_min_assign": [
+            2,
+            3,
+            6
+        ],
+        "initial_unbalance": [
+            -3,
+            3
+        ],
+        "t_required_hours": [
+            30,
+            50,
+            80
+        ],
+        "t_num_resource": [
+            2,
+            5
+        ],
+        "t_duration": [
+            6,
+            12
+        ],
+        "perc_in_maint": 0.07,
+        "maintenances": {
+            "M": {
+                "duration_periods": 4,
+                "capacity_usage": 1,
+                "max_used_time": 1000,
+                "max_elapsed_time": 60,
+                "elapsed_time_size": 3,
+                "used_time_size": 1000,
+                "type": "1",
+                "capacity": null,
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [
+                    "M",
+                    "VG",
+                    "VI",
+                    "VS"
+                ],
+                "priority": 0
+            },
+            "VG": {
+                "duration_periods": 1,
+                "capacity_usage": 3,
+                "max_used_time": null,
+                "max_elapsed_time": 8,
+                "elapsed_time_size": 2,
+                "used_time_size": null,
+                "type": "2",
+                "capacity": 3,
+                "depends_on": [
+                    "M",
+                    "VG"
+                ],
+                "affects": [
+                    "VG"
+                ],
+                "priority": 10
+            },
+            "VI": {
+                "duration_periods": 1,
+                "capacity_usage": 6,
+                "max_used_time": null,
+                "max_elapsed_time": 17,
+                "elapsed_time_size": 3,
+                "used_time_size": null,
+                "type": "2",
+                "capacity": 3,
+                "depends_on": [
+                    "M",
+                    "VI"
+                ],
+                "affects": [
+                    "VI"
+                ],
+                "priority": 5
+            },
+            "VS": {
+                "duration_periods": 1,
+                "capacity_usage": 4,
+                "max_used_time": 600,
+                "max_elapsed_time": null,
+                "elapsed_time_size": null,
+                "used_time_size": 200,
+                "type": "2",
+                "capacity": 3,
+                "depends_on": [
+                    "M",
+                    "VS"
+                ],
+                "affects": [
+                    "VS"
+                ],
+                "priority": 2
+            }
+        }
+    },
+    "root": "C:\\Users\\pchtsp\\Documents\\projects\\optima/",
+    "PATHS": {
+        "root": "C:\\Users/pchtsp/Documents/projects/",
+        "results": "C:/Users/pchtsp/Documents/borrar/",
+        "experiments": "C:/Users/pchtsp/Documents/borrar/experiments/",
+        "img": "C:\\Users/pchtsp/Documents/projects/OPTIMA/img/",
+        "latex": "C:\\Users/pchtsp/Documents/projects/OPTIMA/latex/",
+        "data": "C:\\Users/pchtsp/Documents/projects/OPTIMA/data/",
+        "input": "C:\\Users/pchtsp/Documents/projects/OPTIMA/data/raw/parametres_DGA_final.xlsm",
+        "hist": "C:\\Users/pchtsp/Documents/projects/OPTIMA/data/raw/Planifs M2000.xlsm"
+    }
+}
