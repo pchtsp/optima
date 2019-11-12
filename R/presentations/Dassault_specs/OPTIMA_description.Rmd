@@ -5,7 +5,7 @@ date: "Août 21, 2018"
 output:
   html_document:
     df_print: paged
-    css: ./../../css/baobab_docs.css
+    css: ./../../../css/baobab_docs.css
     toc: yes
   pdf_document: default
   word_document: default
@@ -37,6 +37,7 @@ Chaque avion a un état défini au moment de la planification :
 
 * **Vieillissement**.
 * **Date d'entrée en service**.
+* **Type**.
 
 et pour chaque type de visite:
 
@@ -45,6 +46,7 @@ et pour chaque type de visite:
 
 Il est considéré qu'en dépassant 5000 HDV, l'avion ne peut plus être utilisé pour voler.
 La flotte aura une taille de 60 avions au début de l'horizon de planification.
+Le type sera utilisé pour pouvoir affecter les avions aux missions.
 
 ### Livraisons
 
@@ -56,29 +58,45 @@ Par exemple, avec une moyenne de 10 avions livrés et un lot de taille 4, la dis
 * Août: 4 avions.
 * Décembre: 2 avions.
 
+**Les livraisons ne font pas partis de la première version officiel (2019-12-31) du logiciel.**
+
 ## Missions / Heures de vol
 
 ### Heures par défaut
 
-Au moment de décider les maintenance, on suppose une charge en heures de vol à réaliser par avion. Cette demande annuelle est équivalente à $200 \frac{HDV}{avion-année} \times Q \frac{avions}{flotte}$. L'utilisation particulière de chaque avion pourra être configuré de manière indépendante et par périodé.
+Au moment de décider les calendrier de maintenances, nous supposons une charge en heures de vol à réaliser par avion. Cette charge peut être calculée à partir de la demande annuelle par avion (200 HDV) et sera représentée comme une demande mensuelle d'heures de vol.
 
-* Un avion effectue normalement entre 180 et 220 HDV/ an.
-* La demande est repartie sur l'année en fonction des livraisons: un avion qui arrive en juillet effectue 100 HDV/ an.
-* L'homogénéisation de la flotte est le critère utilisé pour décider de l'affectation réelle des heures de vol.
-* Tout avion qui n'est pas en maintenance doit être utilisé pour effectuer une quantité d'heures équivalente à sa moyenne annuelle.
+Tout avion qui n'est pas dans une grande visite (VX ou M) est considéré comme disponible pour voler et, donc, doit être utilisé pour effectuer une quantité d'heures équivalente à sa demande mensuelle.
+
+Le taux mensuel d'utilisation particulier par avion pourra être configuré par l'utilisateur de façon indépendante.
 
 ### Missions
 
-Les affectations d'avions aux missions se font une fois les visites ont été décidées. Dans ce sens, les affectations doivent être compatibles avec les visites déjà présentes. Ces compatibilités sont les suivantes :
+Un ensemble de missions sont connues au long de l'horizon de planification. Chaque mission contient :
 
-1. Un avion ne peut pas voler plus de 500 h (ou la butée horaire VS correspondante) en sommant toutes les heures résultantes des affectations, entre une visite VS et une visite M (VX). Ici, nous comptons pas les heures de vol par défaut de l'avion, vu que ces heures peuvent être réduites en fonction des heures de vol des affectations.
+1. Un nombre d'avions à utiliser.\*
+2. Un type d'avion à utiliser.
+2. Un nombre d'heures de vol (HDV) à réaliser pour chaque avion à chaque période (mois) de la mission.
+3. Une date de début et une date de fin (en périodes ou mois).
+
+\* Si une mission a besoin de deux types d'avions différents, on devra diviser la mission originale en plusieurs missions indépendantes avec les mêmes informations, en fonction du nombre de types.
+
+Pendant l'affectation à une mission, l'avion ne peut pas faire les maintenances VX et VS. La capacité de la base pour faire de maintenances du type 2 est réduite de façon proportionnelle à la proportion des avions qui partent en fonction de la flotte entière.
+
+Exemple: une flotte de 20 avions qui a une capacité de maintenance de 40 jours-hommes voit partir 5 avions en mission. La capacité restante sera de $40 \times (20-5)/20 = 30$ jours-hommes.
+
+Les affectations d'avions aux missions se font une fois les visites ont été déjà décidées. Concernant les heures par défaut, elles seront réduites pour les avions qui partent en mission. Dans ce sens, les affectations doivent être compatibles avec les visites déjà présentes. Ces compatibilités à tenir compte sont les suivantes :
+
+1. Un avion ne peut pas voler plus de 500 h (ou la butée horaire VS / VX correspondante) en sommant toutes les heures résultantes des affectations, entre une visite VS et une visite VX (ou M) et entre deux visites du type VX. Ici, nous comptons pas les heures de vol par défaut de l'avion, vu que ces heures peuvent se voir réduites en fonction des heures de vol provenant des affectations aux missions.
 2. Un avion ne peut pas être affecté à une mission pendant une visite de sécurité ou une grande visite.
-3. Un avion affecté à une mission réduit la capacité de maintenance en une fraction correspondant à le pourcentage que l'avion représente de la flotte. La formule serait 
-
+3. Un avion ne peut pas être affecté à deux missions en même temps.
+3. Suite à la réduction de capacité de maintenance liée à la mission, il doit rester assez de capacité pour faire les visites des avions qui restent sur place.
 
 ## Maintenances
 
-La base aérienne dispose d'un nombre de jours ouvrés par an (200 par défaut) pour effectuer des opérations de maintenance. La distribution de ces jours ouvrés sur l'année n'est pas homogène.
+### Caractéristiques de visites
+
+Les maintenances sont les opérations qui récupèrent le potentiel des avions. Chaque visite doit être programmée de façon à respecter la butée horaire et la butée calendaire, en fonction du cas. Pour la visite VX, elle doit respecter le plus contraignant des deux.
 
 Chaque type de maintenance se différencie par les paramètres suivants :
 
@@ -87,8 +105,10 @@ Chaque type de maintenance se différencie par les paramètres suivants :
 * **BC (tol.)**: taille de l'interval de tolérance (en mois) de la BC.
 * **BH (HDV)**: nombre maximal d'heures de vol entre deux visites du même type.
 * **BH (tol)**: taille de l'interval de tolérance (en heures de vol) de la BH.
-* **Utilisation**: utilisation unitère du résource de capacité.
+* **Utilisation**: utilisation unitaire du ressource de capacité.
 * **Type**: Type de maintenance. Les visite du même type partage la même capacité.
+
+Cependant, tout type de maintenance ne possède pas l'ensemble de ces paramètres. Pour les quatre types de maintenance considérés, voici les paramètres à prendre en compte : 
 
 |Caractéristique|VG  |VI  |VS  |VX  |
 |-----------    |----|----|----|----|
@@ -97,38 +117,29 @@ Chaque type de maintenance se différencie par les paramètres suivants :
 |BC (tol.)      |2   | 2  | -  | 4  |
 |BH (HDV)       |  - | -  | 500|1000|
 |BH (tol.)      | -  | -  | 100|  - |
-|Capacité       | 3  | 3  | 3  | 4  |
-|Type           | 2  |2 | 2  | 1  |
+|Utilisation    |  3 | 6  |  4 |  1 |
+|Type           | 2  |2   | 2  | 1  |
 
 La validation d'un seul critère de maintenance suffit pour immobiliser l'avion.
-
-## Types de maintenances et capacités
-
-
-
-* **Capacité**: nombre maximal d'avions en maintenance du même type à chaque moment.
-
-
-Cependant, tout type de maintenance ne possède pas l'ensemble de ces paramètres. Pour les quatre types de maintenance considérés, voici les paramètres à prendre en compte : 
-
-
-
-
-Les trois premières types de visite (VS, VG, VI) sont faites sur chaque base aérien. La quatrième visite (VX) se fait sur l'atelier dédié de façon indépendant. Donc, la capacité des visites qui se déroulent sur la base aérien est partagée.
-
 La visite VX (M) inclut déjà toutes les autres visites et, donc, réinitialise les BC et BH des avions pour les autres 3 visites.
-
 Les visites sur la base récupère le potentiel au début de l'opération. Pour la visite VX, le potentiel est récupéré à la fin de la visite.
-
 Pour la VS les clients préfère déclencher la visite toutes les 500 - 600 h de vol.
+
+### Types de maintenances et capacités
+
+Il existe deux types d'atelier de maintenance. Chaque maintenance ne peut être faite que dans un ces deux ateliers (celui qui corresponde au type de la maintenance). Chaque atelier a une capacité donnée par période mais cette capacité peut changer en fonction du période sur l'année. L'utilisateur aura les moyens de configurer la capacité de maintenance en fonction de chaque période et de chaque atelier.
+
+|Atelier        |1   | 2 |
+|-----------    |----|---|
+|Capacité       | 66 | 4 |
+
+A chaque période, la capacité de chaque atelier dois être plus grande que la somme des utilisations unitaires des avions en maintenance dans l'atelier.
+
+Les trois premiers types de visite (VS, VG, VI) sont faites sur chaque base aérien et donc, partagent la capacité. La quatrième visite (VX ou M) se fait sur l'atelier dédié de façon indépendant.
 
 ### Regroupements de visites
 
 Il existe la possibilité de regrouper deux ou plus de visites. Un tel regroupement permet d'économiser un jour par visite regroupée. Par exemple, si les visites `VG` et `VI` sont regroupées, leur durée totale sera de $3 + 6 - 1 = 8$ jours. Si les visites `VG`, `VI` et `VS`  sont regroupées, leur durée totale sera de $3 + 6 + 4 - 2 = 11$ jours. C'est aussi possible de faire les visites `VG` et `VS` sans faire la visite `VI`.
-
-### Calendrier de visites
-
-La capacité de maintenance dépend des nombres de jours disponibles par mois. Les grandes visites (VX) ont un calendrier et les visites sur la base aérien ont un autre calendrier.
 
 ## Stockage
 
@@ -139,10 +150,12 @@ Il est possible de stocker un avion pendant un temps déterminé. L'avion stock�
 * Il n'y a pas de limite sur le nombre d'avions stockés.
 * La mise en stockage d'un avion (et la sortie du stockage) prend entre 1 et 2 jours et utilise les ressources des maintenances dans la base.
 
+**Le stockage ne fait pas parti de la première version officiel (2019-12-31) du logiciel.**
+
 ## Objectifs
 
 L'objectif principal est de maximiser la disponibilité de la flotte.
 
 La prise en compte des incertitudes notamment sur la durée des maintenances se fera dans un deuxième temps.
 
-L'horizon de planification est de 30 ans.
+L'horizon de planification est de 70 périodes.
