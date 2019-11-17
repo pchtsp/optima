@@ -3,6 +3,8 @@ library(knitr)
 library(magrittr)
 library(ggplot2)
 library(data.table)
+library(stringr)
+
 
 filter_all_exps <- function(table){
     num <- table %>% distinct(experiment) %>% nrow
@@ -15,6 +17,7 @@ filter_all_exps <- function(table){
 aux_compare <- function(raw_df){
     raw_df %>% 
         gather(key='Indicator', value="value", -experiment, -scenario) %>% 
+        mutate(value = value %>% round(2)) %>% 
         spread(experiment, value) 
     # %>% 
     #     mutate(dif_abs = cuts - base,
@@ -156,7 +159,7 @@ get_infeasible_stats <- function(raw_df){
         aux_compare
 }
 
-get_soft_constraints <- function(raw_df, quant_max, compare=TRUE){
+get_soft_constraints <- function(raw_df, quant_max=0.95, compare=TRUE){
     result <- 
         raw_df %>% 
         get_soft_constraints_2 %>%  
