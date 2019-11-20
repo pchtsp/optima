@@ -11,15 +11,16 @@
 
 \title{An alternative MIP formulation for the Military Flight and Maintenance Planning problem}
 
-\author{Franco Peschiera\inst{1}, Alain Ha{\"i}t\inst{1}, Olga Batta{\"i}a\inst{1}, Nicolas Dupin\inst{2}}
+\author{Franco Peschiera\inst{1}, Alain Ha{\"i}t\inst{1}, Olga Batta{\"i}a\inst{2}, Nicolas Dupin\inst{3}}
 
 
 \institute{
 ISAE-SUPAERO, Universit{\'e} de Toulouse, France \\
-\email{\{franco.peschiera,alain.hait,olga.battaia\}@isae-supaero.fr}\\
+\email{\{franco.peschiera,alain.hait\}@isae-supaero.fr}\\
+KEDGE Business School, France \\
+\email{olga.battaia@kedgebs.com} \\
 Laboratoire de Recherche en Informatique, France \\
 \email{dupin@lri.fr}
-
 }
 
 \maketitle
@@ -30,9 +31,9 @@ Laboratoire de Recherche en Informatique, France \\
 \section{Introduction}
     The Military Flight and Maintenance Planning Problem assigns missions and schedules maintenance operations (checks) for military aircraft. It has been studied in short, medium and long-term planning horizons (\cite{Cho2011,Kozanidis2008,Verhoeff2015,PeschieraR2018}) and it has been proved NP-Hard in its longterm variant by \cite{Peschiera2019}. The present model is an alternative formulation to that of \cite{Peschiera2019} where mission assignments and maintenance cycles are modeled as start-stop assignment.
 
-    The problem consists in assigning military aircraft $i \in \mathcal{I}$ to a given set $j \in \mathcal{J}$ of missions while scheduling the check over a time horizon divided into $t \in \mathcal{T}$ periods. Missions have known start and end dates, each requires $R_j$ aircraft to be assigned at any given time and to fly $H^\prime_{jtt'}$ when assigned between periods $t$ and $t'$. Each aircraft $i$ can be assigned to only missions $j \in \mathcal{JI}_i$ and is assumed to fly $U^{\prime}_{tt'}$ hours between periods $t$ and $t'$. Each period $t$ has $j \in \mathcal{JT}_t$ active missions.
+    The problem consists in assigning aircraft $i \in \mathcal{I}$ to a set $j \in \mathcal{J}$ of missions while scheduling checks over a time horizon divided into $t \in \mathcal{T}$ periods. Missions have known start and end dates; and requires $R_j$ aircraft to fly $H^\prime_{jtt'}$ when assigned between periods $t$ and $t'$. Each aircraft $i$ can be assigned to only missions $j \in \mathcal{JI}_i$ and is assumed to fly $U^{\prime}_{tt'}$ hours between periods $t$ and $t'$. Each period $t$ has $j \in \mathcal{JT}_t$ active missions.
 
-    Each aircraft $i$ needs a check every $H^{max}$ flight hours or less and has $Rft^{Init}_i$ remaining flight hours at the beginning of the planning horizon. Each aircraft can be assigned its first check during periods $t \in \mathcal{T}^{M_{Init}}_i$ and, if assigned a first check in period $t$, it can have its second check during periods $t \in \mathcal{T}^{M+}_{t}$. $\mathcal{TTT}_t$ is the set of check patterns that make an aircraft be in maintenance in period $t$; $\mathcal{TTJ}_{jt}$ is the set of mission $j$ patterns that make aircraft be in mission in period $t$; $\mathcal{JTT}_{itt'}$ is the set of mission patterns for aircraft $i$ between periods $t$ and $t'$.
+    Each aircraft $i$ needs a check after $H^{max}$ flight hours or less; has $Rft^{Init}_i$ remaining flight hours at the beginning of the planning horizon; can be assigned its first check during periods $t \in \mathcal{T}^{M_{Init}}_i$ and, if assigned a first check in period $t$, it can have its second check during periods $t \in \mathcal{T}^{M+}_{t}$. $\mathcal{TTT}_t$ is the set of check patterns that make an aircraft be in maintenance in period $t$; $\mathcal{TTJ}_{jt}$ is the set of mission $j$ patterns that make aircraft be in mission in period $t$; $\mathcal{JTT}_{itt'}$ is the set of mission patterns for aircraft $i$ between periods $t$ and $t'$.
 
 \section{Mathematical model}
 		
