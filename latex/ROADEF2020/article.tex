@@ -1,0 +1,95 @@
+\documentclass{roadef}
+\usepackage{amsmath}
+
+% \usepackage{fontspec}
+% This command is to use simple quotes inside math expressions:
+\usepackage[hyphens,spaces,obeyspaces]{url}
+\newcommand{\mq}[1] {`#1\textrm'}
+
+\begin{document}
+
+
+\title{An alternative MIP formulation for the Military Flight and Maintenance Planning problem}
+
+\author{Franco Peschiera\inst{1}, Alain Ha{\"i}t\inst{1}, Olga Batta{\"i}a\inst{1}, Nicolas Dupin\inst{2}}
+
+
+\institute{
+ISAE-SUPAERO, Universit{\'e} de Toulouse, France \\
+\email{\{franco.peschiera,alain.hait,olga.battaia\}@isae-supaero.fr}\\
+Laboratoire de Recherche en Informatique, France \\
+\email{dupin@lri.fr}
+
+}
+
+\maketitle
+\thispagestyle{empty}
+
+\keywords{optimization, planning, military, maintenance}
+
+\section{Introduction}
+    The Military Flight and Maintenance Planning Problem assigns missions and schedules maintenance operations (checks) for military aircraft. It has been studied in short, medium and long-term planning horizons (\cite{Cho2011,Kozanidis2008,Verhoeff2015,PeschieraR2018}) and it has been proved NP-Hard in its longterm variant by \cite{Peschiera2019}. The present model is an alternative formulation to that of \cite{Peschiera2019} where mission assignments and maintenance cycles are modeled as start-stop assignment.
+
+    The problem consists in assigning military aircraft $i \in \mathcal{I}$ to a given set $j \in \mathcal{J}$ of missions while scheduling the check over a time horizon divided into $t \in \mathcal{T}$ periods. Missions have known start and end dates, each requires $R_j$ aircraft to be assigned at any given time and to fly $H^\prime_{jtt'}$ when assigned between periods $t$ and $t'$. Each aircraft $i$ can be assigned to only missions $j \in \mathcal{JI}_i$ and is assumed to fly $U^{\prime}_{tt'}$ hours between periods $t$ and $t'$. Each period $t$ has $j \in \mathcal{JT}_t$ active missions.
+
+    Each aircraft $i$ needs a check every $H^{max}$ flight hours or less and has $Rft^{Init}_i$ remaining flight hours at the beginning of the planning horizon. Each aircraft can be assigned its first check during periods $t \in \mathcal{T}^{M_{Init}}_i$ and, if assigned a first check in period $t$, it can have its second check during periods $t \in \mathcal{T}^{M+}_{t}$. $\mathcal{TTT}_t$ is the set of check patterns that make an aircraft be in maintenance in period $t$; $\mathcal{TTJ}_{jt}$ is the set of mission $j$ patterns that make aircraft be in mission in period $t$; $\mathcal{JTT}_{itt'}$ is the set of mission patterns for aircraft $i$ between periods $t$ and $t'$.
+
+\section{Mathematical model}
+		
+    \begin{tabular}{p{5mm}lp{130mm}}
+        $a_{ijtt'}$ & =& 1 if aircraft $i$ starts mission $j$ at period $t$ and finishes at period $t'$, 0 otherwise. \\  
+        $m_{itt'}$  & =& 1 if aircraft $i$ starts a check at period $t$ and then starts the next check at period $t'$, 0 otherwise. \\
+    \end{tabular}
+
+    The objective is to delay the second check as much as possible or avoid doing it altogether.
+    \begin{align}
+        & \text{Max}\; 
+        \sum_{
+                i \in \mathcal{I}, t \in \mathcal{T}^{M_{Init}}_i, t' \in \mathcal{T}^{M+}_t
+            } m_{itt'} \times t'
+        \label{eq:objective1}
+    \end{align}
+    
+    \begin{align}
+        % maximum capacity1:
+        & \sum_{i \in \mathcal{I}, (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} \leq C^{max} 
+                & t \in \mathcal{T} \label{eq:capacity1}\\
+        % min assignments:
+        & \sum_{i \in \mathcal{IJ}_j, (t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} \geq R_j
+                & j \in \mathcal{J}, t \in \mathcal{TJ}_j  \label{eq:missionres}\\
+        % just doing one thing at any given time:
+        & \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{T}_{t}} m_{it_1t_2} + \sum_{j \in \mathcal{JT}_t \cap \mathcal{JI}_i} \sum_{(t_1, t_2) \in \mathcal{T}\mathcal{T}\mathcal{J}_{jt}} a_{ijt_1t_2} \leq 1 
+                & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}
+    \end{align}
+
+    Constraints (\ref{eq:capacity1}) limit the number of simultaneous checks. Constraints (\ref{eq:missionres}) enforce aircraft mission requirements. Constraints (\ref{eq:state}) restrict each aircraft to at most one assignment each period.
+
+    \begin{align}
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t_1}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{1t_1} \leq Rft^{Init}_i + H^{max} (1 - m_{it_1t_2}) 
+            & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^{M+}_{t_1} \label{eq:cycle_hours1}\\
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{t_1t_2} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+            & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^{M+}_{t_1} \label{eq:cycle_hours2}\\
+        & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{it_2T}}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{t_2T} \leq H^{max} + H^{max} (1 - m_{it_1t_2}) 
+            & i \in \mathcal{I}, t_1 \in \mathcal{T}^{M_{Init}}_i, t_2 \in \mathcal{T}^{M+}_{t_1} \label{eq:cycle_hours3}
+    \end{align}
+
+    Constraints (\ref{eq:cycle_hours1}) - (\ref{eq:cycle_hours3}) limit the total flight hours of each aircraft before the first check, between checks and after the second check.
+
+    \begin{align}
+        & \sum_{t \in \mathcal{T}^{M_{Init}}_i, t' \in \mathcal{T}^{M+}_{t}} m_{itt'} =  1 
+          & i \in \mathcal{I}\label{eq:num_maint}
+    \end{align}
+
+    Constraints (\ref{eq:num_maint}) require a check pattern assignment for each aircraft.
+
+\section{Conclusions and future work}
+
+    The present work proposes a new model for the Military Flight and Maintenance Problem. The formulation results in better lower bounds (LP-relaxation) compared to \cite{Peschiera2019} and lends itself to pattern prediction forecasting models, which can be used to reduce the size of the model.
+
+% La bibliographie
+
+\bibliographystyle{plain}
+% \selectlanguage{english}
+\bibliography{./../biblio/MFMP,./../biblio/FrancoPeschiera}
+
+\end{document}
