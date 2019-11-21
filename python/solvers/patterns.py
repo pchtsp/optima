@@ -1,6 +1,7 @@
 import package.instance as inst
 import pytups.superdict as sd
 import ujson as json
+import numpy.random as rn
 
 
 # installing graph-tool and adding it to venv:
@@ -123,14 +124,7 @@ class Node(object):
         if maint is not None:
             m_affects = self.maint_data[maint]['affects'] & maints_ruts
         m_not_affect = maints_ruts - m_affects
-        # rut = \
-        #     self.rut.\
-        #     filter(m_not_affect, check=False).\
-        #     clean(func=lambda m: m is not None)
         total_consumption = sum(self.get_consume(p) for p in self.iter_until_period(period))
-        # duration_past_maint = self.maint_data.get_m(self.maint, 'duration_periods')
-        # if duration_past_maint is None:
-        #     duration_past_maint = 0
         # there is an assumption that the next maintenance
         # will always be duration_past_maint periods away.
 
@@ -140,9 +134,6 @@ class Node(object):
         rut = sd.SuperDict()
         for m in m_not_affect:
             rut[m] = self.rut[m] - total_consumption
-        # for pos, p in enumerate(self.iter_until_period(period)):
-        #     if pos >= duration_past_maint:
-        #         rut = rut.vapply(lambda v: v - consumption)
 
         # for affected maintenances, we set at max:
         for m in m_affects:
@@ -172,11 +163,6 @@ class Node(object):
         ret = sd.SuperDict()
         for m in m_not_affect:
             ret[m] = self.ret[m] - time
-        # ret = self.ret.\
-        #     filter(m_not_affect, check=False).\
-        #     clean(func=lambda m: m is not None).\
-        #     vapply(lambda v: v - time)
-
         # for affected maintenances, we set at max:
         for m in m_affects:
             ret[m] = maint_data[m]['max_elapsed_time'] + \
@@ -314,6 +300,60 @@ def adjacency_to_graph(nodes_ady):
     return g, refs
 
 
+def get_all_pahts(g, refs):
+    try:
+        import graph_tool.all as gr
+    except:
+        print('graph-tool is not available')
+        return None
+
+    g_source = refs[source]
+    g_sink = refs[sink]
+
+    return [p for p in gr.all_paths(g, source=g_source, target=g_sink)]
+
+def draw_graph(g):
+    try:
+        import graph_tool.all as gr
+    except:
+        print('graph-tool is not available')
+        return None
+
+    y_ranges = dict(M=lambda: 0,
+                    VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
+                    VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
+                    VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
+                    )
+    colors = \
+        {'VG': '#4cb33d',
+         'VI': '#00c8c3',
+         'VS': '#31c9ff',
+         'M': '#878787',
+         'VG+VI': '#EFCC00',
+         'VG+VS': '#EFCC00',
+         'VG+VI+VS': '#EFCC00',
+         'VI+VS': '#EFCC00'}
+
+    pos = g.new_vp('vector<float>')
+    size = g.new_vp('double')
+    shape = g.new_vp('string')
+    color = g.new_vp('string')
+    first = instance.get_param('start')
+
+    for v in g.vertices():
+        x = instance.get_dist_periods(first, g.vp.period[v])
+        maint = g.vp.maint[v]
+        y = y_ranges.get(maint, lambda: 0)()
+        pos[v] = (x, y)
+        size[v] = 2
+        shape[v] = 'circle'
+        color[v] = colors.get(maint, 'red')
+
+    gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
+                  edge_text=g.ep.maint, vertex_shape=shape, vertex_fill_color=color)
+
+
+
 if __name__ == '__main__':
     import package.params as params
     import data.template_data as td
@@ -338,56 +378,8 @@ if __name__ == '__main__':
     # final_paths = walk_over_nodes(source)
     nodes_ady = walk_over_nodes(source, get_nodes_only=True)
     g, refs = adjacency_to_graph(nodes_ady)
-    g_source = refs[source]
-    g_sink = refs[sink]
+    draw_graph(g)
+    final_paths = get_all_pahts(g, refs)
 
-    import graph_tool.all as gr
-    import numpy.random as rn
-
-    y_ranges = dict(M=lambda: 0,
-                    VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
-                    VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
-                    VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
-                    )
-    # colors = dict(VG='green')
-    colors = \
-        {'VG': '#4cb33d',
-         'VI': '#00c8c3',
-         'VS': '#31c9ff',
-         'M': '#878787',
-         'VG+VI': '#EFCC00',
-         'VG+VS': '#EFCC00',
-         'VG+VI+VS': '#EFCC00',
-         'VI+VS': '#EFCC00'}
-
-    pos = g.new_vp('vector<float>')
-    size = g.new_vp('double')
-    shape = g.new_vp('string')
-    color = g.new_vp('string')
-    first = instance.get_param('start')
-
-    for v in g.vertices():
-        x = instance.get_dist_periods(first, g.vp.period[v])
-        maint = g.vp.maint[v]
-        y = y_ranges.get(maint, lambda: 0)()
-        # if g.vp.maint[v] == 'M':
-        #     y = 0
-        pos[v] = (x, y)
-        size[v] = 2
-        shape[v] = 'circle'
-        color[v] = colors.get(maint, 'red')
-
-    gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
-                  edge_text=g.ep.maint, vertex_shape=shape, vertex_fill_color=color)
-
-    final_paths = [p for p in gr.all_paths(g, source=g_source, target=g_sink)]
     len(final_paths)
     len(nodes_ady)
-    # print(len(graph))
-    # print(len(end_nodes))
-    # print(len(final_paths))
-    # unique_data = [list(x) for x in set(tuple(x) for x in final_paths)]
-    # print(len(unique_data))
-    # print(final_paths[0])
-    # print(final_paths[-1])
-    # print(final_paths)
