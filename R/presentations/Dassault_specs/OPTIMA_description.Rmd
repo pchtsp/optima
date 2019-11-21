@@ -58,7 +58,7 @@ Par exemple, avec une moyenne de 10 avions livrés et un lot de taille 4, la dis
 * Août : 4 avions.
 * Décembre : 2 avions.
 
-**Les livraisons ne font pas partie de la première version officiel (2019-12-31) du logiciel.**
+**Les livraisons ne font pas partie de la première version officielle (2019-12-31) du logiciel.**
 
 ## Missions / Heures de vol
 
@@ -70,7 +70,46 @@ Au moment de décider le calendrier de maintenances, nous supposons une charge e
 
 Tout avion qui n'est pas dans une grande visite (VX ou M) est considéré comme disponible pour voler et, donc, doit être utilisé pour effectuer une quantité d'heures équivalente à sa demande mensuelle.
 
-Le nombre d'heures de vol précis pour un avion et mois donné pourra être configuré par l'utilisateur.
+Le nombre d'heures de vol précis pour un avion et période donné pourra être configuré par l'utilisateur. Trois niveaux de configuration sont disponibles :
+
+1. "Heures de vol par période" pour toute la flotte. 1 paramètre par planification.
+2. Heures de vol par période pour chaque avion. 1 paramètre pour avion.
+3. Heures de vol pour chaque avion et chaque période. 1 paramètre pour avion-mois: 
+
+Exemple:
+
+```
+params.min_usage_period = 15
+```
+
+```
+avions=
+| avion| mois     |  min_usage_period    |
+|-----------    |----|----|
+| A_1  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
+
+```
+
+```
+heures_vol=
+|avion  |   heures  | min_usage_period  |
+|-----------    |----|----|             
+|A_1    | 0         |   16              |
+|A_10   |  0        |   16              |
+|A_11   |  0        |   16              |
+|A_12   |  0        |   16              |
+
+```
+
+| avion| mois     |  min_usage_period    |
+|-----------    |----|----|
+| A_1  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
+| A_2  | 2019-04  |  14    |
 
 ### Missions
 
@@ -96,6 +135,9 @@ Les affectations d'avions aux missions se font une fois les visites ont été d�
 2. Un avion ne peut pas être affecté à une mission pendant une visite de sécurité (VS) ou une grande visite (VX ou M).
 3. Un avion ne peut pas être affecté à deux missions en même temps.
 3. Suite à la réduction de capacité de maintenance liée à la mission, il doit rester assez de capacité pour faire les visites des avions qui restent sur place.
+
+Exemple du point (2):
+<!-- TODO -->
 
 ## Maintenances
 
@@ -157,7 +199,7 @@ Il est possible de stocker un avion pendant un temps déterminé. L'avion stock�
 * Il n'y a pas de limite sur le nombre d'avions stockés.
 * La mise en stockage d'un avion (et la sortie du stockage) prend entre 1 et 2 jours et utilise les ressources des maintenances dans la base.
 
-**Le stockage ne fait pas partie de la première version officiel (2019-12-31) du logiciel.**
+**Le stockage ne fait pas partie de la première version officielle (2019-12-31) du logiciel.**
 
 ## Objectifs
 
