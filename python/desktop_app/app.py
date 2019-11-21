@@ -18,7 +18,6 @@ import desktop_app.gui as gui
 import reports.gantt as gantt
 
 
-
 class MainWindow_EXCEC():
 
     def __init__(self, options):

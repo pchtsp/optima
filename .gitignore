@@ -7,6 +7,9 @@ FP-edited
 *.lp
 *.mps
 data/
+.idea
+python/.idea
+
 ###################
 # R
 ###################

@@ -1,9 +1,8 @@
 import os
-import package.auxiliar as aux
 import pulp as pl
 import tempfile
+import datetime
 from os import dup, dup2, close
-import package.params as params
 
 
 class Config(object):
@@ -14,8 +13,7 @@ class Config(object):
 
         default_options = {
             'timeLimit': 300
-            , 'path':
-                os.path.join(params.PATHS['experiments'], aux.get_timestamp()) + '/'
+            , 'path': get_timestamp() + '/'
         }
 
         # the following merges the two configurations (replace into):
@@ -26,22 +24,22 @@ class Config(object):
         self.path = options['path']
         self.timeLimit = options['timeLimit']
         self.solver = options.get('solver', 'GUROBI')
-        self.solver_add_opts = options.get('solver_add_opts', [])
+        self.solver_add_opts = options.get('solver_add_opts', {}).get(self.solver, [])
         self.mip_start = options.get('mip_start', False)
         self.gap_abs = options.get('gap_abs')
         self.log_path = os.path.join(self.path, 'results.log')
-        self.result_path = os.path.join(self.path, 'results.sol')
+        self.result_path = os.path.join( self.path, 'results.sol')
         self.threads = options.get('threads')
+        self.solver_path = options.get('solver_path')
+        self.keepfiles = options.get('keepfiles', 1)
 
-        if options['memory'] is None:
+        if 'memory' in options and options['memory'] is None:
             if hasattr(os, "sysconf"):
                 self.memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024 ** 2)
             else: # windows
                 self.memory = None
         else:
             self.memory = options.get('memory')
-        self.writeMPS = options.get('writeMPS', False)
-        self.writeLP = options.get('writeLP', False)
 
         if not os.path.exists(self.path):
             os.mkdir(self.path)
@@ -57,11 +55,7 @@ class Config(object):
         params = [v.format(getattr(self, k)) for k, v in params_eq.items()
                   if getattr(self, k) is not None] + self.solver_add_opts
 
-        return \
-            ["presolve on",
-             "gomory on",
-             "knapsack on",
-             "probing on"] + params + self.solver_add_opts
+        return params + self.solver_add_opts
 
     def config_gurobi(self):
         # GUROBI parameters: http://www.gurobi.com/documentation/7.5/refman/parameters.html#sec:Parameters
@@ -71,7 +65,8 @@ class Config(object):
                  timeLimit='TimeLimit',
                  gap = 'MIPGap',
                  gap_abs = 'MIPGapAbs',
-                 result_path = 'ResultFile'
+                 result_path = 'ResultFile',
+                 threads = 'Threads'
                  )
         return [(v, getattr(self, k)) for k, v in params_eq.items()
              if getattr(self, k) is not None] + self.solver_add_opts
@@ -84,7 +79,8 @@ class Config(object):
                  timeLimit='set timelimit {}',
                  gap = 'set mip tolerances mipgap {}',
                  gap_abs = 'set mip tolerances absmipgap {}',
-                 memory = 'set mip limits treememory {}'
+                 memory = 'set mip limits treememory {}',
+                 threads = 'set threads {}'
                  )
         a = [v.format(getattr(self, k)) for k, v in params_eq.items()
             if getattr(self, k) is not None] + \
@@ -103,24 +99,39 @@ class Config(object):
         if self.writeLP:
             model.writeLP(filename=os.path.join(self.path, 'formulation.lp'))
 
+        solver = None
         if self.solver == "GUROBI":
-            return model.solve(pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=1))
+            solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=self.keepfiles)
         if self.solver == "CPLEX":
+            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=self.keepfiles, mip_start=self.mip_start)
+        if self.solver == "CPLEX_PY":
+            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path)
+        if self.solver == "CHOCO":
+            solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=self.keepfiles, msg=0)
+        if self.solver == "MIPCL":
+            solver = pl.MIPCL_CMD(options=['-time 60'], keepFiles=self.keepfiles, msg=1)
+        if solver is not None:
             try:
-                result = model.solve(pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=1, mip_start=self.mip_start),
-                                     timeout=self.timeLimit + 60)
-            except pl.PulpSolverError:
+                result = model.solve(solver, timeout=self.timeLimit + 60)
+            except pl.PulpSolverError as e:
+                print('Possible PuLP TimeoutError happened.')
+                print(e)
+                # We usually get this because of CPLEX not ending when it should
                 result = 0
             return result
-        if self.solver == "CHOCO":
-            return model.solve(pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=1, msg=0))
         if self.solver == "CBC":
+            if self.solver_path:
+                solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
+                                     mip_start=self.mip_start, path=self.solver_path)
+            else:
+                solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
+                                         mip_start=self.mip_start)
+                # workaround to use temmp files in CBC.
+                solver.tmpDir = os.environ.get("TEMP", solver.tmpDir)
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)
-                result = model.solve(
-                    pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=1, mip_start=self.mip_start)
-                )
+                result = model.solve(solver, timeout=self.timeLimit + 60)
                 dup2(orig_std_out, 1)
                 close(orig_std_out)
                 tmp_output.seek(0)
@@ -131,3 +142,6 @@ class Config(object):
             return result
         return 0
 
+
+def get_timestamp(form="%Y%m%d%H%M"):
+    return datetime.datetime.now().strftime(form)

@@ -3,7 +3,7 @@
 # This simulation complies to the format returned in the function
 # get_model_data in the file data_input.py
 
-import package.auxiliar as aux
+import data.dates as aux
 import random as rn
 import math
 import numpy as np
@@ -17,7 +17,7 @@ def empty_data():
             , 'unavail_weight': 0
             , 'max_used_time': 0
             , 'max_elapsed_time': 0
-            , 'min_elapsed_time': 0
+            , 'elapsed_time_size': 0
             , 'maint_duration': 0
             , 'maint_capacity': 0
             , 'start': '2018-01'
@@ -79,8 +79,8 @@ def create_dataset(options):
     t_duration = d_param['t_duration']
     perc_in_maint = d_param['perc_in_maint']
     initial_unbalance = d_param['initial_unbalance']
+    perc_add_capacity = d_param['perc_add_capacity']
 
-    d_param['min_elapsed_time'] = max_elapsed_time - d_param['elapsed_time_size']
     d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
     last_period = d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
 
@@ -107,7 +107,7 @@ def create_dataset(options):
     t_capacites = {k: {v} for k, v in t_type.items()}
     optionals = list(st.ascii_uppercase)[::-1]
     for _task in t_capacites:
-        if rn.random() < 0.10:
+        if rn.random() < perc_add_capacity:
             t_capacites[_task].add(optionals.pop())
 
 
@@ -248,7 +248,5 @@ def create_dataset(options):
 
 
 if __name__ == "__main__":
-    import pprint as pp
-    import package.params as params
     # create_dataset(params.OPTIONS)
     pass

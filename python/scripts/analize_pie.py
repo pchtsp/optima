@@ -3,7 +3,8 @@ import package.instance as inst
 import package.experiment as exp
 import package.solution as sol
 import pprint as pp
-import package.auxiliar as aux
+from pytups import tuplist as tl
+from pytups import superdict as sd
 
 if __name__ == "__main__":
     path_solution = "/home/pchtsp/Documents/projects/PIE/glouton/solution.csv"
@@ -20,8 +21,8 @@ if __name__ == "__main__":
     schedule = solution.get_schedule()
     pp.pprint(schedule)
 
-    tups = aux.dict_to_tup(checks['resources'])
-    dicts = aux.tup_to_dict(tups, result_col=[1, 2])
+    tups = sd.SuperDict.from_dict(checks['resources']).to_tuplist()
+    dicts = tl.TupList(tups).to_dict(result_col=[1, 2])
     mission = {k: sum(int(v2[1]) for v2 in v) for k, v in dicts.items()}
     sum(checks['resources'].values())
     sum(instance.get_task_period_needs().values())
