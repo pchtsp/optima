@@ -12,7 +12,7 @@ path_export_tab <- '../../NPS2019/tab/'
 
 # exp_list <- c('IT000125_20190808', 'IT000125_20190812')
 exp_list <- c('IT000125_20190725', 'IT000125_20190716') # small
-df <- get_1_tasks()
+df <- get_generic_compare(exp_list, exp_names = list('cuts', 'base'))
 # df_original <- compare_sto$get_df_comparison(exp_list)
 # df <- df_original %>% 
 #     mutate(experiment=if_else(experiment==0, 'cuts', 'base')) %>% 

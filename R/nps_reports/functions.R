@@ -176,8 +176,6 @@ get_soft_constraints_2 <- function(raw_df){
         compare_objectives_perc('errors')
 }
 
-
-
 get_infeasible_times <- function(raw_df){
     raw_df %>% 
         get_all_infeasible %>% 

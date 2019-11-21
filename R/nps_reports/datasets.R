@@ -34,8 +34,13 @@ get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NU
         # (which is the most likely option)
         exp_names <- list('cuts', 'base')
     }
+    if (scenario_filter %>% is.null %>% not){
+        # just in case the length is 1, we want python to take it as a list.
+        # so it has to have length 2
+        scenario_filter <- c(scenario_filter, 'WORKAROUND')
+    }
     df_original <- compare_sto$get_df_comparison(exp_list=dataset_list, 
-                                                 scenarios=c(scenario_filter, 'WORKAROUND'), 
+                                                 scenarios=scenario_filter, 
                                                  get_progress=get_progress)
     dataset_names <- dataset_list %>% lapply(function(x) x)
     df_original %<>% 
