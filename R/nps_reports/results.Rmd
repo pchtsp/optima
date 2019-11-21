@@ -7,6 +7,7 @@ output:
   pdf_document: default
 params:
   size: get_3_tasks_aggresive_perc_add
+  scale: log2
 editor_options:
   chunk_output_type: console
 ---
@@ -17,13 +18,15 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 # browser()
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
-quant_max <- 0.95
+default_tail <- 0.05
 really_small_number <- 0.000001
 size <- params$size
 df <- do.call(size, args=list())
 value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
 
 scaleFUN <- function(x) sprintf("%.2f", x)
+scale <- params$scale
+
 
 
 ```
@@ -55,13 +58,7 @@ summary_stats %>% kable
 
 quality_degr_all <- get_quality_degr_2(df)
 
-t1_rel <- quality_degr_all %>% filter(experiment=='cuts') %>% use_series(dif_perc)
-t1_abs <- quality_degr_all %>% filter(experiment=='cuts') %>% use_series(dif)
-quality_degr_quant <- t1_rel %>% quantile()
-quality_degr_quant95 <- t1_rel %>% quantile(quant_max)
-quality_degr_quant95_abs <- t1_abs %>% quantile(quant_max)
-
-right_tail <- 0.0
+right_tail <- default_tail
 quality_degr_all_filt <- 
   quality_degr_all %>% 
   mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
@@ -71,10 +68,17 @@ quality_degr_all_filt <-
 We compare the times where all models return an **optimal solution** (`r quality_degr_all %>% distinct(instance) %>% nrow` instances).
 
 
-The following boxplot shows the distribution of the gap from the models with respect to the `base` model. Results are shown in logaritmic scale and so we have replace all negative values for a very small one.
+The following boxplot shows the distribution of the gap from the models with respect to the `base` model. We have replace all negative values for a very small one close to zero. We have taken (`r right_tail*100`\%) values from the right side to better visualize the output.
 
 ```{r}
-ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
+if (scale!='identity'){
+  ylab <- sprintf('%% difference in objective (%s scale)', scale)  
+} else {
+  ylab <- '% difference in objective'
+}
+
+  
+ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans=scale, labels=scaleFUN)
 
 ```
 
@@ -84,11 +88,6 @@ ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minima
 
 quality_perf_all <- get_quality_perf_2(df)
 
-quality_perf <- quality_perf_all %>% filter(experiment=='cuts')
-mean_dif <- quality_perf$dif_perc %>%  mean
-per_cut <- sum(quality_perf$dif_perc<0)/length(quality_perf$dif_perc)
-q95_cut <- quality_perf$dif_perc %>% quantile(0.95)
-
 ```
 
 If we compare among all cases where an **integer solution** (`r quality_perf_all %>% distinct(instance) %>% nrow` instances) was found in the two models, we can obtain an estimate of quality performance for the 1 hour solving time.
@@ -96,7 +95,7 @@ If we compare among all cases where an **integer solution** (`r quality_perf_all
 ```{r}
 
 # this takes some % from each side
-each_tail <- 0
+each_tail <- default_tail
 
 quality_perf_all_filt <- 
   quality_perf_all %>% 
@@ -104,11 +103,17 @@ quality_perf_all_filt <-
   filter(dif_perc %>% value_filt_tails(c(each_tail, each_tail)))
 ```
 
-The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the model outperformed the `base` model in that particular instance. Results are shown in logaritmic scale and so we have replace all negative values for a very small one.
+The following graph shows the distribution of relative gaps between the best integer solutions found in each of the two models. A negative relative gap means the model outperformed the `base` model in that particular instance. We have taken (`r each_tail*100`\%) values from each side to better visualize the output.
 
 ```{r quality_perf_plot}
 
-ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('% difference in objective (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
+if (scale!='identity'){
+  ylab <- sprintf('%% difference in objective (%s scale)', scale)  
+} else {
+  ylab <- '% difference in objective'
+}
+
+ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans=scale, labels=scaleFUN)
 
 
 ```
@@ -193,14 +198,20 @@ infeasible_times %>% kable
 
 ### Soft constraints performance
 
-Regarding the accomplishment of soft constraints, we can analyze for mutually **optimal solutions**, the quantity of violations in their solutions. For each model and instance, we subtract the `base` model errors. We show only the extra errors (in number) compared to the `base` case.
-
 ```{r soft_constraints}
-errors_stats <- get_soft_constraints(df, quant_max)
+right_tail <- default_tail
+errors_stats <- get_soft_constraints(df)
 errors_all <- get_soft_constraints_2(df) %>% 
   mutate(dif= if_else(dif<=0, really_small_number, dif))
 
+errors_all_filt <- 
+  errors_all %>% 
+  filter(dif %>% value_filt_tails(c(0, right_tail)))
+
 ```
+
+
+Regarding the accomplishment of soft constraints, we can analyze for mutually **optimal solutions**, the quantity of violations in their solutions. For each model and instance, we subtract the `base` model errors. We show only the extra errors (in number) compared to the `base` case. We have taken (`r right_tail*100`\%) values from he right side to better visualize the output.
 
 The following table shows the difference in soft constraints errors.
 
@@ -208,28 +219,31 @@ The following table shows the difference in soft constraints errors.
 errors_stats %>% kable
 ```
 
-And the complete distributions in logaritmic scale:
+And the complete distributions:
 
 ```{r soft_constraints_plot}
 
-ggplot(data=errors_all, aes(x=experiment, y=dif)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('absolute difference in errors  (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
+if (scale!='identity'){
+  ylab <- sprintf('absolute difference in errors (%s scale)', scale)
+} else {
+  ylab <- sprintf('absolute difference in errors')
+}
+
+ggplot(data=errors_all_filt, aes(x=experiment, y=dif)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans=scale, labels=scaleFUN)
+
 
 
 ```
 
 ```{r variances}
 variances_all <- get_variances(df)
-# var_per <- variances_all %>% filter(experiment=='cuts') %>% use_series(dif_perc)
-# mean_var_reduction <- var_per %>% mean
-# quant95_var_reduction <- var_per %>% quantile(quant_max)
 
 right_tail <- 0.1
 
 variances_all_filt <- 
   variances_all %>% 
-  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc))
-  # group_by(experiment) %>% 
-  # filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
+  group_by(experiment) %>%
+  filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
 ```
 
@@ -237,12 +251,12 @@ variances_all_filt <-
 
 The variance in the frequency of maintenances is a side objective that was not been taken into account previously. The higher the variance, the more difference there is between amount of flight hours between one aircraft and another.
 To calculate it, we have, for each fleet type, measured the variance of the distance between maintenances. And we have summed all variances for all fleet types. We do this analysis for all integer solutions obtained.
-To better visualize the results, we use a log 2 scale.
+To better visualize the results, we have taken `r right_tail*100`\% from the right tail.
 
 ```{r graph_variances}
 
 # qplot(var_per, xlab='')
 
-ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('Difference in variance (in % of base case) (log2 scale)') + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans='log2', labels=scaleFUN)
+ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab('Difference in variance (in % of base case)') + theme(text = element_text(size=20)) + coord_flip()
 
 ```

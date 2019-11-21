@@ -1,12 +1,10 @@
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
-library(stringr)
 
 path_export_img <- '../../NPS2019/img/'
 path_export_tab <- '../../NPS2019/tab/'
 # size <- 'small'
 # df_original <- compare_sto$get_instances[[size]]()
-
 
 # optimization results ----------------------------------------------------
 
@@ -48,7 +46,7 @@ filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
 length(t1_rel)
 path <- '%squality_degradation_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
 qplot(t1_rel_filt, xlab='Relative gap (in %) among optimal solutions.', binwidth=0.3) + 
-    theme(text = element_text(size=20)) + ggsave(path)
+    theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
 
 # quality performance
 quality_perf <- get_quality_perf(df)
@@ -56,7 +54,7 @@ filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -7, 7))
 filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
 path <- '%squality_performance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
 qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.', binwidth=0.3) +
-    theme(text = element_text(size=20)) + ggsave(path)
+    theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
 
 # time performance
 comparison_table <- get_time_perf_integer(df)
@@ -129,12 +127,27 @@ qplot(var_per, xlab='Relative difference in variance among solutions.')+
 
 # prediction models -------------------------------------------------------
 
-# maintenances 
 
 dataset <- 'IT000125_20190716'
 result_tab <- get_result_tab(dataset)
-result_tab_n <- result_tab %>% filter(gap_abs<100 & num_errors==0)
 
+# distribution on mean_distances
+
+path <- '%sdistribution_mean_distances_%s.png' %>% sprintf(path_export_img, dataset)
+ggplot(data=result_tab, aes(x=mean_dist_complete)) + 
+    geom_histogram(position="identity", binwidth = 1) + 
+    theme_minimal() +
+    theme(axis.text.x = element_text(hjust=0),
+          strip.text.y = element_text(angle=0),
+          text = element_text(size=17)) +
+    xlab('Average distance between checks') + 
+    ylab('Number of instances') + 
+    ggsave(path)
+
+    
+# maintenances 
+
+result_tab_n <- result_tab %>% filter(gap_abs<100 & num_errors==0)
 path <- '%smean_consum_vs_maints_nocolor_%s.png' %>% sprintf(path_export_img, dataset)
 ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) + 
     geom_jitter(alpha=0.4, height=0.2) + theme_minimal() + 
@@ -143,7 +156,7 @@ ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) +
           strip.text.y = element_text(angle=0),
           text = element_text(size=20)) +
     xlab('Average consumption in flight hours per period') + 
-    ylab('Total number of maintenances') + 
+    ylab('Total number of checks') + 
     ggsave(path)
 
 # quantiles
@@ -154,33 +167,41 @@ ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) +
 # summary optimization ----------------------------------------------------
 
 if (FALSE){
-    options <- c('get_all_tasks', 
-                 'get_all_tasks_aggresive', 
-                 'get_all_tasks_aggresive_percadd', 
-                 'get_all_tasks_very_aggresive_percadd')
+    # Here we configure names and which data we want to get.
+    options <- c('get_all_tasks'
+                 ,'get_all_tasks_aggresive'
+                 ,'get_all_tasks_aggresive_percadd'
+                 ,'get_all_tasks_very_aggresive_percadd'
+                 ,'get_old_all')
+    
+    options <- c('get_old_all')
     names(options) <- options
     fun_ <- function(func_name){
         func_name %>% do.call(args=list()) %>% get_mega_summary
     }
-    summary <- options %>% lapply(fun_)
     equiv <- list(numparalleltasks_2='30', 
                   numparalleltasks_3='45', 
                   numparalleltasks_4='60')
     equiv2 <- list(get_all_tasks='cuts', 
                    get_all_tasks_aggresive='cuts\\_a', 
                    get_all_tasks_aggresive_percadd='cuts\\_a\\_rec',
-                   get_all_tasks_very_aggresive_percadd='cuts\\_aa\\_rec')
+                   get_all_tasks_very_aggresive_percadd='cuts\\_aa\\_rec',
+                   get_old_all='old')
     
     col_names <- c("", "$|\\mathcal{I}|$", "$\\mu_e$", "$q95_e$", "Feas", "Infeas", "$\\mu_q$", 
                    "$med_q$", "$q95_q$", "$\\mu_t$", "$med_e$")
+    
+    # Here we get data, give format
+    table_list <- options %>% lapply(fun_)
     table_out <- 
-        summary %>% 
+        table_list %>% 
         bind_rows(.id='experiment') %>% 
         ungroup %>% 
         mutate(scenario=equiv[scenario] %>% unlist,
                experiment=equiv2[experiment] %>% unlist) %>% 
         set_names(col_names)
     
+    # Here we export
     names(table_out) <- str_replace(names(table_out), '\\_', '\\\\_')
     path <- '%scompare_all.tex' %>% sprintf(path_export_tab)
     table_out %>% 
