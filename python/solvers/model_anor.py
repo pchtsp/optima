@@ -4,7 +4,7 @@ import solvers.config as conf
 import package.solution as sol
 import pytups.superdict as sd
 import random as rn
-
+import math
 
 ######################################################
 # @profile
@@ -18,7 +18,10 @@ class ModelANOR(md.Model):
 
 
     def solve(self, options=None):
-        self.domains = l = self.get_domains_sets(options)
+        l = self.domains
+        if not self.domains or options.get('calculate_domains', True):
+            l = self.domains = self.get_domains_sets(options)
+
         ub = self.get_variable_bounds()
         first_period, last_period = self.instance.get_start_end()
         consumption = sd.SuperDict.from_dict(self.instance.get_tasks('consumption'))
@@ -189,7 +192,7 @@ class ModelANOR(md.Model):
         # minimum availability per cluster and period
         for (k, t), num in cluster_data['num'].items():
             model += \
-                pl.lpSum(start_M[(a, _t)] for (a, _t) in l['at1_t2'][t]
+                pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'].get(t, [])
                          if (a, _t) in l['at_start_maint']
                          if a in c_candidates[k]) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
 
@@ -233,7 +236,7 @@ class ModelANOR(md.Model):
         # Maintenances
         # ##################################
 
-        # # we cannot do two maintenances too close one from the other:
+        # we cannot do two maintenances too close one from the other:
         for att in l['att_m']:
             a, t1, t2 = att
             model += start_M[a, t1] + start_M[a, t2] <= 1
@@ -256,7 +259,8 @@ class ModelANOR(md.Model):
 
         # max number of maintenances:
         for t in l['periods']:
-            model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'][t] if (a, _t) in l['at_start_maint']) + \
+            model += pl.lpSum(start_M[a, _t] for (a, _t) in l['at1_t2'].get(t, [])
+                              if (a, _t) in l['at_start_maint']) + \
                      num_resource_maint[t] <= \
                      maint_capacity + pl.lpSum(slack_ts.get((t, s), 0) for s in l['slots'])
 
