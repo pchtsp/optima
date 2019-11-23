@@ -7,9 +7,6 @@ import statsmodels.regression.quantile_regression as smrq
 import numpy as np
 import pandas as pd
 
-import pytups.superdict as sd
-
-import stochastic.model_upper_bound as mub
 import stochastic.tools as aux
 
 ####################
@@ -73,6 +70,7 @@ def predict_factory(X_train, y_train, method='regression', **kwargs):
         res = mod.fit(**kwargs)
         return res
     elif method == 'superquantiles':
+        import stochastic.model_upper_bound as mub
         coef0, coefs = mub.regression_VaR(X=X_train, Y=y_train, **kwargs)
 
         class Clf(object):
