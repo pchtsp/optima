@@ -123,7 +123,7 @@ ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minima
 
 ### Average solving time
 
-Just like in the mean quality comparison, we compare among cases where all models found a **integer solution**.
+Just like in the mean quality comparison, we compare among **all** cases.
 
 ```{r time_perf}
 
@@ -148,7 +148,7 @@ mean_times %>% kable
 
 In order to get more intuition in the performance per instance, we present a couple of graphs.
 
-The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in all cases. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
+The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
 
 
 ```{r time_perf_graph2, out.width='100%'}

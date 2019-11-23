@@ -331,10 +331,31 @@ get_all_2 <- function(){
         correct_old_model
 }
 
+get_determ_4 <- function(){
+    get_generic_compare(c('IT000125_20190828', 'IT000125_20190917', 'IT000125_20191030', 'IT000125_20191105'),
+                        exp_names = list('base', 'stoch', 'old', 'stoch_determ'),
+                        scenario_filter='numparalleltasks_4') %>% 
+        correct_old_model
+}
+
 get_determ_3 <- function(){
     get_generic_compare(c('IT000125_20190801', 'IT000125_20191017', 'IT000125_20190917', 'IT000125_20191030', 'IT000125_20191105'),
                         exp_names = list('base', 'determ', 'stoch', 'old', 'stoch_determ'),
                         scenario_filter='numparalleltasks_3') %>% 
+        correct_old_model
+}
+
+get_determ_2 <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030', 'IT000125_20191105'),
+                        exp_names = list('base', 'determ', 'stoch', 'old', 'stoch_determ'),
+                        scenario_filter='numparalleltasks_2') %>% 
+        correct_old_model
+}
+
+get_determ_1 <- function(){
+    get_generic_compare(c('IT000125_20190716', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030'),
+                        exp_names = list('base', 'determ', 'stoch', 'old'),
+                        scenario_filter='numparalleltasks_1') %>% 
         correct_old_model
 }
 
