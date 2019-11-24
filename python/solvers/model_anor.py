@@ -246,13 +246,6 @@ class ModelANOR(md.Model):
         for (a, t1), t2_list in l['t_at_M'].items():
             model += pl.lpSum(start_M[a, t2] for t2 in t2_list) >= start_M[a, t1]
 
-        # if we have had a maintenance just before the planning horizon
-        # we cant't have one at the beginning:
-        # we can formulate this as constraining the combinations of maintenance variables.
-        # (already done)
-        # for at in l['at_m_ini']:
-        #     model += start_M[at] == 0
-
         # if we need a maintenance inside the horizon, we enforce it
         for a, t_list in l['t_a_M_ini'].items():
             model += pl.lpSum(start_M.get((a, t), 0) for t in t_list) >= 1

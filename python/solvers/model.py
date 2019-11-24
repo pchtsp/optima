@@ -683,11 +683,6 @@ class Model(exp.Experiment):
                if a in candidates[v]
                if (a, t) in at_free] + \
                          at_mission_m_horizon)
-        ast = tl.TupList((a, s, t) for (a, t) in list(at_free + at_maint) for s in states)
-        att = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods if
-               p_pos[t1] <= p_pos[t2] < p_pos[t1] + duration])
-        # when I could have started maintenance (t2s) to be still in maintenance in period t1
-        t2_at1 = att.to_dict(result_col=2, is_list=True)
         # start-assignment options for task assignments.
         # We assume assignments can happen anywhere to really apply the constraint correctly.
         avtt = tl.TupList([(a, v, t1, t2) for (a, v, t1) in avt for t2 in periods if
@@ -709,12 +704,14 @@ class Model(exp.Experiment):
         # we had a repetition problem:
         avtt2 = avtt2.unique2()
 
+        # MAINTENANCES DOMAINS
+
         l['att_m'] = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if p_pos[t1] < p_pos[t2] < p_pos[t1] + min_elapsed
                  ])
 
         # first maintenance starts possibilities because of initial state of aircraft
-        at_M_ini = tl.TupList([(a, t) for (a, t) in at_free_start
+        l['at_M_ini'] = tl.TupList([(a, t) for (a, t) in at_free_start
                     if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
                     ])
 
@@ -724,7 +721,7 @@ class Model(exp.Experiment):
         # since we are only assuming max 1 assignment, we need to take out the possibilities that leave
         # more than max_elapsed after it
         # only allow maintenance starts that follow the initial state (at_M_ini)
-        l['att_maints_no_last'] = tl.TupList((a, t1, t2) for (a, t1) in at_M_ini for t2 in periods
+        l['att_maints_no_last'] = tl.TupList((a, t1, t2) for (a, t1) in l['at_M_ini'] for t2 in periods
                                 if (p_pos[t1] + min_elapsed_2M[a] <= p_pos[t2] < p_pos[t1] + max_elapsed_2M[a])
                                 and len(periods) <= p_pos[t2] + max_elapsed
                                 and t2 < last_period
@@ -735,13 +732,17 @@ class Model(exp.Experiment):
         # but with the last_period instead of t2
         # and they do not constraint the min distance between maintenances
         _t2 = last_period
-        att_maints_last = ((a, t1, _t2) for (a, t1) in at_M_ini if
+        att_maints_last = ((a, t1, _t2) for (a, t1) in l['at_M_ini'] if
                            p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M[a])
         l['att_maints_last'] = tl.TupList(att_maints_last)
 
         # these are the periods where we know we have to do a second maintenance, given we did a maintenance in t.
         l['att_maints'] = tl.TupList(l['att_maints_no_last'] + l['att_maints_last'])
         l['att_M'] = l['att_maints'].vfilter(lambda x: p_pos[x[1]] + max_elapsed < len(periods))
+
+        # we generate all possible starts of maintenance
+        _at = l['att_maints'].take([0, 1]) + l['att_maints'].take([0, 2])
+        l['at_start_maint'] = _at.unique2()
 
         # as an auxiliary second step, we want to apply the filters based on the stochastic cuts.
         # we want to keep a certain number of non-conforming cycle combinations.
@@ -754,6 +755,11 @@ class Model(exp.Experiment):
         # to represent the "before, during and after" of the maintenance cycles
         cycles = [str(n) for n in range(3)]
         att_cycles = tl.TupList((a, n) for a in resources for n in cycles)
+
+        att = tl.TupList([(a, t1, t2) for (a, t1) in l['at_start_maint'] for t2 in periods if
+               p_pos[t1] <= p_pos[t2] < p_pos[t1] + duration])
+        # periods of maintenance (t2s) because of starting a check in period t1
+        t2_at1 = att.to_dict(result_col=2, is_list=True)
 
         # this is the TTT_t set.
         # periods that are maintenance periods because of having assign a maintenance
@@ -776,7 +782,7 @@ class Model(exp.Experiment):
         t2_avt1 = avtt.to_dict(result_col=3, is_list=True)
         t1_avt2 = avtt.to_dict(result_col=2, is_list=True)
         t_at_M = l['att_M'].to_dict(result_col=2, is_list=True)
-        t_a_M_ini = at_M_ini.to_dict(result_col=1, is_list=True)
+        t_a_M_ini = l['at_M_ini'].to_dict(result_col=1, is_list=True)
         tt_maints_at = attt_maints.to_dict(result_col=[1, 2], is_list=True)
         att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
         tt_maints_a = l['att_maints'].to_dict(result_col=[1, 2], is_list=True)
@@ -806,8 +812,6 @@ class Model(exp.Experiment):
         ,'avt'              :  avt
         ,'at'               :  at
         ,'at_mission_m'     : at_mission_m
-        ,'ast'              :  ast
-        ,'at_start_maint'   :  tl.TupList(at_free_start)
         ,'at0'              :  at0
         ,'att'              :  att
         ,'a_t'              :  a_t
@@ -853,6 +857,12 @@ class Model(exp.Experiment):
 
         min_elapsed_2M_cut, max_elapsed_2M_cut = self.get_min_max_2M(options)
         percent_add = reduce_2M_window.get('percent_add', 0)
+        param_data = self.instance.get_param()
+        duration = param_data['maint_duration']
+        max_elapsed = param_data['max_elapsed_time'] + duration
+        min_elapsed = max_elapsed - param_data['elapsed_time_size']
+        ret_init = self.instance.get_initial_state("elapsed")
+        ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
 
         def _filter_funct(args):
             a, t1, t2 = args
@@ -873,14 +883,19 @@ class Model(exp.Experiment):
 
         # we increase the constraints on anor model
         at = domains['att_maints'].take([0, 1]) + domains['att_maints'].take([0, 2])
-        domains['at_free_start'] = at.unique2()
+        domains['at_start_maint'] = at.unique2()
         domains['att_M'] = \
             domains['att_maints'].\
             vfilter(lambda x: p_pos[x[1]] + max_elapsed_2M_cut[x[0]] < len(periods))
-        domains['att_m'] = tl.TupList([(a, t1, t2) for (a, t1) in domains['at_free_start'] for t2 in periods
+        domains['att_m'] = tl.TupList([(a, t1, t2) for (a, t1) in domains['at_start_maint'] for t2 in periods
                                  if (p_pos[t1] < p_pos[t2] < p_pos[t1] + min_elapsed_2M_cut[a])
-                                       and (a, t2) in domains['at_free_start']
+                                       and (a, t2) in domains['at_start_maint']
                                  ])
+        domains['at_M_ini'] = \
+            tl.TupList([(a, t) for (a, t) in domains['at_start_maint']
+                        if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
+                        ])
+
         return domains
 
     def get_valid_cuts(self, model, start_M, start_T):
