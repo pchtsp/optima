@@ -187,6 +187,12 @@ def get_range_dist_2M(instance, _type, tolerance=None):
         mean_dist.\
         vapply(lambda v: params.get_bound_var_data[v]).\
         vapply(lambda v: calculate_stat(instance, coefs=v, _type=_type, mean_std=mean_std)).\
-        vapply(round).apply(lambda k, v: tolerance[k] + v)
+        vapply(round).\
+        apply(lambda k, v: tolerance[k] + v)
+
+    # check that min is less than max
+    if coefs['min'] >= coefs['max']:
+        coefs['max'] = coefs['min']
+        coefs['min'] = coefs['max'] - 1
     return coefs
 
