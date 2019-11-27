@@ -350,6 +350,13 @@ get_all_fixLP <- function(){
         correct_old_model
 }
 
+get_all_stoch <- function(){
+    get_generic_compare(c('IT000125_20190729', 'IT000125_20190808', 'IT000125_20191030', 'IT000125_20191125'),
+                        exp_names = list('base', 'stoch_agg', 'old', 'old_stoch'),
+                        scenario_filter='numparalleltasks_2') %>% 
+        correct_old_model
+}
+
 correct_old_model <- function(data){
     # Function that discounts a fix number from the objective function in the old model.
     # So it can be compared with the new one.
