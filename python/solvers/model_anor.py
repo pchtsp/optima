@@ -35,6 +35,7 @@ class ModelANOR(md.Model):
         min_usage = self.instance.get_param('min_usage_period')
         cluster_data = self.instance.get_cluster_constraints()
         c_candidates = self.instance.get_cluster_candidates()
+        p_t = period_pos = self.instance.data['aux']['period_i']
 
         # In order to break some symmetries, we're gonna give a
         # (different) price for each assignment:
@@ -63,12 +64,13 @@ class ModelANOR(md.Model):
         # numeric:
         self.rut = rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=normally_continuous)
         self.usage = usage = pl.LpVariable.dicts(name="usage", indexs=l['at'], lowBound=0, upBound=ub['used_max'], cat=normally_continuous)
-        # last_maint = pl.LpVariable.dicts(name="last_maint", indexs=l['resources'], lowBound=0, upBound=len(l['periods']), cat=normally_continuous)
+        p_s = {s: p for p, s in enumerate(l['slots'])}
 
         # slack variables:
-        price_slack_kts = {s: (p+1)*50 for p, s in enumerate(l['slots'])}
-        price_slack_ts = {s: (p+1)*1000 for p, s in enumerate(l['slots'])}
-        price_slack_kts_h = {s: (p + 2)**2 for p, s in enumerate(l['slots'])}
+        # we add some noice on periods to break symmetries.
+        price_slack_kts = {(k, t, s): (p_s[s]+1 - 0.001*p_t[t])*50 for k, t, s in l['kts']}
+        price_slack_ts = {(t, s): (p_s[s]+1 - 0.001*p_t[t])*1000 for t, s in l['ts']}
+        price_slack_kts_h = {(k, t, s): (p_s[s] + 2 - 0.001*p_t[t])**2 for k, t, s in l['kts']}
 
         slack_kts_h, slack_ts, slack_kts = {}, {}, {}
         for tup in l['kts']:
@@ -109,8 +111,6 @@ class ModelANOR(md.Model):
         # MODEL
         model = pl.LpProblem("MFMP_v0002", pl.LpMinimize)
 
-        # try to make the second maintenance the most late possible
-        period_pos = self.instance.data['aux']['period_i']
         # the following costs tries to imitate the penalization for doing a
         # second maintenance
         cost_maint = l['att_maints'].\
@@ -120,12 +120,12 @@ class ModelANOR(md.Model):
             fill_with_default(l['at_start_maint'])
 
         # OBJECTIVE:
-        # maints
+        # try to make the second maintenance the most late possible
         objective = \
             pl.lpSum(price_assign[a, v] * task for (a, v, t), task in start_T.items()) + \
-            + 10 * pl.lpSum(price_slack_kts[s] * slack for (k, t, s), slack in slack_kts.items()) \
-            + 10 * pl.lpSum(price_slack_kts_h[s] * slack for (k, t, s), slack in slack_kts_h.items()) \
-            + 10 * pl.lpSum(price_slack_ts[s] * slack for (t, s), slack in slack_ts.items()) \
+            + 10*pl.lpSum(price_slack_kts[_tup] * slack for _tup, slack in slack_kts.items()) \
+            + 10*pl.lpSum(price_slack_kts_h[_tup] * slack for _tup, slack in slack_kts_h.items()) \
+            + 10*pl.lpSum(price_slack_ts[_tup] * slack for _tup, slack in slack_ts.items()) \
             - pl.lpSum(start_M[a, t] * cost_maint[a, t] for a, t in l['at_start_maint']) \
             + pl.lpSum(start_M.values())* period_pos[last_period] \
             + 1000000 * pl.lpSum(slack_vt.values()) \
