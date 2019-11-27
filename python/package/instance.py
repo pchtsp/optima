@@ -218,7 +218,7 @@ class Instance(object):
         return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
 
     def get_periods(self):
-        return self.get_periods_range(self.get_param('start'), self.get_param('end'))
+        return self.get_periods_range(*self.get_start_end())
 
     def get_start_end(self):
         return (self.get_param(p) for p in ['start', 'end'])

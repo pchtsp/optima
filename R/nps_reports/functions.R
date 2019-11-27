@@ -29,6 +29,7 @@ times_100_round <- function(value) value %>% multiply_by(100) %>% round(2)
 get_summary <- function(raw_df, compare=TRUE){
     result <- 
         raw_df %>% 
+        filter_all_exps %>% 
         mutate(sol_code = if_else(is.na(sol_code), 2, sol_code)) %>% 
         group_by(scenario, experiment) %>%
         summarise(Infeasible = sum(sol_code==-1),
@@ -102,12 +103,13 @@ get_quality_degr <- function(raw_df){
 
 get_time_perf_integer <- function(raw_df){
     raw_df %>% 
-        get_all_integer %>% 
         select(scenario, instance, experiment, time) %>% 
+        filter_all_exps %>% 
         spread(experiment, time) %>% 
         arrange(base) %>% 
         mutate(instance = row_number()) %>% 
-        gather(key = 'experiment',  value='time', -instance, -scenario)
+        gather(key = 'experiment',  value='time', -instance, -scenario) %>% 
+        filter(time %>% is.na %>% not)
 }
 
 get_time_perf_integer_summ <- function(raw_df){
@@ -140,12 +142,14 @@ get_time_perf_optim <- function(raw_df){
 
 get_infeasible_instances <- function(raw_df){
     raw_df %>% 
+        filter_all_exps %>% 
         filter(sol_code==-1) %>% 
         distinct(experiment, instance)
 }
 
 get_infeasible_stats <- function(raw_df){
     raw_df %>% 
+        filter_all_exps %>% 
         filter(experiment=="base") %>% 
         select(-experiment) %>% 
         inner_join(get_infeasible_instances(raw_df)) %>% 
