@@ -403,54 +403,14 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
+    def get_default_consumption(self, resource, period):
+        # TODO: this will change when joined to master that has specific
+        # defaults for resource and period
+        return self.get_param('min_usage_period')
+
     def get_types(self):
         values = self.get_tasks('type_resource').values()
         return tl.TupList(values).unique2()
-
-    def get_stats(self):
-        """
-        These stats are useful to characterize an instance and to get better bounds
-        :return:
-        """
-        param_data = self.get_param()
-        first_period, last_period = param_data['start'], param_data['end']
-        periods = self.get_periods()
-        periods_pos = self.data['aux']['period_i']
-        resources = sd.SuperDict.from_dict(self.get_resources())
-        tasks = sd.SuperDict.from_dict(self.get_tasks())
-        ret_init = resources.get_property("initial_elapsed")
-        duration = param_data['maint_duration']
-        max_elapsed = param_data['max_elapsed_time'] + duration
-        ret_init_adjusted = ret_init.apply(lambda _, v: v - max_elapsed + min_elapsed)
-
-        first_maint_range = tl.TupList((a, t) for a in resources for t in periods
-                              if ret_init[a] <= len(periods)
-                              if ret_init_adjusted[a] <= periods_pos[t] <= ret_init[a]
-                              ).\
-            to_dict(result_col=1).\
-            apply(lambda _, v: (v[0], v[-1]))
-
-        second_maint_range = first_maint_range.\
-            apply(lambda _, v: (self.shift_period(v[0], min_elapsed),
-                                self.shift_period(v[1], max_elapsed))
-        )
-        mandatory_two_maints = second_maint_range.clean(func=lambda x: x[1] <= last_period)
-        mandatory_one_maint = second_maint_range.clean(func=lambda x: x[0] > last_period)
-        one_or_two_maints = {k: v for k, v in second_maint_range.items() if k not in mandatory_two_maints and
-                             k not in mandatory_one_maint}
-
-        type_tasks = tasks.get_property('type_resource').to_tuplist().to_dict(result_col=0)
-        task_consumption = tasks.apply(lambda _, v: self.get_dist_periods(v['start'], v['end'])*v['consumption'])
-        type_consumption = type_tasks.apply(lambda _, v: sum(task_consumption[t] for t in v))
-
-        type_resource = resources.get_property('type').to_tuplist().to_dict(result_col=0)
-        res_remaining = resources.get_property('initial_used')
-        type_initial = type_resource.apply(lambda _, v: sum(res_remaining[r] for r in v))
-
-        type_maints = []
-
-
-        tasks.get_property('consumption')
 
 
 
