@@ -9,14 +9,15 @@ import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
 import ujson
-
+import shutil
+import re
+import orloge as ol
 
 class Experiment(object):
     """
     These objects represent the unification of both input data and solution.
     Each is represented by their proper objects.
     Methods are especially checks on faisability.
-    In the future I may make this object be a sublass of Solution.
     """
 
     def __init__(self, instance, solution):
@@ -33,6 +34,17 @@ class Experiment(object):
         return cls(inst.Instance(instance), sol.Solution(solution))
 
     @classmethod
+    def from_zipfile(cls, zipobj, path, format='json', prefix="data_"):
+        # files = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
+        files = [path + '/' + prefix + f + "." + format for f in ['in', 'out']]
+        instance = di.load_data_zip(zipobj, files[0])
+        solution = di.load_data_zip(zipobj, files[1])
+        # print(files[0], files[1])
+        if not np.all([instance, solution]):
+            return None
+        return cls(inst.Instance(instance), sol.Solution(solution))
+
+    @classmethod
     def from_template_dir(cls, path, format='xlsx', prefix="template_"):
         files = file_in, file_out = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
         if not np.all([os.path.exists(f) for f in files]):
@@ -40,6 +52,23 @@ class Experiment(object):
         instance = dt.import_input_template(file_in)
         solution = dt.import_output_template(file_out)
         return cls(inst.Instance(instance), sol.Solution(solution))
+
+    @staticmethod
+    def expand_resource_period(data, resource, period):
+        if resource not in data:
+            data[resource] = {}
+        if period not in data[resource]:
+            data[resource][period] = {}
+        return True
+
+    @staticmethod
+    def label_rt(time):
+        if time == "rut":
+            return 'used'
+        elif time == 'ret':
+            return 'elapsed'
+        else:
+            raise ValueError("time needs to be rut or ret")
 
     def check_solution_count(self, **params):
         return self.check_solution(**params).to_lendict()
@@ -120,10 +149,12 @@ class Experiment(object):
 
     def check_task_num_resources(self, strict=False, **params):
         task_reqs = self.instance.get_tasks('num_resource')
+        task_period_list = self.instance.get_task_period_list()
 
         task_assigned = \
             sd.SuperDict.from_dict(self.solution.get_task_num_resources()).\
-                fill_with_default(self.instance.get_task_period_list())
+                fill_with_default(task_period_list)
+
         task_under_assigned = {
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
@@ -142,7 +173,7 @@ class Experiment(object):
             for (resource, period), task in task_solution.items()
             if resource not in task_candidates[task]
         }
-        return bad_assignment
+        return sd.SuperDict.from_dict(bad_assignment)
 
     def get_consumption(self):
         hours = self.instance.get_tasks("consumption")
@@ -223,12 +254,19 @@ class Experiment(object):
 
     def get_non_maintenance_periods(self, resource=None, state_list=None):
         """
+        :return: a tuplist with the following structure:
+        resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
+        two consecutive periods being separated by a maintenance operation.
+        It's built using the information of the maintenance operations.
         :param resource: if not None, we filter to only provide this resource's info
         :return: a tuplist with the following structure:
             resource: [(resource, start_period1, end_period1), (resource, start_period2, end_period2), ..., (resource, start_periodN, end_periodN)]
             two consecutive periods being separated by a maintenance operation.
             It's built using the information of the maintenance operations.
         """
+        # TODO: change to:
+        # cycles_dict = self.get_all_maintenance_cycles(resource)
+        # return cycles_dict.to_tuplist()
         first, last = self.instance.get_param('start'), self.instance.get_param('end')
 
         maintenances = \
@@ -361,10 +399,11 @@ class Experiment(object):
     def check_min_max_assignment(self, **params):
         """
         :return: periods were the min assignment (including maintenance)
-            in format: (resource, start, end): error.
-            if error negative: bigger than max. Otherwise: less than min
-            is not respected
+        in format: (resource, start, end): error.
+        if error negative: bigger than max. Otherwise: less than min
+        is not respected
         """
+        # TODO: do it with self.solution.get_schedule()
         tasks = self.solution.get_tasks().to_tuplist()
         maints = self.solution.get_state_tuplist()
         previous = sd.SuperDict.from_dict(self.instance.get_resources("states")).\
@@ -434,6 +473,8 @@ class Experiment(object):
                             num_maintenances[cluster, period] += 1
         over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
         return over_assigned.clean(func=lambda x: x < 0)
+        # return over_assigned
+        # cluster_data.keys()
 
     def check_min_flight_hours(self, recalculate=True, **params):
         """
@@ -587,8 +628,67 @@ class Experiment(object):
 
     def get_maintenance_starts(self, state_list=None):
         return self.get_maintenance_periods(state_list=state_list).filter([0, 1])
-        # return [(r, s) for (r, s, e) in maintenances]
 
+    def get_maintenance_cycles(self, maint_start_stops):
+        first, last = (self.instance.get_param(p) for p in ['start', 'end'])
+        _shift = self.instance.shift_period
+        _next = self.instance.get_next_period
+        _prev = self.instance.get_prev_period
+
+        if not len(maint_start_stops):
+            return [(first, last)]
+
+        cycles = []
+        first_maint_start = maint_start_stops[0][0]
+        last_maint_end = maint_start_stops[-1][-1]
+
+        if first_maint_start > first:
+            cycles.append((first, _prev(first_maint_start)))
+
+        for (start1, end1), (start2, end2) in zip(maint_start_stops, maint_start_stops[1:]):
+            cycles.append((_next(end1), _prev(start2)))
+
+        if last_maint_end != last:
+            cycles.append((_next(last_maint_end), last))
+
+        return cycles
+
+    def get_all_maintenance_cycles(self, resource=None):
+        """
+        gets all periods in between maintenances for all resources
+        :return: dictionary indexed by resource of a list of tuples.
+        {resource: [(start1, stop1), (start2, stop2)]}
+        """
+        starts_stops = self.get_maintenance_periods(resource=resource)
+        if resource is None:
+            resources = self.instance.get_resources()
+        else:
+            resources = [resource]
+        return \
+            tl.TupList(starts_stops).\
+            to_dict(result_col=[1, 2]).\
+            apply(lambda k, v: sorted(v)).\
+            fill_with_default(keys=resources, default=[]).\
+            apply(lambda k, v: self.get_maintenance_cycles(v))
+
+    def get_acc_consumption(self):
+        _range = self.instance.get_periods_range
+        _dist = self.instance.get_dist_periods
+        _prev = self.instance.get_prev_period
+        maint_cycle = self.get_all_maintenance_cycles()
+
+        rut = sd.SuperDict.from_dict(self.set_remaining_usage_time('rut'))
+        rem_hours_cycle = sd.SuperDict()
+        for k, cycles in maint_cycle.items():
+            for pos, (start, stop) in enumerate(cycles):
+                limit = rut[k][_prev(start)]  # should be initial_rut or max_rut
+                _periods = _range(start, stop)
+                rem_hours_cycle[k, start, stop] = \
+                    limit * (_dist(start, stop) + 1) - \
+                    sum(rut[k].filter(_periods).values())
+
+        return rem_hours_cycle
+        
     def get_status(self, candidate):
         """
         This function is great for debugging
@@ -620,6 +720,8 @@ class Experiment(object):
         list_names = names[~names].index
         table = table.filter(list_names)
         return table.reset_index().rename(columns={'index': 'period'})
+        # table.columns = ['rut', 'ret', 'state', 'task']
+        # return table
 
     def get_solution(self):
         """
@@ -662,6 +764,4 @@ class Experiment(object):
 
 
 if __name__ == "__main__":
-    import package.params as pm
-
     pass

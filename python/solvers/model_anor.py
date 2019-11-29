@@ -371,15 +371,15 @@ class ModelANOR(md.Model):
 
         # we store the start of maintenances and tasks in the same place
         _start = self.vars_to_tups(self.start_T).to_dict(result_col=1, is_list=False)
-        _start_M = {k: 'M' for k in self.vars_to_tups(self.start_M)}
+        _start_M = {k: self.M for k in self.vars_to_tups(self.start_M)}
         _start.update(_start_M)
 
         fixed_maints_horizon = l['at_maint'].vfilter(lambda x: first_period <= x[1] <= last_period)
-        _state = {tup: 'M' for tup in fixed_maints_horizon}
-        _state.update({(a, t2): 'M' for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
+        _state = {tup: {self.M: 1} for tup in fixed_maints_horizon}
+        _state.update({(a, t2): {self.M: 1} for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
 
         solution_data_pre = {
-            'state': _state,
+            'state_m': _state,
             'task': _task,
             'aux': {
                 'start': _start,

@@ -94,11 +94,6 @@ class Config(object):
 
     def solve_model(self, model):
 
-        if self.writeMPS:
-            model.writeMPS(filename=os.path.join(self.path, 'formulation.mps'))
-        if self.writeLP:
-            model.writeLP(filename=os.path.join(self.path, 'formulation.lp'))
-
         solver = None
         if self.solver == "GUROBI":
             solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=self.keepfiles)

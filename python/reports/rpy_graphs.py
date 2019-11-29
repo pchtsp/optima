@@ -86,13 +86,3 @@ def bars(table, x, y, xlab=None, ylab=None):
            ggplot2.labs(x=xlab, y=ylab)
     # print(plot)
     return plot
-
-
-def gantt_experiment(path_to_experiment, path_script='./../R/functions/import_results.R'):
-
-    with open(path_script, 'r') as f:
-        string = f.read()
-    import_results = STAP(string, "import_results")
-
-    import_results.print_solution_and_print(path_to_experiment, width='100%')
-    pass

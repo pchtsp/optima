@@ -56,7 +56,7 @@ OPTIONS = {
     , 'start': '2018-01'
     , 'num_period': 90
     , 'simulate': True
-    , 'template': True
+    , 'template': False
     , 'solve': True
     , 'graph': 0
     , 'warm_start': False
@@ -64,7 +64,7 @@ OPTIONS = {
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
     , 'output_template_path': temp_path + 'template_out.xlsx'
-    , 'exclude_aux': False
+    , 'exclude_aux': True
     , 'multiprocess': None
     # heuristic params:
 
@@ -91,14 +91,29 @@ OPTIONS = {
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
-    , 'solver_add_opts': params_cplex
-    , 'fix_start': False
+    , 'solver_add_opts': {'CPLEX': params_cplex, 'CBC': params_cbc}
+    , 'mip_start': False
+    , 'fix_vars': []
+    , 'threads': None
+    , 'solver_path': None
+    , 'keepfiles': 0
+    , 'do_not_solve': False
     , 'default_type2_capacity': 66
-
+    # stats-cut-data
+    , 'StochCuts': {
+        'active': 0,
+        'bounds': ['max'],  # ['min', 'max']
+        'cuts': ['maints']
+    }, 'reduce_2M_window': {
+        'active': 0,
+        'window_size': 10,
+        'percent_add': 0,
+        'tolerance_mean': {'min': 5, 'max': -5}
+    }, 'DetermCuts': 0
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 0
+        , 'num_parallel_tasks': 1
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
@@ -109,7 +124,6 @@ OPTIONS = {
         , 'min_avail_percent': 0  # min percentage of available aircraft per type
         , 'min_avail_value': 0  # min num of available aircraft per type
         , 'min_hours_perc': 0.05  # min percentage of maximum possible hours of fleet type
-
         , 'seed': 47
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
@@ -118,6 +132,7 @@ OPTIONS = {
         , 't_num_resource': (2, 5)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
+        , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission
         , 'maintenances': {
             # type=1 is unite based capacity.
             # type=2 is time based capacity.
@@ -173,4 +188,4 @@ OPTIONS = {
 
     }
 
-
+}

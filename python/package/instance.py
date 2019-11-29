@@ -65,7 +65,7 @@ class Instance(object):
                 , 'max_elapsed_time': params['max_elapsed_time']
                 , 'elapsed_time_size': params['elapsed_time_size']
                 , 'used_time_size': params['max_used_time']
-                , 'type': 1
+                , 'type': '1'
                 , 'capacity': params['maint_capacity']
                 , 'depends_on': []
             }
@@ -73,7 +73,7 @@ class Instance(object):
         if 'maintenances' in self.data:
             maints = sd.SuperDict.from_dict(maints)
             maints.update(self.data['maintenances'])
-        self.data['maintenances'] = maints
+        self.data['maintenances'] = sd.SuperDict.from_dict(maints)
 
         if 'initial' not in resources.values_l()[0]:
             data_resources = self.data['resources']
@@ -81,7 +81,7 @@ class Instance(object):
             ret_init = data_resources.get_property('initial_elapsed')
             for r in resources:
                 self.data['resources'][r]['initial'] = \
-                    {'M': sd.SuperDict(elapsed=ret_init[r], used=rut_init[r])}
+                sd.SuperDict(M=sd.SuperDict(elapsed=ret_init[r], used=rut_init[r]))
         return
 
     def set_default_maint_types(self):
@@ -123,11 +123,14 @@ class Instance(object):
         """
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
-        # we force the end to be coherent with the num_period parameter
-        self.data['parameters']['end'] = aux.shift_month(start, num_periods - 1)
-        # we cache the relationships between periods
         self.data['aux'] = sd.SuperDict()
 
+        begin_year = int(start[:4]) - 5
+        end_year = int(start[:4]) + 5 + num_periods//12
+        many_months = ['{}-{:02.0f}'.format(_a, _b)
+                       for _a in range(begin_year, end_year)
+                       for _b in range(1, 13)]
+        pos = many_months.index(start)
         self.data['aux']['period_e'] = {
             k- pos: r for k, r in enumerate(many_months)
         }
@@ -478,6 +481,7 @@ class Instance(object):
         c_needs_num = {(k, t): c_num_candidates[k] - c_min[k, t] - num_res_maint[k, t]
                        for k, t in kt
                        }
+        # TODO: this should depend on the maintenance (we assumme 'M')
         c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
 
@@ -536,13 +540,14 @@ class Instance(object):
         def_capacity = self.get_param('maint_capacity')
         base_capacity = {'1': def_capacity, '2': def_working_days}
         capacity_period = self.data['maint_types'].get_property('capacity')
+        base_capacity = sd.SuperDict.from_dict(base_capacity).filter(capacity_period)
         if periods is None:
             periods = self.get_periods()
         caps = {
             (t, p): capacity_period[t].get(p, base) for p in periods
             for t, base in base_capacity.items()
         }
-        return sd.SuperDict(caps)
+        return sd.SuperDict.from_dict(caps)
 
     def get_default_consumption(self, resource, period):
         min_use = self.data['resources'][resource]['min_usage_period']
@@ -568,10 +573,9 @@ class Instance(object):
             raise ValueError("time needs to be rut or ret")
 
 if __name__ == "__main__":
-    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
-    # model_data = di.load_data(path + "data_in.json")
+    import data.simulation as sim
+    import package.params as params
 
+    options = params.OPTIONS
+    model_data = sim.create_dataset(options)
     instance = Instance(model_data)
-    instance.get_stats()
-    # instance.get_categories()
-    # result = instance.get_total_fixed_maintenances()
