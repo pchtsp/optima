@@ -2,8 +2,8 @@ library(reticulate)
 source('nps_reports/functions.R')
 
 get_python_module <- function(rel_path, name){
-    # use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
-    use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
+    use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
+    # use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
     # c:\Anaconda3\envs\cvenv\Scripts\pip.exe install -r requirements
     py_discover_config()
     sysp = import('sys')
@@ -371,22 +371,39 @@ get_all_fixLP <- function(){
         correct_old_model
 }
 
-get_all_stoch <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20190808', 'IT000125_20191030', 'IT000125_20191125'),
-                        exp_names = list('base', 'stoch_agg', 'old', 'old_stoch'),
+get_all_stoch_2 <- function(){
+        get_generic_compare(c('IT000125_20190729', 'IT000125_20190808', 'IT000125_20190915', 'IT000125_20190917','IT000125_20191030', 'IT000125_20191125'),
+                        exp_names = list('base', 'stoch_a1', 'stoch_a1r', 'stoch_a2r', 'old', 'old_stoch_a1'),
                         scenario_filter='numparalleltasks_2') %>% 
         correct_old_model
 }
+
+get_all_stoch_4 <- function(){
+    get_generic_compare(c('IT000125_20190828', 'IT000125_20190812', 'IT000125_20190915', 'IT000125_20190917','IT000125_20191030', 'IT000125_20191125'),
+                        exp_names = list('base', 'stoch_a2', 'stoch_a1r', 'stoch_a2r', 'old', 'old_stoch_a1'),
+                        scenario_filter='numparalleltasks_4') %>% 
+        correct_old_model
+}
+
+get_min_usage_5 <- function(){
+    get_generic_compare(c('IT000125_20191122', 'IT000125_20191124'),
+                        exp_names = list('base', 'old'),
+                        scenario_filter='minusageperiod_5') %>% 
+        correct_old_model
+}
+
 
 correct_old_model <- function(data){
     # Function that discounts a fix number from the objective function in the old model.
     # So it can be compared with the new one.
     # The fixed number depends on the size of the problem, the time horizon.
     # This assumes that the input dataframe has "dataset=IT000125_20191025_2" for the old model
+    manual_tab <- data.table(dataset='IT000125_20191124', horizon=89, num_tasks=1, scenario='minusageperiod_5')
     correction <- 
-        CJ(dataset=c('IT000125_20191025_2', 'IT000125_20191030'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
-        mutate(scenario=sprintf("numparalleltasks_%s", num_tasks),
-               correction_value = 2*15*num_tasks*horizon) %>% 
+        CJ(dataset=c('IT000125_20191025_2', 'IT000125_20191030', 'IT000125_20191125'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
+        mutate(scenario=sprintf("numparalleltasks_%s", num_tasks)) %>% 
+        bind_rows(manual_tab) %>% 
+        mutate(correction_value = 2*15*num_tasks*horizon) %>% 
         select(dataset, scenario, correction_value)
     
     correct_fun <- function(value, variable) if_else(variable %>% is.na, value, value-variable)

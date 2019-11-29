@@ -61,7 +61,7 @@ quality_degr_all <- get_quality_degr_2(df)
 right_tail <- default_tail
 quality_degr_all_filt <- 
   quality_degr_all %>% 
-  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
+  mutate(dif_perc = if_else(dif_perc<= 0 & scale!='identity', really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
 ```
@@ -99,7 +99,7 @@ each_tail <- default_tail
 
 quality_perf_all_filt <- 
   quality_perf_all %>% 
-  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
+  mutate(dif_perc = if_else(dif_perc<= 0 & scale!='identity', really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(each_tail, each_tail)))
 ```
 
@@ -202,7 +202,7 @@ infeasible_times %>% kable
 right_tail <- default_tail
 errors_stats <- get_soft_constraints(df)
 errors_all <- get_soft_constraints_2(df) %>% 
-  mutate(dif= if_else(dif<=0, really_small_number, dif))
+  mutate(dif= if_else(dif<=0 & scale!='identity', really_small_number, dif))
 
 errors_all_filt <- 
   errors_all %>% 
