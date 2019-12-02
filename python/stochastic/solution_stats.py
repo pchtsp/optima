@@ -84,30 +84,40 @@ def get_1M_2M_dist(case, _type=0, count_1M=False):
     return pd.Series(cycles_between.values_l())
 
 
-def get_post_2M_dist(case, _type=0):
+def get_all_maints_decisions(case, _type=0, num_max_maints=2):
     """
     :param case:
     :param _type:
     :return: the distance between the last maintenance and the end date
     """
     res = istats.get_resources_of_type(case.instance, _type=_type)
-    dist = case.instance.get_dist_periods
     next = case.instance.get_next_period
-    first, last = (case.instance.get_param(p) for p in ['start', 'end'])
+    first, last = case.instance.get_start_end()
     last =  next(last)
-    m_starts = case.get_maintenance_starts().filter_list_f(lambda v: v[0] in res)
+    m_starts = case.get_maintenance_starts().vfilter(lambda v: v[0] in res)
 
-    last_dist = \
-        m_starts.\
+    return \
+        m_starts. \
+        vfilter(lambda v: v[1] >= first).\
         to_dict(1). \
-        vapply(lambda v: [vv for vv in v if vv >= first]). \
         vapply(sorted).\
         vapply(lambda v: v+[last]).\
-        vapply(lambda v: dist(v[1], last))
+        vapply(lambda v: v[:num_max_maints])
 
-    return last_dist
 
+def get_post_2M_dist(case, _type=0):
+    first, last = case.instance.get_start_end()
+    dist = case.instance.get_dist_periods
+    maints = get_all_maints_decisions(case, _type)
+    return maints.vapply(lambda v: dist(v[1], last))
 
 def get_variance_dist(case, _type=0):
     distances = get_1M_2M_dist(case, _type=0, count_1M=True)
     return np.var(distances)
+
+
+def to_JR_format(case, _type=0):
+    maint_starts = get_all_maints_decisions(case, _type)
+    # we translate the period into a position:
+    positions = case.instance.get_period_positions()
+    return maint_starts.to_tuplist().vapply(lambda v: (v[0], positions[v[1]]))

@@ -212,7 +212,37 @@ class Batch(object):
                 shutil.rmtree(path)
         return paths.values_l()
 
+    def generate_JR_dataset(self):
+        """
+        This is a format that Johannes Roysset requested.
+        :return:
+        """
+        import stochastic.solution_stats as sol_stats
 
+        cases = self.get_cases()
+        optimal_cases = self.get_logs().vfilter(lambda v: v['status_code'] == 1)
+        maintenances = \
+            cases. \
+                filter(optimal_cases). \
+                vapply(sol_stats.to_JR_format).to_tuplist()
+        data = \
+            maintenances. \
+                take([1, 2, 3]). \
+                vapply(lambda v: (v[0], '{:02d}'.format(int(v[1])), v[2])). \
+                sorted(). \
+                to_list()
+        cols = ['instance', 'aircraft', 'date']
+        tab = \
+            pd.DataFrame. \
+                from_records(data, columns=cols)
+        tab['count'] = 1
+        tab['num_maint'] = tab.groupby(['instance', 'aircraft'])['count'].cumsum()
+        tab2 = \
+            tab. \
+                set_index(['instance', 'aircraft', 'num_maint']). \
+                drop('count', axis=1). \
+                unstack(['aircraft', 'num_maint'], 'num_maint')
+        return tab2
 
 
 class ZipBatch(Batch):
@@ -221,9 +251,10 @@ class ZipBatch(Batch):
     """
     def __init__(self, path, *args, **kwargs):
         name, ext = os.path.splitext(path)
+        zip_ext = '.zip'
         if not ext:
-            path = name + '.zip'
-        elif ext != 'zip':
+            path = name + zip_ext
+        elif ext != zip_ext:
             raise ValueError('Only zip is supported')
         super().__init__(path, *args, **kwargs)
 
