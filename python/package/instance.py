@@ -348,18 +348,24 @@ class Instance(object):
     def get_start_end(self):
         return (self.get_param(p) for p in ['start', 'end'])
 
+    def get_period_positions(self):
+        return self.data['aux']['period_i']
+
+    def get_periods_by_position(self):
+        return self.data['aux']['period_e']
+
     def get_periods_range(self, start, end):
-        pos_period = self.data['aux']['period_i']
-        period_pos = self.data['aux']['period_e']
+        pos_period = self.get_period_positions()
+        period_pos = self.get_periods_by_position()
         return [period_pos[t] for t in range(pos_period[start], pos_period[end]+1)]
 
     def get_dist_periods(self, start, end):
-        pos_period = self.data['aux']['period_i']
+        pos_period = self.get_period_positions()
         return pos_period[end] - pos_period[start]
 
     def shift_period(self, period, num=1):
-        pos_period = self.data['aux']['period_i']
-        period_pos = self.data['aux']['period_e']
+        pos_period = self.get_period_positions()
+        period_pos = self.get_periods_by_position()
         return period_pos[pos_period[period] + num]
 
     def get_next_period(self, period):
@@ -379,8 +385,8 @@ class Instance(object):
         """
         if num < 0:
             return []
-        pos_period = self.data['aux']['period_i']
-        period_pos = self.data['aux']['period_e']
+        pos_period = self.get_period_positions()
+        period_pos = self.get_periods_by_position()
         if not previous:
             start = pos_period[period]
             end = start + num

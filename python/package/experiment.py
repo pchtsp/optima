@@ -104,9 +104,9 @@ class Experiment(object):
         all_states_tuple = self.get_states()
         if periods_to_check is not None:
             periods_to_check = set(periods_to_check)
-            all_states_tuple = all_states_tuple.filter_list_f(lambda x: x[1] in periods_to_check)
+            all_states_tuple = all_states_tuple.vfilter(lambda x: x[1] in periods_to_check)
         else:
-            all_states_tuple = all_states_tuple.filter_list_f(lambda x: last >= x[1] >= first)
+            all_states_tuple = all_states_tuple.vfilter(lambda x: last >= x[1] >= first)
 
         if not len(all_states_tuple):
             return []
@@ -607,7 +607,7 @@ class Experiment(object):
         """
         :param str resource: optional resource to filter
         :param set state_list: maintenances to filter
-        :return:
+        :return: (resource, maint_start, maint_stop)
         :rtype: tl.TupList
         """
         if state_list is None:
@@ -627,7 +627,7 @@ class Experiment(object):
         return previous_tasks.to_start_finish(ct)
 
     def get_maintenance_starts(self, state_list=None):
-        return self.get_maintenance_periods(state_list=state_list).filter([0, 1])
+        return self.get_maintenance_periods(state_list=state_list).take([0, 1])
 
     def get_maintenance_cycles(self, maint_start_stops):
         first, last = (self.instance.get_param(p) for p in ['start', 'end'])
@@ -657,7 +657,8 @@ class Experiment(object):
         """
         gets all periods in between maintenances for all resources
         :return: dictionary indexed by resource of a list of tuples.
-        {resource: [(start1, stop1), (start2, stop2)]}
+            {resource: [(start1, stop1), (start2, stop2)]}
+        :rtype: :py:class:`pytups.SuperDict`
         """
         starts_stops = self.get_maintenance_periods(resource=resource)
         if resource is None:
