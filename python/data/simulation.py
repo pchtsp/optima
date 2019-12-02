@@ -52,10 +52,6 @@ def empty_data():
 def create_dataset(options):
     sim_data = options['simulation']
 
-    data_input = {}
-    d_param = data_input['parameters'] = {**sim_data}
-    d_param['start'] = options['start']
-    d_param['num_period'] = options['num_period']
     seed = sim_data.get('seed', None)
     if not seed:
         seed = math.ceil(rn.random() * 100000)
@@ -63,66 +59,80 @@ def create_dataset(options):
     rn.seed(seed)
     np.random.seed(seed)
 
-    num_parallel_tasks = d_param['num_parallel_tasks']
-    start_period = d_param['start']
+    data_input = {}
+    data_input['parameters'] = generate_parameters(sim_data, options)
+    data_input['tasks'] = generate_tasks(data_input)
+    data_input['resources'] = generate_resources(data_input)
+
+    return data_input
+
+def generate_parameters(sim_data, options):
+
+    d_param = {**sim_data}
+    d_param['start'] = options['start']
+    d_param['num_period'] = options['num_period']
     num_resources = d_param['num_resources']
-    maint_duration = d_param['maint_duration']
-    max_used_time = d_param['max_used_time']
-    max_elapsed_time = d_param['max_elapsed_time']
-    resources = [str(r) for r in range(num_resources)]
-    # num_types = 3
-
-    # The following are fixed options, not arguments for the scenario:
-    t_min_assign = d_param['t_min_assign']
-    t_required_hours = d_param['t_required_hours']
-    t_num_resource = d_param['t_num_resource']
-    t_duration = d_param['t_duration']
-    perc_in_maint = d_param['perc_in_maint']
-    initial_unbalance = d_param['initial_unbalance']
-    perc_add_capacity = d_param['perc_add_capacity']
-
     d_param['maint_capacity'] = math.ceil(num_resources * d_param['perc_capacity'])
-    last_period = d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
+    d_param['end'] = aux.shift_month(d_param['start'], options['num_period'] - 1)
 
-    # Here we simulate the tasks along the planning horizon.
-    # we need to guarantee there are num_parallel_tasks active task
-    # at each time.
-    task = 0
-    t_start = {}
-    t_end = {}
-    t_type = {}
-    starting_tasks = []
-    for t in range(num_parallel_tasks):
-        date = start_period
-        starting_tasks.append(str(task))
-        while date <= last_period:
-            t_type[task] = t
-            t_start[task] = date
-            date = aux.shift_month(date, rn.randint(*t_duration))
-            if date > last_period:
-                date = aux.get_next_month(last_period)
-            t_end[task] = aux.get_prev_month(date)
-            task += 1
+    return d_param
 
-    t_capacites = {k: {v} for k, v in t_type.items()}
-    optionals = list(st.ascii_uppercase)[::-1]
-    for _task in t_capacites:
-        if rn.random() < perc_add_capacity:
-            t_capacites[_task].add(optionals.pop())
+def generate_resources(data_input):
+
+    d_param = data_input['parameters']
+    num_resources = d_param['num_resources']
+    resources = [str(r) for r in range(num_resources)]
+
+    res_types = generate_resource_types(d_param, data_input)
+    res_capacities = generate_resource_capacites(data_input, res_types)
+    res_in_maint, res_maint_init = generate_resources_in_maint(d_param)
+    res_task_init = gerenate_initial_assignments(d_param, data_input, res_in_maint, res_capacities)
+    initial_elapsed, initial_used = generate_initial_status(d_param, res_in_maint, res_task_init)
+
+    _dict = {
+        str(res): {
+            'initial_elapsed': initial_elapsed[res]
+            , 'initial_used': initial_used[res]
+            , 'code': ''  # this is aesthetic
+            , 'type': res_types[res]
+            , 'capacities': list(res_capacities[res])
+            , 'states': {**res_task_init[res], **res_maint_init[res]}
+        } for res in resources
+    }
+    return sd.SuperDict.from_dict(_dict)
+
+def generate_resources_in_maint(d_param):
+    # Here we simulate the initial state of resources.
+    # First of all we decide which resources are in maintenance
+    # and then the periods they have been under maintenance
+
+    start_period = d_param['start']
+    maint_duration = d_param['maint_duration']
+    num_resources = d_param['num_resources']
+    resources = [str(r) for r in range(num_resources)]
+    perc_in_maint = d_param['perc_in_maint']
+
+    res_in_maint = np.random.choice(resources,
+                                    math.floor(num_resources*perc_in_maint),
+                                    replace=False)
+    res_maint_init = {
+        r: {aux.shift_month(start_period, - n - 1): 'M'
+            for n in range(rn.randrange(maint_duration) + 1)}
+        for r in res_in_maint
+    }
+    res_maint_init = sd.SuperDict(res_maint_init).\
+        fill_with_default(resources, default={})
+    return res_in_maint, res_maint_init
 
 
-    d_tasks = data_input['tasks'] = sd.SuperDict({
-            str(t): {
-                'start': t_start[t]
-                , 'end': t_end[t]
-                , 'consumption': math.floor(np.random.triangular(*t_required_hours))
-                , 'num_resource': rn.randint(*t_num_resource)
-                , 'type_resource': t_type[t]
-                , 'matricule': ''  # this is aesthetic
-                , 'min_assign': rn.choice(t_min_assign)
-                , 'capacities': list(t_capacites[t])
-            } for t in t_start
-        })
+def generate_resource_types(d_param, data_input):
+
+    start_period = d_param['start']
+    num_parallel_tasks = d_param['num_parallel_tasks']
+    d_tasks = data_input['tasks']
+    last_period = d_param['end']
+    num_resources = d_param['num_resources']
+    resources = [str(r) for r in range(num_resources)]
 
     period_type_num_resource = {
         t: {p: 0 for p in aux.get_months(start_period, last_period)}
@@ -144,6 +154,11 @@ def create_dataset(options):
     )
     res_types = sd.SuperDict({k: res_types[i] for i, k in enumerate(resources)})
 
+    return res_types
+
+def generate_resource_capacites(data_input, res_types):
+
+    d_tasks = data_input['tasks']
     # we initialize the capacities with the types of resources
     res_capacities = sd.SuperDict({k: {v} for k, v in res_types.items()})
     # we want to add the special capacities to only some resources.
@@ -169,25 +184,47 @@ def create_dataset(options):
             for k in _res_to_upgrade:
                 for cap in _capacities:
                     res_capacities[k].add(cap)
+    return res_capacities
 
-    # Here we simulate the initial state of resources.
-    # First of all we decide which resources are in maintenance
-    # and then the periods they have been under maintenance
-    res_in_maint = np.random.choice(resources,
-                                    math.floor(num_resources*perc_in_maint),
-                                    replace=False)
-    res_maint_init = {
-        r: {aux.shift_month(start_period, - n - 1): 'M'
-            for n in range(rn.randrange(maint_duration) + 1)}
-        for r in res_in_maint
-    }
-    res_maint_init = sd.SuperDict(res_maint_init).\
-        fill_with_default(resources, default={})
 
+def generate_initial_status(d_param, res_in_maint, res_task_init):
+
+    max_used_time = d_param['max_used_time']
+    max_elapsed_time = d_param['max_elapsed_time']
+    initial_unbalance = d_param['initial_unbalance']
+    num_resources = d_param['num_resources']
+    resources = [str(r) for r in range(num_resources)]
+
+    # We fill the states according to the initial values already calculated:
+    # with a little random unbalance (initial_unbalance)
+
+    # if resources is doing a mission, we need to give it a little more hours
+    init_elapsed = {r: 3 if not len(res_task_init[r]) else max_elapsed_time//2 for r in resources}
+    initial_elapsed = {r: rn.randrange(init_elapsed[r], max_elapsed_time) for r in resources}
+
+    initial_elapsed_adj = {k: v + rn.randint(*initial_unbalance) for k, v in initial_elapsed.items()}
+    initial_elapsed_adj = {k: min(max(v, 0), max_elapsed_time) for k, v in initial_elapsed_adj.items()}
+    initial_used = {k: math.ceil(v / max_elapsed_time * max_used_time) for k, v in initial_elapsed_adj.items()}
+
+    # if resource is in maintenance: we have the status at the max.
+    for res in res_in_maint:
+        initial_used[res] = max_used_time
+        initial_elapsed[res] = max_elapsed_time
+
+    return initial_elapsed, initial_used
+
+def gerenate_initial_assignments(d_param, data_input, res_in_maint, res_capacities):
+
+    num_resources = d_param['num_resources']
+    resources = [str(r) for r in range(num_resources)]
+    start_period = d_param['start']
+    d_tasks = data_input['tasks']
     # Secondly, for the remaining resources, we assign the previous tasks
     # at the beginning of the planning horizon
     _res = [r for r in resources if r not in res_in_maint]
     res_task_init = {}
+    starting_tasks = [k for k, v in d_tasks.items() if v['start'] == start_period]
+
     for j in starting_tasks:
         capacities = set(d_tasks[j]['capacities'])
         # first we choose a number of resources equivalent to the number
@@ -216,37 +253,60 @@ def create_dataset(options):
         if not _res:
             break
     res_task_init = sd.SuperDict(res_task_init).fill_with_default(resources, default={})
+    return res_task_init
 
-    # We fill the states according to the initial values already calculated:
-    # with a little random unbalance (initial_unbalance)
 
-    # if resources is doing a mission, we need to give it a little more hours
-    init_elapsed = {r: 3 if not len(res_task_init[r]) else max_elapsed_time//2 for r in resources}
-    initial_elapsed = {r: rn.randrange(init_elapsed[r], max_elapsed_time) for r in resources}
+def generate_tasks(data_input):
 
-    initial_elapsed_adj = {k: v + rn.randint(*initial_unbalance) for k, v in initial_elapsed.items()}
-    initial_elapsed_adj = {k: min(max(v, 0), max_elapsed_time) for k, v in initial_elapsed_adj.items()}
-    initial_used = {k: math.ceil(v / max_elapsed_time * max_used_time) for k, v in initial_elapsed_adj.items()}
+    d_param = data_input['parameters']
+    last_period = d_param['end']
+    num_parallel_tasks = d_param['num_parallel_tasks']
+    start_period = d_param['start']
+    t_min_assign = d_param['t_min_assign']
+    t_required_hours = d_param['t_required_hours']
+    t_num_resource = d_param['t_num_resource']
+    t_duration = d_param['t_duration']
+    perc_add_capacity = d_param['perc_add_capacity']
 
-    # if resource is in maintenance: we have the status at the max.
-    for res in res_in_maint:
-        initial_used[res] = max_used_time
-        initial_elapsed[res] = max_elapsed_time
+    # Here we simulate the tasks along the planning horizon.
+    # we need to guarantee there are num_parallel_tasks active task
+    # at each time.
+    task = 0
+    t_start = {}
+    t_end = {}
+    t_type = {}
+    for t in range(num_parallel_tasks):
+        date = start_period
+        while date <= last_period:
+            t_type[task] = t
+            t_start[task] = date
+            date = aux.shift_month(date, rn.randint(*t_duration))
+            if date > last_period:
+                date = aux.get_next_month(last_period)
+            t_end[task] = aux.get_prev_month(date)
+            task += 1
 
-    data_input['resources'] = {
-        str(res): {
-            'initial_elapsed': initial_elapsed[res]
-            , 'initial_used': initial_used[res]
-            , 'code': ''  # this is aesthetic
-            , 'type': res_types[res]
-            , 'capacities': list(res_capacities[res])
-            , 'states': {**res_task_init[res], **res_maint_init[res]}
-        } for res in resources
-    }
+    t_capacites = {k: {v} for k, v in t_type.items()}
+    optionals = list(st.ascii_uppercase)[::-1]
+    for _task in t_capacites:
+        if rn.random() < perc_add_capacity:
+            t_capacites[_task].add(optionals.pop())
 
-    return data_input
 
+    return sd.SuperDict({
+            str(t): {
+                'start': t_start[t]
+                , 'end': t_end[t]
+                , 'consumption': math.floor(np.random.triangular(*t_required_hours))
+                , 'num_resource': rn.randint(*t_num_resource)
+                , 'type_resource': t_type[t]
+                , 'matricule': ''  # this is aesthetic
+                , 'min_assign': rn.choice(t_min_assign)
+                , 'capacities': list(t_capacites[t])
+            } for t in t_start
+        })
 
 if __name__ == "__main__":
-    # create_dataset(params.OPTIONS)
+    import package.params as params
+    create_dataset(params.OPTIONS)
     pass
