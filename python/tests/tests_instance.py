@@ -3,7 +3,7 @@ import package.exec as exec
 import data.data_input as di
 import package.instance as inst
 import os
-import package.auxiliar as aux
+import data.dates as aux
 
 class TestInstance(unittest.TestCase):
 

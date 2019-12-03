@@ -1,4 +1,3 @@
-import package.auxiliar as aux
 import numpy as np
 import package.experiment as test
 import package.solution as sol
@@ -115,7 +114,8 @@ class GreedyByMission(test.Experiment):
         :param str task:
         :return:
         """
-        periods_to_assign = self.check_assign_task(resource, self.instance.get_periods_range(start, end), task)
+        _range = self.instance.get_periods_range(start, end)
+        periods_to_assign = self.check_assign_task(resource, _range, task)
         info = self.instance.data['tasks'][task]
         min_asign = info['min_assign']
         # min_asign = 1
@@ -224,6 +224,7 @@ class GreedyByMission(test.Experiment):
 
         horizon_end = self.instance.get_param('end')
         next_maint = self.get_next_maintenance(resource, end)
+        # TODO: deal with M
         if next_maint is not None:
             before_maint = self.instance.shift_period(next_maint, -1)
             rut = self.get_remainingtime(resource, before_maint, 'rut', 'M')

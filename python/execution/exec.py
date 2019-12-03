@@ -2,17 +2,20 @@ import os, sys
 import subprocess
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
+import data.dates as aux
 import data.data_input as di
 import data.data_dga as dga
 import data.template_data as td
 
-import package.auxiliar as aux
 import package.instance as inst
 import package.solution as sol
 import package.experiment as exp
-import package.simulation as sim
+import data.simulation as sim
+import pytups.superdict as sd
+
 
 def config_and_solve(options):
+
     if options.get('simulate', False):
         model_data = sim.create_dataset(options)
     elif options.get('template', False):
@@ -34,62 +37,94 @@ def config_and_solve(options):
             tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
         model_data['tasks'] = tasks
 
-    if options.get('R_HOME'):
-        os.environ['R_HOME'] = options.get('R_HOME')
 
     execute_solve(model_data, options)
 
 
-def re_execute_instance(directory, new_options=None):
+def re_execute_instance_errors(directory, new_options=None, **kwags):
+    destination = directory
+    if new_options is not None:
+        if 'path' in new_options:
+            destination = new_options['path']
+    try:
+        print('path is : {}'.format(directory))
+        re_execute_instance(directory, new_options=new_options, **kwags)
+    except Exception as e:
+        str_fail = "Unexpected error in case: \n{}".format(repr(e))
+        path_out = os.path.join(destination, 'failure.txt')
+        with open(path_out, 'w') as f:
+            f.write(str_fail)
 
+
+def re_execute_instance(directory, new_options=None, new_input=None):
+    if not os.path.exists(directory):
+        raise ValueError('path {} does not exist'.format(directory))
     model_data = di.load_data(os.path.join(directory, 'data_in.json'))
+    model_data = sd.SuperDict.from_dict(model_data)
+    if new_input is not None:
+        model_data.update(new_input)
     solution_data = None
     options = di.load_data(os.path.join(directory, 'options.json'))
+    options = sd.SuperDict.from_dict(options)
     if new_options is not None:
         options.update(new_options)
-    warm_start = options.get('warm_start', False)
+    warm_start = options.get('mip_start', False)
     if warm_start:
-        solution_data = di.load_data(os.path.join(directory, 'data_out.json'))
-    # print(options)
+        solution_path = os.path.join(directory, 'data_out.json')
+        if os.path.exists(solution_path):
+            solution_data = di.load_data(solution_path)
     execute_solve(model_data, options, solution_data)
 
 
+def engine_factory(engine):
+    if engine == 'CPO':
+        raise NotImplementedError("The CPO model is not supported for the time being")
+    elif engine == 'HEUR':
+        import solvers.heuristics as heur
+        return heur.GreedyByMission
+    elif engine == 'HEUR_mf':
+        import solvers.heuristics_maintfirst as mf
+        return mf.MaintenanceFirst
+    elif engine == 'FixLP':
+        import solvers.model_fixingLP as model
+        return model.ModelFixLP
+    elif engine == 'FlexFixLP':
+        import solvers.model_fixingLP as model
+        return model.ModelFixFlexLP
+    elif engine == 'FlexFixLP_3':
+        import solvers.model_fixingLP as model
+        return model.ModelFixFlexLP_3
+    elif engine == 'ModelANOR':
+        import solvers.model_anor as model_anor
+        return model_anor.ModelANOR
+    else:
+        import solvers.model as md
+        return md.Model
+
+
 def execute_solve(model_data, options, solution_data=None):
+
     instance = inst.Instance(model_data)
     solution = None
 
     if solution_data is not None:
         solution = sol.Solution(solution_data)
 
+    exclude_aux = options.get('exclude_aux', True)
     output_path = options['path']
-    # print(output_path)
-    di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=True)
+    di.export_data(output_path, instance.data, name="data_in", file_type='json', exclude_aux=exclude_aux)
     di.export_data(output_path, options, name="options", file_type='json')
 
     # solving part:
-    solver = options.get('solver', 'CPLEX')
-    if solver == 'CPO':
-        raise("The CPO model is not supported for the time being")
-    if solver == 'HEUR':
-        import solvers.heuristics as heur
-        experiment = heur.GreedyByMission(instance, solution=solution)
-    elif solver == 'HEUR_mf':
-        import solvers.heuristics_maintfirst as mf
-        experiment = mf.MaintenanceFirst(instance, solution=solution)
-    elif solver == 'HEUR_mf_CPLEX':
-        import solvers.model as md
-        import solvers.heuristics_maintfirst as mf
-        experiment = mf.MaintenanceFirst(instance, solution=solution)
-        solution = experiment.solve(options)
-        experiment = md.Model(instance, solution=solution)
-        options.update(dict(warm_start= True, solver='CPLEX'))
-    else:
-        # model with solver
-        import solvers.model as md
-        experiment = md.Model(instance, solution=solution)
+    engine = options.get('solver', 'CPLEX')
+    # there is the possibilty to have two solvers separated by .
+    if '.' in engine:
+        engine, solver = engine.split('.')
+        options['solver'] = solver
 
-    if options.get('solve', True):
-        solution = experiment.solve(options)
+    engine_obj = engine_factory(engine)
+    experiment = engine_obj(instance, solution=solution)
+    solution = experiment.solve(options)
 
     if solution is None:
         return None
@@ -109,28 +144,6 @@ def execute_solve(model_data, options, solution_data=None):
         # if it doesnt exist: we also export the input
         if not os.path.exists(input_path):
             td.export_input_template(input_path, experiment.instance.data)
-
-    possible_path = options['root'] + 'R/functions/import_results.R'
-    if options.get('graph', False) == 1:
-        import reports.gantt as gantt
-        gantt.make_gantt_from_experiment(path=options['path'])
-        # try:
-            # import reports.rpy_graphs as rg
-            # print('possible path for script: {}'.format(possible_path))
-            # os.listdir(options['root'] + 'python/')
-            # os.listdir(options['root'])
-            # if os.path.exists(possible_path):
-                # print('file exists')
-                # rg.gantt_experiment(options['path'], possible_path)
-            # else:
-                # print('file doesnt exists')
-                # rg.gantt_experiment(options['path'])
-        # except:
-        #     print("No support for R graph functions!")
-    elif options.get('graph', False) == 2:
-        _file = copy_file_temp(possible_path)
-        rscript = options['R_HOME'] + '/bin/Rscript.exe'
-        a = subprocess.run([rscript, _file, options['path']], stdout=subprocess.PIPE)
 
 
 def copy_file_temp(path):

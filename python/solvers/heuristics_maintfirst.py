@@ -7,7 +7,6 @@ import numpy as np
 import solvers.heuristics as heur
 import random as rn
 import math
-import ujson
 import time
 import logging as log
 

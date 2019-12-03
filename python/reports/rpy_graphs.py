@@ -16,7 +16,7 @@ base = importr('base')
 # grid.activate()
 
 # in windows you need to copy to R installation folder
-# , lib_loc=r'\\luq\franco.peschiera.fr$\MyDocs\R\win-library\3.5/'
+# env vars to change: PATH, R_USER, R_HOME, R_LIBS_USER
 
 def example():
     import rpy2.robjects.lib.ggplot2 as ggplot2
@@ -36,6 +36,7 @@ def example():
          ggplot2.geom_point() +\
          ggplot2.theme_minimal() + \
          ggplot2.theme(**{'axis.text.x': ggplot2.element_text(angle=45)})
+    return pp
 
 def boxplot(table, x, y, xlab=None, ylab=None):
     import rpy2.robjects.lib.ggplot2 as ggplot2
@@ -85,13 +86,3 @@ def bars(table, x, y, xlab=None, ylab=None):
            ggplot2.labs(x=xlab, y=ylab)
     # print(plot)
     return plot
-
-
-def gantt_experiment(path_to_experiment, path_script='./../R/functions/import_results.R'):
-
-    with open(path_script, 'r') as f:
-        string = f.read()
-    import_results = STAP(string, "import_results")
-
-    import_results.print_solution_and_print(path_to_experiment, width='100%')
-    pass

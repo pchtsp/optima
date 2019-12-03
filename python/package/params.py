@@ -12,6 +12,7 @@ path_project = os.path.join(directory, '..', '..') + '/'
 path_root = os.path.join(path_project, '..') + '/'
 path_results = os.path.join(path_root, 'optima_results/')
 
+
 PATHS = {
     'root': path_root
     ,'results': path_results
@@ -36,6 +37,9 @@ params_cplex = \
 , 'set mip limits gomorypass 10'
   ]
 
+params_cbc = ["presolve on",
+             "gomory on",
+             "probing on"]
 
 temp_path = \
     os.path.join(
@@ -45,13 +49,14 @@ temp_path = \
 
 OPTIONS = {
     'timeLimit': 600  # seconds
-    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf HEUR_mf_CPLEX
+    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
+    # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX
     , 'black_list': ['O8', 'O10', 'O6']  # only used to read from DGA Excel.
     , 'white_list': []  # only used to read from DGA Excel.
     , 'start': '2018-01'
     , 'num_period': 90
     , 'simulate': True
-    , 'template': True
+    , 'template': False
     , 'solve': True
     , 'graph': 0
     , 'warm_start': False
@@ -59,10 +64,12 @@ OPTIONS = {
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
     , 'output_template_path': temp_path + 'template_out.xlsx'
-    , 'exclude_aux': False
+    , 'exclude_aux': True
     , 'multiprocess': None
     # heuristic params:
+
     , 'seed': 42
+    # heuristic params:
     , 'num_change': [0.8, 0.1, 0.1]
     , 'temperature': 0.5
     , 'prob_free_aircraft': 0.1
@@ -79,20 +86,38 @@ OPTIONS = {
     , 'gap_abs': 40
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
-    , 'integer': False
+    , 'integer': False  # force all vars to integer
+    , 'relax': False  # force all vars to LpContinuous
     , 'writeLP': False
     , 'writeMPS': False
     , 'price_rut_end': 0
-    , 'solver_add_opts': params_cplex
-    , 'fix_start': False
+    , 'solver_add_opts': {'CPLEX': params_cplex, 'CBC': params_cbc}
+    , 'mip_start': False
+    , 'fix_vars': []
+    , 'threads': None
+    , 'solver_path': None
+    , 'keepfiles': 0
+    , 'do_not_solve': False
     , 'default_type2_capacity': 66
+    # stats-cut-data
+    , 'StochCuts': {
+        'active': 0,
+        'bounds': ['max'],  # ['min', 'max']
+        'cuts': ['maints']
+    }, 'reduce_2M_window': {
+        'active': 0,
+        'window_size': 10,
+        'percent_add': 0,
+        'tolerance_mean': {'min': 5, 'max': -5}
+    }, 'DetermCuts': 0
     # simulation params:
     , 'simulation': {
         'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 0
+        , 'num_parallel_tasks': 1
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
+        , 'max_elapsed_time_2M': None
         , 'elapsed_time_size': 30  # size of window to do next maintenance
         , 'min_usage_period': 15 # minimum consumption per period
         , 'perc_capacity': 0.3
@@ -107,6 +132,7 @@ OPTIONS = {
         , 't_num_resource': (2, 5)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
+        , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission
         , 'maintenances': {
             # type=1 is unite based capacity.
             # type=2 is time based capacity.
@@ -159,7 +185,7 @@ OPTIONS = {
                 , 'priority': 2
             }
         }
+
     }
 
 }
-

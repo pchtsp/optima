@@ -1,11 +1,10 @@
-import package.auxiliar as aux
+import data.dates as aux
 import data.data_input as di
 import package.instance as inst
 import solvers.model as md
 import copy
-# import package.model as md
-# import multiprocessing as multi
-# import datetime
+import pytups.superdict as sd
+
 
 
 if __name__ == "__main__":
@@ -28,7 +27,7 @@ if __name__ == "__main__":
         {k: v for k, v in model_data['tasks'].items() if k not in black_list}
     # this was for testing purposes
 
-    task_type = aux.get_property_from_dic(model_data['tasks'], 'type_resource')
+    task_type = sd.SuperDict.from_dict(model_data['tasks']).get_property('type_resource')
     type_tasks = {type: [] for type in task_type.values()}
     for task, type in task_type.items():
         type_tasks[type].append(task)

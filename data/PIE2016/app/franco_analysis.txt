@@ -1,8 +1,0 @@
-remplir_maintenance =>
-    affectMaint (chaque avion) => listeMaint, (chaque maintenance)
-    lissage
-
-remplir_mission =>
-    affectationMission (chaque mission) =>
-        besoinEnMission => isFree (chaque avion), (chaque avion, mission)
-        choixAvion => cravate, sorted

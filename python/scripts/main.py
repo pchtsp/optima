@@ -4,7 +4,7 @@ import importlib
 import argparse
 import datetime as dt
 import json
-import package.exec as exec
+import execution.exec as exec
 import desktop_app.app as gui_app
 import data.data_input as di
 
@@ -56,6 +56,7 @@ if __name__ == "__main__":
     options = params.OPTIONS
     options['PATHS'] = params.PATHS
     if args.open_desktop_app:
+        options['template'] = True
         gui_app.MainWindow_EXCEC(options)
     else:
         exec.config_and_solve(options)

@@ -1,20 +1,23 @@
+import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import package.experiment as exp
 import solvers.heuristics_maintfirst as heur
 import pprint as pp
-from package.params import PATHS, OPTIONS
-import package.auxiliar as aux
+from package.params import PATHS
 import pandas as pd
 import pytups.superdict as sd
-import package.exec as exec
-import os
-import data.data_input as di
-import reports.gantt as gantt
+import pytups.tuplist as tl
+import execution.exec as exec
+import dfply as dp
+from dfply import X
+import multiprocessing as multi
 
-try:
-    import reports.rpy_graphs as rg
-except:
-    print("No support for R graph functions!")
-
+# Windows workaround for python 3.7 (sigh...)
+import _winapi
+import multiprocessing.spawn
+multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
+#################
 
 def test2():
     # e = '201809121711'
@@ -35,14 +38,18 @@ def test2():
     # experiment.
 
 def test4():
+    import package.batch as ba
+
     case1 = '201805232311'
     case2 = '201805232322'
     case3 = '201805241036'
     heuristiques = [case3]
-    path_abs = PATHS['experiments']
-    options_e = exp.list_options(path_abs)
+    path_abs = r'/home/pchtsp/Documents/projects/optima_results_old/experiments/'
+    batch = ba.Batch(path_abs, no_scenario=True)
+    options_e = batch.get_options()
     heuristiques = [o for o, v in options_e.items() if v['solver'] == 'HEUR']
-    experiments_info = exp.list_experiments(path=path_abs, exp_list=heuristiques, get_log_info=False)
+    experiments_info = batch.list_experiments(get_log_info=False, exp_list=heuristiques)
+    # exp.list_experiments(path=path_abs, exp_list=heuristiques, get_log_info=False)
     experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in heuristiques}
     experiments = sd.SuperDict(experiments)
     experiments = experiments.clean(default_value=None)
@@ -61,21 +68,21 @@ def test4():
 
     pass
 
-def graph_check(path):
+def graph_check():
     # path = PATHS['experiments'] + "201902061522/"
-    # path = PATHS['experiments'] + "201902111621/"
+    path = PATHS['experiments'] + "201903251641/"
     # path = PATHS['data'] + 'examples/201811231417/'
     # path = PATHS['results'] + 'clust_params1_cplex/base/201811092041_1//'
     # path = PATHS['results'] + 'clust_params2_cplex/numparalleltasks_2/201811220958/'
     # path = PATHS['results'] + 'clust_params1_cplex/minusageperiod_15/201811240019/'
     experiment = exp.Experiment.from_dir(path)
-    # experiment.check_min_distance_maints()
-    # status = experiment.get_status('9')
-    # status.reset_index(inplace=True)
-    # status.columns = ['period', 'rut', 'ret', 'state', 'task']
-    # status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
+    experiment.check_solution()
+    experiment.check_min_distance_maints()
+    status = experiment.get_status('9')
+    status.reset_index(inplace=True)
+    status.columns = ['period', 'rut', 'ret', 'state', 'task']
+    status >> dp.filter_by(X.period > "2023-08", X.period < "2023-12")
 
-    # experiment.get_status('1')
 
     # rg.gantt_experiment(path, './../../R/functions/import_results.R')
     # experiment.check_maints_size()
@@ -100,42 +107,39 @@ def test_rexecute():
     # new_options = None
     exec.re_execute_instance(path, new_options)
 
-def test3():
-    path_abs = PATHS['experiments']
-    path_states = path_abs + "201712190002/"
-    path_nostates = path_abs + "201712182321/"
+def test_rexecute_many(exp_origin, exp_dest, num_proc=2, max_instances=None, new_options=None, **kwargs):
 
-    sol_states = exp.Experiment.from_dir(path_states)
-    sol_nostates = exp.Experiment.from_dir(path_nostates)
+    pool = multi.Pool(processes=num_proc)
+    origin_path = os.path.join(PATHS['results'], exp_origin)
+    destination_path = os.path.join(PATHS['results'], exp_dest)
+    remakes_path = os.path.join(destination_path, 'index.txt')
+    with open(remakes_path, 'r') as f:
+        instances = f.readlines()
 
-    t = aux.tup_to_dict(aux.dict_to_tup(sol_nostates.solution.get_tasks()),
-                        result_col=[0], is_list=True, indeces=[2, 1]).items()
-    # {k: len(v) for k, v in t}
-    sol_nostates.instance.get_tasks('num_resource')
+    instances = tl.TupList(instances).apply(lambda x: x.strip())
+    path_ins = instances.apply(lambda x: os.path.join(origin_path, x))
+    path_outs = instances.apply(lambda x: os.path.join(destination_path, x))
+    if new_options is None:
+        new_options = {}
 
-    path = path_abs + "201801091412/"
-    sol_states = exp.Experiment.from_dir(path)
-    check = sol_states.check_solution()
-    rut_old = sol_states.solution.data["aux"]['rut']
-    sol_states.set_remaining_usage_time()
-    rut_new = sol_states.solution.data['aux']['rut']
-    pd.DataFrame.from_dict(rut_new, orient='index').reset_index().melt(id_vars='index'). \
-        sort_values(['index', 'variable']).to_csv('/home/pchtsp/Downloads/TEMP_new.csv', index=False)
-    pd.DataFrame.from_dict(rut_old, orient='index').reset_index().melt(id_vars='index'). \
-        sort_values(['index', 'variable']).apply('round').to_csv('/home/pchtsp/Downloads/TEMP_old.csv', index=False)
+    if max_instances is None:
+        max_instances = len(path_ins)
 
-    print(sol_states.get_objective_function())
-    print(sol_nostates.get_objective_function())
-    sol_nostates.check_task_num_resources()
+    results = {}
+    for pos, path_in in enumerate(path_ins):
+        path_out = path_outs[pos]
+        args = {'directory': path_in, 'new_options': {**new_options, **{'path': path_out}}, **kwargs}
+        results[pos] = pool.apply_async(exec.re_execute_instance_errors, kwds=args)
+        if pos + 1 >= max_instances:
+            break
 
-    # sol_states.solution.get_state()[('A2', '2017-03')]
-    l = sol_states.instance.get_domains_sets()
-    # l['v_at']
-    checks = sol_states.check_solution()
-
-    sol_nostates.check_solution()
-    # sol_states.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
-    sol_nostates.solution.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
+    timelimit = new_options.get('timeLimit', 3600)
+    for pos, result in results.items():
+        try:
+            result.get(timeout=timelimit+600)
+        except multi.TimeoutError:
+            print('Multiprocessing TimeoutError happened.')
+            pass
 
 
 def check_over_assignments():
@@ -237,7 +241,66 @@ def solve_dataset():
     solution.data['state_m']
 
 
+def check_rem_calculation(experiment):
+    path_exp = PATHS['experiments'] + experiment
+    self = exp.Experiment.from_dir(path_exp)
+    acc_consumption = self.get_acc_consumption()
+    cycles = tl.TupList(acc_consumption).to_dict(result_col=[1, 2])
+    acc_consumption = acc_consumption.clean(default_value=0)
+    # add one pos to cycles that start a maint_duration just at the start
+    # (because it means they have a previous 0 length period)
+    _shift = self.instance.shift_period
+    first = self.instance.get_param('start')
+    duration = self.instance.get_param('maint_duration')
+    extra_pos = cycles.apply(lambda k, v: (_shift(first, duration) == v[0][0])+0)
+    cycles_pos = cycles.apply(lambda k, v: sd.SuperDict({str(kk+extra_pos[k]): vv for kk, vv in enumerate(v)})).to_dictup()
+
+    _range = self.instance.get_dist_periods
+
+    # I need to clean the auxiliary cycle info to be able to compare it.
+    acc_consumption_aux = \
+        sd.SuperDict.from_dict(self.solution.data['aux']['rem']).\
+        to_dictup(). \
+        clean(default_value=0)
+
+    # key exchange:
+    acc_consumption_aux2 = {(k1, *cycles_pos[k1, k2]): v for (k1, k2), v in acc_consumption_aux.items()}
+    acc_consumption_aux2 = \
+        sd.SuperDict.from_dict(acc_consumption_aux2).\
+            apply(lambda k, v: (_range(k[1], k[2])+1) * v)
+    acc_consumption.apply(lambda k, v: v - acc_consumption_aux2[k]).clean(func=lambda v: abs(v) > 0.1)
+    acc_consumption_aux2.apply(lambda k, v: v - acc_consumption[k]).clean(func=lambda v: abs(v) > 0.1)
+
+    rut = self.set_remaining_usage_time('rut')
+
+    def dist(t1, t2):
+        # t_2 - t_1 + 1
+        return self.instance.get_dist_periods(t1, t2) + 1
+
+    def acc_dist(t_1, t_2, tp):
+        # sum_{t = t_1 -1}^{t_2} tp - t
+        # return (t_2 - t_1 + 1) * (2 * tp - t_1 - t_2) / 2
+        return dist(t_1, t_2) * (dist(t_1, tp) + dist(t_2, tp)) / 2
+
+    # conclusion: some deviations with fixed assignments at the beginning of the planning period.
+    # that are not taken into account in the model to calculate the average accumulated consumption.
+    pass
+
+
+
 if __name__ == '__main__':
+    # check_rem_calculation('201904181142')
+    # test_rexecute()
+    options = sd.SuperDict(timeLimit=3600, mip_start=True, exclude_aux=False, threads=1)
+    options.update(StochCuts= {'active': False}, reduce_2M_window={'active': True, 'window_size': 10})
+    # new_input = sd.SuperDict.from_dict({'parameters': {'elapsed_time_size_2M': 10, 'max_elapsed_time_2M': 40}})
+    kwargs = {'exp_origin': 'dell_20190515_all/base',
+              'exp_dest': 'dell_20190515_remakes/base',
+              'num_proc': 7,
+              'new_options': options,
+              'max_instances': 2
+              }
+    test_rexecute_many(**kwargs)
     # check_over_assignments()
     # test_rexecute()
     # path = r'C:\Users\pchtsp\Documents\borrar\experiments\201903121106/'

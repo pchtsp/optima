@@ -1,20 +1,21 @@
-import package.auxiliar as aux
-import pandas as pd
 import package.instance as inst
 import package.experiment as exp
+import package.batch as ba
+
+import data.data_input as di
+import solvers.heuristics as heur
+import strings.names as na
+
+import pytups.superdict as sd
+import pandas as pd
 import os
 import numpy as np
-import data.data_input as di
 import tabulate
 import re
-
-import solvers.heuristics as heur
-from package.params import PATHS
-import scripts.names as na
-
 import dfply as dp
 from dfply import X
 
+from package.params import PATHS
 
 path_root = PATHS['root']
 path_abs = PATHS['experiments']
@@ -57,7 +58,9 @@ def task_table():
 
 
 def get_results_table(path_abs, exp_list=None, **kwargs):
-    exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
+    batch = ba.Batch(path_abs, no_scenario=True)
+    exps = batch.list_experiments(exp_list=exp_list, **kwargs)
+    # exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
     table = pd.DataFrame.from_dict(exps, orient="index")
 
     if exp_list is not None:
@@ -146,7 +149,7 @@ def results_table(dir_origin=path_abs, dir_dest=path_latex + 'MOSIM2018/tables/'
 
 
 def multi_get_info(path_comp):
-    exps = exp.list_experiments(path_comp)
+    exps = ba.Batch(path_comp, no_scenario=True).list_experiments()
     # pp.pprint(exps)
 
     experiments = {path: exp.Experiment.from_dir(path_comp + path)
@@ -198,8 +201,9 @@ def multi_multiobjective_table():
     # pareto_p2 = {}
     for key, value in data_dic.items():
         # key = '201801141646'
-        x = aux.get_property_from_dic(value, 'maint')
-        y = aux.get_property_from_dic(value, 'unavailable')
+        value = sd.SuperDict.from_dict(value)
+        x = value.get_property('maint')
+        y = value.get_property('unavailable')
         points1 = get_pareto_points(x, y)
         points2 = get_pareto_points(y, x)
         points = np.intersect1d(points1, points2).tolist()
@@ -222,12 +226,14 @@ def multi_multiobjective_table():
 
 
 def solvers_comp():
-
+    import package.batch as ba
     # exps = sd.SuperDict(exps)
     # solver = exps.get_property('solver')
     # solver.clean('CPO')
     # exps_list = [k for k, v in solver.items()]
-    options_e = exp.list_options(path_abs)
+    batch = ba.Batch(path_abs, no_scenario=True)
+    options_e = batch.get_options()
+    # options_e = exp.list_options(path_abs)
     for e, v in options_e.items():
         if 'end_pos' not in v:
             continue
@@ -235,7 +241,8 @@ def solvers_comp():
         v['periods'] = v['end_pos'] - v['start_pos'] + 1
 
     exps_list = [e for e in options_e if e > '201804']
-    exps_solved = exp.list_experiments(path_abs, get_log_info=False, exp_list=exps_list)
+
+    exps_solved = batch.list_experiments(get_log_info=False, exp_list=exps_list)
 
     experiments = {e: exp.Experiment.from_dir(path_abs + e) for e in exps_solved}
     kpis_info = {e: {'maintenances': len(v.solution.get_maintenance_periods())}
@@ -474,6 +481,7 @@ def print_table_md(table):
 
 def col_names_collapsed(table):
     return ['.'.join(reversed(col)).strip() for col in table.columns.values]
+
 
 if __name__ == "__main__":
 

@@ -20,16 +20,12 @@
     \Dganttbar{(a)}{M}{2023-07-01}{2023-12-01}{bar/.append style={fill=color1}}
     \ganttvrule[]{$t$}{2018-02-01}
     \ganttvrule[]{$t'$}{2018-08-01}
+    \ganttvrule[]{\hspace{25pt} $\mathcal{T}_{t'}^s$}{2018-02-01}
     \ganttvrule[
     vrule label node/.append style={anchor=north west}
-    ]{\hspace{-2pt} $\mathcal{T}_{t'}^s$}{2018-02-01}
-    \ganttvrule[
-    vrule label node/.append style={anchor=north west}
-    ]{\hspace{50pt} $\mathcal{T}_t^m$}{2018-08-01}
+    ]{}{2018-08-01}
     \ganttvrule[
     vrule label node/.append style={anchor=north west}
     ]{\hspace{50pt} $\mathcal{T}_t^M$}{2021-02-01}
-    \ganttvrule[
-    vrule label node/.append style={anchor=north west}
-    ]{}{2023-08-01}
+    \ganttvrule[]{}{2023-08-01}
 \end{ganttchart}

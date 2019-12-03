@@ -1,5 +1,5 @@
 import pandas as pd
-import package.auxiliar as aux
+import data.dates as aux
 import numpy as np
 import pytups.superdict as sd
 import pytups.tuplist as tl

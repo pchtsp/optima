@@ -1,6 +1,5 @@
 # /usr/bin/python3
 
-import package.auxiliar as aux
 import pytups.superdict as sd
 import pytups.tuplist as tl
 
@@ -16,21 +15,35 @@ class Solution(object):
 
     """
 
-    def __init__(self, solution):
+    def __init__(self, solution_data):
         data_default = {'state_m': {}, 'task': {}, 'aux': {'ret': {}, 'rut': {}, 'start': {}}}
         self.data = sd.SuperDict.from_dict(data_default)
-        self.data.update(sd.SuperDict.from_dict(solution))
+        self.data.update(sd.SuperDict.from_dict(solution_data))
+        self.migrate_to_multimaint()
+
+    def migrate_to_multimaint(self):
+        states = self.data.get('state')
+        if not states:
+            return
+        # here, we have an old solution format
+        # we just convert the maint into a dict of maints
+        self.data['state_m'] = \
+            states.to_dictup().\
+            vapply(lambda v: sd.SuperDict({v: 1})).\
+            to_dictdict()
+        self.data.pop('state')
+        return
 
     def get_category(self, category, param):
         if param is None:
             return self.data[category]
         if param in list(self.data[category].values())[0]:
-            return aux.get_property_from_dic(self.data[category], param)
+            return sd.SuperDict.from_dict(self.data[category]).get_property(param)
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_periods(self):
-        resource_period = list(self.get_tasks().keys())
-        return sorted(aux.tup_to_dict(resource_period, result_col=0).keys())
+        resource_period = tl.TupList(self.get_tasks().keys()).to_dict(result_col=0).keys_l()
+        return sorted(resource_period)
 
     def get_tasks(self):
         return sd.SuperDict.from_dict(self.data['task']).to_dictup()
@@ -47,7 +60,7 @@ class Solution(object):
 
     def get_task_resources(self):
         task_solution = self.get_tasks()
-        task_resources = aux.tup_to_dict(aux.dict_to_tup(task_solution), 0, is_list=True)
+        task_resources = sd.SuperDict.from_dict(task_solution).to_tuplist().to_dict(result_col=0, is_list=True)
         return {(a, t): v for (t, a), v in task_resources.items()}
 
     def get_task_num_resources(self):

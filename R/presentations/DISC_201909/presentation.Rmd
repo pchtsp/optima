@@ -1,0 +1,290 @@
+---
+title: "Predicting maintenance patterns"
+author: "Franco Peschiera"
+date: "September, 2019"
+output:
+  xaringan::moon_reader:
+    self_contained: false
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      countIncrementalSlides: false
+  slidy_presentation:
+    css: ./../../../css/baobab_slidy.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    slide_level: 3
+    toc: true
+editor_options: 
+  chunk_output_type: console
+---
+
+### Structure of talk
+
+1. Decision problem.
+2. Prediction problem.
+2. Current results.
+3. About my ambition.
+
+---
+
+## Decision problem
+
+---
+
+### Problem (informally)
+
+Assign both **missions** and **maintenance operations** to a fleet of aircraft in order to maximize availability and minimize costs. **Missions** have fixed start and end times and have particular needs in terms of aircraft and flight hours. **Maintenances operations** have specific rules that govern their frequency and capacity.
+
+--
+
+.center[
+```{r, echo=FALSE, out.width='100%'}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+knitr::include_graphics('./../../../img/calendar3.png')
+
+```
+]
+---
+
+### Problem (pseudo formally)
+
+* A series of $j \in \mathcal{J}$ missions are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all missions are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. 
+* Each mission requires a certain number $r_{j}$ of resources $i \in \mathcal{I}$ which it employs for a time duration defined by $h_j$ in each period.
+* Resources (heterogeneous) require recurrent preventive maintenance operations since the realization of missions diminish their remaining usage time. There are also min (max) distances between maintenances.
+* A maintenance operation takes exactly $m$ periods and cannot be interrupted. It restores the resource's remaining usage time to exactly $H$ units. There is a limited capacity for maintenances.
+
+--
+
+* **Other**: soft constraints on the state of the fleet at each period and at the end, minimum assignments on missions, initial conditions, default consumption.
+
+---
+
+### Variables (subset)
+
+* $a_{ijtt'}$ : has value one if aircraft $i$ starts an assignment to mission $j$ at the beginning of period $t$ and finishes at the end of period $t'$, zero otherwise.  
+* $m_{ip}$ : has value one if aircraft $i$ uses pattern $p$, zero otherwise.
+  * each pattern $p$ has a single feasible combination of maintenance starts for an aircraft during the whole planning (usually only two checks per aircraft).
+
+--
+
+.center[
+
+```{r, echo=FALSE, out.width='100%'}
+knitr::include_graphics('./../../../img/calendar3.png')
+
+```
+] 
+---
+
+## Prediction problem
+
+---
+
+### Distance between maintenances
+
+.pull-left[
+* The distance between maintenance has a maximum of 60 periods.
+* Depending on the amount of missions to do in a planning horizon, this can be shorter.
+* The more room we leave as possible distance between maintenances, the more patterns and, as a result, maintenance variables we have.
+
+]
+
+.pull-right[
+```{r, echo=FALSE, out.width='100%'}
+imgs = c('hist_mean_dist_complete_IT000125_20190716.png')
+knitr::include_graphics(imgs)
+```
+]
+
+---
+
+### Forecasting + Optim
+
+**We want to**:
+
+1. Train a statistical model to predict the mean distance between maintenances for any given instance.
+2. Use this information to limit the possible combinations of patterns to assign.
+
+--
+
+**Benefits**:
+
+1. **Performance**: a smaller model is easier to solve.
+2. **User feedback**: direct feedback about the solution without needing to solve any model.
+3. **More stable solutions**: Every aircraft flies an amount that is closest to the mean of the fleet.
+
+--
+
+**The better we're able to predict the optimal distance between maintenances for the whole fleet, the less optimality we will lose**
+
+---
+
+### Implementation
+
+* Done in python with scikit learn and statsmodels.
+* Trained with 5000 small instances solved for an hour with CPLEX.
+  * a 70/30 split was done in training/test.
+  * solutions far from optimum were not used.
+* Validated (semi) visually (not sure the good performance metric for predicting upper bounds).
+
+--
+
+I tested the following techniques:
+
+* Linear regressions.
+* Decision Tree regressions.
+* Neural networks regressions.
+* **Gradient Boosting regressions**.
+* **Quantile regressions**.
+
+--
+
+The only two with support for quantile regression (i.e. bounds at quantiles 10% and 90%) were the last two. And the last one had the additional benefit of returning regression coefficients. So I chose that one.
+
+---
+
+### Model
+
+.pull-left[
+* **Technique**: *Quantile regressions* to estimate upper and lower bounds.
+* **Input features**: 
+  * mean flight demand per period (up to power 4), 
+  * total remaining flight hours at start (init), 
+  * variance of flight demand, 
+  * demand of special missions, 
+  * number of period where flight demand is cut in two.
+* **Output features**: *mean distance between maintenances*.
+]
+
+--
+
+.pull-right[
+```{r, echo=FALSE, out.width='100%'}
+imgs = c('QuantReg_mean_consum_upper_mean_dist_complete_IT000125_20190716.png')
+knitr::include_graphics(imgs)
+```
+]
+
+
+---
+
+## Current results
+
+---
+
+### Experiments
+
+* Number of instances: small (5000), medium (1000) and large (1000) and very large (1000).
+* Time limit at 3600 seconds.
+* We seeded instance generation for better comparison.
+* CPLEX running 1 thread.
+
+Largest instances have:
+
+* 60 aircraft
+* 90 months
+* ~30 missions (4 active missions at any given time).
+
+---
+
+### How good is it (performance)
+
+Faset solutions, more solutions. (Large instances aggresive cuts).
+
+.pull-left[
+For instances were an integer solution was found: 
+
+* +75% worse solutions (caveat).
+* most solutions are between 0-5% of best known.
+* ~18% less time in average to solve.
+* ~53% less time to "optimal".
+]
+
+--
+
+.pull-right[
+Many improvements in feasible solutions:
+
+|indicator         | base| cuts| %|
+|:-----------------|----:|----:|--------:|
+|Infeasible        |   55|   71|    29.09|
+|IntegerFeasible   |  183|  469|   156.28|
+|IntegerInfeasible |  665|  291|   -56.24|
+|Optimal           |   92|  166|    80.43|
+|total_instances   |  995|  997|     0.20|
+]
+---
+
+### How good is it (optimality)
+
+For instances were an optimal solution was found (optimum degradation):
+* 95% of instances had less than 4% gap with real optimal.
+
+.center[
+```{r, echo=FALSE, out.width='100%'}
+imgs = c('relative_gap_optimality.png')
+knitr::include_graphics(imgs)
+```
+*some outliers missing at right side...
+]
+
+---
+
+## About my ambition.
+
+---
+
+### Present steps vs ideal steps
+
+.pull-left[
+What I have now:
+```{r, out.width='100%'}
+library(DiagrammeR)
+mermaid("
+graph TB
+    i2==>|ML|s3
+    subgraph Input data
+    i1[raw input]-->|manual|i2[input features]
+    end
+    subgraph Solution
+    s1[raw solution]-->s2[good patterns]
+    s2-->|manual|s3[pattern features]
+    s3==>|selection|s2
+    end")
+```
+]
+
+--
+
+.pull-right[
+What I want:
+```{r, out.width='100%'}
+mermaid("
+graph TB
+    i1==>|ML|s2
+    subgraph Input data
+    i1[raw input]-->|manual|i2[input features]
+    end
+    subgraph Solution
+    s1[raw solution]-->s2[good patterns]
+    s2-->|manual|s3[pattern features]
+    end")
+```
+]
+
+---
+
+## Some questions
+
+I want to be able to match assignment patterns (e.g. maintenances schedules) and unstructured input data in order to generalize a decomposition approach.
+
+For that I need to know:
+
+(from least ambitious to most ambitious):
+
+* How do I train the other methods to predict bounds when they only measure mean squares (or some other function that returns the 'expected')?
+* Is it possible to match input data to distance between maintenances without the need to manually generate the input features?
+  * Assuming the amount of input data can, of course, change depending on the instance. I'm thinking in image recognition where images are all different size.
+  * If so, how do I transform my input in such a way that can be read by some ML technique without having to obtain features? (e.g. do I need to create an image of it?)
+* Is it possible to match input data to a set of patterns so that I don't even need to even tell the prediction model what characteristic of the patterns I want.

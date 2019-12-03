@@ -1,0 +1,299 @@
+\documentclass[a4paper,onecolumn,fleqn]{article}
+\textwidth 17cm \textheight 247mm
+\topmargin -4mm
+\hoffset -9mm \voffset -14mm
+%\setlength{\topmargin}{-0.8truecm}
+\setlength{\oddsidemargin}{0.3cm}
+\setlength{\evensidemargin}{0.3cm}
+\setlength{\columnsep}{8mm}
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{-2.0ex}
+\setlength{\mathindent}{0mm}
+\flushbottom
+
+
+\usepackage{epsfig}
+%\usepackage{timesnew}
+% \usepackage{harvard}
+% \usepackage[]{natbib}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\usepackage[latin1]{inputenc}
+% \usepackage{aeguill}
+\usepackage[english]{babel}
+\usepackage{caption}
+\usepackage{pgfgantt}
+\usepackage{multicol}
+
+
+\setlength{\parskip}{2ex} \pagestyle{myheadings}
+
+\renewcommand{\thepage}{}
+\renewcommand{\refname}{REFERENCES}
+
+\begin{document}
+
+The purpose of this document is to present particular bounds that can be derived from the input data for a particular instance of the problem. These derived bounds can be used to prove the infeasibility of a given instance or to add cuts to the original mathematical formulation.
+
+The first section is a description of the input data. The following sections are reserved for specific derived bounds.
+
+\section{Input data}
+    \subsection{Basic sets}
+
+        \begin{tabular}{p{15mm}p{140mm}}
+            $i \in \mathcal{I}$     &  aircraft. \\
+            $t \in \mathcal{T}$     &  time periods included in the planning horizon. \\
+            $j \in \mathcal{J}$     &  missions. \\
+            $y \in \mathcal{Y}$     &  types of mission or aircraft. \\
+            $k \in \mathcal{K}$     &  clusters of aircraft that share exactly the same functionality. \\
+        \end{tabular}
+
+    \subsection{Mission parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $H_j$             & amount of flight time required by mission $j$. & hours. \\
+            $R_j$             & number of aircraft required by mission $j$. & aircraft. \\
+            $MT_j$            & minimum number of consecutive periods an aircraft has to be assigned to mission $j$. & periods. \\
+            $U^{min}$         & default aircraft flight time if it is not assigned to any mission nor in maintenance.& hours \\
+            $M$               & check duration in number of periods. & periods. \\
+            $Y_j$             & type $y \in \mathcal{Y}$ for mission $j$. \\
+        \end{tabular}
+
+    \subsection{Maintenance parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $C^{max}$         & maximum number of simultaneous checks. & aircraft. \\
+            $E^{max}$         & maximum number of periods between two consecutive checks. & periods. \\
+            $E^{min}$         & minimum number of periods between two consecutive checks. & periods. \\
+            $H^{max}$         & remaining flight time after a check. & hours. \\
+        \end{tabular}
+
+    \subsection{Fleet parameters}
+
+        \begin{tabular}{p{15mm}p{125mm}p{15mm}}
+            $N_t$               & number of aircraft known to be in maintenance in period $t$. & aircraft. \\
+            $N^{Clust}_{kt}$    & number of aircraft in cluster $k$ known to be in maintenance in period $t$. & aircraft. \\
+            $A^{Clust}_{kt}$    & maximum number of aircraft in cluster $k$ that can be simultaneously in maintenance in period $t$. & aircraft. \\
+            $H^{Clust}_{kt}$    & minimum number of total remaining flight time for cluster $k$ at period $t$. & hours. \\
+            $Rft^{Init}_i$      & remaining flight time for aircraft $i$ at the start of the planning horizon.  & hours.  \\
+            $Rct^{Init}_i$      & remaining calendar time for aircraft $i$ at the start of the planning horizon.  & periods. \\
+            $Y_i$               & type $y \in \mathcal{Y}$ for aircraft $j$. \\
+        \end{tabular}
+
+    \subsection{Parametric sets}
+
+        \begin{tabular}{p{15mm}p{140mm}}
+            $t \in \mathcal{TJ}_j$     &  time periods $t \in \mathcal{T}$ in which mission $j$ is active. \\
+            $j \in \mathcal{JT}_t$    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
+            $i \in \mathcal{IJ}_j$     &  aircraft $i \in \mathcal{I}$ that can be assigned to mission $j$. \\
+            $i \in \mathcal{IY}_y$     &  aircraft $i \in \mathcal{I}$ that are included in type $y$. One aircraft cannot belong to more than one type. \\
+            $j \in \mathcal{JY}_y$     &  missions $j \in \mathcal{J}$ that are included in type $y$. One mission cannot belong to more than one type. \\
+            $i \in \mathcal{IK}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
+            $j \in \mathcal{JI}_i$     &  missions $j \in \mathcal{J}$ for which aircraft $i$ can be used. \\
+            $i \in \mathcal{A}^{Init}_j$  & aircraft $i \in \mathcal{I}$ that have mission $j$ pre-assigned in the previous period to the start of the planning horizon. \\
+        \end{tabular}
+
+    \subsection{Time-related parametric sets}
+
+        Several intermediate sets have been defined based on the input data in order to simplify constraint formulation.
+
+        \begin{tabular}{p{30mm}p{125mm}}
+            $t' \in \mathcal{T}^M_t$ &  time periods $t' \leq |\mathcal{T}| - E^{max} - M$ such that $t' \in \{ t + M + E^{min}-1 , ...,  t + M + E^{max}-1 \}$. \\
+            $t \in \mathcal{T}^{M_{Init}}_i$ &  time periods $t \in \mathcal{T}$ such that $t \in \{ \max{\{0, Rct^{Init}_i - E^{max} + E^{min} \}} , ...,  Rct^{Init}_i \}$. \\
+            $(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{it_1t_2}$ & triplet composed of mission $j \in \mathcal{JI}_i$ and $t, t' \in \mathcal{TJ}_j$ such that $t' \ge t + MT_j-1$ and $t \ge t_1 + M$ and $t' < t_2$ \\
+        \end{tabular}
+
+\section{Bounds on accumulated checks per aircraft and period} \label{sec:rangechecksaircraft}
+
+  For each period $t$, and using the aircraft initial states, we calculate the minimum and maximum number of checks that an aircraft could have already started / ended at the start of the period.
+
+  $TM1^{min}_i$ and $TM1^{max}_i$ represent, respectively, the minimum and maximum periods for starting the first check for aircraft $i$. Analogously, $TM2^{min}_i$ and $TM2^{max}_i$ represent the minimum and maximum period for starting the second check for aircraft $i$.
+
+  \paragraph{Note on the number of checks.} Here we are assuming a maximum number of checks of two. Based on the size of the horizon we are studying (90 - 120 periods) and the minimum - maximum distance between checks (30 to 60 periods), these are the only possibilities.
+
+  These limits are obtained in the following way:
+
+  \begin{align}
+  	& TM1^{min}_i = \min_t{\{t \in \mathcal{T}^{M_{Init}}_i\}} \notag\\
+    & TM1^{max}_i = \min \{ \max_t{\{t \in \mathcal{T}^{M_{Init}}_i\}}, \lfloor Rft^{Init}_i \div U^{min} \rfloor \}   \notag \\
+    & TM2^{min}_i = \min_t{\{t \in \mathcal{T}^M_{TM1^{min}_i}\}}\notag \\
+    & TM2^{max}_i = \min \{ \max_t{\{t \in \mathcal{T}^M_{TM1^{max}_i}\}}, TM1^{max}_i + \lfloor H^{max} \div U^{min} \rfloor \}   \notag \\
+  \end{align}
+
+  Lower and upper bounds for the accumulate number of checks started ($M^{Acc}S^{min}_{it}$, $M^{Acc}S^{max}_{it}$) and finished ($M^{Acc}F^{min}_{it}$, $M^{Acc}F^{max}_{it}$) can be pre-calculated based on where the period is located in the planning horizon relative to the possible first and second check ranges and the check duration. We will name the range $M^{Acc}S^{b}_{it}$ to represent both the lower level and upper level of the range of accumulated starts by replacing the terms $min$ and $max$ by $b$, as in $bound$.
+
+  \begin{multicols}{2}
+  \[
+   M^{Acc}S^{min}_{it} = 
+    \begin{cases} 
+     0 & \text{if } t \le TM1^{max}_i\\
+     1 & \text{if } TM1^{max}_i < t \le TM2^{max}_i \\
+     2 & \text{if } t > TM2^{max}_i \\
+    \end{cases}
+  \]
+
+  \[
+   M^{Acc}S^{max}_{it} = 
+    \begin{cases} 
+     0 & \text{if } t < TM1^{min}_i \\
+     1 & TM1^{min}_i \le t < TM2^{min}_i \\
+     2 & t \ge TM2^{min}_i \\
+    \end{cases}
+  \]
+
+  \columnbreak
+
+  \[
+   M^{Acc}F^{min}_{it} = 
+    \begin{cases} 
+     0 & \text{if } t \le TM1^{max}_i + M\\
+     1 & \text{if } TM1^{max}_i < t - M \le TM2^{max}_i \\
+     2 & \text{if } t > TM2^{max}_i + M \\
+    \end{cases}
+  \]
+
+  \[
+   M^{Acc}F^{max}_{it} = 
+    \begin{cases} 
+     0 & \text{if } t < TM1^{min}_i + M\\
+     1 & TM1^{min}_i \le t - M < TM2^{min}_i\\
+     2 & t \ge TM2^{min}_i + M\\
+    \end{cases}
+  \]
+
+  \end{multicols}
+
+\section{Bounds on accumulated checks at the end of the horizon per aircraft}
+
+  If we evaluate the range of checks per aircraft at the last period ($\mathcal{T}$), we can get one of three options: [1, 1], [1, 2], [2, 2]. Lets call $I^{1M}$ to aircraft that fall into the [1, 1] case and $I^{2M}$ to groups aircraft that fall into the [2, 2] case. These two sets of aircraft can have particular cuts applied to them to guarantee the number of checks.
+
+   If we find ourselves in a case where there is certainty on the number of checks, it is possible to force the variables to reflect this certainty with the following cuts.
+
+  \begin{align}
+    & I^{1M} = \{i \in \mathcal{I} \mid M^{Acc}S^{max}_{i|\mathcal{T}|} = 1\} \notag \\
+    & I^{2M} = \{i \in \mathcal{I} \mid M^{Acc}S^{min}_{i|\mathcal{T}|} = 2\} \notag
+  \end{align}
+
+  \begin{align}
+    & m_{it_1|\mathcal{T}|} =  1
+      & i \in I^{1M}, t_1 \in \mathcal{T}^{M_{Init}}_i \\
+    & m_{it_1|\mathcal{T}|} =  0
+      & i \in I^{2M}, t_1 \in \mathcal{T}^{M_{Init}}_i
+  \end{align}
+
+  % \[
+  % [M^{Acc}S^{min}_{i|\mathcal{T}|}, M^{Acc}S^{max}_{i|\mathcal{T}|}] :
+  %   \begin{cases} 
+  %    m_{it_1|\mathcal{T}|} =  1
+  %     \,\, \forall t_1 \in \mathcal{T}^{M_{Init}}_i, i \in \mathcal{I} & \text{if } [1, 1] \\
+  %    m_{it_1|\mathcal{T}|} =  0 \,\, \forall t_1 \in \mathcal{T}^{M_{Init}}_i, i \in \mathcal{I} & \text{if } [2, 2] 
+  %   \end{cases}
+  % \]
+
+\section{Bounds on mission assignments at the start of the horizon per aircraft} \label{mission-assignment-for-initial-periods}
+
+  Specially for the initial periods, and based on the initial state, missions' hourly requirements and minimum assignment duration, it is possible to \textbf{precalculate which aircraft will not be able to start a mission in some periods}. We can do this only for the initial periods because we do not have the actual consumption for individual aircraft.  In the case of having a minimum consumption, this could be used to have some lower bounds too. 
+
+  For each aircraft, we calculate the last period before being able to finish the first possible check ($t^{s}_i$). Before this period, the sum of all assigned misions and consummed flight hours need to be less than the initial remaining flight hours. This is a particular case of the already existing constraints controlling flight hours when assigning checks.
+
+  As with the previous constraints, it is convenient to pre-calculate certain parameters:
+
+  \begin{align}
+      & U^{min}_{t_1t_2} = U^{min} \sum_{t=t_1}^{t_2} (t_2 - t) \notag \\
+      & H'_{jt_1t_2} = (H_j - U^{min}) (t_2 - t_1) \notag \\
+      & H''_{jt_1t_2t'} = \sum_{t=t_1}^{t_2} (H_j- U^{min}) (t' - t) \notag \\
+      & t^{s}_i = TM1^{min}_i + M - 1&  \notag
+  \end{align}
+
+  The cuts in (\ref{eq:initialFlightHourConsumption}) control the consummed hours before any maintenance can be done on aircraft $i$ (before the period $t^{s}_i$).
+
+  \begin{align}
+    & \sum_{\substack{(j, t, t') \in \\ \mathcal{J}\mathcal{T}\mathcal{T}_{i1t^{s}_i}}} a_{ijtt'} H'_{jtt'} + U^{min}_{1t^{s}_i} \leq Rft^{Init}_i
+                    & i \in \mathcal{I} \label{eq:initialFlightHourConsumption}
+  \end{align}
+
+  Some mission assignments can already be discarded because the equivalent flight hour consumption is more than the initial remaining time:
+
+  \begin{align}
+    & a_{ijtt'} = 0 & i \in \mathcal{I}, (j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{i1t^{s}_i} \land Rft^{Init}_i < H'_{jt_1t_2}
+  \end{align}
+
+\section{Bounds on accumulated checks per aircraft type and period} \label{sec:rangecheckstype}
+  
+  Both $M^{Acc}F^{b}_{it}$ and $M^{Acc}S^{b}_{it}$ previously calculated in section \ref{sec:rangechecksaircraft} can be aggregated by type of fleet $y$.
+
+  \begin{align}
+    & YM^{Acc}S^{b}_{yt} = \sum_{i \in \mathcal{IY}_y} M^{Acc}S^{b}_{it} 
+        & t \in \mathcal{T}, y \in \mathcal{Y}, b \in \{min, max\} \notag \\
+    & YM^{Acc}F^{b}_{yt} = \sum_{i \in \mathcal{IY}_y} M^{Acc}F^{b}_{it} 
+        & t \in \mathcal{T}, y \in \mathcal{Y}, b \in \{min, max\} \notag
+  \end{align}
+
+  By using the mission required assignments over time, we can also calculate the number of checks we can fit until period $t$: aircraft that are in a mission cannot be in maintenance. Since each mission demands a specific type of aircraft, this bound can be made at the aircraf type level. $JR^{Acc}_{jt}$ represents the accumulated required number of assignments of aircraft for mission $j$ until the end of period $t$.
+  We use this value to obtain the sum of all the non-mission periods over all aircraft of type $y$ and all periods $t' \le t$ ($IR^{Acc}_{yt}$). Then, we divide this over the duration of the checks ($M$) to obtain $YM^{Acc}F^{\prime max}_{yt}$, which is an upper bound on the number of checks that can be finished until period $t$ for all aircraft of type $y$.
+
+  \begin{align}
+    & JR^{Acc}_{jt} = |\{t' \in \mathcal{TJ}_j \mid t' \le t\}| 
+        & t \in \mathcal{T}, y \in \mathcal{Y}\notag\\
+    & IR^{Acc}_{yt} = |IY_y| \times t -  \sum_{j \in \mathcal{JY}_y} R_j \times JR^{Acc}_{jt} 
+        & t \in \mathcal{T}, y \in \mathcal{Y}\notag\\
+    & YM^{Acc}F^{\prime max}_{yt} = \lfloor \frac{IR^{Acc}_{yt}}{M} \rfloor 
+        & t \in \mathcal{T}, y \in \mathcal{Y}\notag
+  \end{align}
+
+  By using the mission required flight hours over time, we can calculate how many checks we need until period $t$. We can sum all flight-hour needs of missions of type $y$ until the end of period $t$ ($YH^{Acc}_{yt}$). This demand of flight hours can be subtracted from the initial remaining flight time of the group of aircraft and then divided over the $H^{max}$ flight hours each check provides. Thus, we get a lower bound $YM^{Acc}F^{\prime min}_{yt}$ on the number of checks we need to do for those aircraft of type $y$ until period $t$.
+
+  \begin{align}
+    & YH^{Acc}_{yt} =  \sum_{j \in \mathcal{JY}_y} H_j \times JR^{Acc}_{jt} 
+        & t \in \mathcal{T}, y \in \mathcal{Y} \notag\\
+    & YM^{Acc}F^{\prime min}_{yt} =  \lceil \frac{YH^{Acc}_{yt} - \sum_{i \in IY_y} Rft^{Init}_i }{H^{max}} \rceil
+        & t \in \mathcal{T}, y \in \mathcal{Y} \notag
+  \end{align}
+
+  So, in this way, we arrive to two lower bounds and two upper bounds per period and aircraft type. We then get the maximum and the minimum respectively to get some bounds on the number of checks until period $t$. $YM^{Acc}F^{\prime\prime b}_{yt}$ represents the bound $b$ in the number of total checks since the beginning of the planning horizon for all aircraft of type $y$ until period $t$.
+
+  \begin{align}
+    & YM^{Acc}F^{\prime\prime min}_{yt} = \max\{YM^{Acc}F^{min}_{yt}, YM^{Acc}F^{\prime min}_{yt}\}\notag\\ 
+    & YM^{Acc}F^{\prime\prime max}_{yt} = \min\{YM^{Acc}F^{max}_{yt}, YM^{Acc}F^{\prime max}_{yt}\}\notag
+  \end{align}
+
+  \[
+    QM^{num}_{tt'} = 
+    \begin{cases} 
+     1 & t' > t - M \\
+     2 & t' \le t - M \\
+    \end{cases} 
+  \]
+
+  $QM^{num}_{tt'}$ represents the possibility of counting two checks instead of one if both checks start before the period $t$. $t'$ represents the second one of those checks. 
+
+  This can be applied via a cut by the following way:
+
+  \begin{align}
+    & YM^{Acc}F^{\prime\prime min}_{yt} \le \sum_{\substack{i \in \mathcal{IY}_y, \\ t_1 \in \{1, \ldots, t - M\}, \\ t_2 \in \mathcal{T}^M_{t_1}}} m_{it_1t_2} \times QM^{num}_{tt_2} \le YM^{Acc}F^{\prime\prime max}_{yt}
+        & t \in \mathcal{T}, y \in \mathcal{Y} \label{eq:range_maints}
+  \end{align}
+
+  Cuts (\ref{eq:range_maints}) limit the starts of checks of aircraft of type $y$ in order to have the number of finished checks to fall between the $YM^{Acc}F^{\prime\prime b}_{yt}$ bounds.
+
+\section{Bounds on accumulated checks per period}
+  
+  The bounds on accumulated checks by type and period defined in section \ref{sec:rangecheckstype} can be aggregated into the whole fleet.
+
+  \begin{align}
+    & TM^{Acc}S^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}S^{\prime\prime b}_{yt}
+        & t \in \mathcal{T}, b \in \{min, max\}  \notag\\
+    & TM^{Acc}F^{b}_{t} = \sum_{y \in \mathcal{Y}} YM^{Acc}F^{\prime\prime b}_{yt}
+        & t \in \mathcal{T}, b \in \{min, max\}  \notag
+  \end{align}
+
+  Additionally, the maintenance capacity together with the maintenance duration offer an upper bound on the maximum number of checks that can be finished until a given period $t$.
+
+  \begin{align}
+    & TM^{Acc}F^{\prime max}_{t} = \lfloor \frac{t}{M} \rfloor \times C^{max}
+        & t \in \mathcal{T} \notag
+  \end{align}
+
+
+\end{document}

@@ -2,6 +2,7 @@ import os
 import plotly as pt
 import plotly.figure_factory as ff
 import pytups.tuplist as tl
+import pytups.superdict as sd
 import package.experiment as exp
 import re
 import arrow
@@ -17,21 +18,22 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
             raise ValueError
     filename = os.path.join(path, name)
 
-    start_end = experiment.get_state_periods()
+    start_end = experiment.get_state_periods() + experiment.get_task_periods()
     start_end = tl.TupList(start_end)
 
     start_end.sort()
     start_end_2 = start_end.to_dict(result_col=[2]).vapply(lambda x: '+'.join(x)).to_tuplist()
-    try:
-        pos = start_end.filter(0).vapply(lambda x: re.search(string=x, pattern='[0-9]+')[0]).vapply(int)
-    except:
-        pos = [1]*len(start_end)
+    # try:
+    #     pos = start_end.filter(0).apply(lambda x: re.search(string=x, pattern='[0-9]+')[0]).apply(int)
+    # except:
+    #     pos = [1]*len(start_end)
 
     last_day = lambda month: arrow.get(month + "-01").shift(months=1).shift(days=-2).format("YYYY-MM-DD")
     transf = lambda item: dict(Task=item[0], Start=item[1]+'-01', Finish=last_day(item[2]), Resource=item[3])
 
-    gantt_data = start_end_2.vapply(transf)
-    tl.TupList([{**v, **{'pos': pos[k]}} for k, v in enumerate(gantt_data)])
+    gantt_data = start_end_2.apply(transf)
+    all_names = gantt_data.vapply(lambda v: v['Resource']).unique2()
+    # tl.TupList([{**v, **{'pos': pos[k]}} for k, v in enumerate(gantt_data)])
 
     colors = \
         {'VG': '#4cb33d',
@@ -43,8 +45,10 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
          'VG+VI+VS': '#EFCC00',
          'VI+VS': '#EFCC00'}
 
+    colors = sd.SuperDict.from_dict(colors).\
+        fill_with_default(all_names, default='#ff0000')
     # we try to sort according to standard naming.
-    gantt_data.vapply(lambda x: re.search(x['Task'], r'\d'))
+    # gantt_data.apply(lambda x: re.search(x['Task'], r'\d'))
     try:
         gantt_data.sort(key=lambda x: int(x['Task'][2:]))
     except:
@@ -65,5 +69,5 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
     pt.offline.plot(fig, filename=filename, show_link=False, config=dict(responsive=True))
 
 if __name__ == '__main__':
-    path = r'C:\Users\pchtsp\Documents\projects\optima\data\template\201903120545/'
+    path = r'C:\Users\pchtsp\Documents\projects\optima_results\experiments\test_remake/'
     make_gantt_from_experiment(path=path)

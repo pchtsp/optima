@@ -1,7 +1,7 @@
 # /usr/bin/python3
 
 import numpy as np
-import package.auxiliar as aux
+
 import math
 import pytups.superdict as sd
 import pytups.tuplist as tl
@@ -39,7 +39,6 @@ class Instance(object):
         params = {
             'maint_weight': 1
             , 'unavail_weight': 1
-            , 'min_elapsed_time': 0
             , 'min_usage_period': 0
             , 'min_avail_percent': 0.1
             , 'min_avail_value': 1
@@ -66,7 +65,7 @@ class Instance(object):
                 , 'max_elapsed_time': params['max_elapsed_time']
                 , 'elapsed_time_size': params['elapsed_time_size']
                 , 'used_time_size': params['max_used_time']
-                , 'type': 1
+                , 'type': '1'
                 , 'capacity': params['maint_capacity']
                 , 'depends_on': []
             }
@@ -74,7 +73,7 @@ class Instance(object):
         if 'maintenances' in self.data:
             maints = sd.SuperDict.from_dict(maints)
             maints.update(self.data['maintenances'])
-        self.data['maintenances'] = maints
+        self.data['maintenances'] = sd.SuperDict.from_dict(maints)
 
         if 'initial' not in resources.values_l()[0]:
             data_resources = self.data['resources']
@@ -82,7 +81,7 @@ class Instance(object):
             ret_init = data_resources.get_property('initial_elapsed')
             for r in resources:
                 self.data['resources'][r]['initial'] = \
-                    {'M': sd.SuperDict(elapsed=ret_init[r], used=rut_init[r])}
+                sd.SuperDict(M=sd.SuperDict(elapsed=ret_init[r], used=rut_init[r]))
         return
 
     def set_default_maint_types(self):
@@ -124,12 +123,16 @@ class Instance(object):
         """
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
-        # we force the end to be coherent with the num_period parameter
-        self.data['parameters']['end'] = aux.shift_month(start, num_periods - 1)
-        # we cache the relationships between periods
         self.data['aux'] = sd.SuperDict()
+
+        begin_year = int(start[:4]) - 5
+        end_year = int(start[:4]) + 5 + num_periods//12
+        many_months = ['{}-{:02.0f}'.format(_a, _b)
+                       for _a in range(begin_year, end_year)
+                       for _b in range(1, 13)]
+        pos = many_months.index(start)
         self.data['aux']['period_e'] = {
-            k: aux.shift_month(start, k) for k in range(-50, num_periods+50)
+            k- pos: r for k, r in enumerate(many_months)
         }
         self.data['aux']['period_i'] = {
             v: k for k, v in self.data['aux']['period_e'].items()
@@ -152,7 +155,7 @@ class Instance(object):
                 result[category] = []
                 continue
             elem = list(value.keys())[0]
-            if type(value[elem]) is dict:
+            if isinstance(value[elem], dict):
                 result[category] = list(value[elem].keys())
             else:
                 result[category] = list(value.keys())
@@ -170,6 +173,7 @@ class Instance(object):
             return data
         if param in list(data.values())[0]:
             return data.get_property(param)
+
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_tasks(self, param=None):
@@ -206,10 +210,6 @@ class Instance(object):
         rt_read = resources.get_property(key_initial)
         rt_max = self.get_param(key_max)
 
-        # in case of resources with fixed maintenances we need to assign
-        # the max value for the ret and rut.
-        # In the case of ret, we need to assign a little more depending on how many
-        # fixed maintenances the resources has.
 
         # here, we calculate the number of fixed maintenances.
         res_maints = \
@@ -345,6 +345,9 @@ class Instance(object):
     def get_periods(self):
         return self.get_periods_range(*self.get_first_last_period())
 
+    def get_start_end(self):
+        return (self.get_param(p) for p in ['start', 'end'])
+
     def get_periods_range(self, start, end):
         pos_period = self.data['aux']['period_i']
         period_pos = self.data['aux']['period_e']
@@ -399,8 +402,7 @@ class Instance(object):
         return num_resource_working
 
     def get_total_fixed_maintenances(self):
-        in_maint_dict = aux.tup_to_dict(self.get_fixed_maintenances(), 0, is_list=True)
-        return {k: len(v) for k, v in in_maint_dict.items()}
+        return self.get_fixed_maintenances().to_dict(result_col=0, is_list=True).to_lendict()
 
     def check_enough_candidates(self):
         task_num_resources = self.get_tasks('num_resource')
@@ -410,9 +412,10 @@ class Instance(object):
         return {k: (v, v / task_num_resources[k]) for k, v in task_slack.items()}
 
     def get_info(self):
+        task_period = sd.SuperDict.from_dict(self.get_task_period_list(True))
         assign = \
-            sum(v * self.data['tasks'][k]['num_resource'] for k, v in
-                aux.dict_to_lendict(self.get_task_period_list(True)).items())
+            sum(v * self.data['tasks'][k]['num_resource']
+                for k, v in task_period.to_lendict().items())
 
         return {
             'periods': len(self.get_periods()),
@@ -429,13 +432,15 @@ class Instance(object):
         group = {}
         capacities = self.get_tasks('capacities')
         for task1, cap1 in capacities.items():
-            if task1 not in group:
-                group[task1] = present_group
-                present_group += 1
+            if task1 in group:
+                continue
+            group[task1] = str(present_group)
+            present_group += 1
             for task2, cap2 in capacities.items():
-                if task2 not in group:
-                    if len(set(cap1).symmetric_difference(set(cap2))) == 0:
-                        group[task2] = group[task1]
+                if task2 in group:
+                    continue
+                if len(set(cap1).symmetric_difference(set(cap2))) == 0:
+                    group[task2] = group[task1]
         return group
 
     def get_cluster_needs(self):
@@ -476,6 +481,7 @@ class Instance(object):
         c_needs_num = {(k, t): c_num_candidates[k] - c_min[k, t] - num_res_maint[k, t]
                        for k, t in kt
                        }
+        # TODO: this should depend on the maintenance (we assumme 'M')
         c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
 
@@ -534,13 +540,14 @@ class Instance(object):
         def_capacity = self.get_param('maint_capacity')
         base_capacity = {'1': def_capacity, '2': def_working_days}
         capacity_period = self.data['maint_types'].get_property('capacity')
+        base_capacity = sd.SuperDict.from_dict(base_capacity).filter(capacity_period)
         if periods is None:
             periods = self.get_periods()
         caps = {
             (t, p): capacity_period[t].get(p, base) for p in periods
             for t, base in base_capacity.items()
         }
-        return sd.SuperDict(caps)
+        return sd.SuperDict.from_dict(caps)
 
     def get_default_consumption(self, resource, period):
         min_use = self.data['resources'][resource]['min_usage_period']
@@ -566,10 +573,9 @@ class Instance(object):
             raise ValueError("time needs to be rut or ret")
 
 if __name__ == "__main__":
-    # path = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712191655/"
-    # model_data = di.load_data(path + "data_in.json")
-    import data.data_dga as dga
-    model_data = dga.get_model_data()
+    import data.simulation as sim
+    import package.params as params
+
+    options = params.OPTIONS
+    model_data = sim.create_dataset(options)
     instance = Instance(model_data)
-    instance.get_categories()
-    result = instance.get_total_fixed_maintenances()
