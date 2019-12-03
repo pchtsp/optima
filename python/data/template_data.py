@@ -25,6 +25,12 @@ def get_equiv_names():
         , 'heures': 'hours'
         , 'capacite': 'capacity'
         , 'mois': 'period'
+        , 'mission': 'task'
+        , 'date_debut': 'start'
+        , 'date_fin': 'end'
+        , 'type_avion': 'type_resource'
+        , 'nb_avions': 'num_resource'
+        , 'nb_heures': 'consumption'
     }
 
 
@@ -48,6 +54,28 @@ def get_maintenance(tables):
             v['depends_on'] = []
     return data
 
+def get_tasks(tables):
+    """
+    :param tables:
+    :return: dictionary in mission format
+    """
+    if 'missions' not in tables:
+        return sd.SuperDict()
+    tasks = \
+        tables['missions'].\
+        rename(columns=get_equiv_names()).\
+        set_index('task')
+    tasks['matricule'] = ''
+    task_dict = sd.SuperDict.from_dict(tasks.to_dict(orient='index'))
+    capacities = \
+        task_dict.\
+        vapply(lambda v: sd.SuperDict(capacities=[v['type_resource']]))
+    _dif= lambda x, y: aux.get_months(x, y)
+    min_assign = \
+        task_dict.\
+        vapply(lambda x: _dif(x['start'], x['end'])).\
+        vapply(lambda v: sd.SuperDict(min_assign=len(v)+1))
+    return task_dict.update(capacities).update(min_assign)
 
 def get_resources(tables):
 
@@ -57,7 +85,6 @@ def get_resources(tables):
     equiv = get_equiv_names()
 
     states = tables['etats_initiaux'].rename(columns=equiv)
-
     maint_tab = tables['maintenances']
 
     def elapsed_time_between_dates(value, series2):
@@ -68,6 +95,7 @@ def get_resources(tables):
     resources.resource = resources.resource.astype(str)
     states.resource = states.resource.astype(str)
 
+    # Flight hour consumption
     flight_hours_dict = {}
     min_usage_period = {}
     if 'heures_vol' in tables:
@@ -85,6 +113,7 @@ def get_resources(tables):
         min_usage_period.update(flight_hours_dict)
         min_usage_period = min_usage_period.vapply(lambda v: {'min_usage_period': v})
 
+    # Initial conditions
     resources_initial = \
         pd.merge(resources, states, on='resource'). \
         merge(maint_tab[['maint', 'BC', 'BH']], on='maint'). \
@@ -100,9 +129,24 @@ def get_resources(tables):
         to_dict(orient='index')
 
     resources_tot = sd.SuperDict.from_dict(resources_initial).to_dictdict()
-    resources_tot.update(min_usage_period)
 
-    def_resources = {'type': '1', 'capacities': [], 'states': {}, 'code': ''}
+    # Aircraft type
+    if 'type' in resources:
+        resources.type = resources.type.astype(str)
+        aircraft_type = resources.set_index('resource')['type'].to_dict()
+        aircraft_type = \
+            sd.SuperDict.from_dict(aircraft_type).\
+            vapply(lambda v: sd.SuperDict(type=v, capacities=[v]))
+    else:
+        _default = sd.SuperDict(type=1, capacities=[1])
+        aircraft_type = \
+            resources_tot.\
+                vapply(lambda v: _default)
+
+    resources_tot.update(min_usage_period)
+    resources_tot.update(aircraft_type)
+
+    def_resources = {'states': {}, 'code': ''}
     for r in resources_tot:
         resources_tot[r].update(def_resources)
 
@@ -126,7 +170,7 @@ def import_input_template(path):
     """
 
     sheets = ['maintenances', 'etats_initiaux', 'avions', 'params',
-              'heures_vol', 'maint_capacite']
+              'heures_vol', 'maint_capacite', 'missions']
 
     xl = pd.ExcelFile(path)
     present_sheets = set(sheets) & set(xl.sheet_names)
@@ -134,7 +178,7 @@ def import_input_template(path):
     tables = {sh: xl.parse(sh) for sh in present_sheets}
     data = dict(
         parameters = get_parameters(tables)
-        , tasks = {}
+        , tasks = get_tasks(tables)
         , maintenances = get_maintenance(tables)
         , resources = get_resources(tables)
     )
