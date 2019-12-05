@@ -11,12 +11,25 @@ path_export_tab <- '../../NPS2019/tab/'
 # exp_list <- c('IT000125_20190808', 'IT000125_20190812')
 exp_list <- c('IT000125_20190725', 'IT000125_20190716') # small
 df <- get_generic_compare(exp_list, exp_names = list('cuts', 'base'))
+
+df_fixed <- get_all_fixLP()
+
+raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030'),
+                                   exp_names = list('base', 'old'),
+                                   scenario_filter='numparalleltasks_%s' %>% sprintf(2),
+                                   get_progress = TRUE) %>%
+    correct_old_model(get_progress = TRUE, keep_correction = TRUE)
 # df_original <- compare_sto$get_df_comparison(exp_list)
 # df <- df_original %>% 
 #     mutate(experiment=if_else(experiment==0, 'cuts', 'base')) %>% 
 #     filter_all_exps
 
 # df <- get_4_tasks_perc_add()
+
+# compare models
+
+stats_info <- get_stats_summary(raw_df_progress) %>% bind_rows(get_summary(raw_df_progress))
+
 
 # summary
 summary_stats <- get_summary(df)
@@ -69,14 +82,30 @@ ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment
     theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + 
     theme(text = element_text(size=20)) + ggsave(path)
 
+comparison_table_reorder_fixLP <- get_time_perf_integer_reorder(df_fixed)
+path <- '%stime_performance_ordered_fixLP.png' %>% sprintf(path_export_img)
+ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + 
+    geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20)) + 
+    guides(color = guide_legend(override.aes = list(size=5))) + ggsave(path)
+
 # infeasible
 infeasible_stats <- get_infeasible_stats(df)
-# infeasible_times <- get_infeasible_times(df)
 
 path <- '%sinfeas_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
 infeasible_stats %>% 
     kable(format='latex', booktabs = TRUE, linesep="") %>% 
     write_file(path)
+
+# infeasible: fixLP
+infeasible_stats <- get_infeasible_stats(df_fixed)
+
+path <- '%sinfeas_fixed_2tasks.tex' %>% sprintf(path_export_tab)
+infeasible_stats %>% 
+    ungroup %>% 
+    select(-scenario) %>% 
+    kable(format='latex', booktabs = TRUE, linesep="") %>% 
+    write_file(path)
+
 
 # soft constraints
 errors_stats <- get_soft_constraints(df, 0.95)

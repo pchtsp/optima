@@ -1,7 +1,7 @@
 ---
 title: "ResultsNPS"
 author: "Franco Peschiera"
-date: "August 8, 2019"
+date: "`r Sys.Date()`"
 output:
   html_document: default
   pdf_document: default
@@ -23,7 +23,6 @@ default_tail <- 0.05
 really_small_number <- 0.000001
 size <- params$size
 df <- do.call(size, args=params)
-value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
 
 scaleFUN <- function(x) sprintf("%.2f", x)
 scale <- params$scale

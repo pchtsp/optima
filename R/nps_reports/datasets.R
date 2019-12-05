@@ -105,7 +105,7 @@ get_determ <- function(num_tasks, ...){
         correct_old_model
 }
 
-get_all_fixLP <- function(){
+get_all_fixLP <- function(...){
     get_generic_compare(c('IT000125_20190729', 'IT000125_20191104', 'IT000125_20191023', 'IT000125_20191025', 'IT000125_20190917'),
                         exp_names = list('base', 'FlexLP_3', 'fixLP', 'FlexLP', 'stoch'),
                         scenario_filter='numparalleltasks_2') %>% 
@@ -128,8 +128,9 @@ get_min_usage_5 <- function(){
         correct_old_model
 }
 
+correct_fun <- function(value, variable) if_else(variable %>% is.na, value, value-variable)
 
-correct_old_model <- function(data){
+correct_old_model <- function(data, get_progress=FALSE, keep_correction=FALSE){
     # Function that discounts a fix number from the objective function in the old model.
     # So it can be compared with the new one.
     # The fixed number depends on the size of the problem, the time horizon.
@@ -142,11 +143,17 @@ correct_old_model <- function(data){
         mutate(correction_value = 2*15*num_tasks*horizon) %>% 
         select(dataset, scenario, correction_value)
     
-    correct_fun <- function(value, variable) if_else(variable %>% is.na, value, value-variable)
-    
-    data %>% 
+    data_n <- data %>% 
         left_join(correction) %>%
         mutate(best_solution= best_solution %>% correct_fun(correction_value),
-               best_bound= best_bound %>% correct_fun(correction_value)) %>% 
-        select(-correction_value)
+               best_bound= best_bound %>% correct_fun(correction_value))
+    
+    if (get_progress){
+        data_n %<>% 
+            mutate(first_relaxed= first_relaxed %>% correct_fun(correction_value))
+    }
+    if (keep_correction){
+        return(data_n)
+    }
+    data_n %>% select(-correction_value)
 }

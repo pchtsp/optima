@@ -5,6 +5,7 @@ library(ggplot2)
 library(data.table)
 library(stringr)
 
+value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
 
 filter_all_exps <- function(table){
     num <- table %>% distinct(experiment) %>% nrow
@@ -200,6 +201,25 @@ get_variances <- function(raw_df){
         get_all_integer %>% 
         compare_objectives_perc('variance') %>% 
         filter(dif_perc %>% is.na %>% not)
+}
+
+get_stats_summary <- function(raw_df_progress){
+    raw_df_progress %>% 
+        get_stats %>% 
+        group_by(scenario, experiment) %>% 
+        summarise(nodes_mean = mean(nodes), 
+                  nodes_medi = median(nodes),
+                  frel_medi = median(first_relaxed),
+                  crel_medi = median(cuts_best_bound)
+                  ) %>% 
+        aux_compare
+}
+
+get_stats <- function(raw_df_progress){
+    raw_df_progress %>% 
+        get_all_optimal %>% 
+        mutate(cuts_best_bound= cut_info %>% lapply('[[', 'best_bound')
+               %>% as.numeric %>% correct_fun(correction_value))    
 }
 
 get_mega_summary <- function(df){
