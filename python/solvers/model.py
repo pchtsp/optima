@@ -708,6 +708,8 @@ class Model(exp.Experiment):
 
         # MAINTENANCES DOMAINS
 
+        # these are the pair of maintenances starts t, t2 that need to
+        # forbidden because they are too close one from the other.
         l['att_m'] = tl.TupList([(a, t1, t2) for (a, t1) in at_free_start for t2 in periods
                  if p_pos[t1] < p_pos[t2] < p_pos[t1] + min_elapsed
                  ])
@@ -738,8 +740,8 @@ class Model(exp.Experiment):
                            p_pos[t1] + duration <= p_pos[_t2] < p_pos[t1] + max_elapsed_2M[a])
         l['att_maints_last'] = tl.TupList(att_maints_last)
 
-        # these are the periods where we know we have to do a second maintenance, given we did a maintenance in t.
         l['att_maints'] = tl.TupList(l['att_maints_no_last'] + l['att_maints_last'])
+        # these are the periods t2 where we know we have to do a second maintenance, given we did a maintenance in t.
         l['att_M'] = l['att_maints'].vfilter(lambda x: p_pos[x[1]] + max_elapsed < len(periods))
 
         # we generate all possible starts of maintenance
@@ -882,17 +884,31 @@ class Model(exp.Experiment):
         # we reduce the second one.
         domains['att_maints_last'] = limit_partially(domains['att_maints_last'])
         domains['att_maints'] = domains['att_maints_last'] + domains['att_maints_no_last']
+        _att_maints_set = domains['att_maints'].to_set()
 
-        # we increase the constraints on anor model
+        # we modify the constraints on anor model format
         at = domains['att_maints'].take([0, 1]) + domains['att_maints'].take([0, 2])
         domains['at_start_maint'] = at.unique2()
+
+        # we want to have all t2 that are far enough of t1 to need to be a maintenance
         domains['att_M'] = \
             domains['att_maints'].\
             vfilter(lambda x: p_pos[x[1]] + max_elapsed_2M_cut[x[0]] < len(periods))
-        domains['att_m'] = tl.TupList([(a, t1, t2) for (a, t1) in domains['at_start_maint'] for t2 in periods
-                                 if (p_pos[t1] < p_pos[t2] < p_pos[t1] + min_elapsed_2M_cut[a])
-                                       and (a, t2) in domains['at_start_maint']
-                                 ])
+
+        # we need to be sure that we have a register for each of the at combo that are far from the end of the horizon
+        # # TODO: take out some variables here, maybe?
+        # att_M_imposible_starts = \
+        #     domains['at_start_maint'].\
+        #         vfilter(lambda x: p_pos[x[1]] + max_elapsed_2M_cut[x[0]] < len(periods))
+
+
+        # we're constraining all possibilities outside the patterns
+        # in the att_maints list
+        _t_a_start_maint = domains['at_start_maint'].to_dict(1)
+        domains['att_m'] = tl.TupList(
+            [(a, t1, t2) for (a, t1) in domains['at_start_maint'] for t2 in _t_a_start_maint[a]
+             if p_pos[t1] < p_pos[t2] and (a, t1, t2) not in _att_maints_set
+             ])
         domains['at_M_ini'] = \
             tl.TupList([(a, t) for (a, t) in domains['at_start_maint']
                         if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
