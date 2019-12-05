@@ -52,107 +52,19 @@ get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NU
     df_original %>% semi_join(tab_filter)
 }
 
+get_base <- function(num_tasks){
+    list(
+        'IT000125_20190716',
+        'IT000125_20190729',
+        'IT000125_20190801',
+        'IT000125_20190828'
+    )[[num_tasks]]
+    
+}
+
 get_1_tasks <- function(){
     get_generic_compare(c('IT000125_20190725', 'IT000125_20190716'), 
                         exp_names = list('cuts', 'base'))
-}
-
-get_3_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190801')
-    equiv <- list('cuts', 'base')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_3_tasks_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190801', 'IT000125_20190913')
-    equiv <- list('base', 'cuts')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist) %>% 
-        filter_all_exps
-}
-
-get_2_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190729')
-    equiv <- list('cuts', 'base')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_2') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_2_tasks_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190729', 'IT000125_20190913')
-    equiv <- list('base', 'cuts')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_2') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist) %>% 
-        filter_all_exps
-}
-
-get_2_tasks_aggresive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190808', 'IT000125_20190729')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_2') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_3_tasks_aggresive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190808', 'IT000125_20190801')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_3_tasks_aggresive_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190915', 'IT000125_20190801')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_3') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190730', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_aggressive <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190812', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190828', 'IT000125_20190913')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    equiv <- list('base', 'cuts')
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist) %>% 
-        filter_all_exps
 }
 
 get_1_tasks_CBC <- function(){
@@ -178,120 +90,6 @@ get_1_tasks_CBC_CPLEX <- function(){
     
 }
 
-get_1_tasks_perc_add <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190716', 'IT000125_20190913')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    equiv <- list('base', 'cuts')
-    df_original %>% 
-        filter(scenario=='numparalleltasks_1') %>% 
-        mutate(experiment=equiv[experiment+1] %>% unlist) %>% 
-        filter_all_exps
-}
-
-get_1_tasks_maints <- function(){
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190829', 'IT000125_20190716')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_1') %>% 
-        filter_all_exps %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_maints <- function(){
-    # too many infeasibles
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190829', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        filter_all_exps %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_4_tasks_very_aggresive_percadd <- function(){
-    # too many infeasibles
-    compare_sto <- get_compare_sto()
-    exp_list <- c('IT000125_20190917', 'IT000125_20190828')
-    df_original <- compare_sto$get_df_comparison(exp_list)
-    df_original %>% 
-        filter(scenario=='numparalleltasks_4') %>% 
-        filter_all_exps %>% 
-        mutate(experiment=if_else(experiment==0, 'cuts', 'base'))
-}
-
-get_all_tasks <- function(){
-    compare_sto <- get_compare_sto()
-    base <- c('IT000125_20190828', 'IT000125_20190801', 'IT000125_20190729', 'IT000125_20190730')
-    equiv <- c(rep('base', 3), "cuts")  %>% lapply(function(x) x)
-    dataset <- base %>% lapply(function(x) x)
-    df_original <- compare_sto$get_df_comparison(base)
-    df_original %>% 
-        mutate(dataset=dataset[experiment+1] %>% unlist,
-               experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_all_tasks_aggresive <- function(){
-    compare_sto <- get_compare_sto()
-    base <- c('IT000125_20190828', 'IT000125_20190801', 'IT000125_20190729', 'IT000125_20190808', 'IT000125_20190812')
-    equiv <- c(rep('base', 3), "cuts", "cuts")  %>% lapply(function(x) x)
-    dataset <- base %>% lapply(function(x) x)
-    df_original <- compare_sto$get_df_comparison(base)
-    df_original %>% 
-        mutate(dataset=dataset[experiment+1] %>% unlist,
-               experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_all_tasks_aggresive_percadd <- function(){
-    compare_sto <- get_compare_sto()
-    base <- c('IT000125_20190828', 'IT000125_20190801', 'IT000125_20190729', 'IT000125_20190915')
-    equiv <- c(rep('base', 3), "cuts")  %>% lapply(function(x) x)
-    dataset <- base %>% lapply(function(x) x)
-    df_original <- compare_sto$get_df_comparison(base)
-    df_original %>% 
-        mutate(dataset=dataset[experiment+1] %>% unlist,
-               experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_all_tasks_very_aggresive_percadd <- function(){
-    compare_sto <- get_compare_sto()
-    base <- c('IT000125_20190828', 'IT000125_20190801', 'IT000125_20190729', 'IT000125_20190917')
-    equiv <- c(rep('base', 3), "cuts")  %>% lapply(function(x) x)
-    dataset <- base %>% lapply(function(x) x)
-    df_original <- compare_sto$get_df_comparison(base)
-    df_original %>% 
-        mutate(dataset=dataset[experiment+1] %>% unlist,
-               experiment=equiv[experiment+1] %>% unlist)
-}
-
-get_fixLP_2_tasks <- function(){
-    get_generic_compare(c('IT000125_20191023', 'IT000125_20190729'), 
-                        exp_names = list('cuts', 'base'), 
-                        scenario_filter='numparalleltasks_2')
-}
-
-get_old_new_2_tasks <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191030'), 
-                        exp_names = list('base', 'cuts'), 
-                        scenario_filter='numparalleltasks_2', get_progress=FALSE) %>% 
-        correct_old_model
-    # substract 2* fleet_size * horizon_size from objectives.
-}
-get_old_new_3_tasks <- function(){
-    get_generic_compare(c('IT000125_20190801', 'IT000125_20191030'), 
-                        exp_names = list('base', 'cuts'), 
-                        scenario_filter='numparalleltasks_3', get_progress=FALSE) %>% 
-        correct_old_model
-    # substract 2* fleet_size * horizon_size from objectives.
-}
-get_old_new_1_tasks <- function(){
-    get_generic_compare(c('IT000125_20190716', 'IT000125_20191030'), 
-                        exp_names = list('base', 'cuts'), 
-                        scenario_filter='numparalleltasks_1', get_progress=FALSE) %>% 
-        correct_old_model
-    # substract 2* fleet_size * horizon_size from objectives.
-}
 get_old_all <- function(){
     exp_names <- c(rep('base', 3), "cuts")  %>% lapply(function(x) x)
     result <- get_generic_compare(c('IT000125_20190729', 'IT000125_20190801', 'IT000125_20190828', 'IT000125_20191030'), 
@@ -299,68 +97,11 @@ get_old_all <- function(){
     result %>% correct_old_model
 
 }
-get_old_new_4_tasks <- function(){
-    get_generic_compare(c('IT000125_20190828', 'IT000125_20190730', 'IT000125_20191030'), 
-                        exp_names = list('base', 'cuts', 'old'), 
-                        scenario_filter='numparalleltasks_4') %>% 
-        correct_old_model
-}
-get_old_new_4_agg_tasks <- function(){
-    get_generic_compare(c('IT000125_20190828', 'IT000125_20190917', 'IT000125_20191030'), 
-                        exp_names = list('base', 'cuts', 'old'), 
-                        scenario_filter='numparalleltasks_4') %>% 
-        correct_old_model
-}
-get_old_cuts_4_agg_tasks <- function(){
-    get_generic_compare(c('IT000125_20190917', 'IT000125_20191030'), 
-                        exp_names = list('base', 'old'), 
-                        scenario_filter='numparalleltasks_4') %>% 
-        correct_old_model
-}
-get_flexFixLP_2_tasks <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191025', 'IT000125_20190915', 'IT000125_20191023'), 
-                        exp_names = list('base', 'cuts', 'cuts_ref', 'cuts_relax'), 
-                        scenario_filter='numparalleltasks_2')
-}
 
-get_all_compare_2 <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191023', 'IT000125_20191025'),
-                        exp_names = list('base', 'determ', 'cuts_sto', 'fixLP', 'flexLP'),
-                        scenario_filter='numparalleltasks_2')
-}
-
-get_all_2 <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030', 'IT000125_20191025'),
-                        exp_names = list('base', 'cuts_determ', 'cuts_sto', 'old', 'cuts_FlexLP'),
-                        scenario_filter='numparalleltasks_2') %>% 
-        correct_old_model
-}
-
-get_determ_4 <- function(){
-    get_generic_compare(c('IT000125_20190828', 'IT000125_20190917', 'IT000125_20191030', 'IT000125_20191105'),
-                        exp_names = list('base', 'stoch', 'old', 'stoch_determ'),
-                        scenario_filter='numparalleltasks_4') %>% 
-        correct_old_model
-}
-
-get_determ_3 <- function(){
-    get_generic_compare(c('IT000125_20190801', 'IT000125_20191017', 'IT000125_20190917', 'IT000125_20191030', 'IT000125_20191105'),
+get_determ <- function(num_tasks, ...){
+    get_generic_compare(c(get_base(num_tasks), 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030', 'IT000125_20191105'),
                         exp_names = list('base', 'determ', 'stoch', 'old', 'stoch_determ'),
-                        scenario_filter='numparalleltasks_3') %>% 
-        correct_old_model
-}
-
-get_determ_2 <- function(){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030', 'IT000125_20191105'),
-                        exp_names = list('base', 'determ', 'stoch', 'old', 'stoch_determ'),
-                        scenario_filter='numparalleltasks_2') %>% 
-        correct_old_model
-}
-
-get_determ_1 <- function(){
-    get_generic_compare(c('IT000125_20190716', 'IT000125_20191017', 'IT000125_20190915', 'IT000125_20191030'),
-                        exp_names = list('base', 'determ', 'stoch', 'old'),
-                        scenario_filter='numparalleltasks_1') %>% 
+                        scenario_filter='numparalleltasks_%s' %>% sprintf(num_tasks)) %>% 
         correct_old_model
 }
 
@@ -371,17 +112,12 @@ get_all_fixLP <- function(){
         correct_old_model
 }
 
-get_all_stoch_2 <- function(){
-        get_generic_compare(c('IT000125_20190729', 'IT000125_20190808', 'IT000125_20190915', 'IT000125_20190917','IT000125_20191030', 'IT000125_20191125'),
-                        exp_names = list('base', 'stoch_a1', 'stoch_a1r', 'stoch_a2r', 'old', 'old_stoch_a1'),
-                        scenario_filter='numparalleltasks_2') %>% 
-        correct_old_model
-}
-
-get_all_stoch_4 <- function(){
-    get_generic_compare(c('IT000125_20190828', 'IT000125_20190812', 'IT000125_20190915', 'IT000125_20190917','IT000125_20191030', 'IT000125_20191125'),
-                        exp_names = list('base', 'stoch_a2', 'stoch_a1r', 'stoch_a2r', 'old', 'old_stoch_a1'),
-                        scenario_filter='numparalleltasks_4') %>% 
+get_all_stoch <- function(num_tasks, ...){
+    get_generic_compare(c(get_base(num_tasks), 'IT000125_20190915', 'IT000125_20190917', 'IT000125_20191130', 
+                          'IT000125_20191030', 'IT000125_20191125'),
+                        exp_names = list('base', 'base_a1r', 'base_a2r', 'base_a3r', 
+                                         'anor', 'anor_a1'),
+                        scenario_filter='numparalleltasks_%s' %>% sprintf(num_tasks)) %>% 
         correct_old_model
 }
 
