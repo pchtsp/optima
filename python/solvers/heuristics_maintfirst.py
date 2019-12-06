@@ -125,6 +125,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         cooling = options.get('cooling', 0.995)
         num_change_probs = options.get('num_change', [1])
         temperature = options.get('temperature', 1)
+        assign_missions = options.get('assign_missions', False)
         num_change_pos = [n + 1 for n, _ in enumerate(num_change_probs)]
 
         # initialise logging, seed and solution status
@@ -144,14 +145,14 @@ class MaintenanceFirst(heur.GreedyByMission):
             for m in maints:
                 self.assign_missing_maints_to_aircraft(m)
 
-            # 2. assign missions for all aircraft
-            self.assign_missions()
-
-            # 3. try to correct min_assign
-            self.over_assign_missions()
+            if assign_missions:
+                # 2. assign missions for all aircraft
+                self.assign_missions()
+                # 3. try to correct min_assign
+                self.over_assign_missions()
 
             # check quality of solution, store best.
-            objective, status, errors = self.analyze_solution(temperature)
+            objective, status, errors = self.analyze_solution(temperature, assign_missions)
             num_errors = errors.to_lendict().values_tl()
             num_errors = sum(num_errors)
 
@@ -181,7 +182,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         return sol.Solution(self.best_solution)
 
-    def analyze_solution(self, temperature):
+    def analyze_solution(self, temperature, assign_missions=False):
         """
         Compares solution quality with previous and best.
         Updates the previous solution (always).
@@ -194,7 +195,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         # This commented function validates if I'm updating correctly rut and ret.
         # self.check_consistency()
         # errors = self.get_inconsistency()
-        errs = self.check_solution(recalculate=False)
+        errs = self.check_solution(recalculate=False, assign_missions=assign_missions)
         error_cat = errs.to_lendict()
         log.debug("errors: {}".format(error_cat))
         objective = self.get_objective_function(error_cat)
@@ -223,13 +224,13 @@ class MaintenanceFirst(heur.GreedyByMission):
                 status = 0
                 self.best_objective = objective
                 log.info('best solution found: {}'.format(objective))
-                self.best_solution = self.get_solution()
+                self.best_solution = self.copy_solution()
         if status in self.status_accept:
-            self.previous_solution = self.get_solution()
+            self.previous_solution = self.copy_solution()
             self.prev_objective = objective
         return objective, status, errs
 
-    def get_candidates(self, errors, k=5):
+    def get_candidates(self, errors, k=5, assign_missions=False):
         """
         Samples candidates from many sources (mainly errors) from the current solution.
 
@@ -237,7 +238,10 @@ class MaintenanceFirst(heur.GreedyByMission):
         :param int k: maximum number of candidates to choose
         :return: chosen candidates
         """
-        candidates_tasks = self.get_candidates_tasks(errors)
+        if assign_missions:
+            candidates_tasks = self.get_candidates_tasks(errors)
+        else:
+            candidates_tasks = []
         candidates_maints = self.get_candidates_maints(errors)
         candidates_cluster = self.get_candidates_cluster(errors)
         candidates_dist_maints = self.get_candidates_dist_maints(errors)

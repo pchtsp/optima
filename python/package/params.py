@@ -66,8 +66,6 @@ OPTIONS = {
     , 'output_template_path': temp_path + 'template_out.xlsx'
     , 'exclude_aux': True
     , 'multiprocess': None
-    # heuristic params:
-
     , 'seed': 42
     # heuristic params:
     , 'num_change': [0.8, 0.1, 0.1]
@@ -80,6 +78,7 @@ OPTIONS = {
     , 'prob_delete_maint': 0.5
     , 'log_output': ['file', 'console']
     , 'log_handler': None
+    , 'assign_missions': False
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0

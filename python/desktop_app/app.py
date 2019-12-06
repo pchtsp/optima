@@ -14,6 +14,7 @@ import data.data_input as di
 import data.template_data as td
 
 import solvers.heuristics_maintfirst as mf
+import solvers.model_dassault as mod
 import desktop_app.gui as gui
 import reports.gantt as gantt
 
@@ -54,6 +55,8 @@ class MainWindow_EXCEC():
         # below buttons:
         self.ui.chooseFile.clicked.connect(self.choose_file)
         self.ui.generateSolution.clicked.connect(self.generate_solution)
+        self.ui.generateSolution_missions.clicked.connect(self.generate_solution_missions)
+
         self.ui.checkSolution.clicked.connect(self.check_solution)
         self.ui.exportSolution.clicked.connect(self.export_solution)
         self.ui.exportSolution_to.clicked.connect(self.export_solution_to)
@@ -242,6 +245,31 @@ class MainWindow_EXCEC():
             self.show_message('Finished', 'A solution was found.', icon='Success')
         else:
             self.show_message('Problem occured', 'A solution was not found.')
+        return 1
+
+    def generate_solution_missions(self):
+        if not self.solution:
+            self.show_message('Error', 'A solution needs to be loaded to assign missions.')
+            return 0
+        options = self.options
+        problem = mod.ModelMissions(self.instance, self.solution)
+        result = problem.solve(options)
+        if result is None:
+            self.show_message('Problem occured', 'A solution was not found.')
+            return 0
+        else:
+            self.show_message('Finished', 'A solution was found.', icon='Success')
+            self.update_ui()
+
+        output_path = options['path']
+        log_path = os.path.join(output_path, 'results.log')
+        try:
+            with open(log_path) as f:
+                res = f.read()
+        except:
+            print('Error reading log file')
+            res = ''
+        self.ui.solution_log.setText(res)
         return 1
 
     def export_solution_gen(self, output_path, export_input=False):
