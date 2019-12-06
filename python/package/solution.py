@@ -42,7 +42,7 @@ class Solution(object):
         raise IndexError("param {} is not present in the category {}".format(param, category))
 
     def get_periods(self):
-        resource_period = tl.TupList(self.get_tasks().keys()).to_dict(result_col=0).keys_l()
+        resource_period = self.get_tasks().keys_tl().to_dict(result_col=0).keys_l()
         return sorted(resource_period)
 
     def get_tasks(self):
@@ -78,7 +78,7 @@ class Solution(object):
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.tup_to_start_finish(ct=compare_tups)
+        result = statesMissions.to_start_finish(ct=compare_tups)
         return result
 
     def get_unavailable(self):
@@ -95,11 +95,6 @@ class Solution(object):
 
     def get_in_some_maintenance(self):
         raise ValueError("This is no longer supported")
-        # _states = self.get_state_tuplist()
-        # states = [(t, r) for r, t, v in _states if maint in v]
-        # in_maint = {k: len(v) for k, v in aux.tup_to_dict(states, 1, is_list=True).items()}
-        # # fixed maintenances should be included in the states already
-        # return aux.fill_dict_with_default(in_maint, self.get_periods())
 
     def get_period_state(self, resource, period, cat):
         try:
@@ -116,15 +111,10 @@ class Solution(object):
         return True
 
 if __name__ == "__main__":
-    path_states = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712190002/"
-    path_nostates = "/home/pchtsp/Documents/projects/OPTIMA_documents/results/experiments/201712181704/"
+    import package.params as params
+
+    path_states = params.PATHS['experiments'] + "experiments/201712190002/"
+    path_nostates = params.PATHS['experiments'] + "experiments/201712181704/"
     import data.data_input as di
     sol_states = Solution(di.load_data(path_states + "data_out.json"))
     sol_nostates = Solution(di.load_data(path_nostates + "data_out.json"))
-    # sol_nostates.graph_maintenances(path="/home/pchtsp/Documents/projects/OPTIMA/img/maintenances.html",
-    #                                 title="Maintenances")
-    # sol_nostates.graph_unavailable(path="/home/pchtsp/Documents/projects/OPTIMA/img/unavailable.html",
-    #                                title="Affectations")
-    # sol_nostates.print_solution("/home/pchtsp/Documents/projects/OPTIMA/img/calendar.html")
-
-    # sol.print_solution("/home/pchtsp/Downloads/calendar_temp3.html")

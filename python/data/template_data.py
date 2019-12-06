@@ -66,6 +66,7 @@ def get_tasks(tables):
         rename(columns=get_equiv_names()).\
         set_index('task')
     tasks['matricule'] = ''
+    tasks.type_resource = tasks.type_resource.astype(str)
     task_dict = sd.SuperDict.from_dict(tasks.to_dict(orient='index'))
     capacities = \
         task_dict.\
@@ -378,15 +379,11 @@ def import_output_template(path):
             reset_index().\
             set_index(["resource", 'period'])
 
-    states = \
-        sd.SuperDict(states_table_n['maint'].to_dict()).\
-        to_dictdict()
     states_table_n['maint'].to_dict()
 
 
     data = dict(
         state_m = states_m
-        ,state = states
         , task = {}
     )
     return data
