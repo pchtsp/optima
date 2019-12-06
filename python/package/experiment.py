@@ -401,7 +401,7 @@ class Experiment(object):
         duplicated_states = \
             np.intersect1d(task_solution_k, state_solution_k)
 
-        return [tuple(item) for item in duplicated_states]
+        return sd.SuperDict({tuple(item): 1 for item in duplicated_states})
 
     def check_min_max_assignment(self, **params):
         """

@@ -7,14 +7,11 @@ import logging
 import package.instance as inst
 import package.solution as sol
 import package.experiment as exp
-
-import execution.exec as exec
-
 import data.data_input as di
 import data.template_data as td
-
 import solvers.heuristics_maintfirst as mf
 import solvers.model_dassault as mod
+import execution.exec as exec
 import desktop_app.gui as gui
 import reports.gantt as gantt
 
@@ -253,13 +250,15 @@ class MainWindow_EXCEC():
             return 0
         options = self.options
         problem = mod.ModelMissions(self.instance, self.solution)
-        result = problem.solve(options)
+        my_options = {**options, **dict(solver='CBC')}
+        result = problem.solve(my_options)
         if result is None:
             self.show_message('Problem occured', 'A solution was not found.')
             return 0
-        else:
-            self.show_message('Finished', 'A solution was found.', icon='Success')
-            self.update_ui()
+
+        self.solution = result
+        self.show_message('Finished', 'A solution was found.', icon='Success')
+        self.update_ui()
 
         output_path = options['path']
         log_path = os.path.join(output_path, 'results.log')
@@ -280,6 +279,9 @@ class MainWindow_EXCEC():
             self.show_message('Error', 'No solution can be exported because there is no loaded solution.')
             return 0
         experiment = exp.Experiment(self.instance, self.solution)
+
+        # we need to force the generation of ret and rut auxiliary values
+        experiment.check_solution()
 
         # writing output template
         _dir = os.path.join(output_path, 'template_out.xlsx')

@@ -459,7 +459,6 @@ class Instance(object):
         min_percent = self.get_param('min_avail_percent')
         min_value = self.get_param('min_avail_value')
         hour_perc = self.get_param('min_hours_perc')
-        # num_periods = len(self.get_periods())
 
         # cluster availability will now mean:
         # resources that are not under maintenance
@@ -484,7 +483,8 @@ class Instance(object):
                        for k, t in kt
                        }
         # TODO: this should depend on the maintenance (we assumme 'M')
-        c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
+        limit = self.get_maintenances('max_used_time')['M']
+        c_needs_hours = {(k, t): v * limit * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
