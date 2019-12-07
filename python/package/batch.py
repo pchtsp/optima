@@ -35,6 +35,12 @@ class Batch(object):
     """
 
     def __init__(self, path, no_scenario=False, scenarios=None):
+        """
+
+        :param path: path to results
+        :param no_scenario: if True, there is no scenarios, instances directly
+        :param scenarios: in order to filter the scenarios to load
+        """
         self.path = path
         self.cases = None
         self.logs = None
@@ -211,8 +217,6 @@ class Batch(object):
             for path in paths.values():
                 shutil.rmtree(path)
         return paths.values_l()
-
-
 
 
 class ZipBatch(Batch):

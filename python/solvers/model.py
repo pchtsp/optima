@@ -31,6 +31,13 @@ class Model(exp.Experiment):
         self.model = None
 
     def solve(self, options=None):
+
+        seed = options.get('seed')
+        if not seed:
+            seed = math.ceil(rn.random() * 100000)
+            options['seed'] = seed
+        rn.seed(seed)
+
         l = self.domains
         if not self.domains or options.get('calculate_domains', True):
             l = self.domains = self.get_domains_sets(options)
@@ -850,11 +857,6 @@ class Model(exp.Experiment):
         return l
 
     def reduce_2M_window(self, options, domains):
-        seed = options.get('seed')
-        if not seed:
-            seed = math.ceil(rn.random() * 100000)
-            options['seed'] = seed
-        rn.seed(seed)
         reduce_2M_window = options.get('reduce_2M_window', {})
         periods = self.instance.get_periods()
         p_pos = {periods[pos]: pos for pos in range(len(periods))}
@@ -876,7 +878,7 @@ class Model(exp.Experiment):
             tuplist_filtered = tuplist.vfilter(_filter_funct)
             rejected_combos = set(tuplist) - set(tuplist_filtered)
             size_percent = min(round(len(tuplist_filtered) * percent_add), len(rejected_combos))
-            rejected_combos_accepted = rn.sample(list(rejected_combos), k=size_percent)
+            rejected_combos_accepted = rn.sample(sorted(rejected_combos), k=size_percent)
             return tuplist_filtered + tl.TupList(rejected_combos_accepted)
 
         # we reduce the first list.
