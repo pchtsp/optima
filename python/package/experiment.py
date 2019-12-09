@@ -20,7 +20,11 @@ class Experiment(object):
     Methods are especially checks on faisability.
     """
 
-    def __init__(self, instance, solution):
+    def __init__(self, instance: inst.Instance, solution: sol.Solution):
+        """
+        :param inst.Instance instance:
+        :param sol.Solution solution:
+        """
         self.instance = instance
         self.solution = solution
 
@@ -147,7 +151,9 @@ class Experiment(object):
         values[1:] = values[1:] - values[:-1]
         return values, groups
 
-    def check_task_num_resources(self, strict=False, **params):
+    def check_task_num_resources(self, strict=False, assign_missions=True, **params):
+        if not assign_missions:
+            return sd.SuperDict()
         task_reqs = self.instance.get_tasks('num_resource')
         task_period_list = self.instance.get_task_period_list()
 
@@ -165,7 +171,8 @@ class Experiment(object):
 
     def check_resource_in_candidates(self, **params):
         task_solution = self.solution.get_tasks()
-
+        if not len(task_solution):
+            return sd.SuperDict()
         task_candidates = self.instance.get_task_candidates()
 
         bad_assignment = {
@@ -385,7 +392,7 @@ class Experiment(object):
 
     def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
-        state_solution = self.solution.get_state_tuplist().filter([0, 1])
+        state_solution = self.solution.get_state_tuplist().take([0, 1])
 
         task_solution_k = np.fromiter(task_solution.keys(),
                                       dtype=[('A', '<U6'), ('T', 'U7')])
@@ -394,7 +401,7 @@ class Experiment(object):
         duplicated_states = \
             np.intersect1d(task_solution_k, state_solution_k)
 
-        return [tuple(item) for item in duplicated_states]
+        return sd.SuperDict({tuple(item): 1 for item in duplicated_states})
 
     def check_min_max_assignment(self, **params):
         """
@@ -441,7 +448,7 @@ class Experiment(object):
         state_tasks = self.solution.get_state_tasks().to_list()
         fixed_states = self.instance.get_fixed_states()
         fixed_states_h = fixed_states.\
-            filter_list_f(lambda x: first_period <= x[2] <= last_period).\
+            vfilter(lambda x: first_period <= x[2] <= last_period).\
             filter([0, 2, 1])
         # state_tasks_tab = pd.DataFrame(state_tasks,
         #                                columns=['resource', 'period', 'status'])
@@ -535,7 +542,7 @@ class Experiment(object):
             rets.\
             to_tuplist().sorted().\
             to_start_finish(compare_tups=compare, sort=False, pp=2).\
-            filter_list_f(lambda x: x[4] < last).\
+            vfilter(lambda x: x[4] < last).\
             filter([0, 1, 2, 4]).\
             to_dict(result_col=None).\
             kapply(lambda k: (rets[k[0], k[1], k[3]], k[0])).\
@@ -543,7 +550,7 @@ class Experiment(object):
             vapply(lambda v: v[0])
 
         # maybe filter resources when getting states:
-        ret_before_maint.keys_tl().filter(1).unique2()
+        ret_before_maint.keys_tl().take(1).unique2()
         states = self.get_states().to_dict(result_col=2, is_list=False)
         # here we filter the errors to the ones that involve the same
         # maintenance done twice.
@@ -552,8 +559,8 @@ class Experiment(object):
             kapply(lambda k: (k[1], _next(k[3]))).\
             vapply(lambda v: states.get(v)).\
             to_tuplist().\
-            filter_list_f(lambda x: x[0] == x[4]).\
-            filter([0, 1, 2, 3]).\
+            vfilter(lambda x: x[0] == x[4]).\
+            take([0, 1, 2, 3]).\
             to_dict(result_col=None).\
             vapply(lambda v: ret_before_maint[v])
 
@@ -587,7 +594,7 @@ class Experiment(object):
         # (although for now this is the case)
         maints_codes = self.instance.get_maintenances()
         previous_states = self.instance.get_prev_states(resource).\
-            filter_list_f(lambda x: x[2] in maints_codes)
+            vfilter(lambda x: x[2] in maints_codes)
         states = self.solution.get_state_tuplist(resource)
         previous_states.extend(states)
         return tl.TupList(previous_states).unique2()
@@ -620,7 +627,7 @@ class Experiment(object):
     def get_task_periods(self, resource=None):
         tasks = set(self.instance.get_tasks().keys())
         previous_tasks = self.instance.get_prev_states(resource). \
-            filter_list_f(lambda x: x[2] in tasks)
+            vfilter(lambda x: x[2] in tasks)
         ct = self.instance.compare_tups
         tasks_assigned = self.solution.get_tasks().to_tuplist()
         previous_tasks.extend(tasks_assigned)
@@ -630,6 +637,11 @@ class Experiment(object):
         return self.get_maintenance_periods(state_list=state_list).take([0, 1])
 
     def get_maintenance_cycles(self, maint_start_stops):
+        """
+
+        :param maint_start_stops: tuplist with starts and stops of maintenances
+        :return:
+        """
         first, last = (self.instance.get_param(p) for p in ['start', 'end'])
         _shift = self.instance.shift_period
         _next = self.instance.get_next_period
@@ -668,9 +680,9 @@ class Experiment(object):
         return \
             tl.TupList(starts_stops).\
             to_dict(result_col=[1, 2]).\
-            apply(lambda k, v: sorted(v)).\
-            fill_with_default(keys=resources, default=[]).\
-            apply(lambda k, v: self.get_maintenance_cycles(v))
+            vapply(sorted). \
+            fill_with_default(keys=resources, default=[]). \
+            vapply(self.get_maintenance_cycles)
 
     def get_acc_consumption(self):
         _range = self.instance.get_periods_range
@@ -724,7 +736,7 @@ class Experiment(object):
         # table.columns = ['rut', 'ret', 'state', 'task']
         # return table
 
-    def get_solution(self):
+    def copy_solution(self):
         """
         Makes a deep copy of the current solution.
 

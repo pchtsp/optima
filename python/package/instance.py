@@ -292,7 +292,7 @@ class Instance(object):
         # we filter it so we only take the start-finish periods that end before the horizon
         assignments = \
             previous_states.to_start_finish(self.compare_tups).\
-                filter_list_f(lambda x: x[3] == period_0)
+                vfilter(lambda x: x[3] == period_0)
 
         fixed_assignments_q = \
             [(a[0], a[2], min_assign.get(a[2], 0) - len(self.get_periods_range(a[1], a[3])))
@@ -324,20 +324,20 @@ class Instance(object):
 
     def get_fixed_periods(self):
         states = self.get_fixed_states()
-        return states.filter([0, 2])
+        return states.take([0, 2])
         # return tl.TupList([(a, t) for (a, s, t) in states]).unique()
 
     def get_task_period_list(self, in_dict=False):
 
-        task_periods = {task:
-            np.intersect1d(
-                self.get_periods_range(self.get_tasks('start')[task], self.get_tasks('end')[task]),
-                self.get_periods()
-            ) for task in self.get_tasks()
-        }
+        tasks = self.get_tasks()
+        _range = self.get_periods_range
+        task_periods = tasks.\
+            vapply(lambda v: _range(v['start'], v['end'])).\
+            vapply(tl.TupList).\
+            vapply(lambda v: v.intersect(self.get_periods()))
         if in_dict:
             return task_periods
-        return [(task, period) for task in self.get_tasks() for period in task_periods[task]]
+        return task_periods.to_tuplist()
 
     def get_first_last_period(self):
         return self.get_param('start'), self.get_param('end')
@@ -397,15 +397,17 @@ class Instance(object):
 
     def get_task_period_needs(self):
         requirement = self.get_tasks('num_resource')
-        needs = {(v, t): requirement[v] for (v, t) in self.get_task_period_list()}
-        return needs
+        return \
+            self.get_task_period_list().\
+            to_dict(None).\
+            kapply(lambda k: requirement[k[0]])
 
     def get_total_period_needs(self):
         num_resource_working = {t: 0 for t in self.get_periods()}
         task_period_needs = self.get_task_period_needs()
         for (v, t), req in task_period_needs.items():
             num_resource_working[t] += req
-        return num_resource_working
+        return sd.SuperDict.from_dict(num_resource_working)
 
     def get_total_fixed_maintenances(self):
         return self.get_fixed_maintenances().to_dict(result_col=0, is_list=True).to_lendict()
@@ -463,7 +465,6 @@ class Instance(object):
         min_percent = self.get_param('min_avail_percent')
         min_value = self.get_param('min_avail_value')
         hour_perc = self.get_param('min_hours_perc')
-        # num_periods = len(self.get_periods())
 
         # cluster availability will now mean:
         # resources that are not under maintenance
@@ -488,7 +489,8 @@ class Instance(object):
                        for k, t in kt
                        }
         # TODO: this should depend on the maintenance (we assumme 'M')
-        c_needs_hours = {(k, t): v * self.get_param('max_used_time') * hour_perc
+        limit = self.get_maintenances('max_used_time')['M']
+        c_needs_hours = {(k, t): v * limit * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
 
         return {'num': c_needs_num, 'hours': c_needs_hours}

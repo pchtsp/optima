@@ -3,7 +3,7 @@
 # Form implementation generated from reading ui file 'desktop_app/gui.ui',
 # licensing of 'desktop_app/gui.ui' applies.
 #
-# Created: Tue Sep  3 14:54:01 2019
+# Created: Fri Dec  6 12:57:54 2019
 #      by: pyside2-uic  running on PySide2 5.13.0
 #
 # WARNING! All changes made in this file will be lost!
@@ -114,6 +114,9 @@ class Ui_MainWindow(object):
         self.generateSolution.setDefault(False)
         self.generateSolution.setObjectName("generateSolution")
         self.horizontalLayout.addWidget(self.generateSolution)
+        self.generateSolution_missions = QtWidgets.QPushButton(self.Config)
+        self.generateSolution_missions.setObjectName("generateSolution_missions")
+        self.horizontalLayout.addWidget(self.generateSolution_missions)
         self.checkSolution = QtWidgets.QPushButton(self.Config)
         self.checkSolution.setObjectName("checkSolution")
         self.horizontalLayout.addWidget(self.checkSolution)
@@ -166,7 +169,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.20191018", None, -1))
+        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.20191209", None, -1))
         self.Config.setToolTip(QtWidgets.QApplication.translate("MainWindow", "<html><head/><body><p>configuration</p></body></html>", None, -1))
         self.chooseFile.setText(QtWidgets.QApplication.translate("MainWindow", "Browse", None, -1))
         self.instCheck.setText(QtWidgets.QApplication.translate("MainWindow", "No instance loaded", None, -1))
@@ -179,11 +182,12 @@ class Ui_MainWindow(object):
         self.start_date.setDisplayFormat(QtWidgets.QApplication.translate("MainWindow", "yyyy-MM", None, -1))
         self.start_date_lab.setText(QtWidgets.QApplication.translate("MainWindow", "Start date", None, -1))
         self.reuse_sol_tab.setText(QtWidgets.QApplication.translate("MainWindow", "Reuse previous solution", None, -1))
-        self.generateSolution.setText(QtWidgets.QApplication.translate("MainWindow", "generate solution", None, -1))
-        self.checkSolution.setText(QtWidgets.QApplication.translate("MainWindow", "check solution", None, -1))
-        self.exportSolution.setText(QtWidgets.QApplication.translate("MainWindow", "export solution", None, -1))
-        self.exportSolution_to.setText(QtWidgets.QApplication.translate("MainWindow", "export solution to", None, -1))
-        self.generateGantt.setText(QtWidgets.QApplication.translate("MainWindow", "Generate gantt", None, -1))
+        self.generateSolution.setText(QtWidgets.QApplication.translate("MainWindow", "Generate (maints)", None, -1))
+        self.generateSolution_missions.setText(QtWidgets.QApplication.translate("MainWindow", "Generate (missions)", None, -1))
+        self.checkSolution.setText(QtWidgets.QApplication.translate("MainWindow", "Check solution", None, -1))
+        self.exportSolution.setText(QtWidgets.QApplication.translate("MainWindow", "Export solution", None, -1))
+        self.exportSolution_to.setText(QtWidgets.QApplication.translate("MainWindow", "Export solution to", None, -1))
+        self.generateGantt.setText(QtWidgets.QApplication.translate("MainWindow", "Draw gantt chart", None, -1))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.Config), QtWidgets.QApplication.translate("MainWindow", "Config", None, -1))
         self.menuFile.setTitle(QtWidgets.QApplication.translate("MainWindow", "File", None, -1))
         self.actionOpen_from.setText(QtWidgets.QApplication.translate("MainWindow", "Open from...", None, -1))

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>OPTIMA v0.20190904</string>
+   <string>OPTIMA v0.20191209</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -224,7 +224,7 @@
             <item>
              <widget class="QPushButton" name="generateSolution">
               <property name="text">
-               <string>generate solution</string>
+               <string>Generate (maints)</string>
               </property>
               <property name="default">
                <bool>false</bool>
@@ -232,16 +232,23 @@
              </widget>
             </item>
             <item>
+             <widget class="QPushButton" name="generateSolution_missions">
+              <property name="text">
+               <string>Generate (missions)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QPushButton" name="checkSolution">
               <property name="text">
-               <string>check solution</string>
+               <string>Check solution</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="exportSolution">
               <property name="text">
-               <string>export solution</string>
+               <string>Export solution</string>
               </property>
               <property name="default">
                <bool>false</bool>
@@ -251,7 +258,7 @@
             <item>
              <widget class="QPushButton" name="exportSolution_to">
               <property name="text">
-               <string>export solution to</string>
+               <string>Export solution to</string>
               </property>
               <property name="default">
                <bool>false</bool>
@@ -261,7 +268,7 @@
             <item>
              <widget class="QPushButton" name="generateGantt">
               <property name="text">
-               <string>Generate gantt</string>
+               <string>Draw gantt chart</string>
               </property>
              </widget>
             </item>

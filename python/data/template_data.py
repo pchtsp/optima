@@ -12,7 +12,7 @@ def get_parameters(tables):
 
 
 def get_equiv_names():
-    return {
+    _dict = {
         'duree': 'duration_periods'
         , 'BC': 'max_elapsed_time'
         , 'BC_tol': 'elapsed_time_size'
@@ -25,7 +25,15 @@ def get_equiv_names():
         , 'heures': 'hours'
         , 'capacite': 'capacity'
         , 'mois': 'period'
+        , 'mission': 'task'
+        , 'date_debut': 'start'
+        , 'date_fin': 'end'
+        , 'type_avion': 'type_resource'
+        , 'nb_avions': 'num_resource'
+        , 'nb_heures': 'consumption'
+        , 'periode': 'period'
     }
+    return sd.SuperDict.from_dict(_dict)
 
 
 def get_maintenance(tables):
@@ -48,6 +56,29 @@ def get_maintenance(tables):
             v['depends_on'] = []
     return data
 
+def get_tasks(tables):
+    """
+    :param tables:
+    :return: dictionary in mission format
+    """
+    if 'missions' not in tables:
+        return sd.SuperDict()
+    tasks = \
+        tables['missions'].\
+        rename(columns=get_equiv_names()).\
+        set_index('task')
+    tasks['matricule'] = ''
+    tasks.type_resource = tasks.type_resource.astype(str)
+    task_dict = sd.SuperDict.from_dict(tasks.to_dict(orient='index'))
+    capacities = \
+        task_dict.\
+        vapply(lambda v: sd.SuperDict(capacities=[v['type_resource']]))
+    _range= lambda x, y: aux.get_months(x, y)
+    min_assign = \
+        task_dict.\
+        vapply(lambda x: _range(x['start'], x['end'])).\
+        vapply(lambda v: sd.SuperDict(min_assign=len(v)))
+    return task_dict.update(capacities).update(min_assign)
 
 def get_resources(tables):
 
@@ -57,7 +88,6 @@ def get_resources(tables):
     equiv = get_equiv_names()
 
     states = tables['etats_initiaux'].rename(columns=equiv)
-
     maint_tab = tables['maintenances']
 
     def elapsed_time_between_dates(value, series2):
@@ -68,6 +98,7 @@ def get_resources(tables):
     resources.resource = resources.resource.astype(str)
     states.resource = states.resource.astype(str)
 
+    # Flight hour consumption
     flight_hours_dict = {}
     min_usage_period = {}
     if 'heures_vol' in tables:
@@ -85,6 +116,7 @@ def get_resources(tables):
         min_usage_period.update(flight_hours_dict)
         min_usage_period = min_usage_period.vapply(lambda v: {'min_usage_period': v})
 
+    # Initial conditions
     resources_initial = \
         pd.merge(resources, states, on='resource'). \
         merge(maint_tab[['maint', 'BC', 'BH']], on='maint'). \
@@ -100,9 +132,24 @@ def get_resources(tables):
         to_dict(orient='index')
 
     resources_tot = sd.SuperDict.from_dict(resources_initial).to_dictdict()
-    resources_tot.update(min_usage_period)
 
-    def_resources = {'type': '1', 'capacities': [], 'states': {}, 'code': ''}
+    # Aircraft type
+    if 'type' in resources:
+        resources.type = resources.type.astype(str)
+        aircraft_type = resources.set_index('resource')['type'].to_dict()
+        aircraft_type = \
+            sd.SuperDict.from_dict(aircraft_type).\
+            vapply(lambda v: sd.SuperDict(type=v, capacities=[v]))
+    else:
+        _default = sd.SuperDict(type=1, capacities=[1])
+        aircraft_type = \
+            resources_tot.\
+                vapply(lambda v: _default)
+
+    resources_tot.update(min_usage_period)
+    resources_tot.update(aircraft_type)
+
+    def_resources = {'states': {}, 'code': ''}
     for r in resources_tot:
         resources_tot[r].update(def_resources)
 
@@ -126,7 +173,7 @@ def import_input_template(path):
     """
 
     sheets = ['maintenances', 'etats_initiaux', 'avions', 'params',
-              'heures_vol', 'maint_capacite']
+              'heures_vol', 'maint_capacite', 'missions']
 
     xl = pd.ExcelFile(path)
     present_sheets = set(sheets) & set(xl.sheet_names)
@@ -134,7 +181,7 @@ def import_input_template(path):
     tables = {sh: xl.parse(sh) for sh in present_sheets}
     data = dict(
         parameters = get_parameters(tables)
-        , tasks = {}
+        , tasks = get_tasks(tables)
         , maintenances = get_maintenance(tables)
         , resources = get_resources(tables)
     )
@@ -228,6 +275,8 @@ def export_output_template(path, input_data, output_data):
     :param output_data: solution.data
     :return:
     """
+
+    re_equiv_name = get_equiv_names().reverse()
     columns = ['avion', 'mois', 'maint', 'aux']
     sol_maints = \
         sd.SuperDict.from_dict(output_data['state_m']).\
@@ -295,7 +344,13 @@ def export_output_template(path, input_data, output_data):
         groupby(['period', 'type'])[['total']].\
         agg(sum).reset_index().merge(m_cap)
 
-    to_write = {'sol_maints': result, 'sol_stats': num_maints}
+    # Here we add assignments to missions, in case there is any
+    tasks_assign = \
+        sd.SuperDict.from_dict(output_data['task']).\
+            to_dictup().to_tuplist().take([2, 0, 1]).sorted().\
+            to_df(columns=['task', 'resource', 'period']).rename(columns=re_equiv_name)
+
+    to_write = {'sol_maints': result, 'sol_stats': num_maints, 'sol_missions': tasks_assign}
 
     with pd.ExcelWriter(path) as writer:
         for sheet, table in to_write.items():
@@ -307,15 +362,15 @@ def export_output_template(path, input_data, output_data):
 
 def import_output_template(path):
 
-    sheets = ['sol_maints']
+    sheets = ['sol_maints', 'sol_missions']
     # xl = pd.ExcelFile(path)
     # missing = set(sheets) - set(xl.sheet_names)
     # if len(missing):
     #     raise KeyError('The following sheets were not found: {}'.format(missing))
 
     tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
-    equiv = {'avion': 'resource', 'mois': 'period', 'maint':'maint'}
-    columns = list(equiv.values())
+    equiv = get_equiv_names()
+    columns = ['resource', 'period', 'maint']
     tables['sol_maints'].avion = tables['sol_maints'].avion.astype(str)
 
     states_table = \
@@ -329,21 +384,21 @@ def import_output_template(path):
         sd.SuperDict(states_table['value'].to_dict()).\
         to_dictdict()
 
-    states_table_n =\
-        states_table.\
-            reset_index().\
-            set_index(["resource", 'period'])
+    # states_table_n =\
+    #     states_table.\
+    #         reset_index().\
+    #         set_index(["resource", 'period'])
+    #
+    # states_table_n['maint'].to_dict()
 
-    states = \
-        sd.SuperDict(states_table_n['maint'].to_dict()).\
-        to_dictdict()
-    states_table_n['maint'].to_dict()
+    task = tables['sol_missions'].rename(columns=equiv).\
+        set_index(['resource', 'period'])['task'].\
+        to_dict()
+    task = sd.SuperDict.from_dict(task).to_dictdict()
 
-
-    data = dict(
+    data = sd.SuperDict(
         state_m = states_m
-        ,state = states
-        , task = {}
+        , task = task
     )
     return data
 

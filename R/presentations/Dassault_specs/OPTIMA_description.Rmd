@@ -120,7 +120,7 @@ Un ensemble de missions sont connues au long de l'horizon de planification. Chaq
 2. Un nombre d'heures de vol (HDV) à réaliser pour chaque avion et à chaque période (mois) de la mission.
 3. Une date (période) de début et une date (période) de fin.
 
-Si une mission donnée avait besoin d'avions de deux types différents, nous devrions séparer la mission originale en plusieurs missions indépendantes, une mission par type. Exemple : Mission $O1$ a besoin de $N$ avions de type $1$ et $M$ avions de type $2$. Nous devrons, donc, créer deux missions : la mission $O1a$ qui demande $N$ avions et qui a le type $1$; et la mission $O1b$ qui demande $M$ avions et qui a le type $2$. Les autres caractéristiques restent les mêmes.
+Si une mission donnée avait besoin d'avions de deux types différents, nous devrions séparer la mission originale en plusieurs missions indépendantes, une mission par type. Exemple : Mission $O1$ a besoin de $N$ avions de type $1$ et $L$ avions de type $2$. Nous devrons, donc, créer deux missions : la mission $O1a$ qui demande $N$ avions et qui a le type $1$; et la mission $O1b$ qui demande $L$ avions et qui a le type $2$. Les autres caractéristiques restent les mêmes.
 
 Nous supposons que le nombre d'heures de vol à réaliser est le même pour chaque avion affecté à la mission.
 
