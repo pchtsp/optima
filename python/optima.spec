@@ -22,6 +22,10 @@ def get_plotly_path():
     import plotly
     return plotly.__path__[0]
 
+def get_pulp_path():
+    import pulp
+    return pulp.__path__[0]
+
 
 path_main = os.path.dirname(os.path.abspath(sys.argv[2]))
 
@@ -41,6 +45,7 @@ a.datas += Tree(get_pandas_path(), prefix='pandas', excludes=["*.pyc", "tests"])
 a.datas += Tree(get_palettable_path(), prefix='palettable', excludes=["*.pyc"])
 a.datas += Tree(get_dfply_path(), prefix='dfply', excludes=["*.pyc"])
 a.datas += Tree(get_plotly_path(), prefix='plotly', excludes=["*.pyc"])
+a.datas += Tree(get_pulp_path(), prefix='pulp', excludes=["*.pyc"])
 a.datas += Tree('data/template/', prefix='examples', excludes=["*.html", "*/*_files"])
 #a.datas += [('R/functions/import_results.R', '../R/functions/import_results.R', 'DATA')]
 a.datas += [('plane.ico', 'python/desktop_app/plane.ico', 'DATA')]

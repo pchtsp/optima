@@ -12,7 +12,7 @@ def get_parameters(tables):
 
 
 def get_equiv_names():
-    return {
+    _dict = {
         'duree': 'duration_periods'
         , 'BC': 'max_elapsed_time'
         , 'BC_tol': 'elapsed_time_size'
@@ -31,7 +31,9 @@ def get_equiv_names():
         , 'type_avion': 'type_resource'
         , 'nb_avions': 'num_resource'
         , 'nb_heures': 'consumption'
+        , 'periode': 'period'
     }
+    return sd.SuperDict.from_dict(_dict)
 
 
 def get_maintenance(tables):
@@ -71,11 +73,11 @@ def get_tasks(tables):
     capacities = \
         task_dict.\
         vapply(lambda v: sd.SuperDict(capacities=[v['type_resource']]))
-    _dif= lambda x, y: aux.get_months(x, y)
+    _range= lambda x, y: aux.get_months(x, y)
     min_assign = \
         task_dict.\
-        vapply(lambda x: _dif(x['start'], x['end'])).\
-        vapply(lambda v: sd.SuperDict(min_assign=len(v)+1))
+        vapply(lambda x: _range(x['start'], x['end'])).\
+        vapply(lambda v: sd.SuperDict(min_assign=len(v)))
     return task_dict.update(capacities).update(min_assign)
 
 def get_resources(tables):
@@ -273,6 +275,8 @@ def export_output_template(path, input_data, output_data):
     :param output_data: solution.data
     :return:
     """
+
+    re_equiv_name = get_equiv_names().reverse()
     columns = ['avion', 'mois', 'maint', 'aux']
     sol_maints = \
         sd.SuperDict.from_dict(output_data['state_m']).\
@@ -340,7 +344,13 @@ def export_output_template(path, input_data, output_data):
         groupby(['period', 'type'])[['total']].\
         agg(sum).reset_index().merge(m_cap)
 
-    to_write = {'sol_maints': result, 'sol_stats': num_maints}
+    # Here we add assignments to missions, in case there is any
+    tasks_assign = \
+        sd.SuperDict.from_dict(output_data['task']).\
+            to_dictup().to_tuplist().take([2, 0, 1]).sorted().\
+            to_df(columns=['task', 'resource', 'period']).rename(columns=re_equiv_name)
+
+    to_write = {'sol_maints': result, 'sol_stats': num_maints, 'sol_missions': tasks_assign}
 
     with pd.ExcelWriter(path) as writer:
         for sheet, table in to_write.items():
@@ -352,15 +362,15 @@ def export_output_template(path, input_data, output_data):
 
 def import_output_template(path):
 
-    sheets = ['sol_maints']
+    sheets = ['sol_maints', 'sol_missions']
     # xl = pd.ExcelFile(path)
     # missing = set(sheets) - set(xl.sheet_names)
     # if len(missing):
     #     raise KeyError('The following sheets were not found: {}'.format(missing))
 
     tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
-    equiv = {'avion': 'resource', 'mois': 'period', 'maint':'maint'}
-    columns = list(equiv.values())
+    equiv = get_equiv_names()
+    columns = ['resource', 'period', 'maint']
     tables['sol_maints'].avion = tables['sol_maints'].avion.astype(str)
 
     states_table = \
@@ -374,17 +384,21 @@ def import_output_template(path):
         sd.SuperDict(states_table['value'].to_dict()).\
         to_dictdict()
 
-    states_table_n =\
-        states_table.\
-            reset_index().\
-            set_index(["resource", 'period'])
+    # states_table_n =\
+    #     states_table.\
+    #         reset_index().\
+    #         set_index(["resource", 'period'])
+    #
+    # states_table_n['maint'].to_dict()
 
-    states_table_n['maint'].to_dict()
+    task = tables['sol_missions'].rename(columns=equiv).\
+        set_index(['resource', 'period'])['task'].\
+        to_dict()
+    task = sd.SuperDict.from_dict(task).to_dictdict()
 
-
-    data = dict(
+    data = sd.SuperDict(
         state_m = states_m
-        , task = {}
+        , task = task
     )
     return data
 
