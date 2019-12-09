@@ -59,6 +59,7 @@ get_base <- function(num_tasks){
         'IT000125_20190801',
         'IT000125_20190828'
     )[[num_tasks]]
+    'IT000125_20191204'
     
 }
 
@@ -106,17 +107,24 @@ get_determ <- function(num_tasks, ...){
 }
 
 get_all_fixLP <- function(...){
-    get_generic_compare(c('IT000125_20190729', 'IT000125_20191104', 'IT000125_20191023', 'IT000125_20191025', 'IT000125_20190917'),
-                        exp_names = list('base', 'FlexLP_3', 'fixLP', 'FlexLP', 'stoch'),
+    get_generic_compare(c(get_base(2), 'IT000125_20191104', 'IT000125_20191023', 'IT000125_20191025', 'IT000125_20190917'),
+                        exp_names = list('base', 'base_flp3', 'base_flp', 'base_flp2', 'base_a2r'),
                         scenario_filter='numparalleltasks_2') %>% 
         correct_old_model
 }
 
 get_all_stoch <- function(num_tasks, ...){
     get_generic_compare(c(get_base(num_tasks), 'IT000125_20190915', 'IT000125_20190917', 'IT000125_20191130', 
-                          'IT000125_20191030', 'IT000125_20191125'),
+                          'IT000125_20191030', 'IT000125_20191207'),
                         exp_names = list('base', 'base_a1r', 'base_a2r', 'base_a3r', 
-                                         'anor', 'anor_a1'),
+                                         'old', 'old_a2r'),
+                        scenario_filter='numparalleltasks_%s' %>% sprintf(num_tasks)) %>% 
+        correct_old_model
+}
+
+get_stoch_a2r <- function(num_tasks, ...){
+    get_generic_compare(c(get_base(num_tasks), 'IT000125_20190917', 'IT000125_20191030', 'IT000125_20191207'),
+                        exp_names = list('base', 'base_a2r', 'old', 'old_a2r'),
                         scenario_filter='numparalleltasks_%s' %>% sprintf(num_tasks)) %>% 
         correct_old_model
 }
@@ -137,7 +145,7 @@ correct_old_model <- function(data, get_progress=FALSE, keep_correction=FALSE){
     # This assumes that the input dataframe has "dataset=IT000125_20191025_2" for the old model
     manual_tab <- data.table(dataset='IT000125_20191124', horizon=89, num_tasks=1, scenario='minusageperiod_5')
     correction <- 
-        CJ(dataset=c('IT000125_20191025_2', 'IT000125_20191030', 'IT000125_20191125'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
+        CJ(dataset=c('IT000125_20191207', 'IT000125_20191025_2', 'IT000125_20191030', 'IT000125_20191125'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
         mutate(scenario=sprintf("numparalleltasks_%s", num_tasks)) %>% 
         bind_rows(manual_tab) %>% 
         mutate(correction_value = 2*15*num_tasks*horizon) %>% 

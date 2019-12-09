@@ -155,13 +155,18 @@ get_infeasible_stats <- function(raw_df){
         select(-experiment) %>% 
         inner_join(get_infeasible_instances(raw_df)) %>% 
         filter(experiment!="base") %>% 
+        filter(sol_code %>% is.na %>% not) %>% 
         group_by(scenario, experiment) %>% 
         summarise(Infeasible = sum(sol_code==-1),
                   IntegerFeasible=sum(sol_code==2),
                   IntegerInfeasible=sum(sol_code==0),
                   Optimal=sum(sol_code==1),
                   Total = n()) %>% 
-        aux_compare
+        aux_compare %>% 
+        gather(key="case", 'value', -scenario, -Indicator) %>% 
+        filter(value>0) %>% 
+        spread(case, value, fill = 0) 
+        
 }
 
 get_soft_constraints <- function(raw_df, quant_max=0.95, compare=TRUE){
@@ -209,8 +214,10 @@ get_stats_summary <- function(raw_df_progress){
         group_by(scenario, experiment) %>% 
         summarise(nodes_mean = mean(nodes), 
                   nodes_medi = median(nodes),
-                  frel_medi = median(first_relaxed),
-                  crel_medi = median(cuts_best_bound)
+                  time_medi = median(time),
+                  time_mean = mean(time),
+                  # frel_medi = median(first_relaxed),
+                  # crel_medi = median(cuts_best_bound)
                   ) %>% 
         aux_compare
 }
