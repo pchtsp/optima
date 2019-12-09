@@ -7,152 +7,130 @@ path_export_tab <- '../../NPS2019/tab/'
 # df_original <- compare_sto$get_instances[[size]]()
 
 # optimization results ----------------------------------------------------
-
-# exp_list <- c('IT000125_20190808', 'IT000125_20190812')
-exp_list <- c('IT000125_20190725', 'IT000125_20190716') # small
-df <- get_generic_compare(exp_list, exp_names = list('cuts', 'base'))
-
 df_fixed <- get_all_fixLP()
-
 raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030'),
-                                   exp_names = list('base', 'old'),
-                                   scenario_filter='numparalleltasks_%s' %>% sprintf(2),
-                                   get_progress = TRUE) %>%
+                                       exp_names = list('base', 'old'),
+                                       scenario_filter='numparalleltasks_%s' %>% sprintf(2),
+                                       get_progress = TRUE) %>%
     correct_old_model(get_progress = TRUE, keep_correction = TRUE)
-# df_original <- compare_sto$get_df_comparison(exp_list)
-# df <- df_original %>% 
-#     mutate(experiment=if_else(experiment==0, 'cuts', 'base')) %>% 
-#     filter_all_exps
 
-# df <- get_4_tasks_perc_add()
+get_stoch_a2r_data <- get_stoch_a2r(2)
 
-# compare models
-
-stats_info <- get_stats_summary(raw_df_progress) %>% bind_rows(get_summary(raw_df_progress))
-
-
-# summary
-summary_stats <- get_summary(df)
-path <- '%sstats_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
-summary_stats %>% 
-    rename(Status=Indicator) %>% 
-    ungroup %>% 
-    select(-scenario) %>% 
-    kable(format='latex', booktabs = TRUE, linesep="") %>% 
-    write_file(path)
-
-# summary interception:
-
-summary_int <- get_comparable_sets(df)
-path <- '%sstats_int_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
-summary_int %>%
-    rename(Status=Indicator) %>% 
-    kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
-    write_file(path)
-
-
-# quality degradation
-t1 <- get_quality_degr(df)
-t1_rel <- t1 %>% filter(experiment=='cuts') %>% use_series(dist_min_perc)
-t1_rel_filt <- t1_rel[t1_rel<10]
-filtered_quant <- (1 - (t1_rel_filt %>% length) / (t1_rel %>% length))*100
-length(t1_rel)
-path <- '%squality_degradation_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
-qplot(t1_rel_filt, xlab='Relative gap (in %) among optimal solutions.', binwidth=0.3) + 
-    theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
-
-# quality performance
-quality_perf <- get_quality_perf(df)
-filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -7, 7))
-filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
-path <- '%squality_performance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
-qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.', binwidth=0.3) +
-    theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
-
-# time performance
-comparison_table <- get_time_perf_integer(df)
-comparison_table_reorder <- get_time_perf_integer_reorder(df)
-path <- '%stime_performance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
-ggplot(data=comparison_table, aes(x=instance, y=time, color=experiment)) + 
-    theme_minimal() + geom_point(size=0.5) + theme(text = element_text(size=20)) + 
-    ggsave(path)
-
-path <- '%stime_performance_ordered_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
-ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + 
-    theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + 
-    theme(text = element_text(size=20)) + ggsave(path)
-
-comparison_table_reorder_fixLP <- get_time_perf_integer_reorder(df_fixed)
-path <- '%stime_performance_ordered_fixLP.png' %>% sprintf(path_export_img)
-ggplot(data=comparison_table_reorder, aes(x=percentage, y=time, color=experiment)) + theme_minimal() + 
-    geom_point(size=0.5) + ggplot2::xlab('instance percentage') + theme(text = element_text(size=20)) + 
-    guides(color = guide_legend(override.aes = list(size=5))) + ggsave(path)
-
-# infeasible
-infeasible_stats <- get_infeasible_stats(df)
-
-path <- '%sinfeas_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
-infeasible_stats %>% 
-    kable(format='latex', booktabs = TRUE, linesep="") %>% 
-    write_file(path)
-
-# infeasible: fixLP
-infeasible_stats <- get_infeasible_stats(df_fixed)
-
-path <- '%sinfeas_fixed_2tasks.tex' %>% sprintf(path_export_tab)
-infeasible_stats %>% 
-    ungroup %>% 
-    select(-scenario) %>% 
-    kable(format='latex', booktabs = TRUE, linesep="") %>% 
-    write_file(path)
-
-
-# soft constraints
-errors_stats <- get_soft_constraints(df, 0.95)
-path <- '%ssoft_%s_%s.tex' %>% sprintf(path_export_tab, exp_list[1], exp_list[2])
-errors_stats %>% 
-    ungroup %>% 
-    select(-scenario) %>% 
-    kable(format='latex', booktabs = TRUE, linesep="") %>% 
-    write_file(path)
-
-# CBC comparison
-df <- get_1_tasks_CBC_CPLEX()
-comparison_table_reorder <- get_time_perf_integer_reorder(df)
-
-equiv=list(base='base_CBC', cuts='cuts_CBC', cplex_base='base_CPLEX')
-comparison_table_reorder_n <- 
-    comparison_table_reorder %>% 
-    ungroup %>% 
-    mutate(experiment=equiv[experiment] %>% unlist)
+make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_data){
     
-path <- '%s1task_CBC_CPLEX_times.png' %>% sprintf(path_export_img)
-ggplot(data=comparison_table_reorder_n, aes(x=percentage, y=time, color=experiment)) + 
-    theme_minimal() + geom_point(size=0.5) + ggplot2::xlab('instance percentage') + 
-    theme(text = element_text(size=20)) + ggsave(path)
-# times_cbc <- get_time_perf_optim(df)
-# df %>%  nrow
-status_cbc <- 
-    get_summary(df) %>% 
-    ungroup %>% 
-    select(Indicator, base_CBC=base, base_CPLEX=cplex_base, cuts_CBC=cuts)
+    left_tail <- 0.05
+    right_tail <- 0.05
+    element_text_size <- 10
 
-path <- '%s1task_CBC_CPLEX.tex' %>% sprintf(path_export_tab)
-status_cbc %>% 
-    kable(format='latex', booktabs = TRUE, linesep="") %>% 
-    write_file(path)
+    # compare models
+    path <- '%scomparison_models_task2.tex' %>% sprintf(path_export_tab)
+    get_stats_summary(raw_df_progress) %>% 
+        bind_rows(get_summary(raw_df_progress)) %>%
+        ungroup %>% 
+        select(-scenario) %>%
+        filter(!(Indicator %in% c('Total'))) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        write_file(path)
+    
+    # summary
+    summary_stats <- get_summary(get_stoch_a2r_data)
+    path <- '%sstats_2tasks.tex' %>% sprintf(path_export_tab)
+    summary_stats %>% 
+        rename(Status=Indicator) %>% 
+        ungroup %>% 
+        select(-scenario) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        write_file(path)
+    
+    # summary interception:
+    
+    summary_int <- get_comparable_sets(get_stoch_a2r_data)
+    path <- '%sstats_int_2tasks.tex' %>% sprintf(path_export_tab)
+    summary_int %>%
+        rename(Status=Indicator) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
+        write_file(path)
 
-comparison_table %>% 
-    group_by(experiment) %>% 
-    summarise(time_mean = mean(time), 
-              time_medi = median(time))
+    # quality degradation
+    path <- '%squality_degradation_2tasks.png' %>% sprintf(path_export_img)
+    ylab <- '% difference in objective'
+    
+    quality_degr_all <- get_quality_degr_2(get_stoch_a2r_data)
+    quality_degr_all_filt <- 
+        quality_degr_all %>% 
+        filter(dif_perc %>% value_filt_tails(c(left_tail, right_tail)))
+    
+    ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + 
+        theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + 
+        theme(text = element_text(size=element_text_size)) + coord_flip() + 
+        ggsave(path)
+    
+    
+    # quality performance
+    # quality_perf <- get_quality_perf(df)
+    # filtered_q_perf <- quality_perf %>% filter(between(dif_perc, -7, 7))
+    # filtered_quant <- (1 - (filtered_q_perf %>% nrow)/ (quality_perf %>% nrow))*100
+    # path <- '%squality_performance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
+    # qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.', binwidth=0.3) +
+    #     theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
+    
+    # time performance
+    graph_performance <- function(data, path){
+        ggplot(data=data, aes(x=percentage, y=time, color=experiment)) + 
+            theme_minimal() + geom_point(size=0.5) + xlab('Instance percentage') + 
+            ylab('Time to solve instance') + 
+            theme(text = element_text(size=element_text_size)) + guides(color = guide_legend(override.aes = list(size=5))) + ggsave(path)    
+    }
+    
+    data <- get_time_perf_integer_reorder(get_stoch_a2r_data)
+    path <- '%stime_performance_ordered_2tasks.png' %>% sprintf(path_export_img)
+    graph_performance(data, path)
+    
+    data <- get_time_perf_integer_reorder(df_fixed)
+    path <- '%stime_performance_ordered_fixLP.png' %>% sprintf(path_export_img)
+    graph_performance(data, path)
 
-# variance
-variances <- get_variances(df)
-var_per <- variances$dif_perc
-path <- '%svariance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
-qplot(var_per, xlab='Relative difference in variance among solutions.')+
-    theme(text = element_text(size=20)) + ggsave(path)
+    # infeasible and soft constraints
+    infeasible_stats <- get_infeasible_stats(get_stoch_a2r_data)
+    errors_stats <- get_soft_constraints(get_stoch_a2r_data, 0.95)
+    path <- '%sinfeas_2tasks.tex' %>% sprintf(path_export_tab)
+    
+    infeasible_stats %>% 
+        filter(!(Indicator %in% c('Total', 'Infeasible'))) %>% 
+        mutate(Indicator = '%s_new' %>% sprintf(Indicator)) %>% 
+        bind_rows(errors_stats) %>% 
+        ungroup %>% select(-scenario) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        write_file(path)
+    
+    # infeasible: fixLP
+    infeasible_stats <- get_infeasible_stats(df_fixed)
+    errors_stats <- get_soft_constraints(df_fixed, 0.95)
+    path <- '%sinfeas_fixed_2tasks.tex' %>% sprintf(path_export_tab)
+    
+    infeasible_stats %>% 
+        filter(!(Indicator %in% c('Total', 'Infeasible'))) %>% 
+        mutate(Indicator = '%s_new' %>% sprintf(Indicator)) %>% 
+        bind_rows(errors_stats) %>% 
+        ungroup %>% select(-scenario) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        write_file(path)
+    
+    # variance
+    variances_all <- get_variances(get_stoch_a2r_data)
+    path <- '%svariance_2tasks.png' %>% sprintf(path_export_img)
+    ylab <- 'Difference in variance (in % of base case)'
+    variances_all_filt <- 
+        variances_all %>% 
+        group_by(experiment) %>%
+        filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
+    
+    ggplot(data=variances_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + 
+        geom_boxplot() + xlab('Experiment') + ylab(ylab) + 
+        theme(text = element_text(size=element_text_size)) + coord_flip() + ggsave(path)
+}
+
+make_optimisation_results(df_fixed, raw_df_progress, get_stoch_a2r_data)
 
 # prediction models -------------------------------------------------------
 

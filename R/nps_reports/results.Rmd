@@ -78,7 +78,10 @@ if (scale!='identity'){
 }
 
   
-ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans=scale, labels=scaleFUN)
+ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + 
+  theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + 
+  theme(text = element_text(size=20)) + coord_flip() + 
+  scale_y_continuous(trans=scale, labels=scaleFUN)
 
 ```
 
