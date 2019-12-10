@@ -8,8 +8,8 @@ path_export_tab <- '../../NPS2019/tab/'
 
 # optimization results ----------------------------------------------------
 df_fixed <- get_all_fixLP()
-raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030'),
-                                       exp_names = list('base', 'old'),
+raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030', 'IT000125_20191017'),
+                                       exp_names = list('base', 'old', 'base_determ'),
                                        scenario_filter='numparalleltasks_%s' %>% sprintf(2),
                                        get_progress = TRUE) %>%
     correct_old_model(get_progress = TRUE, keep_correction = TRUE)
@@ -23,15 +23,20 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     element_text_size <- 10
 
     # compare models
-    path <- '%scomparison_models_task2.tex' %>% sprintf(path_export_tab)
-    get_stats_summary(raw_df_progress) %>% 
-        bind_rows(get_summary(raw_df_progress)) %>%
+    path <- '%scomparison_models_status_task2.tex' %>% sprintf(path_export_tab)
+    get_summary(raw_df_progress) %>% 
         ungroup %>% 
         select(-scenario) %>%
-        filter(!(Indicator %in% c('Total'))) %>% 
         kable(format='latex', booktabs = TRUE, linesep="") %>% 
         write_file(path)
-    
+
+    path <- '%scomparison_models_optim_task2.tex' %>% sprintf(path_export_tab)
+    get_stats_summary(raw_df_progress) %>% 
+        ungroup %>% 
+        select(-scenario) %>%
+        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        write_file(path)
+
     # summary
     summary_stats <- get_summary(get_stoch_a2r_data)
     path <- '%sstats_2tasks.tex' %>% sprintf(path_export_tab)
@@ -92,7 +97,7 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
 
     # infeasible and soft constraints
     infeasible_stats <- get_infeasible_stats(get_stoch_a2r_data)
-    errors_stats <- get_soft_constraints(get_stoch_a2r_data, 0.95)
+    errors_stats <- get_soft_constraints(get_stoch_a2r_data)
     path <- '%sinfeas_2tasks.tex' %>% sprintf(path_export_tab)
     
     infeasible_stats %>% 
@@ -105,7 +110,7 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     
     # infeasible: fixLP
     infeasible_stats <- get_infeasible_stats(df_fixed)
-    errors_stats <- get_soft_constraints(df_fixed, 0.95)
+    errors_stats <- get_soft_constraints(df_fixed)
     path <- '%sinfeas_fixed_2tasks.tex' %>% sprintf(path_export_tab)
     
     infeasible_stats %>% 
