@@ -247,7 +247,7 @@ get_mega_summary <- function(df){
     
     # feasibility
     summary_stats <- get_summary(df, compare=FALSE)
-    errors_stats <- get_soft_constraints(df, 0.95, compare=FALSE)
+    errors_stats <- get_soft_constraints(df, compare=FALSE)
     feasibility <- 
         summary_stats %>% 
         mutate(InfPerc=(Infeasible/Total) %>% times_100_round) %>% 

@@ -172,16 +172,26 @@ ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) +
 
 
 # summary optimization ----------------------------------------------------
+data_summary <-
+    get_generic_compare(c('IT000125_20191204', 'IT000125_20190917', 
+                          'IT000125_20191030', 'IT000125_20191207',
+                          'IT000125_20190808', 'IT000125_20190812', 
+                          'IT000125_20191201', 'IT000125_20191130',
+                          'IT000125_20191125'),
+                        exp_names = list('base', 'base_a2r', 
+                                         'old', 'old_a2r',
+                                         'base_a1', 'base_a2', 
+                                         'old_a3', 'base_a3r',
+                                         'old_a1'),
+                        scenario_filter='numparalleltasks_%s' %>% sprintf(c(2, 3, 4))) %>%
+    correct_old_model
 
-if (FALSE){
-    # Here we configure names and which data we want to get.
-    options <- c('get_all_tasks'
-                 ,'get_all_tasks_aggresive'
-                 ,'get_all_tasks_aggresive_percadd'
-                 ,'get_all_tasks_very_aggresive_percadd'
-                 ,'get_old_all')
+make_optimisation_summary <- function(data_summary){
     
-    options <- c('get_old_all')
+    nn <- data_summary %>% split(use_series(., scenario))
+    nn$numparalleltasks_4 %>% nrow()
+    nnn <- get_mega_summary(nn$numparalleltasks_4)
+    
     names(options) <- options
     fun_ <- function(func_name){
         func_name %>% do.call(args=list()) %>% get_mega_summary
@@ -189,11 +199,6 @@ if (FALSE){
     equiv <- list(numparalleltasks_2='30', 
                   numparalleltasks_3='45', 
                   numparalleltasks_4='60')
-    equiv2 <- list(get_all_tasks='cuts', 
-                   get_all_tasks_aggresive='cuts\\_a', 
-                   get_all_tasks_aggresive_percadd='cuts\\_a\\_rec',
-                   get_all_tasks_very_aggresive_percadd='cuts\\_aa\\_rec',
-                   get_old_all='old')
     
     col_names <- c("", "$|\\mathcal{I}|$", "$\\mu_e$", "$q95_e$", "Feas", "Infeas", "$\\mu_q$", 
                    "$med_q$", "$q95_q$", "$\\mu_t$", "$med_e$")
@@ -204,8 +209,7 @@ if (FALSE){
         table_list %>% 
         bind_rows(.id='experiment') %>% 
         ungroup %>% 
-        mutate(scenario=equiv[scenario] %>% unlist,
-               experiment=equiv2[experiment] %>% unlist) %>% 
+        mutate(scenario=equiv[scenario] %>% unlist) %>% 
         set_names(col_names)
     
     # Here we export

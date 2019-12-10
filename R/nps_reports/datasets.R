@@ -145,7 +145,9 @@ correct_old_model <- function(data, get_progress=FALSE, keep_correction=FALSE){
     # This assumes that the input dataframe has "dataset=IT000125_20191025_2" for the old model
     manual_tab <- data.table(dataset='IT000125_20191124', horizon=89, num_tasks=1, scenario='minusageperiod_5')
     correction <- 
-        CJ(dataset=c('IT000125_20191207', 'IT000125_20191025_2', 'IT000125_20191030', 'IT000125_20191125'), horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
+        CJ(dataset=c('IT000125_20191207', 'IT000125_20191025_2', 
+                     'IT000125_20191030', 'IT000125_20191125'), 
+           horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
         mutate(scenario=sprintf("numparalleltasks_%s", num_tasks)) %>% 
         bind_rows(manual_tab) %>% 
         mutate(correction_value = 2*15*num_tasks*horizon) %>% 
