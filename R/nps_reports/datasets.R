@@ -26,7 +26,7 @@ get_result_tab <- function(name){
     result_tab
 }
 
-get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, get_progress=FALSE){
+get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, get_progress=FALSE, zip=TRUE){
     compare_sto <- get_compare_sto()
     if (exp_names %>% is.null){
         # This assumes the dataset_list has only two datasets!
@@ -40,7 +40,8 @@ get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NU
     }
     df_original <- compare_sto$get_df_comparison(exp_list=dataset_list, 
                                                  scenarios=scenario_filter, 
-                                                 get_progress=get_progress)
+                                                 get_progress=get_progress,
+                                                 zip=zip)
     dataset_names <- dataset_list %>% lapply(function(x) x)
     df_original %<>% 
         mutate(dataset=dataset_names[experiment+1] %>% unlist,
@@ -146,7 +147,7 @@ correct_old_model <- function(data, get_progress=FALSE, keep_correction=FALSE){
     manual_tab <- data.table(dataset='IT000125_20191124', horizon=89, num_tasks=1, scenario='minusageperiod_5')
     correction <- 
         CJ(dataset=c('IT000125_20191207', 'IT000125_20191025_2', 
-                     'IT000125_20191030', 'IT000125_20191125'), 
+                     'IT000125_20191030', 'IT000125_20191125', 'IT000125_20191207_6'), 
            horizon=89, num_tasks=c(1, 2, 3, 4)) %>% 
         mutate(scenario=sprintf("numparalleltasks_%s", num_tasks)) %>% 
         bind_rows(manual_tab) %>% 

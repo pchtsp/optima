@@ -169,13 +169,13 @@ get_infeasible_stats <- function(raw_df){
         
 }
 
-get_soft_constraints <- function(raw_df, quant_max=0.95, compare=TRUE){
+get_soft_constraints <- function(raw_df, compare=TRUE){
     result <- 
         raw_df %>% 
-        get_soft_constraints_2 %>%  
+        get_soft_constraints_2 %>% 
         group_by(scenario, experiment) %>% 
         summarise(errors_mean = mean(dif),
-                  errors_q95 = quantile(dif, quant_max))
+                  errors_new = (sum(dif>0)/n()) %>% times_100_round)
     if (!compare){
         return(result)
     }
@@ -214,11 +214,12 @@ get_stats_summary <- function(raw_df_progress){
         group_by(scenario, experiment) %>% 
         summarise(nodes_mean = mean(nodes), 
                   nodes_medi = median(nodes),
+                  frel_mean = ((best_solution-first_relaxed)/best_solution) %>% abs %>% mean,
+                  crel_mean = ((best_solution-cuts_best_bound)/best_solution) %>% abs %>% mean,
                   time_medi = median(time),
-                  time_mean = mean(time),
-                  # frel_medi = median(first_relaxed),
-                  # crel_medi = median(cuts_best_bound)
+                  time_mean = mean(time)
                   ) %>% 
+        mutate_at(vars(frel_mean, crel_mean), times_100_round) %>% 
         aux_compare
 }
 
