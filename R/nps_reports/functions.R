@@ -86,6 +86,18 @@ compare_objectives_perc <- function(df, column='best_solution'){
         filter(experiment!='base')
 }
 
+compare_with_base <- function(data, column, abs=TRUE){
+    column <- enquo(column)
+    ref <- data %>% filter(experiment=='base') %>% ungroup %>% select(!!column) %>% extract2(1)
+    if (abs){
+        func_a <- function(x) x- ref
+    } else {
+        func_a <- function(x) ((x- ref)/ref) %>% times_100_round()
+    }
+    data %>% mutate_at(vars(!!column), func_a)
+}
+
+
 get_quality_perf_2 <- function(raw_df){
     raw_df %>% get_all_integer %>% compare_objectives_perc('best_solution')
 }
@@ -212,15 +224,21 @@ get_stats_summary <- function(raw_df_progress){
     raw_df_progress %>% 
         get_stats %>% 
         group_by(scenario, experiment) %>% 
-        summarise(nodes_mean = mean(nodes), 
-                  nodes_medi = median(nodes),
-                  frel_mean = ((best_solution-first_relaxed)/best_solution) %>% abs %>% mean,
-                  crel_mean = ((best_solution-cuts_best_bound)/best_solution) %>% abs %>% mean,
-                  time_medi = median(time),
-                  time_mean = mean(time)
+        summarise(nodes = mean(nodes), 
+                  frel = ((best_solution-first_relaxed)/best_solution) %>% abs %>% mean,
+                  crel = ((best_solution-cuts_best_bound)/best_solution) %>% abs %>% mean,
+                  time = mean(time)
                   ) %>% 
-        mutate_at(vars(frel_mean, crel_mean), times_100_round) %>% 
+        mutate_at(vars(frel, crel), times_100_round) %>% 
         aux_compare
+    
+    # raw_df_progress %>% 
+    #     filter(time %>% is.na %>% not) %>% 
+    #     group_by(scenario, experiment) %>% 
+    #     summarise(
+    # 
+    #     ) %>% 
+    #     aux_compare
 }
 
 get_stats <- function(raw_df_progress){
@@ -237,14 +255,13 @@ get_mega_summary <- function(df){
     # extra infeasible instances as percent of total
     # extra soft constraints violations (avg, 95%)
     # TODO: time to detect infeasible.
-    # TODO: sum of variances.
+    # sum of variances.
     # performance:
     # extra feasible instances as percent of total
     # time to solve: median, avg
     # optimality:
     # distance from integer: 
     # distance from optimal: 
-    
     
     # feasibility
     summary_stats <- get_summary(df, compare=FALSE)
@@ -253,46 +270,58 @@ get_mega_summary <- function(df){
         summary_stats %>% 
         mutate(InfPerc=(Infeasible/Total) %>% times_100_round) %>% 
         select(experiment, InfPerc) %>% 
-        inner_join(errors_stats)
+        compare_with_base(InfPerc) %>% inner_join(errors_stats)
+
     # performance
-    times <- get_time_perf_integer(df)
-    performance <- 
+    feas_performance <- 
         summary_stats %>% 
         mutate(Feasible=((IntegerFeasible+Optimal)/Total) %>% times_100_round) %>% 
-        select(experiment, Feasible)
+        select(experiment, Feasible) %>% 
+        compare_with_base(Feasible)
+    
     performance <- 
-        times %>% 
+        df %>% 
+        get_time_perf_integer %>% 
         group_by(scenario, experiment) %>% 
-        summarise(time_mean = mean(time), 
-                  time_medi = median(time)) %>% 
-        inner_join(performance)
+        summarise(time_mean = mean(time)) %>% 
+        compare_with_base(time_mean, abs=FALSE) %>% 
+        inner_join(feas_performance)
+    
     # optimality
-    optim_degr <- get_quality_degr(df)
-    optimality <- 
-        optim_degr %>% 
-        select(scenario, instance, experiment, dist_min_perc) %>% 
+    optimality <-
+        df %>% get_quality_degr_2 %>% 
         group_by(scenario, experiment) %>% 
-        summarise(q_mean= mean(dist_min_perc) %>% round(2),
-                  q_medi= median(dist_min_perc) %>% round(2),
-                  q_q95 = quantile(dist_min_perc, 0.95) %>% round(2))
+        summarise(q_mean= mean(dif_perc) %>% round(2),
+                  q_medi= median(dif_perc) %>% round(2),
+                  q_q95 = quantile(dif_perc, 0.95) %>% round(2))
+    
+    # variance
+    variances_all <- 
+        get_variances(df) %>%
+        group_by(scenario, experiment) %>%
+        summarise(v_mean = mean(dif_perc) %>% round(2))
+
+    # summary
     comparison <- 
         feasibility %>% 
         inner_join(performance) %>%
         inner_join(optimality) %>% 
+        inner_join(variances_all) %>% 
         aux_compare
     
-    # dif_abs:
-    dif_abs <- data.table(Indicator=c('Feasible', 'InfPerc', 'q_mean', 'q_medi', 'q_q95'))
-    comp_dif_abs <- 
-        comparison %>% 
-        semi_join(dif_abs) %>% 
-        select(scenario, Indicator, dif=dif_abs)
-    
-    comparison %>% 
-        anti_join(dif_abs) %>% 
-        select(scenario, Indicator, dif=dif_perc) %>% 
-        bind_rows(comp_dif_abs) %>% 
-        spread(Indicator, dif)
+    return(comparison)
+# 
+#         # dif_abs:
+#     dif_abs <- data.table(Indicator=c('Feasible', 'InfPerc', 'q_mean', 'q_medi', 'q_q95'))
+#     
+#     comp_dif_abs <- 
+#         comparison %>% 
+#         semi_join(dif_abs)
+#     
+#     comparison %>% 
+#         anti_join(dif_abs) %>% 
+#         bind_rows(comp_dif_abs) %>% 
+#         spread(Indicator, dif)
 }
 
 

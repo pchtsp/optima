@@ -21,6 +21,7 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     left_tail <- 0.05
     right_tail <- 0.05
     element_text_size <- 10
+    legend_size <- 3
 
     # compare models
     path <- '%scomparison_models_status_task2.tex' %>% sprintf(path_export_tab)
@@ -84,7 +85,8 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
         ggplot(data=data, aes(x=percentage, y=time, color=experiment)) + 
             theme_minimal() + geom_point(size=0.5) + xlab('Instance percentage') + 
             ylab('Time to solve instance') + 
-            theme(text = element_text(size=element_text_size)) + guides(color = guide_legend(override.aes = list(size=5))) + ggsave(path)    
+            theme(text = element_text(size=element_text_size)) + 
+            guides(color = guide_legend(override.aes = list(size=legend_size))) + ggsave(path)    
     }
     
     data <- get_time_perf_integer_reorder(get_stoch_a2r_data)
@@ -193,35 +195,41 @@ data_summary <-
 
 make_optimisation_summary <- function(data_summary){
     
-    nn <- data_summary %>% split(use_series(., scenario))
-    nn$numparalleltasks_4 %>% nrow()
-    nnn <- get_mega_summary(nn$numparalleltasks_4)
+    data_per_scenario <- data_summary %>% split(use_series(., scenario))
+    treated_data <- data_per_scenario %>% lapply(get_mega_summary)
+    col_names <- c("r"="", 
+                   'scenario'="$|\\mathcal{I}|$", 
+                   'errors_mean'="$E_\\mu$", 
+                   'errors_new'="$E_{\\%}$", 
+                   'Feasible'="$Feas$",
+                   'InfPerc'="$Infeas$",
+                   'q_mean'="$Q_\\mu$",
+                   'q_medi'="$Q_m$", 
+                   'q_q95'="$Q_{95}$", 
+                   'time_mean'="$T_\\mu$", 
+                   'time_medi'="$T_m$",
+                   'v_mean'="$V_\\mu$")
     
-    names(options) <- options
-    fun_ <- function(func_name){
-        func_name %>% do.call(args=list()) %>% get_mega_summary
-    }
-    equiv <- list(numparalleltasks_2='30', 
-                  numparalleltasks_3='45', 
-                  numparalleltasks_4='60')
-    
-    col_names <- c("", "$|\\mathcal{I}|$", "$\\mu_e$", "$q95_e$", "Feas", "Infeas", "$\\mu_q$", 
-                   "$med_q$", "$q95_q$", "$\\mu_t$", "$med_e$")
-    
-    # Here we get data, give format
-    table_list <- options %>% lapply(fun_)
-    table_out <- 
-        table_list %>% 
-        bind_rows(.id='experiment') %>% 
-        ungroup %>% 
-        mutate(scenario=equiv[scenario] %>% unlist) %>% 
-        set_names(col_names)
-    
+    col_names_list <- col_names %>% lapply(FUN=function(x) x)
+
     # Here we export
-    names(table_out) <- str_replace(names(table_out), '\\_', '\\\\_')
-    path <- '%scompare_all.tex' %>% sprintf(path_export_tab)
-    table_out %>% 
-        kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
-        write_file(path)
+    write_func <- function(tab){
+        name <- tab$scenario[1]
+        col_names_list
+        names(tab) <- str_replace(names(tab), '\\_', '\\\\_')
+        path <- '%scompare_all_%s.tex' %>% sprintf(path_export_tab, name)
+        tab %>% names %>% print
+        tab %>% ungroup %>% select(-scenario) %>% 
+            mutate(Indicator=col_names_list[Indicator] %>% unlist) %>% 
+            rename(Stat=Indicator) %>% 
+            kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
+            write_file(path)
+    }
+    treated_data %>% lapply(write_func)
     
+}
+make_optimisation_summary(data_summary)
+if (FALSE){
+    
+    make_optimisation_summary(data_summary)
 }
