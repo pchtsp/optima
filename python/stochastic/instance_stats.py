@@ -1,5 +1,6 @@
 import pytups.superdict as sd
 import pandas as pd
+import math
 
 import stochastic.params as params
 import stochastic.tools as aux
@@ -191,8 +192,9 @@ def get_range_dist_2M(instance, _type, tolerance=None):
         kvapply(lambda k, v: tolerance[k] + v)
 
     # check that min is less than max
+    # if not, get an average and put both in the center.
     if coefs['min'] >= coefs['max']:
-        coefs['max'] = coefs['min']
+        coefs['max'] = math.ceil((coefs['min'] + coefs['max']) / 2)
         coefs['min'] = coefs['max'] - 1
     return coefs
 
