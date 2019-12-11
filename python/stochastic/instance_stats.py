@@ -7,7 +7,7 @@ import stochastic.tools as aux
 
 def get_resources_of_type(instance, _type=0):
     return sd.SuperDict(instance.get_resources('type')).\
-        clean(func=lambda v: v == _type).to_tuplist().filter(0).to_set()
+        clean(func=lambda v: v == _type).to_tuplist().take(0).to_set()
 
 
 def is_type(task, _type, property_name='type_resource'):
@@ -19,7 +19,7 @@ def min_assign_consumption(instance, _type=0):
     tasks_tt = \
         sd.SuperDict(tasks).\
         clean(func=is_type, _type=_type).\
-        apply(lambda k, v: v['consumption']*v['num_resource']*v['min_assign'])
+        vapply(lambda v: v['consumption']*v['num_resource']*v['min_assign'])
     return pd.Series(tasks_tt.values_l())
 
 
@@ -29,13 +29,13 @@ def get_rel_consumptions(instance, _type=0):
     tasks_tt = \
         sd.SuperDict(tasks). \
             clean(func=is_type, _type=_type). \
-            apply(lambda k, v:
+            vapply(lambda v:
                   sd.SuperDict({p: v['consumption']*v['min_assign']
                                 for p in ranged(v['start'], v['end'])})). \
             to_dictup(). \
             to_tuplist(). \
             to_dict(result_col=2, indices=[1]). \
-            apply(lambda _, x: sum(x)).to_tuplist()
+            vapply(lambda x: sum(x)).to_tuplist()
     tasks_tt.sort()
     dates, values = zip(*tasks_tt)
     return pd.Series(values)
@@ -47,7 +47,7 @@ def get_consumptions(instance, hours=True, _type=0):
     tasks = instance.get_tasks()
     tasks = sd.SuperDict.from_dict(tasks)
     if not hours:
-        tasks = tasks.apply(lambda k, v: {**v, **{'consumption': 1}})
+        tasks = tasks.vapply(lambda v: {**v, **{'consumption': 1}})
     tasks_tt = \
         tasks. \
         clean(func=is_type, _type=_type). \
@@ -57,7 +57,7 @@ def get_consumptions(instance, hours=True, _type=0):
         to_dictup().\
         to_tuplist().\
         to_dict(result_col=2, indices=[1]).\
-        apply(lambda _, x: sum(x)).to_tuplist()
+        vapply(lambda x: sum(x)).to_tuplist()
     tasks_tt.sort()
     dates, values = zip(*tasks_tt)
     return pd.Series(values)
@@ -157,7 +157,7 @@ def calculate_stat(instance, coefs, _type, mean_std=None):
     if len(missing_info) > 1:
         # intercept is the only one that should be there
         raise KeyError('missing keys in data: {}'.format(missing_info))
-    return sum(data.apply(lambda k, v: v/mean.get(k, 1) * coefs.get(k, 0)).values()) + intercept
+    return sum(data.kvapply(lambda k, v: v/mean.get(k, 1) * coefs.get(k, 0)).values()) + intercept
 
 
 def get_bound_var(instance, variable, _type):
@@ -188,7 +188,7 @@ def get_range_dist_2M(instance, _type, tolerance=None):
         vapply(lambda v: params.get_bound_var_data[v]).\
         vapply(lambda v: calculate_stat(instance, coefs=v, _type=_type, mean_std=mean_std)).\
         vapply(round).\
-        apply(lambda k, v: tolerance[k] + v)
+        kvapply(lambda k, v: tolerance[k] + v)
 
     # check that min is less than max
     if coefs['min'] >= coefs['max']:

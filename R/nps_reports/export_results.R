@@ -7,20 +7,22 @@ path_export_tab <- '../../NPS2019/tab/'
 # df_original <- compare_sto$get_instances[[size]]()
 
 # optimization results ----------------------------------------------------
-df_fixed <- get_all_fixLP()
-raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030', 'IT000125_20191017'),
-                                       exp_names = list('base', 'old', 'base_determ'),
-                                       scenario_filter='numparalleltasks_%s' %>% sprintf(2),
-                                       get_progress = TRUE) %>%
-    correct_old_model(get_progress = TRUE, keep_correction = TRUE)
 
-get_stoch_a2r_data <- get_stoch_a2r(2)
+get_data_optimisation_results <- function(){
+    df_fixed <- get_all_fixLP()
+    raw_df_progress <- get_generic_compare(dataset_list = c(get_base(2), 'IT000125_20191030', 'IT000125_20191017'),
+                                           exp_names = list('base', 'old', 'base_determ'),
+                                           scenario_filter='numparalleltasks_%s' %>% sprintf(2),
+                                           get_progress = TRUE) %>%
+        correct_old_model(get_progress = TRUE, keep_correction = TRUE)
+    get_stoch_a2r_data <- get_stoch_a2r(2)
+    list('df_fixed'=df_fixed, 'raw_df_progress'=raw_df_progress, 'get_stoch_a2r_data'=get_stoch_a2r_data)
+}
 
-make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_data){
+make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_data, element_text_size=10){
     
     left_tail <- 0.05
     right_tail <- 0.05
-    element_text_size <- 10
     legend_size <- 3
 
     # compare models
@@ -139,47 +141,50 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
 
 make_optimisation_results(df_fixed, raw_df_progress, get_stoch_a2r_data)
 
-# prediction models -------------------------------------------------------
-
-
-dataset <- 'IT000125_20190716'
-result_tab <- get_result_tab(dataset)
-
-# distribution on mean_distances
-
-path <- '%sdistribution_mean_distances_%s.png' %>% sprintf(path_export_img, dataset)
-ggplot(data=result_tab, aes(x=mean_dist_complete)) + 
-    geom_histogram(position="identity", binwidth = 1) + 
-    theme_minimal() +
-    theme(axis.text.x = element_text(hjust=0),
-          strip.text.y = element_text(angle=0),
-          text = element_text(size=17)) +
-    xlab('Average distance between checks') + 
-    ylab('Number of instances') + 
-    ggsave(path)
-
+# forecasting results  -------------------------------------------------------
+# TODO: finish this function to generate all graphs
+make_forecasting_results <- function(result_tab, element_text_size=10){
     
-# maintenances 
+    # this is hardcoded:
+    dataset <- 'IT000125_20190716'
+    
+    # distribution on mean_distances
+    path <- '%sdistribution_mean_distances_%s.png' %>% sprintf(path_export_img, dataset)
+    ggplot(data=result_tab, aes(x=mean_dist_complete)) + 
+        geom_histogram(position="identity", binwidth = 1) + 
+        theme_minimal() +
+        theme(axis.text.x = element_text(hjust=0),
+              strip.text.y = element_text(angle=0),
+              text = element_text(size=element_text_size)) +
+        xlab('Average distance between checks') + 
+        ylab('Number of instances') + 
+        ggsave(path)
+        
+    # maintenances 
+    result_tab_n <- result_tab %>% filter(gap_abs<100 & num_errors==0)
+    path <- '%smean_consum_vs_maints_nocolor_%s.png' %>% sprintf(path_export_img, dataset)
+    ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) + 
+        geom_jitter(alpha=0.4, height=0.2) + theme_minimal() + 
+        facet_grid('init_cut ~ .') +
+        theme(axis.text.x = element_text(hjust=0),
+              strip.text.y = element_text(angle=0),
+              text = element_text(size=element_text_size)) +
+        xlab('Average consumption in flight hours per period') + 
+        ylab('Total number of checks') + 
+        ggsave(path)
+    
+    # quantiles
+    # TODO: quantiles
 
-result_tab_n <- result_tab %>% filter(gap_abs<100 & num_errors==0)
-path <- '%smean_consum_vs_maints_nocolor_%s.png' %>% sprintf(path_export_img, dataset)
-ggplot(data=result_tab_n, aes(y=maints, x=mean_consum)) + 
-    geom_jitter(alpha=0.4, height=0.2) + theme_minimal() + 
-    facet_grid('init_cut ~ .') +
-    theme(axis.text.x = element_text(hjust=0),
-          strip.text.y = element_text(angle=0),
-          text = element_text(size=20)) +
-    xlab('Average consumption in flight hours per period') + 
-    ylab('Total number of checks') + 
-    ggsave(path)
+}
 
-# quantiles
-# TODO: quantiles
-
-
+make_quantiles <- function(data){
+    comp <- get_python_module('scripts', 'compare_stochastic')
+    comp$predict_from_table
+}
 
 # summary optimization ----------------------------------------------------
-data_summary <-
+get_data_optimisation_summary <- function(){
     get_generic_compare(c('IT000125_20191204', 'IT000125_20190917', 
                           'IT000125_20191030', 'IT000125_20191207',
                           'IT000125_20190808', 'IT000125_20190812', 
@@ -191,7 +196,8 @@ data_summary <-
                                          'old_a3', 'base_a3r',
                                          'old_a1'),
                         scenario_filter='numparalleltasks_%s' %>% sprintf(c(2, 3, 4))) %>%
-    correct_old_model
+        correct_old_model
+}
 
 make_optimisation_summary <- function(data_summary){
     
@@ -228,8 +234,15 @@ make_optimisation_summary <- function(data_summary){
     treated_data %>% lapply(write_func)
     
 }
-make_optimisation_summary(data_summary)
+
 if (FALSE){
+    data_optimisation_results <- get_data_optimisation_results()
+    do.call(make_optimisation_results, args=data_optimisation_results)
     
+    result_tab <- get_result_tab('IT000125_20190716')
+    make_forecasting_results(result_tab, element_text_size=15)
+    
+    data_summary <- get_data_optimisation_summary()
     make_optimisation_summary(data_summary)
+    
 }
