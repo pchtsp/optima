@@ -225,11 +225,11 @@ get_stats_summary <- function(raw_df_progress){
         get_stats %>% 
         group_by(scenario, experiment) %>% 
         summarise(nodes = mean(nodes), 
-                  frel = ((best_solution-first_relaxed)/best_solution) %>% abs %>% mean,
-                  crel = ((best_solution-cuts_best_bound)/best_solution) %>% abs %>% mean,
+                  LP_first = ((best_solution-first_relaxed)/best_solution) %>% abs %>% mean,
+                  LP_cuts = ((best_solution-cuts_best_bound)/best_solution) %>% abs %>% mean,
                   time = mean(time)
                   ) %>% 
-        mutate_at(vars(frel, crel), times_100_round) %>% 
+        mutate_at(vars(LP_first, LP_cuts), times_100_round) %>% 
         aux_compare
     
     # raw_df_progress %>% 

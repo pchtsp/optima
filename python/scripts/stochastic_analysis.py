@@ -426,7 +426,7 @@ def predict_from_table(table, opt):
               'geomean_cons']
     # sorting is very important
     x_vars = sorted(x_vars)
-    clf, mean_std = models.test_regression(result_tab=table, x_vars=x_vars, **opt, plot=False)
+    clf, mean_std = models.test_regression(result_tab=table, x_vars=x_vars, plot=False, **opt)
     X_all_norm = aux.normalize_variables(table[x_vars], mean_std)
     y_pred = clf.predict(X_all_norm)
     return y_pred

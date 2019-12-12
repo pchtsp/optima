@@ -15,6 +15,7 @@ def get_sum_variances(case, types):
 
 
 def get_solstats(batch):
+    # TODO: add objective calculation
     cases = batch.get_cases().clean(func=lambda v: v)
     types = cases.vapply(lambda v: v.instance.get_types())
     variances = cases.apply(lambda k, v: {'variance': get_sum_variances(v, types[k])})

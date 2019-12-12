@@ -21,7 +21,6 @@ def create_X_Y(result_tab, x_vars, y_var, test_perc):
 
 
 def test_regression(result_tab, x_vars, y_var, method, bound='', plot_args=None, test_perc=0.3, plot=True, **kwargs):
-    import stochastic.graphs as graphs
 
     x_vars = sorted(x_vars)
     X_train, X_test, y_train, y_test = create_X_Y(result_tab, x_vars, y_var, test_perc)
@@ -40,10 +39,18 @@ def test_regression(result_tab, x_vars, y_var, method, bound='', plot_args=None,
     print("below: {}%".format(round(below, 2)))
     if not plot:
         return clf, mean_std
+
     X_all_norm = aux.normalize_variables(result_tab[x_vars], mean_std)
     y_pred = clf.predict(X_all_norm)
     X = result_tab.copy()
     X['pred'] = y_pred
+
+    plot_prediction(X, plot_args, method, bound, y_var)
+
+    return clf, mean_std
+
+def plot_prediction(X, plot_args, method, bound, y_var):
+    import stochastic.graphs as graphs
     graph_name = '{}_mean_consum_{}_{}'.format(method, bound, y_var)
     if plot_args is not None:
         _args = dict(x='mean_consum', y=y_var, y_pred='pred', graph_name=graph_name, smooth=False)
@@ -51,8 +58,7 @@ def test_regression(result_tab, x_vars, y_var, method, bound='', plot_args=None,
         graphs.plotting(X, **_args)
     else:
         graphs.plotting(X, x='mean_consum', y=y_var, y_pred='pred', graph_name=graph_name, smooth=False)
-    return clf, mean_std
-
+    return
 
 def predict_factory(X_train, y_train, method='regression', **kwargs):
     if method=='regression':

@@ -17,13 +17,20 @@ get_python_module <- function(rel_path, name){
 
 get_compare_sto <- function() get_python_module('scripts', 'compare_stochastic')
 
+get_anaylis_sto <- function() get_python_module('scripts', 'stochastic_analysis')
+
 get_result_tab <- function(name){
-    sto_funcs <- get_python_module('scripts', 'stochastic_analysis')
+    sto_funcs <- get_anaylis_sto()
     # batches <- get_python_module('package', 'batch')
     # models <- get_python_module('stochastic', 'models')
     # import stochastic.models as models
     result_tab <- sto_funcs$get_table_complete(name=name, use_zip=TRUE)
     result_tab
+}
+
+get_predicted_values <- function(table, options){
+    stoch_analysis <- get_anaylis_sto()
+    stoch_analysis$predict_from_table(table, options)
 }
 
 get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, get_progress=FALSE, zip=TRUE){

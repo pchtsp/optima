@@ -1,5 +1,7 @@
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
+library(latex2exp)
+
 
 path_export_img <- '../../NPS2019/img/'
 path_export_tab <- '../../NPS2019/tab/'
@@ -139,14 +141,9 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
         theme(text = element_text(size=element_text_size)) + coord_flip() + ggsave(path)
 }
 
-make_optimisation_results(df_fixed, raw_df_progress, get_stoch_a2r_data)
-
 # forecasting results  -------------------------------------------------------
 # TODO: finish this function to generate all graphs
-make_forecasting_results <- function(result_tab, element_text_size=10){
-    
-    # this is hardcoded:
-    dataset <- 'IT000125_20190716'
+make_forecasting_results <- function(result_tab, element_text_size=10, dataset='IT000125_20190716'){
     
     # distribution on mean_distances
     path <- '%sdistribution_mean_distances_%s.png' %>% sprintf(path_export_img, dataset)
@@ -178,9 +175,50 @@ make_forecasting_results <- function(result_tab, element_text_size=10){
 
 }
 
-make_quantiles <- function(data){
-    comp <- get_python_module('scripts', 'compare_stochastic')
-    comp$predict_from_table
+make_forecasting_limits <- function(result_tab, element_text_size=10, dataset='IT000125_20190716'){
+    options <- 
+        list(
+            "q"=0.9, 
+            "bound"='upper', 
+            "y_var"='mean_dist_complete',
+            "method"='QuantReg', 
+            "max_iter" = 10000, 
+            "test_perc"= 0.3
+        )
+    
+    y_predicted <- get_predicted_values(result_tab, options)
+    labels1 <- '$\\mu_{WC}$: %s/3' %>% sprintf(c(1, 2, 3)) %>% TeX
+    labels2 <- '$\\mu_{C}$: %s/3' %>% sprintf(c(1, 2, 3)) %>% TeX
+    cut2 <- function (x, labels) cut(x, 
+                                     quantile(x, probs = seq(0, 1, by = 1/3)), 
+                                     labels=labels, 
+                                     include.lowest=TRUE)
+    
+    result_tab_n <- 
+        result_tab %>% 
+        mutate(mean_consum_cut = cut2(mean_consum, labels2),
+               geomean_cons_cut = cut2(geomean_cons, labels1))
+
+    xlab <- 'Sum of all remaining flight hours at the beginning of first period'
+    ylab <- 'Average distance between maintenances'
+    path <- '%sprediction_upper_bounds_%s.png' %>% sprintf(path_export_img, dataset)
+    ggplot(data=result_tab_n, aes(x=init, y=mean_dist_complete)) + 
+        facet_grid(
+            rows=vars(mean_consum_cut),
+            cols=vars(geomean_cons_cut),
+            labeller=label_parsed
+        ) +
+        # facet_grid(mean_consum_cut ~ geomean_cons_cut) +
+        geom_point(alpha=0.4, height=0.2) +
+        geom_point(aes(y=y_predicted), color='blue', shape=1, alpha=0.8, size=0.5) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(hjust=0),
+              strip.text.y = element_text(angle=0),
+              text = element_text(size=element_text_size)) +
+        xlab(xlab) + 
+        ylab(ylab) +
+        ggsave(path)
+    
 }
 
 # summary optimization ----------------------------------------------------
@@ -235,12 +273,17 @@ make_optimisation_summary <- function(data_summary){
     
 }
 
+
+# run all -----------------------------------------------------------------
+
+
 if (FALSE){
     data_optimisation_results <- get_data_optimisation_results()
     do.call(make_optimisation_results, args=data_optimisation_results)
     
     result_tab <- get_result_tab('IT000125_20190716')
     make_forecasting_results(result_tab, element_text_size=15)
+    make_forecasting_limits(result_tab, element_text_size=15)
     
     data_summary <- get_data_optimisation_summary()
     make_optimisation_summary(data_summary)
