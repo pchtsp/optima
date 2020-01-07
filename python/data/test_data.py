@@ -137,6 +137,55 @@ def dataset2():
     }
     return model_data
 
+def dataset3():
+    maints = {
+        'M': {
+            'duration_periods': 6
+            , 'capacity_usage': 1
+            , 'max_used_time': 1000
+            , 'max_elapsed_time': 60
+            , 'elapsed_time_size': 30
+            , 'used_time_size': 500
+            , 'type': '1'
+            , 'depends_on': []
+            , 'priority': 1
+        }}
+    model_data = {
+        'parameters': {
+            'start': '2018-01'
+            , 'num_period': 10
+            , 'min_usage_period': 5
+            , 'maint_capacity': 4
+            , 'default_type2_capacity': 66
+        },
+        'resources': {
+            '1': {
+                'initial': {
+                    'M': {'used': 500, 'elapsed': 30}
+                }
+                , 'min_usage_period': {'default': 5, '2018-05': 4}
+                , 'states': {}
+                , 'type': 0
+                , 'capacities': [0]
+            }
+        },
+        'maintenances': maints,
+        'tasks': {
+            'O1': {
+                'start': '2018-02'
+                , 'end': '2018-07'
+                , 'consumption': 30
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 3
+                , 'capacities': [0]
+            }
+        },
+        'maint_types': {'1': {'capacity': {'2018-05': 0}}, '2': {'capacity': {'2018-05': 0}}}
+    }
+    return model_data
+
+
 def solution2():
     return {
         'state_m':

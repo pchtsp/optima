@@ -30,7 +30,7 @@ def walk_over_nodes(node: node.Node, get_nodes_only=False):
         if neighbors is None:
             # I don't have any cache of the node.
             # I'll get neighbors and do cache
-            cache_neighbors[node] = neighbors = node.get_adjacency_list()
+            cache_neighbors[node] = neighbors = node.get_adjacency_list_maints()
             if not len(neighbors):
                 # no neighbors means I need to go to the last_node
                 cache_neighbors[node] = neighbors = [last_node]
@@ -53,14 +53,16 @@ def get_source_node(instance, resource):
     maints = instance.get_maintenances()
     rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
     ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
-    return node.Node(instance, resource, period, ret, rut, None)
+    return node.Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=None,
+                     period_end=period)
 
 
 def get_sink_node(instance, resource):
     last = instance.get_param('end')
     last_next = instance.get_next_period(last)
     defaults = dict(instance=instance, resource=resource)
-    return node.Node(period=last_next, maint=None, rut=sd.SuperDict(), ret=sd.SuperDict(), **defaults)
+    return node.Node(period=last_next, assignment=None, rut=sd.SuperDict(),
+                     ret=sd.SuperDict(), period_end = last_next, **defaults)
 
 
 def get_create_node(refs, g, n):
@@ -98,7 +100,7 @@ def adjacency_to_graph(nodes_ady):
     return g, refs
 
 
-def get_all_pahts(g, refs):
+def get_all_paths(g, refs):
     try:
         import graph_tool.all as gr
     except:
@@ -167,7 +169,6 @@ if __name__ == '__main__':
         from importlib import reload
         reload(test_d)
 
-
     data_in = test_d.dataset1()
 
     instance = inst.Instance(data_in)
@@ -178,7 +179,7 @@ if __name__ == '__main__':
     nodes_ady = walk_over_nodes(source, get_nodes_only=True)
     g, refs = adjacency_to_graph(nodes_ady)
     draw_graph(g)
-    final_paths = get_all_pahts(g, refs)
+    final_paths = get_all_paths(g, refs)
 
     len(final_paths)
     len(nodes_ady)
