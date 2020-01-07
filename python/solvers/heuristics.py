@@ -45,7 +45,7 @@ class GreedyByMission(test.Experiment):
         else:
             return False
         dtype = 'U7'
-        candidates = self.instance.get_task_candidates(task=task)
+        candidates = self.instance.get_task_candidates(task=task)[task]
         i = 0
         while len(rem_resources) > 0 and len(candidates) > 0 and i < max_iters:
             i += 1

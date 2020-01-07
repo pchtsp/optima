@@ -137,6 +137,8 @@ class Instance(object):
         self.data['aux']['period_i'] = {
             v: k for k, v in self.data['aux']['period_e'].items()
         }
+        # we need to guarantee consistency between start, num_periods and end
+        self.data['parameters']['end'] = self.shift_period(start, num_periods-1)
 
     def get_param(self, param=None):
         params = self.data['parameters']
@@ -489,7 +491,7 @@ class Instance(object):
 
         return {'num': c_needs_num, 'hours': c_needs_hours}
 
-    def get_task_candidates(self, recalculate=True, task=None):
+    def get_task_candidates(self, recalculate=True, task=None, resource=None):
 
         # we check if these are old instances:
         if 'capacities' not in self.get_categories()['resources']:
@@ -501,15 +503,17 @@ class Instance(object):
         # if they're the 'newer' instances:
         r_cap = self.get_resources('capacities')
         t_cap = self.get_tasks('capacities')
+        if task is not None:
+            t_cap = t_cap.filter(task)
+        if resource is not None:
+            r_cap = r_cap.filter(resource)
 
         t_candidates = {t: [] for t in t_cap}
         for t, task_caps in t_cap.items():
             for res, res_caps in r_cap.items():
-                if len(set(task_caps) - set(res_caps)) == 0:
+                if not len(set(task_caps) - set(res_caps)):
                     t_candidates[t].append(res)
 
-        if task is not None:
-            return t_candidates[task]
         return t_candidates
 
     def get_cluster_candidates(self):

@@ -54,7 +54,7 @@ def get_source_node(instance, resource):
     rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
     ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
     return node.Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=None,
-                     period_end=period)
+                     period_end=period, type=-1)
 
 
 def get_sink_node(instance, resource):
@@ -62,7 +62,7 @@ def get_sink_node(instance, resource):
     last_next = instance.get_next_period(last)
     defaults = dict(instance=instance, resource=resource)
     return node.Node(period=last_next, assignment=None, rut=sd.SuperDict(),
-                     ret=sd.SuperDict(), period_end = last_next, **defaults)
+                     ret=sd.SuperDict(), period_end = last_next, type=-1, **defaults)
 
 
 def get_create_node(refs, g, n):
@@ -169,7 +169,7 @@ if __name__ == '__main__':
         from importlib import reload
         reload(test_d)
 
-    data_in = test_d.dataset1()
+    data_in = test_d.dataset3()
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
