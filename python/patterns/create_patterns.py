@@ -1,21 +1,21 @@
 import package.instance as inst
 import pytups.superdict as sd
 import numpy.random as rn
-import patterns.node as node
+import patterns.node as nd
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
 # https://jolo.xyz/blog/2018/12/07/installing-graph-tool-with-virtualenv
 
 
-def walk_over_nodes(node: node.Node, get_nodes_only=False):
+def walk_over_nodes(node: nd.Node, get_nodes_only=False):
     remaining_nodes = [(node, [])]
     # we store the neighbors of visited nodes, not to recalculate them
     cache_neighbors = {}
     i = 0
     final_paths = []
     # this code gets all combinations
-    last_node = get_sink_node(node.instance, node.resource)
+    last_node = nd.get_sink_node(node.instance, node.resource)
     while len(remaining_nodes) and i < 10000000:
         i += 1
         node, path = remaining_nodes.pop()
@@ -30,7 +30,7 @@ def walk_over_nodes(node: node.Node, get_nodes_only=False):
         if neighbors is None:
             # I don't have any cache of the node.
             # I'll get neighbors and do cache
-            cache_neighbors[node] = neighbors = node.get_adjacency_list_maints()
+            cache_neighbors[node] = neighbors = node.get_adjacency_list()
             if not len(neighbors):
                 # no neighbors means I need to go to the last_node
                 cache_neighbors[node] = neighbors = [last_node]
@@ -42,27 +42,6 @@ def walk_over_nodes(node: node.Node, get_nodes_only=False):
     if get_nodes_only:
         return cache_neighbors
     return final_paths
-
-
-def get_source_node(instance, resource):
-    instance.data = sd.SuperDict.from_dict(instance.data)
-    start = instance.get_param('start')
-    period = instance.get_prev_period(start)
-    resources = instance.get_resources()
-
-    maints = instance.get_maintenances()
-    rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
-    ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
-    return node.Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=None,
-                     period_end=period, type=-1)
-
-
-def get_sink_node(instance, resource):
-    last = instance.get_param('end')
-    last_next = instance.get_next_period(last)
-    defaults = dict(instance=instance, resource=resource)
-    return node.Node(period=last_next, assignment=None, rut=sd.SuperDict(),
-                     ret=sd.SuperDict(), period_end = last_next, type=-1, **defaults)
 
 
 def get_create_node(refs, g, n):
@@ -173,8 +152,8 @@ if __name__ == '__main__':
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
-    source = get_source_node(instance, res)
-    sink = get_sink_node(instance, res)
+    source = nd.get_source_node(instance, res)
+    sink = nd.get_sink_node(instance, res)
     # final_paths = walk_over_nodes(source)
     nodes_ady = walk_over_nodes(source, get_nodes_only=True)
     g, refs = adjacency_to_graph(nodes_ady)

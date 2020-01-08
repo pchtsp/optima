@@ -1,5 +1,6 @@
 import ujson as json
 import pytups.superdict as sd
+import math
 
 
 class Node(object):
@@ -30,7 +31,7 @@ class Node(object):
         return
 
     def __repr__(self):
-        return repr('({}-{}) => {}'.format(self.period, self.period_end, self.assignment))
+        return repr('({}<>{}) => {}'.format(self.period, self.period_end, self.assignment))
 
     def get_maints_rets(self):
         return self.ret.keys()
@@ -52,11 +53,12 @@ class Node(object):
 
     def get_maint_options_ret(self):
         elapsed_time_sizes = self.get_maints_data('elapsed_time_size')
+        last = self.instance.get_param('end')
         maints_ret = self.get_maints_rets()
         opts_ret = sd.SuperDict()
         for m in maints_ret:
-            start = max(self.ret[m] - elapsed_time_sizes[m], 0)
-            end = self.ret[m]
+            start = max(self.ret[m] - elapsed_time_sizes[m], self.dif_period_1(self.period_end))
+            end = min(self.ret[m], self.dif_period(last))
             _range = range(int(start), int(end))
             if _range:
                 opts_ret[m] = _range
@@ -64,6 +66,7 @@ class Node(object):
         return opts_ret
 
     def get_maint_options_rut(self):
+        # TODO: maybe reformulate this so it's not run for missions.
         last = self.instance.get_param('end')
         acc_cons = 0
         maints_rut = self.get_maints_ruts()
@@ -95,6 +98,20 @@ class Node(object):
                 break
         return opts_rut
 
+    def get_adjacency_list(self):
+        adj_per_maints = self.get_adjacency_list_maints()
+        hard_last = self.instance.shift_period(self.instance.get_param('end'), -1)
+        extra_nodes = []
+        if adj_per_maints:
+            last = max(n.period for n in adj_per_maints)
+        else:
+            last = hard_last
+        if last == hard_last:
+            # this means that we are not obliged to any node, we can go to the end.
+            extra_nodes = [get_sink_node(self.instance, self.resource)]
+        # real_last = self.instance.get_param('end')
+        return adj_per_maints + self.get_adjacency_list_tasks(last) + extra_nodes
+
     # @profile
     def get_adjacency_list_maints(self):
         """
@@ -119,12 +136,65 @@ class Node(object):
         opts_tot.update(int_dict)
         # print(opts_tot)
         # opts_tot = opts_rut._update(opts_ret)._update(int_dict).clean(func=lambda v: v)
+        if not opts_tot:
+            return []
         max_opts = min(opts_tot.vapply(lambda l: max(l)).values())
         opts_tot = opts_tot.vapply(lambda v: [vv for vv in v if vv <= max_opts]).vapply(set)
         durations = self.get_maints_data('duration_periods')
-        candidates = [self.create_adjacent(maint, opt, duration=durations[maint], type=0)
+        candidates = [self.create_adjacent(assignment=maint, num_periods=opt, duration=durations[maint], type=0)
                       for maint, opts in opts_tot.items() for opt in opts]
         return [c for c in candidates if c.assignment is not None]
+
+    def get_adjacency_list_tasks(self, max_period_to_check):
+        # 1. get compatible tasks
+        tasks = self.instance.get_task_candidates(resource=self.resource)
+        task_data = self.get_tasks_data().filter(tasks).vfilter(lambda v: v['end'] > self.period_end)
+        if not len(tasks):
+            return []
+        # 2. budget
+        min_rut = min(self.rut.values())
+        last_period_consumption = task_data.\
+            get_property('consumption').\
+            vapply(lambda v: math.floor(min_rut / v)).\
+            vapply(lambda v: self.next_period(v))
+        task_end = task_data.get_property('end')
+        # the maximum period to do missions is the minimum of three things:
+        # 1. the end of the mission ('end' is always before the end of the horizon)
+        # 2. the number of required hours compared to the budget ('consumption' compared to rut)
+        # 3. the moment when a maintenance is mandatory because of ret (max_period_to_check)
+        max_date_start = \
+            last_period_consumption.\
+                sapply(min, task_end).\
+                vapply(min, max_period_to_check)
+        if not max_date_start:
+            return []
+        max_num_periods_node = self.instance.shift_period(self.period_end, 1)
+        min_date_start = \
+            task_data.\
+                get_property('start').\
+                vapply(max, max_num_periods_node)
+        min_duration = task_data.get_property('min_assign')
+        # the following calculates (start, duration) for possible assignments
+
+        possibilities = min_date_start.kvapply(lambda k, v: (v, max_date_start[k]))
+        start_possibilities = possibilities.vapply(lambda v: [])
+        for task, (min_date, max_date) in possibilities.items():
+            for vv in self.instance.get_periods_range(min_date, max_date):
+                three_periods_later = self.instance.shift_period(vv, min_duration[task]-1)
+                if three_periods_later <= max_date:
+                    vv2_start = three_periods_later
+                elif vv == max_date:
+                    vv2_start = vv
+                else:
+                    vv2_start = self.instance.shift_period(vv, 1)
+                for vv2 in self.instance.get_periods_range(vv2_start, max_date):
+                    # start_possibilities[task].append((vv, vv2))  #  debug
+                    distance = self.instance.get_dist_periods(vv, vv2) + 1
+                    position = self.dif_period(vv)
+                    start_possibilities[task].append((position, distance))
+
+        possible_assignments = start_possibilities.to_tuplist()
+        return [self.create_adjacent(*args, type=1) for args in possible_assignments]
 
     def calculate_rut(self, assignment, period, num_periods):
         """
@@ -213,6 +283,9 @@ class Node(object):
     def dif_period(self, period):
         return self.instance.get_dist_periods(self.period, period)
 
+    def dif_period_1(self, period):
+        return self.instance.get_dist_periods(self.period, period) + 1
+
     def get_consume(self, period):
         return self.instance.get_default_consumption(self.resource, period)
 
@@ -223,7 +296,7 @@ class Node(object):
         # TODO: I need to be sure this logic has no off-by-one errors.
         current = start
         while current < end:
-            current = self.next_period(current)
+            current = self.instance.get_next_period(current)
             yield current
 
     def create_adjacent(self, assignment, num_periods, duration, type=0):
@@ -256,3 +329,23 @@ class Node(object):
         dif = data1 ^ data2
         return len(dif) == 0
 
+
+def get_source_node(instance, resource):
+    instance.data = sd.SuperDict.from_dict(instance.data)
+    start = instance.get_param('start')
+    period = instance.get_prev_period(start)
+    resources = instance.get_resources()
+
+    maints = instance.get_maintenances()
+    rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
+    ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
+    return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=None,
+                period_end=period, type=-1)
+
+
+def get_sink_node(instance, resource):
+    last = instance.get_param('end')
+    last_next = instance.get_next_period(last)
+    defaults = dict(instance=instance, resource=resource)
+    return Node(period=last_next, assignment=None, rut=sd.SuperDict(),
+                ret=sd.SuperDict(), period_end = last_next, type=-1, **defaults)
