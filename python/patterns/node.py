@@ -28,6 +28,8 @@ class Node(object):
         self.period_end = period_end
         self.resource = resource
         self.hash = hash(json.dumps(self.get_data(), sort_keys=True))
+        self._backup_tasks = None
+        self._backup_maints = None
         return
 
     def __repr__(self):
@@ -45,11 +47,19 @@ class Node(object):
     def is_task(self):
         return self.type == 1
 
-    def get_tasks_data(self, *args):
-        return self.instance.get_tasks(*args)
+    def get_tasks_data(self, param=None):
+        if not self._backup_tasks:
+            self._backup_tasks = self.instance.get_tasks()
+        if not param:
+            return self._backup_tasks
+        return self._backup_tasks.get_property(param)
 
-    def get_maints_data(self, *args):
-        return self.instance.get_maintenances(*args)
+    def get_maints_data(self, param):
+        if not self._backup_maints:
+            self._backup_maints = self.instance.get_maintenances()
+        if not param:
+            return self._backup_maints
+        return self._backup_maints.get_property(param)
 
     def get_maint_options_ret(self):
         elapsed_time_sizes = self.get_maints_data('elapsed_time_size')
@@ -59,13 +69,14 @@ class Node(object):
         for m in maints_ret:
             start = max(self.ret[m] - elapsed_time_sizes[m], self.dif_period_1(self.period_end))
             end = min(self.ret[m], self.dif_period(last))
-            _range = range(int(start), int(end))
+            _range = range(int(start), int(end)+1)
             if _range:
                 opts_ret[m] = _range
                 opts_ret[m] = set(opts_ret[m])
         return opts_ret
 
     def get_maint_options_rut(self):
+        return sd.SuperDict()
         # TODO: maybe reformulate this so it's not run for missions.
         last = self.instance.get_param('end')
         acc_cons = 0
@@ -100,12 +111,14 @@ class Node(object):
 
     def get_adjacency_list(self):
         adj_per_maints = self.get_adjacency_list_maints()
-        hard_last = self.instance.shift_period(self.instance.get_param('end'), -1)
+        hard_last = self.instance.get_param('end')
         extra_nodes = []
+        last = hard_last
         if adj_per_maints:
-            last = max(n.period for n in adj_per_maints)
-        else:
-            last = hard_last
+            next_to_last = max(n.period for n in adj_per_maints)
+            # only update if it really is before the last period.
+            if next_to_last < hard_last:
+                last = self.instance.get_prev_period(next_to_last)
         if last == hard_last:
             # this means that we are not obliged to any node, we can go to the end.
             extra_nodes = [get_sink_node(self.instance, self.resource)]
@@ -146,6 +159,8 @@ class Node(object):
         return [c for c in candidates if c.assignment is not None]
 
     def get_adjacency_list_tasks(self, max_period_to_check):
+        # TODO: get a backup of tasks assignments between dates. like in a model
+        shift = self.instance.shift_period
         # 1. get compatible tasks
         tasks = self.instance.get_task_candidates(resource=self.resource)
         task_data = self.get_tasks_data().filter(tasks).vfilter(lambda v: v['end'] > self.period_end)
@@ -153,22 +168,18 @@ class Node(object):
             return []
         # 2. budget
         min_rut = min(self.rut.values())
-        last_period_consumption = task_data.\
+        max_duration = task_data.\
             get_property('consumption').\
-            vapply(lambda v: math.floor(min_rut / v)).\
-            vapply(lambda v: self.next_period(v))
+            vapply(lambda v: math.floor(min_rut / v))
         task_end = task_data.get_property('end')
         # the maximum period to do missions is the minimum of three things:
         # 1. the end of the mission ('end' is always before the end of the horizon)
         # 2. the number of required hours compared to the budget ('consumption' compared to rut)
         # 3. the moment when a maintenance is mandatory because of ret (max_period_to_check)
-        max_date_start = \
-            last_period_consumption.\
-                sapply(min, task_end).\
-                vapply(min, max_period_to_check)
+        max_date_start = task_end.vapply(min, max_period_to_check)
         if not max_date_start:
             return []
-        max_num_periods_node = self.instance.shift_period(self.period_end, 1)
+        max_num_periods_node = shift(self.period_end, 1)
         min_date_start = \
             task_data.\
                 get_property('start').\
@@ -180,14 +191,11 @@ class Node(object):
         start_possibilities = possibilities.vapply(lambda v: [])
         for task, (min_date, max_date) in possibilities.items():
             for vv in self.instance.get_periods_range(min_date, max_date):
-                three_periods_later = self.instance.shift_period(vv, min_duration[task]-1)
-                if three_periods_later <= max_date:
-                    vv2_start = three_periods_later
-                elif vv == max_date:
-                    vv2_start = vv
-                else:
-                    vv2_start = self.instance.shift_period(vv, 1)
-                for vv2 in self.instance.get_periods_range(vv2_start, max_date):
+                min_periods_later = shift(vv, min_duration[task]-1)
+                max_periods_later = shift(vv, max_duration[task]-1)
+                vv2_start = min(min_periods_later, task_end[task])
+                vv2_end = min(max_date, max_periods_later)
+                for vv2 in self.instance.get_periods_range(vv2_start, vv2_end):
                     # start_possibilities[task].append((vv, vv2))  #  debug
                     distance = self.instance.get_dist_periods(vv, vv2) + 1
                     position = self.dif_period(vv)

@@ -137,18 +137,18 @@ def draw_graph(g):
 if __name__ == '__main__':
     import package.params as params
     import data.template_data as td
-
-    path = params.PATHS['data'] + 'template/201903120540/template_in.xlsx'
-    data_in = td.import_input_template(path)
-
+    import data.simulation as sim
     import data.test_data as test_d
-
 
     def temp():
         from importlib import reload
         reload(test_d)
 
+    path = params.PATHS['data'] + 'template/201903120540/template_in.xlsx'
+    # three options to import data: dassault template, toy-dataset, simulator.
+    data_in = td.import_input_template(path)
     data_in = test_d.dataset3()
+    data_in = sim.create_dataset(params.OPTIONS)
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
