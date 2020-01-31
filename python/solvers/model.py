@@ -816,14 +816,14 @@ class Model(exp.Experiment):
         att_maints_t = attt_maints.to_dict(result_col=[0, 1, 2], is_list=True)
         tt_maints_a = att_maints.to_dict(result_col=[1, 2], is_list=True)
 
-        vtt2_a = avtt2.to_dict(result_col=[1, 2, 3]).apply(lambda _, v: tl.TupList(v))
+        vtt2_a = avtt2.to_dict(result_col=[1, 2, 3]).vapply(tl.TupList)
         vtt2_a_after_t = {(a, t): vtt2_a[a].vfilter(lambda x: x[1] >= t) for a in resources for t in periods}
         vtt2_a_before_t = {(a, t): vtt2_a[a].vfilter(lambda x: x[2] <= t) for a in resources for t in periods}
         vtt2_between_att = {(a, t1, t2): vtt2_a_after_t[a, t1].intersect(vtt2_a_before_t[a, t2])
                             for a in resources for pos1, t1 in enumerate(periods) for t2 in periods[pos1:]}
 
         slots = [str(s) for s in range(3)]
-        k = tl.TupList(kt).filter(0).unique2()
+        k = tl.TupList(kt).take(0).unique2()
         kts = [(k, t, s) for k, t in kt for s in slots]
         ts = [(t, s) for t in periods for s in slots]
 

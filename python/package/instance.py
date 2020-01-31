@@ -514,7 +514,7 @@ class Instance(object):
         if resource is not None:
             r_cap = r_cap.filter(resource)
 
-        t_candidates = {t: [] for t in t_cap}
+        t_candidates = t_cap.vapply(lambda v: [])
         for t, task_caps in t_cap.items():
             for res, res_caps in r_cap.items():
                 if not len(set(task_caps) - set(res_caps)):
