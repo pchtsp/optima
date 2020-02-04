@@ -309,6 +309,7 @@ def export_output_template(path, input_data, output_data):
     remaining['rut'] += remaining['cons']
     remaining.drop(['cons'], axis=1, inplace=True)
 
+    # TODO: add this two to the re_equiv_name
     equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
     result = \
         sol_maints.\
@@ -329,15 +330,14 @@ def export_output_template(path, input_data, output_data):
     m_type = maint_data.get_property('type')
     m_info = \
         pd.DataFrame.\
-        from_dict({'usage': m_usage, 'type': m_type})\
-        .rename_axis('maint').reset_index()
+        from_dict({'usage': m_usage, 'type': m_type}).\
+        rename_axis('maint').reset_index()
     m_info.type = m_info.type.astype('int64')
 
     num_maints = \
         tl.TupList(sol_maints.to_records()).\
         to_dict(result_col=1, indices=[2, 3]).\
-        to_lendict().\
-        to_tuplist().\
+        to_lendict().to_tuplist().\
         to_df(columns=['period', 'maint', 'number']).\
         merge(m_info).\
         assign(total= lambda x: x.number * x.usage).\
@@ -348,7 +348,8 @@ def export_output_template(path, input_data, output_data):
     tasks_assign = \
         sd.SuperDict.from_dict(output_data['task']).\
             to_dictup().to_tuplist().take([2, 0, 1]).sorted().\
-            to_df(columns=['task', 'resource', 'period']).rename(columns=re_equiv_name)
+            to_df(columns=['task', 'resource', 'period']).\
+            rename(columns=re_equiv_name)
 
     to_write = {'sol_maints': result, 'sol_stats': num_maints, 'sol_missions': tasks_assign}
 
@@ -419,7 +420,7 @@ if __name__ == '__main__':
     data = import_input_template(path + 'template_in.xlsx')
     instance = inst.Instance(data)
     instance.get_capacity_calendar()
-    export_input_template(path, data)
+    export_input_template(path + 'template_in_out.xlsx', instance.data)
 
     from package.params import PATHS, OPTIONS
 
@@ -427,7 +428,7 @@ if __name__ == '__main__':
     experiment = exp.Experiment.from_dir(path)
 
     data = experiment.instance.data
-    export_input_template(path, data)
+    export_input_template(path + 'template_in_out.xlsx', data)
 
     experiment.set_remaining_usage_time_all('rut')
     experiment.set_remaining_usage_time_all('ret')

@@ -85,7 +85,7 @@ class ModelMissions(exp.Experiment):
             self.model += v == task_num_resource[k]
 
         # the sum of flight hours that are assigned need to fall in
-        # between the hour visits.
+        # between the hour limit for that visit.
         # for each maintenance, resource and cycle: the missions that are available.
         flight_hours = tasks.get_property('consumption')
         hour_limit = maintenances.get_property('max_used_time').vfilter(lambda v: v)
@@ -135,10 +135,13 @@ class ModelMissions(exp.Experiment):
             self.model += pl.lpSum((1 - res_nb_mission.get((r, t), 0))*usage[m]
                                    for m, r in _res_maint_list) <= _capacity
         config = conf.Config(options)
-        self.model.writeLP(options['path']+'formulation.lp')
+        # self.model.writeLP(options['path']+'formulation.lp')
         result = config.solve_model(self.model)
         if result is None:
             return None
+
+        # we got a solution, now we need to prepare something to cheat the default_usage of
+        # aircraft that did missions.
 
         self.solution = self.get_solution()
 
