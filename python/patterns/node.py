@@ -2,6 +2,7 @@ import ujson as json
 import pytups.superdict as sd
 import pytups.tuplist as tl
 import math
+import package.instance as inst
 
 
 class Node(object):
@@ -9,16 +10,15 @@ class Node(object):
     corresponds to a combination of: a period t, a maintenance m, and the remaining rets and ruts for all maintenances
     """
 
-    def __init__(self, instance, resource, period, ret, rut, assignment, period_end, type=0, node=None):
+    def __init__(self, instance, resource, period, ret, rut, assignment, period_end, type=0):
         """
         :param inst.Instance instance: input data.
-        :param period: period where assignment takes place
-        :param period_end: period where unavailability ends
+        :param str period: period where assignment takes place
+        :param str period_end: period where unavailability ends
         :param sd.SuperDict ret: remaining elapsed time at the end of the period
         :param sd.SuperDict rut: remaining usage time at the end of the period
-        :param assignment: a maintenance or a task.
-        :param type: 0 means it's assignment is a maintenance, 1 means it's a task, -1 means dummy
-        :param node: another node to copy from
+        :param str or None assignment: a maintenance or a task.
+        :param int type: 0 means it's assignment is a maintenance, 1 means it's a task, -1 means dummy
 
         """
         self.instance = instance
@@ -35,11 +35,25 @@ class Node(object):
         self._backup_tasks = None
         self._backup_maints = None
         self._backup_vtt2_between_tt = None
-        if node:
-            self._backup_tasks = node._backup_tasks
-            self._backup_maints = node._backup_maints
-            self._backup_vtt2_between_tt = node._backup_vtt2_between_tt
         return
+
+    @classmethod
+    def from_node(cls, node, **kwargs):
+        """
+        :param Node node: another node to copy from
+        :param kwargs: replacement properties for new node
+        :return:
+        """
+        chars = ['instance', 'resource', 'period', 'period_end', 'ret', 'rut', 'assignment', 'type']
+        data = tl.TupList(chars).to_dict(None).vapply(lambda v: getattr(node, v))
+        data.update(kwargs)
+        new_node = cls(**data)
+
+        # we keep the cache from the previous node:
+        new_node._backup_tasks = node._backup_tasks
+        new_node._backup_maints = node._backup_maints
+        new_node._backup_vtt2_between_tt = node._backup_vtt2_between_tt
+        return new_node
 
     def __repr__(self):
         return repr('({}<>{}) => {}'.format(self.period, self.period_end, self.assignment))
@@ -343,8 +357,7 @@ class Node(object):
             type = -1
         ret = self.calculate_ret(assignment, period)
         rut = self.calculate_rut(assignment, period, duration)
-        defaults = dict(instance=self.instance, resource=self.resource, node=self)
-        return Node(period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type, **defaults)
+        return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 
 
 def get_source_node(instance, resource):

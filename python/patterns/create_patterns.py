@@ -11,7 +11,7 @@ import patterns.node as nd
 def walk_over_nodes(node: nd.Node, get_nodes_only=False):
     remaining_nodes = [(node, [])]
     # we store the neighbors of visited nodes, not to recalculate them
-    cache_neighbors = {}
+    cache_neighbors = sd.SuperDict()
     i = 0
     final_paths = []
     # this code gets all combinations
@@ -60,13 +60,13 @@ def adjacency_to_graph(nodes_ady):
         import graph_tool.all as gr
     except:
         print('graph-tool is not available')
-        return None
+        return None, None
 
     g = gr.Graph()
     g.vp.period = g.new_vp('string')
     g.vp.assignment = g.new_vp('string')
     g.ep.assignment = g.new_ep('string')
-    refs = {}
+    refs = sd.SuperDict()
     for n, n2_list in nodes_ady.items():
         v1 = get_create_node(refs, g, n)
         for n2 in n2_list:
@@ -137,6 +137,48 @@ def draw_graph(g):
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
 
+def nodes_to_patterns(graph, refs, refs_inv, node1, node2):
+    import graph_tool.all as gr
+    # TODO: we need to translate this into assignments.
+    return gr.all_paths(graph, source=refs[node1], target=refs[node2])
+
+
+def state_to_node(instance, resource, state):
+    return nd.Node(instance=instance, resource=resource, **state)
+
+
+def get_graph_of_resource(instance, resource):
+    source = nd.get_source_node(instance, resource)
+    # sink = nd.get_sink_node(instance, resource)
+
+    # We generate the graph by using "nodes" module
+    # We represent the graph with an adjacency list
+    nodes_ady = walk_over_nodes(source, get_nodes_only=True)
+
+    # Here, there is some post-processing (more nodes) to use the graph better
+    # 1. for each period, for each assignment,
+    # 2. tie all nodes to a single node with the same period, same assignment but rut and ret to None
+
+    nodes_artificial = \
+        nodes_ady.keys_tl().\
+        vfilter(lambda v: v.assignment).\
+        vapply(lambda v: (v.period, v.period_end, v.assignment, v.type, v)).\
+        to_dict(result_col=4).list_reverse().vapply(lambda v: v[0]).\
+        vapply(lambda v: dict(instance=instance, resource=resource,
+                              period=v[0], period_end=v[1], assignment=v[2],
+                              rut=None, ret=None, type=v[3])).\
+            vapply(lambda v: [nd.Node(**v)])
+
+    nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
+
+    # Then, when exploiting this, we will filter nodes with low enough ret and rut.
+    # compared to the cycle limit on the next maintenance.
+
+    # We create a graph-tool version of the graph
+    # and links between the original nodes and the graph tool ones
+    g, refs = adjacency_to_graph(nodes_ady_2)
+    return g, refs
+
 
 if __name__ == '__main__':
     import package.params as params
@@ -152,26 +194,27 @@ if __name__ == '__main__':
     # three options to import data: dassault template, toy-dataset, simulator.
     data_in = td.import_input_template(path)
     data_in = test_d.dataset3()
-    data_in = sim.create_dataset(params.OPTIONS)
+    # data_in = sim.create_dataset(params.OPTIONS)
     # Interesting. It works but only with a small maintenance window.
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
-    source = nd.get_source_node(instance, res)
-    sink = nd.get_sink_node(instance, res)
-    # final_paths = walk_over_nodes(source)
-    nodes_ady = walk_over_nodes(source, get_nodes_only=True)
-    # stop
-    g, refs = adjacency_to_graph(nodes_ady)
 
-    import graph_tool.all as gr
-    node1 = rn.choice([n for n in nodes_ady.keys() if n.assignment=='M'])
-    node2 = rn.choice([n for n in nodes_ady.keys() if n.period=='2021-01'])
-    # nd.Node(instance=instance, resource=res, period='2020-01', )
-    # refs[node1]
-    [p for p in gr.all_paths(g, source=refs[node1], target=refs[node2])]
+    refs_inv = refs.reverse()
+    # Example creating paths between nodes:
 
-    # draw_graph(g)
+    # node1 = rn.choice([n for n in nodes_ady.keys() if n.period=='2017-12'])
+    # node1 comes from the status of the aircraft in the beginning of the window:
+
+    # last_prev_assign = dict(period='2017-12', period_end='2017-12', assignment=None, type=0, rut=sd.SuperDict(),
+    #                         ret=sd.SuperDict())
+
+
+
+    # node_gr = options[0][1]
+    g.vp.period[7]
+
+    draw_graph(g)
     final_paths = get_all_paths(g, refs)
 
     print(len(final_paths))
