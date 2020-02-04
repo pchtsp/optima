@@ -31,6 +31,51 @@ class GreedyByMission(test.Experiment):
 
         return
 
+    def initialise_seed(self, options):
+        seed = options.get('seed')
+        if not seed:
+            seed = rn.random()*10000
+            options['seed'] = seed
+        rn.seed(int(seed))
+        np.random.seed(int(seed))
+
+    @staticmethod
+    def set_log_config(options):
+        """
+        Sets logging according to options
+        :param options: options dictionary
+        :return: None
+        """
+        level = log.INFO
+        if options.get('debug', False):
+            level = log.DEBUG
+        logFile = os.path.join(options.get('path'), 'output.log')
+        logFormat = '%(asctime)s %(levelname)s:%(message)s'
+        open(logFile, 'w').close()
+        formatter = log.Formatter(logFormat)
+
+        # to file:
+        file_log_handler = log.FileHandler(logFile, 'a')
+        file_log_handler.setFormatter(formatter)
+
+        # to command line
+        stderr_log_handler = log.StreamHandler()
+        stderr_log_handler.setFormatter(formatter)
+
+        outputs = {'file': file_log_handler, 'console': stderr_log_handler}
+        output_choices = options.get('log_output', ['file'])
+
+        _log = log.getLogger()
+        _log.handlers = [v for k, v in outputs.items() if k in output_choices]
+
+        # option to add a custom handler:
+        custom_handler = options.get('log_handler')
+        if custom_handler:
+            custom_handler.setFormatter(formatter)
+            _log.handlers.append(custom_handler)
+
+        _log.setLevel(level)
+
     def fill_mission(self, task, assign_maints=True, max_iters=100, rem_resources=None):
         """
         This function assigns all the necessary resources to a given task
@@ -99,11 +144,6 @@ class GreedyByMission(test.Experiment):
 
         for time in ['rut', 'ret']:
             self.set_remaining_usage_time_all(time=time, resource=resource)
-
-    def fix_over_maintenances(self):
-        # sometimes the solution includes a 12 period maintenance
-        # this function should delete the first of the two periods.
-        return
 
     def find_assign_task(self, resource, start, end, task):
         """
@@ -347,7 +387,6 @@ class GreedyByMission(test.Experiment):
                 self.update_rt_until_next_maint(resource, start_update_rt, m, time)
         return True
 
-
     def get_free_periods_resource(self, resource):
         """
         Finds the list of periods (month) that the resource is available.
@@ -461,26 +500,15 @@ class GreedyByMission(test.Experiment):
                 self.del_maint(resource, period, m)
         return True
 
-    def get_maintenance_periods_resource(self, resource, maint='M'):
-        """
-        Given a resource and a maintenance, it returns the periods
-        where that maint starts
-        :param resource: resource to look for
-        :param maint: maintenance to look for
-        :return:
-        """
-        periods = [(1, k) for k, v in self.solution.data['state_m'].get(resource, {}).items() if maint in v]
-        result = tl.TupList(periods).to_start_finish(self.instance.compare_tups)
-        return result.filter([1, 2])
-
     def get_next_maintenance(self, resource, min_start, maints=None):
         """
-        Looks for the inmediate next maintenance start
+        Looks for the immediate next maintenance start
         :param resource: resource to look
         :param min_start: date to start looking
         :param set maints: maintenances to look for
         :return:
         """
+        # TODO: I could just call the new function self.get_next_assignment()
         last = self.instance.get_param('end')
         if maints is None:
             maints = {'M'}
@@ -491,6 +519,90 @@ class GreedyByMission(test.Experiment):
                 return period
             period = self.instance.get_next_period(period)
         return None
+
+    def get_next_assignment(self, resource, period_start, filter=None, category=None, search_future=True):
+        """
+        :param resource:
+        :param period_start:
+        :param filter:
+        :param category:
+        :param search_future:
+        :return:
+        """
+        if category is None:
+            # by default we look for both
+            category = {'task', 'state_m'}
+        else:
+            category = {category}
+        if filter is None:
+            filter = set()
+            if 'tasks' in category:
+                tasks = self.instance.get_tasks().keys()
+                filter |= tasks
+            if 'state_m' in category:
+                maints = self.instance.get_maintenances().keys()
+                filter |= maints
+        ref = self.instance.get_param('end')
+        move_period = self.instance.get_next_period
+        ref_not_reached = lambda period: period <= ref
+        if not search_future:
+            # we look from the period_start to the beginning
+            ref = self.instance.get_param('start')
+            move_period = self.instance.get_prev_period
+            ref_not_reached = lambda period: period >= ref
+
+        def condition_to_return(period):
+            if 'task' in category:
+                task = self.solution.get_period_state(resource, period, 'task')
+                if task is not None and task in filter:
+                    return period, 'task'
+            if 'state_m' in category:
+                states = self.solution.get_period_state(resource, period, 'state_m')
+                if states is not None and len(states.keys() & filter):
+                    return period, 'state_m'
+            return None
+
+        value = self.iterate_periods_until(period=period_start, condition_to_return=condition_to_return,
+                                           stop_condition=ref_not_reached, move_period=move_period)
+        if value is None:
+            return None, None
+        return value
+
+    def get_start_of_assignment(self, resource, period, category, get_last=False):
+        assignment = self.solution.get_period_state(resource, period, cat=category)
+        get_next_period = self.instance.get_prev_period
+        ref = self.instance.get_param('start')
+        stop_condition = lambda period: period >= ref
+        if get_last:
+            ref = self.instance.get_param('end')
+            get_next_period = self.instance.get_next_period
+            stop_condition = lambda period: period <= ref
+
+        def condition_to_return(period):
+            next_period = get_next_period(period)
+            new_assign = self.solution.get_period_state(resource, next_period, cat=category)
+            if new_assign != assignment:
+                return period
+            return None
+
+        value = self.iterate_periods_until(period,
+                                           condition_to_return=condition_to_return,
+                                           stop_condition=stop_condition,
+                                           move_period=get_next_period)
+        if value is None:
+            return ref
+        return value
+
+    @staticmethod
+    def iterate_periods_until(period, condition_to_return, stop_condition, move_period):
+        while stop_condition(period):
+            value = condition_to_return(period)
+            if value:
+                return value
+            period = move_period(period)
+        return None
+
+
 
 
 

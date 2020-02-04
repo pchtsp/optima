@@ -52,43 +52,6 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         return num_errors
 
-    @staticmethod
-    def set_log_config(options):
-        """
-        Sets logging according to options
-        :param options: options dictionary
-        :return: None
-        """
-        level = log.INFO
-        if options.get('debug', False):
-            level = log.DEBUG
-        logFile = os.path.join(options.get('path'), 'output.log')
-        logFormat = '%(asctime)s %(levelname)s:%(message)s'
-        open(logFile, 'w').close()
-        formatter = log.Formatter(logFormat)
-
-        # to file:
-        file_log_handler = log.FileHandler(logFile, 'a')
-        file_log_handler.setFormatter(formatter)
-
-        # to command line
-        stderr_log_handler = log.StreamHandler()
-        stderr_log_handler.setFormatter(formatter)
-
-        outputs = {'file': file_log_handler, 'console': stderr_log_handler}
-        output_choices = options.get('log_output', ['file'])
-
-        _log = log.getLogger()
-        _log.handlers = [v for k, v in outputs.items() if k in output_choices]
-
-        # option to add a custom handler:
-        custom_handler = options.get('log_handler')
-        if custom_handler:
-            custom_handler.setFormatter(formatter)
-            _log.handlers.append(custom_handler)
-
-        _log.setLevel(level)
-
     def initialise_solution_stats(self):
         """
         Initializes caches of best and past solution
@@ -99,14 +62,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         error_cat = errs.to_lendict()
         self.prev_objective = self.get_objective_function(error_cat)
         self.best_objective = self.prev_objective
-
-    def initialise_seed(self, options):
-        seed = options.get('seed')
-        if not seed:
-            seed = rn.random()*10000
-            options['seed'] = seed
-        rn.seed(int(seed))
-        np.random.seed(int(seed))
 
     def solve(self, options):
         """

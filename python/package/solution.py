@@ -78,7 +78,7 @@ class Solution(object):
         :return: a (resource, start, finish, task) tuple
         """
         statesMissions = self.get_state_tasks()
-        result = statesMissions.to_start_finish(ct=compare_tups)
+        result = statesMissions.to_start_finish(compare_tups=compare_tups)
         return result
 
     def get_unavailable(self):
