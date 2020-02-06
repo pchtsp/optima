@@ -1,5 +1,6 @@
 import ujson as json
 import pytups.superdict as sd
+import pytups.tuplist as tl
 import math
 
 
@@ -8,7 +9,7 @@ class Node(object):
     corresponds to a combination of: a period t, a maintenance m, and the remaining rets and ruts for all maintenances
     """
 
-    def __init__(self, instance, resource, period, ret, rut, assignment, period_end, type=0):
+    def __init__(self, instance, resource, period, ret, rut, assignment, period_end, type=0, node=None):
         """
         :param inst.Instance instance: input data.
         :param period: period where assignment takes place
@@ -17,6 +18,7 @@ class Node(object):
         :param sd.SuperDict rut: remaining usage time at the end of the period
         :param assignment: a maintenance or a task.
         :param type: 0 means it's assignment is a maintenance, 1 means it's a task, -1 means dummy
+        :param node: another node to copy from
 
         """
         self.instance = instance
@@ -27,13 +29,33 @@ class Node(object):
         self.period = period
         self.period_end = period_end
         self.resource = resource
-        self.hash = hash(json.dumps(self.get_data(), sort_keys=True))
+        data = self.get_data()
+        self.hash = hash(json.dumps(data, sort_keys=True))
+        self.data_set = data.to_dictup().to_tuplist().to_set()
         self._backup_tasks = None
         self._backup_maints = None
+        self._backup_vtt2_between_tt = None
+        if node:
+            self._backup_tasks = node._backup_tasks
+            self._backup_maints = node._backup_maints
+            self._backup_vtt2_between_tt = node._backup_vtt2_between_tt
         return
 
     def __repr__(self):
         return repr('({}<>{}) => {}'.format(self.period, self.period_end, self.assignment))
+
+    def __hash__(self):
+        return self.hash
+
+    def __eq__(self, other):
+        return not (self.data_set ^ other.data_set)
+
+    def get_data(self):
+        return sd.SuperDict.from_dict({'ret': self.ret, 'rut': self.rut,
+                                       'assignment': self.assignment,
+                                       'period': self.period,
+                                       'period_end': self.period_end,
+                                       'type': self.type})
 
     def get_maints_rets(self):
         return self.ret.keys()
@@ -74,6 +96,39 @@ class Node(object):
                 opts_ret[m] = _range
                 opts_ret[m] = set(opts_ret[m])
         return opts_ret
+
+    def get_assignment_between_dates(self, period1, period2):
+        if self._backup_vtt2_between_tt is not None:
+            return self._backup_vtt2_between_tt.get((period1, period2), tl.TupList())
+        tasks = self.instance.get_task_candidates(resource=self.resource).vfilter(lambda v: v)
+        periods = self.instance.get_periods()
+        task_data = self.get_tasks_data()
+        start_time = task_data.get_property('start')
+        end_time = task_data.get_property('end')
+        _range = self.instance.get_periods_range
+        vt = tl.TupList((v, t) for v in tasks for t in _range(start_time[v], end_time[v]))
+        t_v = vt.to_dict(result_col=1)
+        p_pos = {periods[pos]: pos for pos in range(len(periods))}
+        min_assign = self.instance.get_tasks('min_assign')
+        last_period = self.instance.get_param('end')
+
+        vtt2 = tl.TupList([(v, t1, t2) for (v, t1) in vt for t2 in t_v[v] if
+                            (p_pos[t2] >= p_pos[t1] + min_assign[v] - 1) or
+                            (p_pos[t2] >= p_pos[t1] and t2 == last_period)
+                            ])
+        # vtt2_a = vtt2.to_dict(result_col=[1, 2, 3]).vapply(tl.TupList)
+        vtt2_after_t = {t: vtt2.vfilter(lambda x: x[1] >= t) for t in periods}
+        vtt2_after_t = sd.SuperDict.from_dict(vtt2_after_t).vapply(set)
+        vtt2_before_t = {t: vtt2.vfilter(lambda x: x[2] <= t) for t in periods}
+        vtt2_before_t = sd.SuperDict.from_dict(vtt2_before_t).vapply(set)
+        self._backup_vtt2_between_tt = {(t1, t2): vtt2_after_t[t1] & vtt2_before_t[t2]
+                            for pos1, t1 in enumerate(periods) for t2 in periods[pos1:]}
+        self._backup_vtt2_between_tt = \
+            sd.SuperDict.\
+            from_dict(self._backup_vtt2_between_tt).\
+            vapply(lambda v: tl.TupList(v).sorted())
+        return self._backup_vtt2_between_tt.get((period1, period2), tl.TupList())
+
 
     def get_maint_options_rut(self):
         return sd.SuperDict()
@@ -159,50 +214,27 @@ class Node(object):
         return [c for c in candidates if c.assignment is not None]
 
     def get_adjacency_list_tasks(self, max_period_to_check):
-        # TODO: get a backup of tasks assignments between dates. like in a model
+
         shift = self.instance.shift_period
-        # 1. get compatible tasks
-        tasks = self.instance.get_task_candidates(resource=self.resource)
-        task_data = self.get_tasks_data().filter(tasks).vfilter(lambda v: v['end'] > self.period_end)
-        if not len(tasks):
-            return []
+        diff = self.dif_period
+        dist = self.instance.get_dist_periods
+        min_period_to_check = shift(self.period_end, 1)
+        possible_assignments_task = \
+            self.get_assignment_between_dates(min_period_to_check, max_period_to_check)
+        def prepare_tuple(tuple):
+            task, period1, period2 = tuple
+            return task, diff(period1), dist(period1, period2)+1
+
         # 2. budget
+        task_data = self.get_tasks_data()
         min_rut = min(self.rut.values())
         max_duration = task_data.\
             get_property('consumption').\
             vapply(lambda v: math.floor(min_rut / v))
-        task_end = task_data.get_property('end')
-        # the maximum period to do missions is the minimum of three things:
-        # 1. the end of the mission ('end' is always before the end of the horizon)
-        # 2. the number of required hours compared to the budget ('consumption' compared to rut)
-        # 3. the moment when a maintenance is mandatory because of ret (max_period_to_check)
-        max_date_start = task_end.vapply(min, max_period_to_check)
-        if not max_date_start:
-            return []
-        max_num_periods_node = shift(self.period_end, 1)
-        min_date_start = \
-            task_data.\
-                get_property('start').\
-                vapply(max, max_num_periods_node)
-        min_duration = task_data.get_property('min_assign')
-        # the following calculates (start, duration) for possible assignments
 
-        possibilities = min_date_start.kvapply(lambda k, v: (v, max_date_start[k]))
-        start_possibilities = possibilities.vapply(lambda v: [])
-        for task, (min_date, max_date) in possibilities.items():
-            for vv in self.instance.get_periods_range(min_date, max_date):
-                min_periods_later = shift(vv, min_duration[task]-1)
-                max_periods_later = shift(vv, max_duration[task]-1)
-                vv2_start = min(min_periods_later, task_end[task])
-                vv2_end = min(max_date, max_periods_later)
-                for vv2 in self.instance.get_periods_range(vv2_start, vv2_end):
-                    # start_possibilities[task].append((vv, vv2))  #  debug
-                    distance = self.instance.get_dist_periods(vv, vv2) + 1
-                    position = self.dif_period(vv)
-                    start_possibilities[task].append((position, distance))
-
-        possible_assignments = start_possibilities.to_tuplist()
-        return [self.create_adjacent(*args, type=1) for args in possible_assignments]
+        return possible_assignments_task.vapply(prepare_tuple).\
+            vfilter(lambda v: v[2] <= max_duration[v[0]]).\
+            vapply(lambda v: self.create_adjacent(*v, type=1))
 
     def calculate_rut(self, assignment, period, num_periods):
         """
@@ -212,35 +244,30 @@ class Node(object):
         :param num_periods: number of periods for assignment to mission
         :return:
         """
+        # TODO: rounding down to
         maints_ruts = self.get_maints_ruts()
         m_affects = set()
         affects = self.get_maints_data('affects')
-        is_task = False
-        # is_maint = True
-        tasks_consumption = {}
+        task_consum = 0
         if assignment is not None:
             if assignment in affects:
                 m_affects = affects[assignment] & maints_ruts
             else:
                 tasks_consumption = self.get_tasks_data('consumption')
-                is_task = assignment in tasks_consumption
-                # is_maint = False
+                task_consum = tasks_consumption.get(assignment, 0) * num_periods
+
         m_not_affect = maints_ruts - m_affects
 
         # we want consumption starting after the end of the present period.
         # until the period we are arriving to.
-        total_consumption = sum(self.get_consume(p)
-                                for p in self.iter_until_period(period))
+        total_consumption = sum(self.get_consume(p) for p in self.iter_until_period(period))
         # if it's a task, we need to add the consumption of the task.
-        if is_task:
-            total_consumption += tasks_consumption[assignment] * num_periods
+        total_consumption += task_consum
 
         # for not affected maintenances, we reduce rut:
-        rut = sd.SuperDict()
-        for m in m_not_affect:
-            rut[m] = self.rut[m] - total_consumption
+        rut = sd.SuperDict({m: self.rut[m] - total_consumption for m in m_not_affect})
 
-        # if no maintenances is affected, we leave early:
+        # if no maintenance is affected, we leave early:
         if not len(m_affects):
             return rut
         # for affected maintenances, we set at max:
@@ -270,9 +297,7 @@ class Node(object):
 
         m_not_affect = maints_rets - m_affects
         time = self.dif_period(period)
-        ret = sd.SuperDict()
-        for m in m_not_affect:
-            ret[m] = self.ret[m] - time
+        ret = sd.SuperDict({m: self.ret[m] - time for m in m_not_affect})
 
         # in case of no affects, we leave early:
         if not len(m_affects):
@@ -318,24 +343,8 @@ class Node(object):
             type = -1
         ret = self.calculate_ret(assignment, period)
         rut = self.calculate_rut(assignment, period, duration)
-        defaults = dict(instance=self.instance, resource=self.resource)
+        defaults = dict(instance=self.instance, resource=self.resource, node=self)
         return Node(period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type, **defaults)
-
-    def get_data(self):
-        return sd.SuperDict.from_dict({'ret': self.ret, 'rut': self.rut,
-                                       'assignment': self.assignment,
-                                       'period': self.period,
-                                       'period_end': self.period_end,
-                                       'type': self.type})
-
-    def __hash__(self):
-        return self.hash
-
-    def __eq__(self, other):
-        data1 = self.get_data().to_dictup().to_tuplist().to_set()
-        data2 = other.get_data().to_dictup().to_tuplist().to_set()
-        dif = data1 ^ data2
-        return len(dif) == 0
 
 
 def get_source_node(instance, resource):

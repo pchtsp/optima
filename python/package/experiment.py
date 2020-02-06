@@ -614,7 +614,7 @@ class Experiment(object):
         """
         :param str resource: optional resource to filter
         :param set state_list: maintenances to filter
-        :return:
+        :return: (resource, maint_start, maint_stop)
         :rtype: tl.TupList
         """
         if state_list is None:
@@ -669,7 +669,8 @@ class Experiment(object):
         """
         gets all periods in between maintenances for all resources
         :return: dictionary indexed by resource of a list of tuples.
-        {resource: [(start1, stop1), (start2, stop2)]}
+            {resource: [(start1, stop1), (start2, stop2)]}
+        :rtype: :py:class:`pytups.SuperDict`
         """
         starts_stops = self.get_maintenance_periods(resource=resource)
         if resource is None:

@@ -46,11 +46,12 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
 
 def get_create_node(refs, g, n):
     v = refs.get(n)
-    if v is None:
-        v = g.add_vertex()
-        g.vp.period[v] = n.period
-        g.vp.maint[v] = n.maint
-        refs[n] = v
+    if v is not None:
+        return v
+    v = g.add_vertex()
+    g.vp.period[v] = n.period
+    g.vp.assignment[v] = n.assignment
+    refs[n] = v
     return v
 
 
@@ -63,18 +64,18 @@ def adjacency_to_graph(nodes_ady):
 
     g = gr.Graph()
     g.vp.period = g.new_vp('string')
-    g.vp.maint = g.new_vp('string')
-    g.ep.maint = g.new_ep('string')
+    g.vp.assignment = g.new_vp('string')
+    g.ep.assignment = g.new_ep('string')
     refs = {}
     for n, n2_list in nodes_ady.items():
         v1 = get_create_node(refs, g, n)
         for n2 in n2_list:
             v2 = get_create_node(refs, g, n2)
             e = g.add_edge(v1, v2)
-            if n2.maint is None:
-                g.ep.maint[e] = ""
+            if n2.assignment is None:
+                g.ep.assignment[e] = ""
             else:
-                g.ep.maint[e] = n2.maint
+                g.ep.assignment[e] = n2.assignment
 
     return g, refs
 
@@ -104,6 +105,8 @@ def draw_graph(g):
                     VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
                     VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
                     )
+    extra_dist = {g.vp.assignment[v]: lambda: rn.uniform(-15, 15) for v in g.vertices()}
+    y_ranges = {**extra_dist, **y_ranges}
     colors = \
         {'VG': '#4cb33d',
          'VI': '#00c8c3',
@@ -113,7 +116,8 @@ def draw_graph(g):
          'VG+VS': '#EFCC00',
          'VG+VI+VS': '#EFCC00',
          'VI+VS': '#EFCC00'}
-
+    extra_colors = {g.vp.assignment[v]: rn.choice(['#31c9ff', '#00c8c3', '#4cb33d']) for v in g.vertices()}
+    colors = {**extra_colors, **colors}
     pos = g.new_vp('vector<float>')
     size = g.new_vp('double')
     shape = g.new_vp('string')
@@ -122,15 +126,15 @@ def draw_graph(g):
 
     for v in g.vertices():
         x = instance.get_dist_periods(first, g.vp.period[v])
-        maint = g.vp.maint[v]
-        y = y_ranges.get(maint, lambda: 0)()
+        assignment = g.vp.assignment[v]
+        y = y_ranges.get(assignment, lambda: 0)()
         pos[v] = (x, y)
         size[v] = 2
         shape[v] = 'circle'
-        color[v] = colors.get(maint, 'red')
+        color[v] = colors.get(assignment, 'red')
 
     gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
-                  edge_text=g.ep.maint, vertex_shape=shape, vertex_fill_color=color)
+                  edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
 
 
@@ -149,6 +153,7 @@ if __name__ == '__main__':
     data_in = td.import_input_template(path)
     data_in = test_d.dataset3()
     data_in = sim.create_dataset(params.OPTIONS)
+    # Interesting. It works but only with a small maintenance window.
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
@@ -156,9 +161,18 @@ if __name__ == '__main__':
     sink = nd.get_sink_node(instance, res)
     # final_paths = walk_over_nodes(source)
     nodes_ady = walk_over_nodes(source, get_nodes_only=True)
+    # stop
     g, refs = adjacency_to_graph(nodes_ady)
-    draw_graph(g)
+
+    import graph_tool.all as gr
+    node1 = rn.choice([n for n in nodes_ady.keys() if n.assignment=='M'])
+    node2 = rn.choice([n for n in nodes_ady.keys() if n.period=='2021-01'])
+    # nd.Node(instance=instance, resource=res, period='2020-01', )
+    # refs[node1]
+    [p for p in gr.all_paths(g, source=refs[node1], target=refs[node2])]
+
+    # draw_graph(g)
     final_paths = get_all_paths(g, refs)
 
-    len(final_paths)
-    len(nodes_ady)
+    print(len(final_paths))
+    # len(nodes_ady)
