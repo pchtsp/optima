@@ -59,15 +59,37 @@ class ModelMissions(exp.Experiment):
                 fill_with_default(keys=resources, default=[]). \
                 vapply(self.get_maintenance_cycles)
 
+        # We delete the tasks, because we need
+        # to calculate previous ruts
+        self.solution.data['task'] = sd.SuperDict()
+
+        prev = self.instance.get_prev_period
+        rut = self.set_remaining_usage_time_all('rut')
+        get_rut = lambda r, p: rut['M'][r][p]
+
+        # we get M cycles that dictate waste flight hours
+        rem_rut_cycle =\
+            resource_cycles['M'].\
+            to_tuplist().\
+            to_dict(None).\
+            vapply(lambda v: get_rut(v[0], prev(v[-1])))
+
         self.task = \
             pl.LpVariable.dicts(name="task",
                                 indexs=res_task,
                                 lowBound=0, upBound=1,
                                 cat=pl.LpInteger)
         self.task = sd.SuperDict.from_dict(self.task)
+        self.reduction = pl.LpVariable.dicts('reduction', indexs=rem_rut_cycle, lowBound=0)
+        self.reduction = sd.SuperDict.from_dict(self.reduction)
 
         self.model = pl.LpProblem("MFMP_v0004", pl.LpMinimize)
 
+        # OBJECTIVE FUNCTION
+        # minimize reductions in default hours
+        self.model += pl.lpSum(self.reduction.values())
+
+        # CONSTRAINTS
         # only one active mission assignment per aircraft.
         res_nb_mission = \
             task_period_rest.\
@@ -91,17 +113,25 @@ class ModelMissions(exp.Experiment):
         hour_limit = maintenances.get_property('max_used_time').vfilter(lambda v: v)
         res_task_r = res_task.to_dict(1)
         task_start = tasks.get_property('start')
+        task_end = tasks.get_property('end')
+        _dist = self.instance.get_dist_periods
+        task_total_hours = task_start.kvapply(lambda k, v: _dist(v, task_end[k])*flight_hours[k])
         for maint, limit in hour_limit.items():
             for r, _cycles in resource_cycles[maint].items():
-                for cycle in _cycles:
-                    start, stop = cycle
+                for start, stop in _cycles:
                     # tasks that the resource can do
                     # that start inside the cycle.
-                    _tasks = res_task_r.get(r)
+                    _tasks = \
+                        res_task_r.get(r, tl.TupList()).\
+                        vfilter(lambda v: start <= task_start[v] <= stop)
                     if not _tasks:
                         continue
-                    _tasks = _tasks.vfilter(lambda v: start <= task_start[v] <= stop)
-                    self.model += pl.lpSum(self.task[r, v]*flight_hours[v] for v in _tasks) <= limit
+                    total_hours_missions = pl.lpSum(self.task[r, v]*task_total_hours[v] for v in _tasks)
+                    # limit total amount of hours
+                    self.model += total_hours_missions <= limit
+                    if (r, start, stop) in self.reduction:
+                        remaining_hours = rem_rut_cycle[r, start, stop]
+                        self.model += self.reduction[r, start, stop] >= total_hours_missions - remaining_hours
 
         # we pre-calculate the remaining fleet per period
         # for each period, we calculate the non assigned aircraft's demand for maintenance.
@@ -134,11 +164,18 @@ class ModelMissions(exp.Experiment):
             _capacity  = rem_capacity_period[t]
             self.model += pl.lpSum((1 - res_nb_mission.get((r, t), 0))*usage[m]
                                    for m, r in _res_maint_list) <= _capacity
+
         config = conf.Config(options)
-        self.model.writeLP(options['path']+'formulation.lp')
+        if options.get('writeMPS', False):
+            self.model.writeMPS(filename=options['path'] + 'formulation.mps')
+        if options.get('writeLP', False):
+            self.model.writeLP(filename=options['path'] + 'formulation.lp')
+
         result = config.solve_model(self.model)
-        if result is None:
+        if result != 1:
+            print("Model resulted in non-feasible status: {}".format(result))
             return None
+        print('model solved correctly')
 
         self.solution = self.get_solution()
 
