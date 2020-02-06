@@ -23,6 +23,7 @@ class ModelMissions(exp.Experiment):
         res_task = sd.SuperDict.from_dict(candidates).to_tuplist().take([1, 0])
         tasks = self.instance.get_tasks()
         maintenances = self.instance.get_maintenances()
+        periods = self.instance.get_periods()
 
         # discard task-resources because of M or VS.
         M_and_VS_assignments = \
@@ -74,6 +75,7 @@ class ModelMissions(exp.Experiment):
             to_dict(None).\
             vapply(lambda v: get_rut(v[0], prev(v[-1])))
 
+
         self.task = \
             pl.LpVariable.dicts(name="task",
                                 indexs=res_task,
@@ -83,11 +85,28 @@ class ModelMissions(exp.Experiment):
         self.reduction = pl.LpVariable.dicts('reduction', indexs=rem_rut_cycle, lowBound=0)
         self.reduction = sd.SuperDict.from_dict(self.reduction)
 
+        # penality for over-assigning missions to same aircraft
+        slots = [s for s in range(3)]
+        _options = [(r, s) for r in resources for s in slots]
+        self.num_missions_range = pl.LpVariable.dicts('num_missions_range', indexs=_options, lowBound=0, upBound=1)
+        self.num_missions_range = sd.SuperDict.from_dict(self.num_missions_range)
+        for r in resources:
+            self.num_missions_range[r, slots[-1]].upBound = None
+        excess_cost = {s: (s+1)**2 - 1 for s in slots}
+
+        # penalty for over-capacity:
+        self.excess_capacity = pl.LpVariable.dict('excess_capacity', indexs=periods, lowBound=0, upBound=None)
+        self.excess_capacity = sd.SuperDict.from_dict(self.excess_capacity)
+
         self.model = pl.LpProblem("MFMP_v0004", pl.LpMinimize)
 
         # OBJECTIVE FUNCTION
         # minimize reductions in default hours
-        self.model += pl.lpSum(self.reduction.values())
+        cost_of_excess = self.num_missions_range.kvapply(lambda k, v: v * excess_cost[k[1]]).values()
+        self.model += \
+            pl.lpSum(self.reduction.values()) + \
+            pl.lpSum(cost_of_excess)*100 + \
+            pl.lpSum(self.excess_capacity.values())*1000
 
         # CONSTRAINTS
         # only one active mission assignment per aircraft.
@@ -105,6 +124,12 @@ class ModelMissions(exp.Experiment):
         res_per_task = res_task_v.apply(lambda k, v: pl.lpSum(self.task[_v, k] for _v in v))
         for k, v in res_per_task.items():
             self.model += v == task_num_resource[k]
+
+        # number of missions per resource
+        task_per_task = res_task.to_dict(1).apply(lambda k, v: pl.lpSum(self.task[k, _v] for _v in v))
+        excess = self.num_missions_range.to_tuplist().take([0, 2]).to_dict(1).vapply(pl.lpSum)
+        for r, v in task_per_task.items():
+            self.model += v == excess[r]
 
         # the sum of flight hours that are assigned need to fall in
         # between the hour limit for that visit.
@@ -150,7 +175,7 @@ class ModelMissions(exp.Experiment):
         rem_capacity_period =\
             self.instance.get_total_period_needs().\
             apply(lambda k, v: (fleet_size-v)/fleet_size*capacities[k]).\
-            vapply(lambda v: round(v))
+            vapply(lambda v: math.ceil(v))
 
         # finally, we create the constraint guaranteeing capacity.
         task_period_rest_t = task_period_rest.to_dictdict()
@@ -163,7 +188,7 @@ class ModelMissions(exp.Experiment):
             _res_maint_list = maint_period_res[t]
             _capacity  = rem_capacity_period[t]
             self.model += pl.lpSum((1 - res_nb_mission.get((r, t), 0))*usage[m]
-                                   for m, r in _res_maint_list) <= _capacity
+                                   for m, r in _res_maint_list) - self.excess_capacity[t] <= _capacity
 
         config = conf.Config(options)
         if options.get('writeMPS', False):
@@ -176,7 +201,9 @@ class ModelMissions(exp.Experiment):
             print("Model resulted in non-feasible status: {}".format(result))
             return None
         print('model solved correctly')
-
+        # self.reduction.vapply(pl.value)
+        # self.num_missions_range.vapply(pl.value)
+        # self.excess_capacity.vapply(pl.value)
         # we got a solution, now we need to prepare something to cheat the default_usage of
         # aircraft that did missions.
 
