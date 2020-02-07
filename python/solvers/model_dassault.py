@@ -225,6 +225,29 @@ class ModelMissions(exp.Experiment):
         sol_data = self.copy_solution()
         sol_data['task'] = _task.to_dictdict()
 
+        # we add in aux some information
+        # to discount the number of flight hours depending on the mission
+        
+        # consumption = tasks.get_property('consumption')
+        # total_consumption = \
+        #     self.instance.get_task_period_list().\
+        #     to_dict(1).to_lendict().\
+        #     kvapply(lambda k, v: v*consumption[k])
+        #
+        #
+        # resource_cycles = sd.SuperDict()
+        # for maint, check in [('M', {'M'}), ('VS', {'M', 'VS'})]:
+        #     resource_cycles[maint] = \
+        #         self.get_maintenance_periods(state_list=check). \
+        #         to_dict(result_col=[1, 2]). \
+        #         vapply(sorted). \
+        #         fill_with_default(keys=resources, default=[]). \
+        #         vapply(self.get_maintenance_cycles)
+
+
+        # sol_data['aux']
+
+
         return sol.Solution(sol_data)
 
 

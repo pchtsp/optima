@@ -32,6 +32,10 @@ def get_equiv_names():
         , 'nb_avions': 'num_resource'
         , 'nb_heures': 'consumption'
         , 'periode': 'period'
+        , 'reste_BH': 'rut'
+        , 'reste_BC': 'ret'
+        , 'reste_BH_M': 'rutM'
+        , 'reste_BC_M': 'retM'
     }
     return sd.SuperDict.from_dict(_dict)
 
@@ -297,8 +301,8 @@ def export_output_template(path, input_data, output_data):
             to_tuplist().\
             to_df(columns=columns). \
             assign(mois= lambda x: x.mois.map(aux.get_next_month)).\
-            set_index(columns[:-1])[
-            'rem'].unstack('state').reset_index().\
+            set_index(columns[:-1])['rem'].\
+            unstack('state').reset_index().\
             assign(ret= lambda x: x.maint.map(max_elapsed_time) - x.ret + 1). \
             assign(rut=lambda x: x.maint.map(max_used_time) - x.rut)
 
@@ -308,13 +312,15 @@ def export_output_template(path, input_data, output_data):
     remaining['cons'] = remaining[['avion', 'mois']].apply(lambda x: _func(*x), axis=1)
     remaining['rut'] += remaining['cons']
     remaining.drop(['cons'], axis=1, inplace=True)
-
-    # TODO: add this two to the re_equiv_name
-    equiv = {'rut': 'reste_BH', 'ret': 'reste_BC'}
+    remaining_M = \
+        remaining[remaining.maint=='M'].\
+        drop('maint', axis=1).\
+        rename(columns=dict(ret='retM', rut='rutM'))
     result = \
         sol_maints.\
-            merge(remaining, on=['maint', 'avion', 'mois'], how='left'). \
-            rename(columns=equiv). \
+            merge(remaining, on=['maint', 'avion', 'mois'], how='left').\
+            merge(remaining_M, on=['avion', 'mois']).\
+            rename(columns=re_equiv_name). \
             sort_values(['avion', 'mois', 'maint'])
 
     capacities_names = ['default_type2_capacity', 'maint_capacity']
