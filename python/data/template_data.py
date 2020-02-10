@@ -32,10 +32,11 @@ def get_equiv_names():
         , 'nb_avions': 'num_resource'
         , 'nb_heures': 'consumption'
         , 'periode': 'period'
-        , 'reste_BH': 'rut'
-        , 'reste_BC': 'ret'
-        , 'reste_BH_M': 'rutM'
-        , 'reste_BC_M': 'retM'
+        , 'acum_BH': 'rut'
+        , 'acum_BC': 'ret'
+        , 'acum_BH_M': 'rutM'
+        , 'acum_BC_M': 'retM'
+        , 'numero': 'number'
     }
     return sd.SuperDict.from_dict(_dict)
 
@@ -271,15 +272,14 @@ def export_input_template(path, data):
     return True
 
 
-def export_output_template(path, input_data, output_data):
+def export_output_template(path, experiment):
     """
 
     :param path:
-    :param input_data: instance.data
-    :param output_data: solution.data
+    :param experiment: Experiment with instance and solution
     :return:
     """
-
+    input_data, output_data = experiment.instance.data, experiment.solution.data
     re_equiv_name = get_equiv_names().reverse()
     columns = ['avion', 'mois', 'maint', 'aux']
     sol_maints = \
@@ -307,6 +307,7 @@ def export_output_template(path, input_data, output_data):
             assign(rut=lambda x: x.maint.map(max_used_time) - x.rut)
 
     # Here, we calculate the consumption for the specific day
+    # TODO: change to use experiment methods
     min_usage_period = input_data['resources'].get_property('min_usage_period')
     _func = lambda a, b: min_usage_period[a].get(b, min_usage_period[a]['default'])
     remaining['cons'] = remaining[['avion', 'mois']].apply(lambda x: _func(*x), axis=1)
@@ -323,32 +324,13 @@ def export_output_template(path, input_data, output_data):
             rename(columns=re_equiv_name). \
             sort_values(['avion', 'mois', 'maint'])
 
-    capacities_names = ['default_type2_capacity', 'maint_capacity']
-    capacities = input_data['parameters'].filter(capacities_names)
-    equiv = sd.SuperDict({2: 'default_type2_capacity', 1: 'maint_capacity'})
-    m_cap = \
-        equiv.\
-        vapply(lambda v: capacities[v]).\
-        to_df(columns=['cap'], orient='index').\
-        rename_axis('type').reset_index()
+    # we get a report on capacities:
+    capacity_usage = get_capacity_usage(experiment)
 
-    m_usage = maint_data.get_property('capacity_usage')
-    m_type = maint_data.get_property('type')
-    m_info = \
-        pd.DataFrame.\
-        from_dict({'usage': m_usage, 'type': m_type}).\
-        rename_axis('maint').reset_index()
-    m_info.type = m_info.type.astype('int64')
-
-    num_maints = \
-        tl.TupList(sol_maints.to_records()).\
-        to_dict(result_col=1, indices=[2, 3]).\
-        to_lendict().to_tuplist().\
-        to_df(columns=['period', 'maint', 'number']).\
-        merge(m_info).\
-        assign(total= lambda x: x.number * x.usage).\
-        groupby(['period', 'type'])[['total']].\
-        agg(sum).reset_index().merge(m_cap)
+    # we get a report on changed consumptions:
+    changed_defaults =\
+        output_data['new_default'].to_dictup().to_tuplist().\
+        to_df(columns=['resource', 'period', 'number']).rename(re_equiv_name, axis=1)
 
     # Here we add assignments to missions, in case there is any
     tasks_assign = \
@@ -357,7 +339,8 @@ def export_output_template(path, input_data, output_data):
             to_df(columns=['task', 'resource', 'period']).\
             rename(columns=re_equiv_name)
 
-    to_write = {'sol_maints': result, 'sol_stats': num_maints, 'sol_missions': tasks_assign}
+    to_write = {'sol_maints': result, 'sol_stats': capacity_usage, 'sol_missions': tasks_assign,
+                'sol_default': changed_defaults}
 
     with pd.ExcelWriter(path) as writer:
         for sheet, table in to_write.items():
@@ -365,6 +348,23 @@ def export_output_template(path, input_data, output_data):
         writer.save()
 
     return True
+
+
+def get_capacity_usage(experiment):
+    m_cap = experiment.instance.get_capacity_calendar(). \
+        to_tuplist().to_df(columns=['type', 'period', 'cap'])
+
+    m_cap_net = experiment.instance.dassault_remaining_capacity(). \
+        to_tuplist().to_df(columns=['type', 'period', 'net_cap'])
+
+    num_maints = experiment.get_capacity_usage().to_tuplist(). \
+        to_df(columns=['period', 'type', 'number'])
+    num_maints_net = experiment.get_capacity_usage(discount_mission_resources=True).to_tuplist(). \
+        to_df(columns=['period', 'type', 'net_number'])
+
+    return m_cap.merge(num_maints, how='left'). \
+        merge(m_cap_net, how='left').\
+        merge(num_maints_net, how='left')
 
 
 def import_output_template(path):
@@ -442,7 +442,7 @@ if __name__ == '__main__':
     path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
     data = experiment.solution.data
     data_in = experiment.instance.data
-    export_output_template(path_out, data_in, data)
+    export_output_template(path_out, experiment)
 
     path_out = '/home/pchtsp/Documents/projects/optima_dassault/data/template_out_out.xlsx'
     data = import_output_template(path_out)

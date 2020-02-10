@@ -170,12 +170,8 @@ class ModelMissions(exp.Experiment):
                 to_dict([1, 2])
         # since we know missions, we can calculate the
         # capacity that remains in base.
-        capacities = self.instance.get_capacity_calendar().to_dictdict().get('2', {})
-        fleet_size = len(resources)
-        rem_capacity_period =\
-            self.instance.get_total_period_needs().\
-            apply(lambda k, v: (fleet_size-v)/fleet_size*capacities[k]).\
-            vapply(lambda v: math.ceil(v))
+        remaining_capacity_calendar = self.instance.dassault_remaining_capacity()
+        rem_capacity_period2 = remaining_capacity_calendar.to_dictdict().get('2', {})
 
         # finally, we create the constraint guaranteeing capacity.
         task_period_rest_t = task_period_rest.to_dictdict()
@@ -186,7 +182,7 @@ class ModelMissions(exp.Experiment):
                 # we do not check
                 continue
             _res_maint_list = maint_period_res[t]
-            _capacity  = rem_capacity_period[t]
+            _capacity  = rem_capacity_period2[t]
             self.model += pl.lpSum((1 - res_nb_mission.get((r, t), 0))*usage[m]
                                    for m, r in _res_maint_list) - self.excess_capacity[t] <= _capacity
 
@@ -228,25 +224,55 @@ class ModelMissions(exp.Experiment):
         # we add in aux some information
         # to discount the number of flight hours depending on the mission
         
-        # consumption = tasks.get_property('consumption')
-        # total_consumption = \
-        #     self.instance.get_task_period_list().\
-        #     to_dict(1).to_lendict().\
-        #     kvapply(lambda k, v: v*consumption[k])
-        #
-        #
-        # resource_cycles = sd.SuperDict()
-        # for maint, check in [('M', {'M'}), ('VS', {'M', 'VS'})]:
-        #     resource_cycles[maint] = \
-        #         self.get_maintenance_periods(state_list=check). \
-        #         to_dict(result_col=[1, 2]). \
-        #         vapply(sorted). \
-        #         fill_with_default(keys=resources, default=[]). \
-        #         vapply(self.get_maintenance_cycles)
+        consumption = tasks.get_property('consumption')
+        total_consumption = \
+            self.instance.get_task_period_list().\
+            to_dict(1).to_lendict().\
+            kvapply(lambda k, v: v*consumption[k])
 
+        task_start = _task.to_tuplist().to_dict(result_col=1).vapply(lambda v: v[0])
+        # we will try only with large maintenances.
+        resources = self.instance.get_resources()
+        resource_cycles = \
+            self.get_maintenance_periods(state_list={'M'}). \
+            to_dict(result_col=[1, 2]). \
+            vapply(sorted). \
+            fill_with_default(keys=resources, default=[]). \
+            vapply(self.get_maintenance_cycles)
 
-        # sol_data['aux']
+        first, last = self.instance.get_start_end()
+        cycle_task = tl.TupList()
+        for (res, mission), _task_start in task_start.items():
+            for start, end in resource_cycles[res]:
+                # if the cycle has not finished... then it does not make sense
+                # to correct it
+                if end == last:
+                    continue
+                if start <= _task_start <= end:
+                    cycle_task.add(res, start, end, mission)
 
+        mission_consumption = \
+            cycle_task.to_dict(result_col=3).\
+            vapply(lambda v: v.vapply(lambda vv: total_consumption[vv])).\
+            vapply(sum)
+
+        rut_init = self.instance.get_initial_state('used', maint='M').vapply(lambda v: sd.SuperDict({first: v}))
+        max_rut = self.instance.get_maintenances('max_used_time')['M']
+
+        dist = self.instance.get_dist_periods
+        cycle_rut = mission_consumption.kapply(lambda k: rut_init.get_m(k[0], k[1], default=max_rut))
+        size_cycle = mission_consumption.kapply(lambda k: dist(k[1], k[2]) + 1)
+
+        cycle_default = cycle_rut.kvapply(lambda k, v: (v- mission_consumption[k]) / size_cycle[k]).vapply(round, 2)
+
+        _range = self.instance.get_periods_range
+        new_default_hours = sd.SuperDict()
+        for (res, start, stop), hours in cycle_default.items():
+            for period in _range(start, stop):
+                if (res, period) not in _task:
+                    new_default_hours.set_m(res, period, value=hours)
+
+        sol_data['new_default'] = new_default_hours
 
         return sol.Solution(sol_data)
 
@@ -258,7 +284,7 @@ if __name__ == '__main__':
     import data.data_input as di
     import reports.gantt as gantt
 
-    path = params.PATHS['data'] + 'template/Test3/'
+    path = params.PATHS['data'] + 'template/Lot5 (3000s)/'
     model_data = tp.import_input_template(path+ '/template_in.xlsx')
     sol_data = tp.import_output_template(path + 'template_out.xlsx')
     self = ModelMissions(instance = inst.Instance(model_data),
@@ -266,9 +292,13 @@ if __name__ == '__main__':
     params.OPTIONS['solver'] = 'CBC'
     solution = self.solve(params.OPTIONS)
     output_path = params.OPTIONS['path']
+    self.set_remaining_usage_time_all(time='rut')
+    self.set_remaining_usage_time_all(time='ret')
+    tp.export_output_template(path + 'template_out_missions.xlsx', self)
+    # tp.export_output_template(path + 'template_out.xlsx', model_data, self.solution.data)
     # di.export_data(output_path, self.instance.data, name="data_in", file_type='json', exclude_aux=True)
     di.export_data(output_path, self.instance.data, name="data_in", file_type='json', exclude_aux=True)
     di.export_data(output_path, self.solution.data, name="data_out", file_type='json', exclude_aux=True)
-    gantt.make_gantt_from_experiment(path=output_path)
+    gantt.make_gantt_from_experiment(experiment=self, path=path)
     # solution.get_tasks()
     # self = ModelMissions.from_dir(path)

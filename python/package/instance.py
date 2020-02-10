@@ -584,6 +584,20 @@ class Instance(object):
         else:
             raise ValueError("time needs to be rut or ret")
 
+    def dassault_remaining_capacity(self, periods=None):
+        # this function returns the net capacity without taking into account
+        # the capacity that goes away with planes that go in mission.
+        capacities = self.get_capacity_calendar(periods).to_dictdict()
+        capacities2 = capacities.get('2', {})
+        resources = self.get_resources()
+        fleet_size = len(resources)
+        aircraft_needs = self.get_total_period_needs()
+        capacities['2'] =\
+            capacities2.\
+            apply(lambda k, v: (fleet_size-aircraft_needs[k])/fleet_size*v).\
+            vapply(lambda v: math.ceil(v))
+        return capacities.to_dictup()
+
 if __name__ == "__main__":
     import data.simulation as sim
     import package.params as params

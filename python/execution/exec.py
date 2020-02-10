@@ -139,7 +139,7 @@ def execute_solve(model_data, options, solution_data=None):
         di.export_data(output_path, errors, name='errors', file_type="json")
 
     if options.get('template', False):
-        td.export_output_template(options['output_template_path'], experiment.instance.data, experiment.solution.data)
+        td.export_output_template(options['output_template_path'], experiment)
         input_path = options['input_template_path']
         # if it doesnt exist: we also export the input
         if not os.path.exists(input_path):

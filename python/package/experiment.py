@@ -9,6 +9,7 @@ import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
 import ujson
+import math
 import shutil
 import re
 import orloge as ol
@@ -251,13 +252,16 @@ class Experiment(object):
         if time == 'ret':
             return 1
         task = self.solution.data['task'].get_m(resource, period)
-        if task is None:
-            # get default consumption:
-            consumption = self.instance.get_default_consumption(resource, period)
-        else:
-            # get task consumption:
-            consumption = self.instance.data['tasks'].get_m(task, 'consumption', default=0)
-        return consumption
+        if task is not None:
+            return self.instance.data['tasks'].get_m(task, 'consumption', default=0)
+
+        # here, we check for an optional overwriting of defaults from the solution...
+        consumption = self.solution.data.get_m('new_default', resource, period)
+        if consumption is not None:
+            return consumption
+
+        # now get the default consumption:
+        return self.instance.get_default_consumption(resource, period)
 
     def get_non_maintenance_periods(self, resource=None, state_list=None):
         """
@@ -775,6 +779,24 @@ class Experiment(object):
     def solve(self, **kwargs):
         raise NotImplementedError('An experiment needs to be subclassed and be given a solve method.')
 
+    def get_capacity_usage(self, discount_mission_resources=False):
+        # this function returns the net capacity usage taking into account
+        # only the planes that are consumming maintenances and not in mission
+        maint_data = self.instance.get_maintenances()
+        m_usage = maint_data.get_property('capacity_usage')
+        m_type = maint_data.get_property('type')
+
+        sol_maints = self.solution.get_state().keys_tl()
+
+        if discount_mission_resources:
+            sol_mission = self.solution.get_tasks().keys_tl().to_set()
+            sol_maints = sol_maints.vfilter(lambda k: (k[0], k[1]) not in sol_mission)
+
+        return \
+            sol_maints.\
+                to_dict(result_col=0, indices=[1, 2]). \
+                to_lendict().kvapply(lambda k, v: (m_usage[k[1]]*v, m_type[k[1]])).\
+                to_tuplist().to_dict(result_col=2, indices=[0, 3]).vapply(sum)
 
 if __name__ == "__main__":
     pass

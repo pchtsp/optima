@@ -286,7 +286,7 @@ class MainWindow_EXCEC():
         # writing output template
         _dir = os.path.join(output_path, 'template_out.xlsx')
         try:
-            td.export_output_template(_dir, experiment.instance.data, experiment.solution.data)
+            td.export_output_template(_dir, experiment)
         except PermissionError:
             self.show_message('Error', 'Output file cannot be overwritten.\nCheck it is not open and you have enough permissions.')
             return 0
