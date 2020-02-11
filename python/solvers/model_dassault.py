@@ -256,21 +256,40 @@ class ModelMissions(exp.Experiment):
             vapply(lambda v: v.vapply(lambda vv: total_consumption[vv])).\
             vapply(sum)
 
+        _range = lambda st, stp: set(self.instance.get_periods_range(st, stp))
+
+        # we get the periods the resource is in task
+        mission_periods = sd.SuperDict()
+        for res, start, stop, v in cycle_task:
+            _tup = (res, start, stop)
+            if _tup not in mission_periods:
+                mission_periods[_tup] = set()
+            mission_periods[_tup] |= _range(tasks[v]['start'], tasks[v]['end'])
+
+        # we subtract the task periods from the cycle
+        cycle_periods = mission_consumption.kapply(lambda k: _range(k[1], k[2]) - mission_periods[k])
+
+        # we get the total  hours available in the cycle:
         rut_init = self.instance.get_initial_state('used', maint='M').vapply(lambda v: sd.SuperDict({first: v}))
         max_rut = self.instance.get_maintenances('max_used_time')['M']
-
-        dist = self.instance.get_dist_periods
         cycle_rut = mission_consumption.kapply(lambda k: rut_init.get_m(k[0], k[1], default=max_rut))
-        size_cycle = mission_consumption.kapply(lambda k: dist(k[1], k[2]) + 1)
 
-        cycle_default = cycle_rut.kvapply(lambda k, v: (v- mission_consumption[k]) / size_cycle[k]).vapply(round, 2)
+        # we get the amount of hours the aircraft should have to do
+        # to comply with the cycle remaining hours
+        cycle_total = cycle_rut.kvapply(lambda k, v: (v- mission_consumption[k]))
 
-        _range = self.instance.get_periods_range
+        _old_default = self.instance.get_default_consumption
         new_default_hours = sd.SuperDict()
-        for (res, start, stop), hours in cycle_default.items():
-            for period in _range(start, stop):
-                if (res, period) not in _task:
-                    new_default_hours.set_m(res, period, value=hours)
+        for (res, start, stop), hours in cycle_total.items():
+            cy_periods = cycle_periods[res, start, stop]
+            total_default = sum(_old_default(res, p) for p in cy_periods)
+            # if we can do more than the default, we leave the default
+            if hours >= total_default:
+                continue
+            # we distribute the hours among all periods
+            mean_hours = round(hours / len(cy_periods), 2)
+            for period in cy_periods:
+                new_default_hours.set_m(res, period, value=mean_hours)
 
         sol_data['new_default'] = new_default_hours
 

@@ -37,6 +37,8 @@ def get_equiv_names():
         , 'acum_BH_M': 'rutM'
         , 'acum_BC_M': 'retM'
         , 'numero': 'number'
+        , 'capacite_nette': 'net_capacity'
+        , 'numero_net': 'net_number'
     }
     return sd.SuperDict.from_dict(_dict)
 
@@ -325,7 +327,7 @@ def export_output_template(path, experiment):
             sort_values(['avion', 'mois', 'maint'])
 
     # we get a report on capacities:
-    capacity_usage = get_capacity_usage(experiment)
+    capacity_usage = get_capacity_usage(experiment).rename(columns=re_equiv_name)
 
     # we get a report on changed consumptions:
     changed_defaults =\
@@ -352,10 +354,10 @@ def export_output_template(path, experiment):
 
 def get_capacity_usage(experiment):
     m_cap = experiment.instance.get_capacity_calendar(). \
-        to_tuplist().to_df(columns=['type', 'period', 'cap'])
+        to_tuplist().to_df(columns=['type', 'period', 'capacity'])
 
     m_cap_net = experiment.instance.dassault_remaining_capacity(). \
-        to_tuplist().to_df(columns=['type', 'period', 'net_cap'])
+        to_tuplist().to_df(columns=['type', 'period', 'net_capacity'])
 
     num_maints = experiment.get_capacity_usage().to_tuplist(). \
         to_df(columns=['period', 'type', 'number'])
