@@ -330,9 +330,11 @@ def export_output_template(path, experiment):
     capacity_usage = get_capacity_usage(experiment).rename(columns=re_equiv_name)
 
     # we get a report on changed consumptions:
-    changed_defaults =\
-        output_data['new_default'].to_dictup().to_tuplist().\
-        to_df(columns=['resource', 'period', 'number']).rename(re_equiv_name, axis=1)
+    changed_defaults = pd.DataFrame()
+    if 'new_default' in output_data:
+        changed_defaults =\
+            output_data['new_default'].to_dictup().to_tuplist().\
+            to_df(columns=['resource', 'period', 'number']).rename(re_equiv_name, axis=1)
 
     # Here we add assignments to missions, in case there is any
     tasks_assign = \
