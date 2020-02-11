@@ -169,7 +169,7 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.20191209", None, -1))
+        MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "OPTIMA v0.20200210", None, -1))
         self.Config.setToolTip(QtWidgets.QApplication.translate("MainWindow", "<html><head/><body><p>configuration</p></body></html>", None, -1))
         self.chooseFile.setText(QtWidgets.QApplication.translate("MainWindow", "Browse", None, -1))
         self.instCheck.setText(QtWidgets.QApplication.translate("MainWindow", "No instance loaded", None, -1))
