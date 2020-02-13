@@ -112,7 +112,7 @@ def get_post_2M_dist(case, _type=0):
     return maints.vapply(lambda v: dist(v[1], last))
 
 def get_variance_dist(case, _type=0):
-    distances = get_1M_2M_dist(case, _type=0, count_1M=True)
+    distances = get_1M_2M_dist(case, _type=_type, count_1M=True)
     return np.var(distances)
 
 

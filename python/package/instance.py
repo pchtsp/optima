@@ -541,7 +541,6 @@ class Instance(object):
                     np.intersect1d(resources, candidates)
         return fixed_per_period_cluster
 
-
     def get_capacity_calendar(self, periods=None):
         """
         :param periods: optional filter for horizon periods
@@ -597,6 +596,10 @@ class Instance(object):
             apply(lambda k, v: (fleet_size-aircraft_needs[k])/fleet_size*v).\
             vapply(lambda v: math.ceil(v))
         return capacities.to_dictup()
+
+    def get_types(self):
+        values = self.get_tasks('type_resource').values()
+        return tl.TupList(values).unique2()
 
 if __name__ == "__main__":
     import data.simulation as sim

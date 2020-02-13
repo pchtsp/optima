@@ -15,6 +15,7 @@ def get_sum_variances(case, types):
 
 
 def get_solstats(batch):
+    # TODO: add objective calculation
     cases = batch.get_cases().clean(func=lambda v: v)
     types = cases.vapply(lambda v: v.instance.get_types())
     variances = cases.apply(lambda k, v: {'variance': get_sum_variances(v, types[k])})
@@ -22,7 +23,7 @@ def get_solstats(batch):
     return var_table
 
 
-def get_df_comparison(exp_list, scenarios=None, get_progress=False):
+def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True):
     """
     :param list exp_list: list of names of experiments
     :param list scenarios: optional list of scenarios to filter batches
@@ -33,7 +34,10 @@ def get_df_comparison(exp_list, scenarios=None, get_progress=False):
         # print(name)
         if experiment is None:
             continue
-        batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment, scenarios=scenarios)
+        if zip:
+            batch1 = ba.ZipBatch(path=params.PATHS['results'] + experiment, scenarios=scenarios)
+        else:
+            batch1 = ba.Batch(path=params.PATHS['results'] + experiment, scenarios=scenarios)
         table = batch1.get_log_df(get_progress=get_progress)
         table_errors = batch1.get_errors_df().drop('name', axis=1)
         sol_stats_table = get_solstats(batch1)

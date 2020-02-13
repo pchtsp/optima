@@ -1,13 +1,14 @@
 ---
 title: "ResultsNPS"
 author: "Franco Peschiera"
-date: "August 8, 2019"
+date: "`r Sys.Date()`"
 output:
   html_document: default
   pdf_document: default
 params:
   size: get_3_tasks_aggresive_perc_add
   scale: log2
+  num_tasks: 2
 editor_options:
   chunk_output_type: console
 ---
@@ -21,8 +22,7 @@ source('nps_reports/datasets.R')
 default_tail <- 0.05
 really_small_number <- 0.000001
 size <- params$size
-df <- do.call(size, args=list())
-value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
+df <- do.call(size, args=params)
 
 scaleFUN <- function(x) sprintf("%.2f", x)
 scale <- params$scale
@@ -61,7 +61,7 @@ quality_degr_all <- get_quality_degr_2(df)
 right_tail <- default_tail
 quality_degr_all_filt <- 
   quality_degr_all %>% 
-  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
+  mutate(dif_perc = if_else(dif_perc<= 0 & scale!='identity', really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(0, right_tail)))
 
 ```
@@ -78,7 +78,10 @@ if (scale!='identity'){
 }
 
   
-ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + theme(text = element_text(size=20)) + coord_flip() + scale_y_continuous(trans=scale, labels=scaleFUN)
+ggplot(data=quality_degr_all_filt, aes(x=experiment, y=dif_perc)) + 
+  theme_minimal() + geom_boxplot() + xlab('Experiment') + ylab(ylab) + 
+  theme(text = element_text(size=20)) + coord_flip() + 
+  scale_y_continuous(trans=scale, labels=scaleFUN)
 
 ```
 
@@ -99,7 +102,7 @@ each_tail <- default_tail
 
 quality_perf_all_filt <- 
   quality_perf_all %>% 
-  mutate(dif_perc = if_else(dif_perc<= 0, really_small_number, dif_perc)) %>%
+  mutate(dif_perc = if_else(dif_perc<= 0 & scale!='identity', really_small_number, dif_perc)) %>%
   filter(dif_perc %>% value_filt_tails(c(each_tail, each_tail)))
 ```
 
@@ -123,7 +126,7 @@ ggplot(data=quality_perf_all_filt, aes(x=experiment, y=dif_perc)) + theme_minima
 
 ### Average solving time
 
-Just like in the mean quality comparison, we compare among cases where all models found a **integer solution**.
+Just like in the mean quality comparison, we compare among **all** cases.
 
 ```{r time_perf}
 
@@ -148,7 +151,7 @@ mean_times %>% kable
 
 In order to get more intuition in the performance per instance, we present a couple of graphs.
 
-The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances were an integer solution was found in all cases. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
+The following graph shows the solving times in seconds for each of the `r comparison_table %>% distinct(instance) %>% nrow` instances. If we reorder all models from fastest to slowest, we gain more insight on the distribution of solving times.
 
 
 ```{r time_perf_graph2, out.width='100%'}
@@ -202,7 +205,7 @@ infeasible_times %>% kable
 right_tail <- default_tail
 errors_stats <- get_soft_constraints(df)
 errors_all <- get_soft_constraints_2(df) %>% 
-  mutate(dif= if_else(dif<=0, really_small_number, dif))
+  mutate(dif= if_else(dif<=0 & scale!='identity', really_small_number, dif))
 
 errors_all_filt <- 
   errors_all %>% 

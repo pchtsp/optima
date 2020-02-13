@@ -1,8 +1,6 @@
 import stochastic.graphs as graphs
 import stochastic.params as sto_params
 import scripts.stochastic_analysis as sto_funcs
-import stochastic.models as models
-import stochastic.tools as aux
 
 import pandas as pd
 
@@ -54,12 +52,7 @@ def draw_quantiles():
     options[0]['plot_args'] = dict(facet='init_cut ~ geomean_cons_cut', x='mean_consum', y=options[0]['y_var'])
     options[1]['plot_args'] = dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init', y=options[1]['y_var'])
     for opt in options:
-        x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
-        # sorting is very important
-        x_vars = sorted(x_vars)
-        clf, mean_std = models.test_regression(result_tab=table, x_vars=x_vars, **opt, plot=False)
-        X_all_norm = aux.normalize_variables(table[x_vars], mean_std)
-        y_pred = clf.predict(X_all_norm)
+        y_pred = sto_funcs.predict_from_table(table, opt)
         X = table.copy()
         labels = ['mu_{{WC}}: {}/3'.format(p) for p in range(1, 4)]
         X['geomean_cons_cut'] = pd.qcut(X['geomean_cons'], q=3, duplicates='drop', labels=labels)
@@ -81,6 +74,7 @@ def draw_quantiles():
         graph_name = 'NPS_article_{}_{}_{}_{}'.format(opt['method'], opt['plot_args']['x'], opt['bound'], opt['y_var'])
         path_out = sto_params.path_graphs + r'{1}/{0}_{1}.png'.format(graph_name, sto_params.name)
         plot.save(path_out)
+
 
 if __name__ == '__main__':
     draw_quantiles()

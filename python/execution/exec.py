@@ -95,11 +95,14 @@ def engine_factory(engine):
         import solvers.model_fixingLP as model
         return model.ModelFixFlexLP_3
     elif engine == 'ModelANOR':
-        import solvers.model_anor as model_anor
-        return model_anor.ModelANOR
+        import solvers.model_anor as model
+        return model.ModelANOR
+    elif engine == 'ModelANORFixLP':
+        import solvers.model_anor_fixingLP as model
+        return model.ModelANORFixLP
     else:
-        import solvers.model as md
-        return md.Model
+        import solvers.model as model
+        return model.Model
 
 
 def execute_solve(model_data, options, solution_data=None):

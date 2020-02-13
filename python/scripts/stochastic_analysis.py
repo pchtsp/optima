@@ -5,6 +5,7 @@ import stochastic.instance_stats as istats
 import stochastic.solution_stats as sol_stats
 import stochastic.params as sto_params
 import stochastic.models as models
+import stochastic.tools as aux
 
 import pytups.superdict as sd
 import pytups.tuplist as tl
@@ -340,7 +341,7 @@ def quantile_regressions(table, **kwargs):
              plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
     ]
     default = dict(method = 'QuantReg', max_iter = 10000, **kwargs)
-    options = tl.TupList(options).apply(lambda v: {**default, **v})
+    options = tl.TupList(options).vapply(lambda v: {**default, **v})
 
     coefs_df = []
     for opt in options:
@@ -418,6 +419,17 @@ def get_table_complete(*args, **kwargs):
     batch = get_batch(*args, **kwargs)
     result_tab = get_table_semi_treated(batch)
     return treat_table(result_tab)
+
+
+def predict_from_table(table, opt):
+    x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'mean_consum4', 'init', 'var_consum', 'spec_tasks',
+              'geomean_cons']
+    # sorting is very important
+    x_vars = sorted(x_vars)
+    clf, mean_std = models.test_regression(result_tab=table, x_vars=x_vars, plot=False, **opt)
+    X_all_norm = aux.normalize_variables(table[x_vars], mean_std)
+    y_pred = clf.predict(X_all_norm)
+    return y_pred
 
 
 if __name__ == '__main__':
