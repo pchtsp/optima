@@ -1,5 +1,6 @@
 import package.instance as inst
 import pytups.superdict as sd
+import pytups.tuplist as tl
 import numpy.random as rn
 import patterns.node as nd
 
@@ -80,17 +81,17 @@ def adjacency_to_graph(nodes_ady):
     return g, refs
 
 
-def get_all_paths(g, refs):
+def get_all_patterns(graph, refs, refs_inv, instance, resource):
     try:
         import graph_tool.all as gr
     except:
         print('graph-tool is not available')
         return None
 
-    g_source = refs[source]
-    g_sink = refs[sink]
+    source = nd.get_source_node(instance, resource)
+    sink = nd.get_sink_node(instance, resource)
 
-    return [p for p in gr.all_paths(g, source=g_source, target=g_sink)]
+    return nodes_to_patterns(graph, refs, refs_inv, source, sink)
 
 
 def draw_graph(g):
@@ -136,11 +137,11 @@ def draw_graph(g):
     gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
-
-def nodes_to_patterns(graph, refs, refs_inv, node1, node2):
+def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=None, **kwargs):
     import graph_tool.all as gr
-    # TODO: we need to translate this into assignments.
-    return gr.all_paths(graph, source=refs[node1], target=refs[node2])
+    all_paths = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
+    # TODO: sample before proceding ?
+    return tl.TupList(all_paths).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
 
 
 def state_to_node(instance, resource, state):
@@ -149,7 +150,7 @@ def state_to_node(instance, resource, state):
 
 def get_graph_of_resource(instance, resource):
     source = nd.get_source_node(instance, resource)
-    # sink = nd.get_sink_node(instance, resource)
+    sink = nd.get_sink_node(instance, resource)
 
     # We generate the graph by using "nodes" module
     # We represent the graph with an adjacency list
@@ -169,6 +170,9 @@ def get_graph_of_resource(instance, resource):
                               rut=None, ret=None, type=v[3])).\
             vapply(lambda v: [nd.Node(**v)])
 
+    # TODO: fix assignment periods should only leave the possibility of the assignment
+    # maybe changing the origin.
+
     nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 
     # Then, when exploiting this, we will filter nodes with low enough ret and rut.
@@ -177,7 +181,7 @@ def get_graph_of_resource(instance, resource):
     # We create a graph-tool version of the graph
     # and links between the original nodes and the graph tool ones
     g, refs = adjacency_to_graph(nodes_ady_2)
-    return g, refs
+    return sd.SuperDict(graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink)
 
 
 if __name__ == '__main__':
@@ -200,7 +204,6 @@ if __name__ == '__main__':
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
 
-    refs_inv = refs.reverse()
     # Example creating paths between nodes:
 
     # node1 = rn.choice([n for n in nodes_ady.keys() if n.period=='2017-12'])
@@ -209,13 +212,6 @@ if __name__ == '__main__':
     # last_prev_assign = dict(period='2017-12', period_end='2017-12', assignment=None, type=0, rut=sd.SuperDict(),
     #                         ret=sd.SuperDict())
 
-
-
     # node_gr = options[0][1]
-    g.vp.period[7]
 
-    draw_graph(g)
-    final_paths = get_all_paths(g, refs)
-
-    print(len(final_paths))
     # len(nodes_ady)
