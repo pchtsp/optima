@@ -508,17 +508,11 @@ class GreedyByMission(test.Experiment):
         :param set maints: maintenances to look for
         :return:
         """
-        # TODO: I could just call the new function self.get_next_assignment()
-        last = self.instance.get_param('end')
-        if maints is None:
-            maints = {'M'}
-        period = min_start
-        while period <= last:
-            states = self.solution.get_period_state(resource, period, 'state_m')
-            if states is not None and len(states.keys() & maints):
-                return period
-            period = self.instance.get_next_period(period)
-        return None
+        period, category = self.get_next_assignment(resource, min_start,
+                                                    filter=maints,
+                                                    category='state_m',
+                                                    search_future=True)
+        return period
 
     def get_next_assignment(self, resource, period_start, filter=None, category=None, search_future=True):
         """
