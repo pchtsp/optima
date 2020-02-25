@@ -290,18 +290,6 @@ class GreedyByMission(test.Experiment):
             types, periods = zip(*type_periods)
             periods = np.asarray(periods)[np.asarray(types) == _type]
         return periods
-        # periods_all = set(self.instance.get_periods())
-        # return tl.TupList(periods_all - periods_full)
-
-
-        # if len(type_periods):
-        #     periods_full = np.array(type_periods.keys_l())[:, 1]
-        #     periods_full = set(periods_full)
-        # return tl.TupList(self.instance.get_periods()).filter_list_f(lambda x: x not in periods_full)
-        # num_in_maint = aux.fill_dict_with_default(self.solution.get_in_maintenance(maint),
-        #                                           )
-        # return [p for p, num in num_in_maint.items() if
-        #                          num < self.instance.get_param('maint_capacity')]
 
     def get_maintenance_candidates(self, resource, min_period, max_period, maint):
         """

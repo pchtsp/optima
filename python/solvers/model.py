@@ -245,6 +245,7 @@ class Model(exp.Experiment):
             part3 = shift(t2, duration), last_period, ub['rut']  # after the second maintenance
 
             # Each part of the horizon needs to satisfy max hour consumption
+            # TODO: get better bigM following Alain's comments
             for pos, (p1, p2, limit) in enumerate([part1, part2, part3]):
                 if p1 > p2:
                     continue
@@ -471,9 +472,10 @@ class Model(exp.Experiment):
         task_data = self.instance.get_tasks()
 
         # maximal bounds on continuous variables:
-        max_used_time = param_data['max_used_time']  # mu. in hours of usage
-        maint_duration = param_data['maint_duration']
-        max_elapsed_time = param_data['max_elapsed_time'] + maint_duration  # me. in periods
+        maint_data = self.instance.get_maintenances()[self.M]
+        max_used_time = maint_data['max_used_time']  # mu. in hours of usage
+        maint_duration = maint_data['duration_periods']
+        max_elapsed_time = maint_data['max_elapsed_time'] + maint_duration  # me. in periods
         consumption = sd.SuperDict(task_data).get_property('consumption')  # rh. hours per period.
         num_resources = len(self.instance.get_resources())
         num_periods = len(self.instance.get_periods())
@@ -644,17 +646,18 @@ class Model(exp.Experiment):
         # resources
         resources_data = self.instance.get_resources()
         resources = list(resources_data.keys())
-        # TODO: M is assumed
-        duration = param_data['maint_duration']
-        max_elapsed = param_data['max_elapsed_time'] + duration
-        min_elapsed = max_elapsed - param_data['elapsed_time_size']
+        maint_data = self.instance.get_maintenances()[self.M]
+        duration = maint_data['duration_periods']
+
+        max_elapsed = maint_data['max_elapsed_time'] + duration
+        min_elapsed = max_elapsed - maint_data['elapsed_time_size']
 
         # second maintenance can have a more limited size of calendar.
         # and depends on the aircraft
         min_elapsed_2M = {r: min_elapsed for r in resources}
         max_elapsed_2M = {r: max_elapsed for r in resources}
 
-        ret_init = self.instance.get_initial_state("elapsed")
+        ret_init = self.instance.get_initial_state("elapsed", maint=self.M)
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
         kt = sd.SuperDict(self.instance.get_cluster_constraints()['num']).keys_l()
 

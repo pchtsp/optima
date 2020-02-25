@@ -1,11 +1,11 @@
 import pytups.superdict as sd
 import pytups.tuplist as tl
-import os
 import package.solution as sol
-import data.data_input as di
 import numpy as np
 import solvers.heuristics as heur
+import solvers.model as mdl
 import patterns.create_patterns as cp
+import solvers.config as conf
 import random as rn
 import pulp as pl
 import math
@@ -13,7 +13,7 @@ import time
 import logging as log
 
 
-class GraphOriented(heur.GreedyByMission):
+class GraphOriented(heur.GreedyByMission,mdl.Model):
 
     # statuses for detecting a new worse solution
     status_worse = {2, 3}
@@ -168,22 +168,197 @@ class GraphOriented(heur.GreedyByMission):
                 delete_assigned.append((period, info))
         return delete_assigned
 
-    def solve_repair(self, patterns):
+    def solve_repair(self, res_patterns, options):
 
-        # patterns is a sd.SuperDict of resource: [list of possible patterns]
+        # res_patterns is a sd.SuperDict of resource: [list of possible patterns]
+        # TODO: check if there is a good reason to use cleaned patterns ([1:-1] filtering)
         _range = self.instance.get_periods_range
-        combos = tl.TupList()
+        _dist = self.instance.get_dist_periods
+        first, last = self.instance.get_first_last_period()
+        combos = sd.SuperDict()
         info = tl.TupList()
-        for res, _pat_list in patterns.items():
-            for p, pattern in enumerate(_pat_list[1:-1]):
-                combos.add(res, p)
-                for elem in pattern:
-                    for period in _range(elem.period, elem.period_end):
-                        info.add(res, p, period, elem.assignment, elem.type)
+        for res, _pat_list in res_patterns.items():
+            for p, pattern in enumerate(_pat_list):
+                pattern_clean = pattern
+                combos[res, p] = pattern_clean
+                info += tl.TupList(
+                    (res, p, period, elem.assignment, elem.type)
+                    for elem in pattern_clean for period in _range(elem.period, elem.period_end)
+                )
+        weight_pattern = lambda pattern: sum(_dist(first, elem.period) for elem in pattern if elem.type==0)
+        assign_p = combos.vapply(weight_pattern)
 
-        self.assign = pl.LpVariable.dicts(name="assign", indexs=combos, cat=pl.LpBinary)
+        # Variables:
+        assign = pl.LpVariable.dicts(name="assign", indexs=combos, cat=pl.LpBinary)
+        assign = sd.SuperDict.from_dict(assign)
+
+        l = self.domains
+        if l is not None:
+            l = self.domains = self.get_domains_sets(options)
+        ub = self.get_variable_bounds()
+        p_s = {s: p for p, s in enumerate(l['slots'])}
+        p_t = self.instance.data['aux']['period_i']
+
+        def sum_of_slots(variable_slots):
+            result_col = len(variable_slots.keys_l()[0])
+            indices = range(result_col - 1)
+            return \
+                variable_slots.\
+                to_tuplist().\
+                to_dict(result_col=result_col, indices=indices).\
+                vapply(pl.lpSum)
+
+        def make_slack_var(name, domain, ub_func):
+            _var = sd.SuperDict()
+            for tup in domain:
+                _var[tup] = pl.LpVariable(name="{}_{}".format(name, tup), lowBound=0,
+                                               upBound=ub_func(tup), cat=pl.LpContinuous)
+            return _var
+
+        slack_kts = make_slack_var('slack_kts', l['kts'], lambda kts: ub['slack_kts'][kts[2]])
+        _slack_s_kt = sum_of_slots(slack_kts)
+        slack_kts_p = {(k, t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 50 for k, t, s in l['kts']}
+
+        slack_kts_h = make_slack_var('slack_kts_h', l['kts'],
+                                     lambda kts: ub['slack_kts_h'][(kts[0], kts[2])])
+        _slack_s_kt_h = sum_of_slots(slack_kts_h)
+        slack_kts_h_p = {(k, t, s): (p_s[s] + 2 - 0.001 * p_t[t]) ** 2 for k, t, s in l['kts']}
+
+        slack_ts = make_slack_var('slack_ts', l['ts'],
+                                     lambda ts: ub['slack_ts'][ts[1]])
+        _slack_s_t = sum_of_slots(slack_ts)
+        slack_ts_p = {(t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 1000 for t, s in l['ts']}
+
+        slack_vts = make_slack_var('slack_vts', [(*vt, s) for vt in l['vt'] for s in l['slots']],
+                                  lambda vts: p_s[vts[2]]*2+1)
+        _slack_s_vt = sum_of_slots(slack_vts)
+        slack_vts_p = slack_vts.kapply(lambda vts: (p_s[vts[2]] + 1) * 10000)
+
+        # Model:
+        model = pl.LpProblem('MFMP_repair', sense=pl.LpMinimize)
+
+        # Constraints
+
+        # objective:
+        model += pl.lpSum((assign * assign_p).values_tl()) + \
+                 pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
+                 pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
+                 pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
+                 pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
+
+        # one pattern per resource:
+        _constraints = \
+            combos.keys_tl().\
+            vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]).\
+            vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # ##################################
+        # Tasks and tasks starts
+        # ##################################
+
+        # num resources:
+        mission_needs = self.check_task_num_resources()
+        p_mission_needs = info.vfilter(lambda v: v[4]==1).to_dict(indices=[3, 2], result_col=[0, 1])
+        _constraints = \
+            p_mission_needs.\
+            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
+            kvapply(lambda k, v: v + _slack_s_vt[k] >= mission_needs[k]).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # # ##################################
+        # Clusters
+        # ##################################
+        c_cand = self.instance.get_cluster_candidates().list_reverse().vapply(lambda v: v[0])
+        # minimum availability per cluster and period
+        min_aircraft_slack = self.check_min_available(deficit_only=False)
+        p_clustdate = \
+            info.vfilter(lambda v: v[4] == 0). \
+            vapply(lambda v: (*v, c_cand[v[0]])). \
+            to_dict(indices=[5, 2], result_col=[0, 1])
+
+        _constraints = \
+            p_clustdate. \
+            vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
+            kvapply(lambda k, v: v - _slack_s_kt[k] <= min_aircraft_slack[k]). \
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # for (k, t), num in cluster_data['num'].items():
+        #     model += \
+        #         pl.lpSum(start_M[a, t1, t2] for a in c_cand[k]
+        #                  for (t1, t2) in l['tt_maints_at'].get((a, t), [])
+        #                  ) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
+
+        # Each cluster has a minimum number of usage hours to have
+        # at each period.
+        # min_hours_slack = self.check_min_flight_hours(recalculate=False, deficit_only=False)
+        # combos.\
+        #     vapply(lambda v: sd.SuperDict({vv.period: vv.ret for vv in v})).\
+        #     to_dictdict().\
+        #     to_dictup().\
+        #     to_tuplist()
+        #
+        # p_clustdate.vapply()
+        # # TODO: flight hour constraints. This will be somewhat hard
+        # for (k, t), hours in cluster_data['hours'].items():
+        #     model += pl.lpSum(rut[a, t] for a in c_cand[k] if (a, t) in l['at']) >= hours - \
+        #              pl.lpSum(slack_kts_h[k, t, s] for s in l['slots'])
 
 
+        # maintenance capacity
+        # TODO: fill periods_to_check with max window to check.
+        rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=None)
+        type_m = self.instance.get_maintenances('type')
+        p_maint_used = \
+            info.vfilter(lambda v: v[4] == 0).\
+            vapply(lambda v: (*v, type_m[v[3]])).\
+            to_dict(indices=[5, 2], result_col=[0, 1])
+        _constraints = \
+            p_maint_used.\
+            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
+            kvapply(lambda k, v: v - _slack_s_t[k[1]] <= rem_maint_capacity[k]).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        config = conf.Config(options)
+        if options.get('writeMPS', False):
+            model.writeMPS(filename=options['path'] + 'formulation.mps')
+        if options.get('writeLP', False):
+            model.writeLP(filename=options['path'] + 'formulation.lp')
+
+        if options.get('do_not_solve', False):
+            print('Not solved because of option "do_not_solve".')
+            return self.solution
+
+        result = config.solve_model(model)
+
+        if result != 1:
+            print("Model resulted in non-feasible status: {}".format(result))
+            return None
+        print('model solved correctly')
+        # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
+        self.solution = self.get_repaired_solution(combos, assign)
+
+        return self.solution
+
+        pass
+
+    def get_repaired_solution(self, combos, assign):
+        patterns = assign.vapply(pl.value).vfilter(lambda v: v).kapply(lambda k: combos[k]).values_tl()
+        for p in patterns:
+            self.apply_pattern(p)
+        return self.solution
 
 if __name__ == '__main__':
     import package.params as pm
@@ -207,19 +382,7 @@ if __name__ == '__main__':
     _next = self.instance.get_next_period
     _prev = self.instance.get_prev_period
 
-    # TODO: here we add the logic to add a model that decides patterns
-    # for each resource.
-    # dummy solution:
-    solution_model = res_patterns.vapply(rn.choice)
-
-    # Once we have the solution to the assignment problem:
-    # we just apply each pattern to each resource
-    for resource, pattern in solution_model.items():
-        self.apply_pattern(pattern)
-
-
-
-    self.solution.data
+    self.solve_repair(res_patterns, options=pm.OPTIONS)
 
     # solution = self.solve(pm.OPTIONS)
 

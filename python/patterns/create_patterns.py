@@ -173,6 +173,11 @@ def get_graph_of_resource(instance, resource):
     # TODO: fix assignment periods should only leave the possibility of the assignment
     # maybe changing the origin.
 
+    # TODO: maybe add dummy nodes for all non=assigned periods.
+    # two options.
+    # for each period, one dummy node that ties to all next assignments
+    # for each period, rut, ret combo: a node that ties to
+
     nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 
     # Then, when exploiting this, we will filter nodes with low enough ret and rut.

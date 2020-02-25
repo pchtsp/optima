@@ -181,7 +181,7 @@ def dataset3():
                 , 'capacities': [0]
             }
         },
-        'maint_types': {'1': {'capacity': {'2018-05': 0}}, '2': {'capacity': {'2018-05': 0}}}
+        'maint_types': {'1': {'capacity': {'2018-05': 0}}}
     }
     return model_data
 
