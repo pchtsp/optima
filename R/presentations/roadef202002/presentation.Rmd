@@ -30,6 +30,20 @@ editor_options:
   chunk_output_type: console
 ---
 
+```{r, echo=FALSE, warning=FALSE}
+library(RefManageR)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+
+BibOptions(check.entries = FALSE,
+           bib.style = "authoryear",
+           cite.style = "alphabetic",
+           style = "markdown",
+           hyperlink = FALSE,
+           dashed = FALSE)
+myBib <- ReadBib("./MFMP.bib", check = FALSE)
+
+```
+
 layout: true
   
 <div class="my-header"></div>
@@ -55,23 +69,13 @@ ROADEF2020</span></div>
 
 ### Problem (informally)
 
-Assign both **missions** and **maintenance operations** to a fleet of aircraft in order to maximize availability and minimize costs. **Missions** have fixed start and end times and have particular needs in terms of aircraft and flight hours. **Maintenances operations** have specific rules that govern their frequency and capacity.
+Assign both **missions** and **maintenance operations** to a fleet of aircraft in order to maximize availability and minimize costs. **Missions** have fixed start and end times and have particular needs in terms of aircraft and flight hours. **Maintenance operations** have specific rules that govern their frequency and capacity.
 
 --
 
 .center[
 ```{r, echo=FALSE, out.width='100%', warning=FALSE}
-library(RefManageR)
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 knitr::include_graphics('calendar3.png')
-
-BibOptions(check.entries = FALSE,
-           bib.style = "authoryear",
-           cite.style = "alphabetic",
-           style = "markdown",
-           hyperlink = FALSE,
-           dashed = FALSE)
-myBib <- ReadBib("./MFMP.bib", check = FALSE)
 
 ```
 ]
@@ -80,11 +84,11 @@ myBib <- ReadBib("./MFMP.bib", check = FALSE)
 
 ### Problem
 
-* A series of $j \in \mathcal{J}$ missions are planned along a horizon divided into $t \in \mathcal{T}$ periods. Since all missions are already scheduled, we know time periods $T_j \subset \mathcal{T}$ in which they will be realized. 
-* Each mission requires a certain number $r_{j}$ of aircraft $i \in \mathcal{I}$ which it employs for $h_j$ hours in each period. An aircraft assigned to a mission $j$ must be assigned for at least $MT^{min}_{j}$ and at most $MT^{max}_{j}$ consecutive periods.
-* The heterogeneous fleet requires recurrent preventive maintenance operations (checks) as a result of the total flight hours since the last check. There are also min (max) distances between maintenances.
-* A check takes exactly $m$ periods and cannot be interrupted. There is a limited capacity for maintenances at each period.
-* The objective is to minimize the total number of checks while maximizing the status of the fleet at the end of the horizon.
+* A series of $j \in \mathcal{J}$ pre-scheduled missions are planned along a horizon divided into $t \in \mathcal{T}$ periods.
+* Each mission requires a certain **number** $R_{j}$ of aircraft $i \in \mathcal{I}$ which it employs for $H_j$ **hours** in each period.
+* The heterogeneous fleet requires recurrent preventive maintenance operations (**checks**).
+* A check takes exactly $M^d$ periods and cannot be interrupted. There is a limited **capacity** for maintenances at each period.
+* The objective is to **minimize the total number of checks** while **maximizing the status of the fleet** at the end of the horizon.
 
 --
 
@@ -106,7 +110,6 @@ myBib <- ReadBib("./MFMP.bib", check = FALSE)
 ### Previous formulation
 
 * $a_{jti}$   :  =1 if mission $j \in J$ in period $t \in \mathcal{T}_j$ is realized with aircraft $i \in \mathcal{I}_j$, 0 otherwise.  
-* $a^s_{jti}$ :  =1 if aircraft $i$ starts a new assignment to mission $j$ in period $t$. If $a_{jti} = 1$ and $a_{j(t-1)i} = 0$.  
 * $m_{it}$    :  =1 if aircraft $i \in I$ starts a check in period $t \in \mathcal{T}$, 0 otherwise.  
 * $u_{it}$    :  flown time (continuous) by aircraft $i \in I$ during period $t \in \mathcal{T}$.
 
@@ -116,7 +119,7 @@ myBib <- ReadBib("./MFMP.bib", check = FALSE)
     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight1}\\
  & u_{it} \geq U^{min} (1 - \sum_{t' \in \mathcal{T}^s_t} m_{it'})
     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:flight2}\\
- & rft_{it} \leq rft_{i(t-1)} + H^M m_{it} - u_{it}
+ & rft_{it} \leq rft_{i(t-1)} - u_{it} + H^M m_{it}
     & t =1, ..., \mathcal{T}, i \in \mathcal{I} \label{eq:first_rft_upper}\\
 & rft_{it} \in [0,H^M]
       & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:first-mu}
@@ -131,10 +134,15 @@ myBib <- ReadBib("./MFMP.bib", check = FALSE)
   * each pattern $p$ has a single feasible combination of check starts for an aircraft during the whole planning (usually only 1-2 checks per aircraft).
 
 \begin{align}
-& \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{ic}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{tc} \leq H^{max} + H^{max} (1 - m_{ip}) & \notag \\
+  & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{ic}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{tc} \leq H^{M} + M (1 - m_{ip}) & \notag \\
   & \hspace{200px}  i \in \mathcal{I}, p \in \mathcal{P}, c \in \mathcal{C}_p \label{eq:cycle_hours2}\\
 \end{align}
 
+ 
+```{r, echo=FALSE, out.width='100%', warning=FALSE}
+knitr::include_graphics('calendar3.png')
+
+```
 
 ---
 
@@ -149,16 +157,26 @@ myBib <- ReadBib("./MFMP.bib", check = FALSE)
           & j \in \mathcal{J}, t \in \mathcal{TJ}_j  \label{eq:missionres}\\
   & \sum_{p \in \mathcal{P}_{t}} m_{ip} + \sum_{j \in \mathcal{J}_t \cap \mathcal{J}_i} \sum_{(t_1, t_2) \in \mathcal{T}_{jt}} a_{ijt_1t_2} \leq 1 
           & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}\\
-  & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{ic}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{tc} \leq H^{max} + H^{max} (1 - m_{ip}) & \notag \\
+  & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{ic}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{tc} \leq H^M + M (1 - m_{ip}) & \notag \\
     & & i \in \mathcal{I}, p \in \mathcal{P}, c \in \mathcal{C}_p \\
 \end{align}
+
+
+---
+
+### Is this better?
+
+1. It uses 3 times the number of constraints and 3 times the number of variables.
+  * variables: 11000 => 28000.
+  * constraints: 13000 => 48000.
+1. It is still better. Better lineal relaxation, better performance.
 
 ---
 
 ### Distance between maintenances
 
 .pull-left[
-* The distance between maintenance has a maximum of $E^{max}$ periods.
+* The distance between maintenance has a maximum of $E^{M}$ periods.
 * Depending on the instance, the optimal distance can be shorter.
 * This distance conditions the total number of patterns to create.
 ]
@@ -172,7 +190,7 @@ knitr::include_graphics(imgs)
 
 ---
 
-### Forecasting + Optim
+### Forecasting + Optimization
 
 **We want to**:
 
@@ -226,10 +244,12 @@ knitr::include_graphics(imgs)
 * We seeded instance generation for better comparison.
 * CPLEX running 1 thread.
 
+--
+
 Largest instances have 60 aircraft, 90 periods, ~30 missions (4 active missions at any given time).
 
 1. Create forecasting model based in 5000 small instances.
-2. Use forecasting model to predict bounds on distance between maintenaances: $\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$.
+2. Use forecasting model to predict bounds on distance between maintenances: $\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$.
 3. Implement the pseudo-cut:
 
 \begin{align}
@@ -237,6 +257,7 @@ Largest instances have 60 aircraft, 90 periods, ~30 missions (4 active missions 
     & m_{ip} = 0  &  p_{t'} - p_t > \hat{\mu}_{t'-t}^{ub} + tol \label{eq:dist_ub}
 \end{align}
 
+4. Recycling.
 
 ---
 
@@ -268,11 +289,12 @@ knitr::include_graphics(imgs)
 ```
 ]
 
-
 ---
+
 
 ## Further steps
 
+* **Better predictions** with better features, or predicting several characteristics of optimal solutions.
 * **Predict a distribution** and sample patterns from the distribution instead of predicting patterns.
 * **Warm-start Column Generation** with a selected subset of potentially good patterns.
 * **Automatize prediction** so it can be easily integrated in other problems.
