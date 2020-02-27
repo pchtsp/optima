@@ -1,18 +1,19 @@
 import pytups.superdict as sd
 import pytups.tuplist as tl
-import os
 import package.solution as sol
-import data.data_input as di
 import numpy as np
 import solvers.heuristics as heur
+import solvers.model as mdl
 import patterns.create_patterns as cp
+import solvers.config as conf
 import random as rn
+import pulp as pl
 import math
 import time
 import logging as log
 
 
-class GraphOriented(heur.GreedyByMission):
+class GraphOriented(heur.GreedyByMission,mdl.Model):
 
     # statuses for detecting a new worse solution
     status_worse = {2, 3}
@@ -26,9 +27,9 @@ class GraphOriented(heur.GreedyByMission):
 
         self.instance.data['aux']['graphs'] = sd.SuperDict()
         for r in resources:
-            graph, refs = cp.get_graph_of_resource(instance=instance, resource=r)
-            self.instance.data['aux']['graphs'][r] = sd.SuperDict(graph = graph, refs=refs, refs_inv=refs.reverse())
-        pass
+            graph_data = cp.get_graph_of_resource(instance=instance, resource=r)
+            self.instance.data['aux']['graphs'][r] = graph_data
+
 
     def solve(self, options):
         """
@@ -40,15 +41,16 @@ class GraphOriented(heur.GreedyByMission):
          """
         pass
 
-    def date_to_state(self, resource, date, previous=True):
+    def date_to_node(self, resource, date, previous=True):
         # previous implies to look for the latest previous assignment.
         # if false, we look for the soonest next assignment
         period, category = self.get_next_assignment(resource, date, search_future=not previous)
         if period is None:
             # there are no other assignments until reaching the end of the horizon
-            # TODO: Here, I just choose the source of the sink for the resource
-            # depending on search_future value
-            return None
+            if previous:
+                return self.get_source_node(resource)
+            return self.get_sink_node(resource)
+
         # Now we know there is something in this period and what type.
         # But we do not know if it started in this period
         period_start = self.get_start_of_assignment(resource, period, category)
@@ -58,25 +60,305 @@ class GraphOriented(heur.GreedyByMission):
         if category == 'task':
             _type = 1
 
-        # assumes set_remaining_usage_time_all
-        maints = self.instance.get_maintenances()
-        _rts = {rt:
-            {m: self.get_remainingtime(resource, period_start, rt, m) for m in maints}
-                for rt in ('ret', 'rut')}
-
+        if previous:
+            # TODO: no, we want to use ret and rut for the source.
+            _rts = sd.SuperDict(rut=None, ret=None)
+        else:
+            _rts = sd.SuperDict(rut=None, ret=None)
         # we return the state of type: period, period_end, assignment, type, rut, ret
-        return dict(period=period_start, period_end=period_end,
+        state = sd.SuperDict(period=period_start, period_end=period_end,
                     assignment=assignment, type=_type, **_rts)
+        return cp.state_to_node(self.instance, resource=resource, state=state)
 
     def get_graph_data(self, resource):
         return self.instance.data['aux']['graphs'][resource]
 
+    def get_source_node(self, resource):
+        return self.instance.data['aux']['graphs'][resource]['source']
+
+    def get_sink_node(self, resource):
+        return self.instance.data['aux']['graphs'][resource]['sink']
+
     def window_to_patterns(self, resource, date1, date2):
-        state1 = self.date_to_state(resource, date1)
-        state2 = self.date_to_state(resource, date2)
-        node1 = cp.state_to_node(self.instance, resource=resource, state=state1)
-        node2 = cp.state_to_node(self.instance, resource=resource, state=state2)
+        """
+        This method is accessed by the repairing method.
+        To know the options of assignments
+
+        :param resource:
+        :param date1:
+        :param date2:
+        :return:
+        """
+        node1 = self.date_to_node(resource, date1, previous=True)
+        node2 = self.date_to_node(resource, date2, previous=False)
+
         return cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource))
+
+    def filter_patterns(self, resource, date1, date2, patterns):
+        # TODO: here, we need to filter feasible patterns with the next maintenance cycle
+        # TODO: also, maybe calculate the impact on coupling constraints, OF, etc.
+        # we are using 1 and -2 because of the tails we are not using.
+        # also, here. Filter assignments previous to dates, potentially
+        return \
+            patterns.\
+                vapply(lambda v: v).\
+                vfilter(lambda v: v and
+                                  v[1].period >= date1 and
+                                  v[-2].period_end <= date2)
+
+    def apply_pattern(self, pattern):
+        resource = pattern[0].resource
+        start = _next(pattern[0].period_end)
+        end = _prev(pattern[-1].period)
+        _shift = self.instance.shift_period
+        deleted_tasks = self.erase_window(resource, start, end, 'task')
+        deleted_maints = self.erase_window(resource, start, end, 'state_m')
+
+        # We apply all the assignments
+        # Warning, here I'm ignoring the two extremes[1:-1]
+        added_maints = 0
+        added_tasks = 0
+        for node in pattern[1:-1]:
+            if node.type == 1:
+                added_tasks += self.apply_task(node)
+            elif node.type == 0:
+                added_maints += self.apply_maint(node)
+
+        # Update!
+        times = ['rut']
+        if added_maints or deleted_maints:
+            times.append('ret')
+        maints = self.instance.get_maintenances()
+        for t in times:
+            for m in self.instance.get_rt_maints(t):
+                # Instead of "start" we can choose the first thing that passes
+                _start = start
+                while _start <= end:
+                    # iterate over maintenance periods
+                    updated_periods = self.update_rt_until_next_maint(resource, _start, m, t)
+                    # TODO: if the maintenance falls inside the period: update the maintenance values.
+                    _start = _shift(updated_periods[-1], maints[m]['duration_periods'])
+        return True
+
+
+    def apply_maint(self, node):
+        for period in self.instance.get_periods_range(node.period, node.period_end):
+            self.solution.data.set_m('state_m', node.resource, period, node.assignment, value=1)
+        return 1
+
+    def apply_task(self, node):
+        for period in self.instance.get_periods_range(node.period, node.period_end):
+            self.solution.data.set_m('task', node.resource, period, value=node.assignment)
+        return 1
+
+    def erase_window(self, resource, start, end, key='task'):
+        # here, we will be take the risk of just deleting everything.
+        data = self.solution.data
+        fixed_periods = self.instance.get_fixed_periods().to_set()
+
+        delete_assigned = []
+        periods = self.instance.get_periods_range(start, end)
+        if resource not in data[key]:
+            return delete_assigned
+        for period in periods:
+            if (resource, period) in fixed_periods:
+                continue
+            info = data[key][resource].pop(period, None)
+            if info is not None:
+                delete_assigned.append((period, info))
+        return delete_assigned
+
+    def solve_repair(self, res_patterns, options):
+
+        # res_patterns is a sd.SuperDict of resource: [list of possible patterns]
+        # TODO: check if there is a good reason to use cleaned patterns ([1:-1] filtering)
+        _range = self.instance.get_periods_range
+        _dist = self.instance.get_dist_periods
+        first, last = self.instance.get_first_last_period()
+        combos = sd.SuperDict()
+        info = tl.TupList()
+        for res, _pat_list in res_patterns.items():
+            for p, pattern in enumerate(_pat_list):
+                pattern_clean = pattern
+                combos[res, p] = pattern_clean
+                info += tl.TupList(
+                    (res, p, period, elem.assignment, elem.type)
+                    for elem in pattern_clean for period in _range(elem.period, elem.period_end)
+                )
+        weight_pattern = lambda pattern: sum(_dist(first, elem.period) for elem in pattern if elem.type==0)
+        assign_p = combos.vapply(weight_pattern)
+
+        # Variables:
+        assign = pl.LpVariable.dicts(name="assign", indexs=combos, cat=pl.LpBinary)
+        assign = sd.SuperDict.from_dict(assign)
+
+        l = self.domains
+        if l is not None:
+            l = self.domains = self.get_domains_sets(options)
+        ub = self.get_variable_bounds()
+        p_s = {s: p for p, s in enumerate(l['slots'])}
+        p_t = self.instance.data['aux']['period_i']
+
+        def sum_of_slots(variable_slots):
+            result_col = len(variable_slots.keys_l()[0])
+            indices = range(result_col - 1)
+            return \
+                variable_slots.\
+                to_tuplist().\
+                to_dict(result_col=result_col, indices=indices).\
+                vapply(pl.lpSum)
+
+        def make_slack_var(name, domain, ub_func):
+            _var = sd.SuperDict()
+            for tup in domain:
+                _var[tup] = pl.LpVariable(name="{}_{}".format(name, tup), lowBound=0,
+                                               upBound=ub_func(tup), cat=pl.LpContinuous)
+            return _var
+
+        slack_kts = make_slack_var('slack_kts', l['kts'], lambda kts: ub['slack_kts'][kts[2]])
+        _slack_s_kt = sum_of_slots(slack_kts)
+        slack_kts_p = {(k, t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 50 for k, t, s in l['kts']}
+
+        slack_kts_h = make_slack_var('slack_kts_h', l['kts'],
+                                     lambda kts: ub['slack_kts_h'][(kts[0], kts[2])])
+        _slack_s_kt_h = sum_of_slots(slack_kts_h)
+        slack_kts_h_p = {(k, t, s): (p_s[s] + 2 - 0.001 * p_t[t]) ** 2 for k, t, s in l['kts']}
+
+        slack_ts = make_slack_var('slack_ts', l['ts'],
+                                     lambda ts: ub['slack_ts'][ts[1]])
+        _slack_s_t = sum_of_slots(slack_ts)
+        slack_ts_p = {(t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 1000 for t, s in l['ts']}
+
+        slack_vts = make_slack_var('slack_vts', [(*vt, s) for vt in l['vt'] for s in l['slots']],
+                                  lambda vts: p_s[vts[2]]*2+1)
+        _slack_s_vt = sum_of_slots(slack_vts)
+        slack_vts_p = slack_vts.kapply(lambda vts: (p_s[vts[2]] + 1) * 10000)
+
+        # Model:
+        model = pl.LpProblem('MFMP_repair', sense=pl.LpMinimize)
+
+        # Constraints
+
+        # objective:
+        model += pl.lpSum((assign * assign_p).values_tl()) + \
+                 pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
+                 pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
+                 pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
+                 pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
+
+        # one pattern per resource:
+        _constraints = \
+            combos.keys_tl().\
+            vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]).\
+            vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # ##################################
+        # Tasks and tasks starts
+        # ##################################
+
+        # num resources:
+        mission_needs = self.check_task_num_resources()
+        p_mission_needs = info.vfilter(lambda v: v[4]==1).to_dict(indices=[3, 2], result_col=[0, 1])
+        _constraints = \
+            p_mission_needs.\
+            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
+            kvapply(lambda k, v: v + _slack_s_vt[k] >= mission_needs[k]).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # # ##################################
+        # Clusters
+        # ##################################
+        c_cand = self.instance.get_cluster_candidates().list_reverse().vapply(lambda v: v[0])
+        # minimum availability per cluster and period
+        min_aircraft_slack = self.check_min_available(deficit_only=False)
+        p_clustdate = \
+            info.vfilter(lambda v: v[4] == 0). \
+            vapply(lambda v: (*v, c_cand[v[0]])). \
+            to_dict(indices=[5, 2], result_col=[0, 1])
+
+        _constraints = \
+            p_clustdate. \
+            vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
+            kvapply(lambda k, v: v - _slack_s_kt[k] <= min_aircraft_slack[k]). \
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        # for (k, t), num in cluster_data['num'].items():
+        #     model += \
+        #         pl.lpSum(start_M[a, t1, t2] for a in c_cand[k]
+        #                  for (t1, t2) in l['tt_maints_at'].get((a, t), [])
+        #                  ) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
+
+        # Each cluster has a minimum number of usage hours to have
+        # at each period.
+        # min_hours_slack = self.check_min_flight_hours(recalculate=False, deficit_only=False)
+        # combos.\
+        #     vapply(lambda v: sd.SuperDict({vv.period: vv.ret for vv in v})).\
+        #     to_dictdict().\
+        #     to_dictup().\
+        #     to_tuplist()
+        #
+        # p_clustdate.vapply()
+        # # TODO: flight hour constraints. This will be somewhat hard
+        # for (k, t), hours in cluster_data['hours'].items():
+        #     model += pl.lpSum(rut[a, t] for a in c_cand[k] if (a, t) in l['at']) >= hours - \
+        #              pl.lpSum(slack_kts_h[k, t, s] for s in l['slots'])
+
+
+        # maintenance capacity
+        # TODO: fill periods_to_check with max window to check.
+        rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=None)
+        type_m = self.instance.get_maintenances('type')
+        p_maint_used = \
+            info.vfilter(lambda v: v[4] == 0).\
+            vapply(lambda v: (*v, type_m[v[3]])).\
+            to_dict(indices=[5, 2], result_col=[0, 1])
+        _constraints = \
+            p_maint_used.\
+            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
+            kvapply(lambda k, v: v - _slack_s_t[k[1]] <= rem_maint_capacity[k]).\
+            values_tl()
+
+        for c in _constraints:
+            model += c
+
+        config = conf.Config(options)
+        if options.get('writeMPS', False):
+            model.writeMPS(filename=options['path'] + 'formulation.mps')
+        if options.get('writeLP', False):
+            model.writeLP(filename=options['path'] + 'formulation.lp')
+
+        if options.get('do_not_solve', False):
+            print('Not solved because of option "do_not_solve".')
+            return self.solution
+
+        result = config.solve_model(model)
+
+        if result != 1:
+            print("Model resulted in non-feasible status: {}".format(result))
+            return None
+        print('model solved correctly')
+        # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
+        self.solution = self.get_repaired_solution(combos, assign)
+
+        return self.solution
+
+        pass
+
+    def get_repaired_solution(self, combos, assign):
+        patterns = assign.vapply(pl.value).vfilter(lambda v: v).kapply(lambda k: combos[k]).values_tl()
+        for p in patterns:
+            self.apply_pattern(p)
+        return self.solution
 
 if __name__ == '__main__':
     import package.params as pm
@@ -86,10 +368,22 @@ if __name__ == '__main__':
     data_in = test_d.dataset3()
     instance = inst.Instance(data_in)
     self = GraphOriented(instance)
-    resource = '1'
-    self.date_to_state(resource, '2018-12')
-    self.window_to_patterns('1', '2018-01', '2018-12')
+    resources = self.instance.get_resources()
+    # self.date_to_node(resource, '2018-12')
+    date1 = '2018-03'
+    date2 = '2018-08'
 
-    solution = self.solve(pm.OPTIONS)
+    # resource = '1'
+    res_patterns = sd.SuperDict()
+    for resource in resources:
+        patterns = self.window_to_patterns(resource, date1, date2)
+        res_patterns[resource] = self.filter_patterns(resource, date1, date2, patterns)
+
+    _next = self.instance.get_next_period
+    _prev = self.instance.get_prev_period
+
+    self.solve_repair(res_patterns, options=pm.OPTIONS)
+
+    # solution = self.solve(pm.OPTIONS)
 
     pass

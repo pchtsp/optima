@@ -524,7 +524,7 @@ class Instance(object):
 
     def get_cluster_candidates(self):
         # Since clusters are strict, their candidates are the same as the tasks.
-        c_candidates = {}
+        c_candidates = sd.SuperDict()
         t_candidates = self.get_task_candidates()
         cluster = self.get_clusters()
         for k, v in t_candidates.items():
@@ -534,7 +534,7 @@ class Instance(object):
     def get_fixed_maintenances_cluster(self):
         fixed_per_period = self.get_fixed_maintenances(dict_key='period')
         candidates_per_cluster = self.get_cluster_candidates()
-        fixed_per_period_cluster = {}
+        fixed_per_period_cluster = sd.SuperDict()
         for period, resources in fixed_per_period.items():
             for cluster, candidates in candidates_per_cluster.items():
                 fixed_per_period_cluster[(cluster, period)] =\
@@ -598,8 +598,10 @@ class Instance(object):
         return capacities.to_dictup()
 
     def get_types(self):
-        values = self.get_tasks('type_resource').values()
-        return tl.TupList(values).unique2()
+        return self.get_tasks('type_resource').values_tl().unique2()
+
+    def get_maint_types(self):
+        return self.get_maintenances('type').values_tl().unique2()
 
 if __name__ == "__main__":
     import data.simulation as sim

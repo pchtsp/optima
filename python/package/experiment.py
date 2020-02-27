@@ -99,13 +99,20 @@ class Experiment(object):
 
     # @profile
     def check_sub_maintenance_capacity(self, ref_compare=0, periods_to_check=None, **param):
+        """
+
+        :param ref_compare: if None, we return all remaining capacity.
+            If not we use it to filter which to return
+        :param periods_to_check: periods to check for capacity
+        :param param:
+        :return: (resource, period): remaining capacity
+        """
         # we get the capacity per month
         inst = self.instance
         rem = inst.get_capacity_calendar(periods_to_check)
         first, last = inst.get_param('start'), inst.get_param('end')
         maintenances = inst.get_maintenances()
         types = maintenances.get_property('type')
-        # all_types = set(types.values())
         usage = maintenances.get_property('capacity_usage')
         all_states_tuple = self.get_states()
         if periods_to_check is not None:
@@ -115,6 +122,8 @@ class Experiment(object):
             all_states_tuple = all_states_tuple.vfilter(lambda x: last >= x[1] >= first)
 
         if not len(all_states_tuple):
+            if ref_compare is None:
+                return rem
             return []
 
         # TODO: finish this
@@ -134,11 +143,11 @@ class Experiment(object):
 
         for res, period, maint in all_states_tuple:
             _type = types[maint]
-            _usage = usage[maint]
-            rem[_type, period] -= _usage
+            rem[_type, period] -= usage[maint]
 
-        # TODO extra_cap= dp.n(X.consum) - 1)
-        return rem.clean(func=lambda x: x < ref_compare)
+        if ref_compare is None:
+            return rem
+        return rem.vfilter(lambda x: x < ref_compare)
 
     @staticmethod
     def sum_by_group(values, groups):
@@ -168,8 +177,8 @@ class Experiment(object):
             for (task, period) in task_assigned
         }
         if strict:
-            return sd.SuperDict(task_under_assigned).clean(func=lambda x: x != 0)
-        return sd.SuperDict(task_under_assigned).clean(func=lambda x: x > 0)
+            return sd.SuperDict(task_under_assigned).vfilter(lambda x: x != 0)
+        return sd.SuperDict(task_under_assigned).vfilter(lambda x: x > 0)
 
     def check_resource_in_candidates(self, **params):
         task_solution = self.solution.get_tasks()
@@ -466,7 +475,7 @@ class Experiment(object):
         #                      result[result.state_x != result.state_y].to_records(index=False)})
 
 
-    def check_min_available(self, **params):
+    def check_min_available(self, deficit_only=True, **params):
         """
         :return: periods where the min availability is not guaranteed.
         """
@@ -484,11 +493,11 @@ class Experiment(object):
                         if (cluster, period) in num_maintenances:
                             num_maintenances[cluster, period] += 1
         over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
-        return over_assigned.clean(func=lambda x: x < 0)
-        # return over_assigned
-        # cluster_data.keys()
+        if deficit_only:
+            over_assigned = over_assigned.vfilter(lambda x: x < 0)
+        return over_assigned
 
-    def check_min_flight_hours(self, recalculate=True, **params):
+    def check_min_flight_hours(self, recalculate=True, deficit_only=True, **params):
         """
         :return: periods where the min flight hours is not guaranteed.
         """
@@ -507,7 +516,9 @@ class Experiment(object):
                         cluster_hours[cluster, period] += hours
 
         hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
-        return hours_deficit.clean(func=lambda x: x < 0)
+        if deficit_only:
+             hours_deficit = hours_deficit.vfilter(lambda x: x < 0)
+        return hours_deficit
 
     def check_maints_size(self, **params):
         maints = self.instance.get_maintenances()

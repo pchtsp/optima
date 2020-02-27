@@ -290,18 +290,6 @@ class GreedyByMission(test.Experiment):
             types, periods = zip(*type_periods)
             periods = np.asarray(periods)[np.asarray(types) == _type]
         return periods
-        # periods_all = set(self.instance.get_periods())
-        # return tl.TupList(periods_all - periods_full)
-
-
-        # if len(type_periods):
-        #     periods_full = np.array(type_periods.keys_l())[:, 1]
-        #     periods_full = set(periods_full)
-        # return tl.TupList(self.instance.get_periods()).filter_list_f(lambda x: x not in periods_full)
-        # num_in_maint = aux.fill_dict_with_default(self.solution.get_in_maintenance(maint),
-        #                                           )
-        # return [p for p, num in num_in_maint.items() if
-        #                          num < self.instance.get_param('maint_capacity')]
 
     def get_maintenance_candidates(self, resource, min_period, max_period, maint):
         """
@@ -508,17 +496,11 @@ class GreedyByMission(test.Experiment):
         :param set maints: maintenances to look for
         :return:
         """
-        # TODO: I could just call the new function self.get_next_assignment()
-        last = self.instance.get_param('end')
-        if maints is None:
-            maints = {'M'}
-        period = min_start
-        while period <= last:
-            states = self.solution.get_period_state(resource, period, 'state_m')
-            if states is not None and len(states.keys() & maints):
-                return period
-            period = self.instance.get_next_period(period)
-        return None
+        period, category = self.get_next_assignment(resource, min_start,
+                                                    filter=maints,
+                                                    category='state_m',
+                                                    search_future=True)
+        return period
 
     def get_next_assignment(self, resource, period_start, filter=None, category=None, search_future=True):
         """
