@@ -19,10 +19,12 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
     status_worse = {2, 3}
     # statuses for detecting if we accept a solution
     status_accept = {0, 1, 2}
+    {'aux': {'graphs': {'RESOURCE': {'graph': {}, 'refs': {}, 'refs_inv': {}, 'source': {}, 'sink': {}}}}}
+    # graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink
 
     def __init__(self, instance, solution=None):
 
-        super().__init__(instance, solution)
+        heur.GreedyByMission.__init__(self, instance, solution)
         resources = self.instance.get_resources()
 
         self.instance.data['aux']['graphs'] = sd.SuperDict()
@@ -96,7 +98,6 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
     def filter_patterns(self, resource, date1, date2, patterns):
         # TODO: here, we need to filter feasible patterns with the next maintenance cycle
-        # TODO: also, maybe calculate the impact on coupling constraints, OF, etc.
         # we are using 1 and -2 because of the tails we are not using.
         # also, here. Filter assignments previous to dates, potentially
         return \
@@ -108,11 +109,13 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
     def apply_pattern(self, pattern):
         resource = pattern[0].resource
+        _next = self.instance.get_next_period
+        _prev = self.instance.get_prev_period
         start = _next(pattern[0].period_end)
         end = _prev(pattern[-1].period)
-        _shift = self.instance.shift_period
-        deleted_tasks = self.erase_window(resource, start, end, 'task')
-        deleted_maints = self.erase_window(resource, start, end, 'state_m')
+
+        deleted_tasks = self.erase_between_dates(resource, start, end, 'task')
+        deleted_maints = self.erase_between_dates(resource, start, end, 'state_m')
 
         # We apply all the assignments
         # Warning, here I'm ignoring the two extremes[1:-1]
@@ -124,22 +127,47 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             elif node.type == 0:
                 added_maints += self.apply_maint(node)
 
-        # Update!
+        # Update rut and ret.
+        first_date_to_update = start
+        # TODO: Instead of "start" we can choose the first thing that passes
+        # for this we need to join all added and deleted things:
+        # all_del = (deleted_tasks + deleted_maints).unique2().sorted()
+
+        # if all_del:
+        #     first_date_to_update = all_del[0]
         times = ['rut']
         if added_maints or deleted_maints:
             times.append('ret')
-        maints = self.instance.get_maintenances()
         for t in times:
             for m in self.instance.get_rt_maints(t):
-                # Instead of "start" we can choose the first thing that passes
-                _start = start
-                while _start <= end:
-                    # iterate over maintenance periods
-                    updated_periods = self.update_rt_until_next_maint(resource, _start, m, t)
-                    # TODO: if the maintenance falls inside the period: update the maintenance values.
-                    _start = _shift(updated_periods[-1], maints[m]['duration_periods'])
+                self.update_rt_between_dates(resource, m, first_date_to_update, end, t)
         return True
 
+    def update_rt_between_dates(self, resource, maint, start, end, rt):
+        _shift = self.instance.shift_period
+        _start = start
+        while _start <= end:
+            # iterate over maintenance periods
+            updated_periods = self.update_rt_until_next_maint(resource, _start, maint, rt)
+            # TODO: what if not updated_periods
+            maint_start = _shift(updated_periods[-1], 1)
+            if maint_start > end:
+                # we've reached the end, no more updating needed
+                break
+            # if the maintenance falls inside the period: update the maintenance values
+            # and continue the while
+            horizon_end = self.instance.get_param('end')
+            maint_data = self.instance.data['maintenances'][maint]
+            affected_maints = maint_data['affects']
+            duration = maint_data['duration_periods']
+            maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
+            periods_maint = self.instance.get_periods_range(maint_start, maint_end)
+            self.set_state_and_clean(resource, maint, periods_maint)
+            for m in affected_maints:
+                self.update_time_maint(resource, periods_maint, time='ret', maint=m)
+                self.update_time_maint(resource, periods_maint, time='rut', maint=m)
+            _start = _shift(maint_end, 1)
+        return True
 
     def apply_maint(self, node):
         for period in self.instance.get_periods_range(node.period, node.period_end):
@@ -151,12 +179,20 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             self.solution.data.set_m('task', node.resource, period, value=node.assignment)
         return 1
 
-    def erase_window(self, resource, start, end, key='task'):
+    def erase_between_dates(self, resource, start, end, key='task'):
+        """
+        cleans all assignments and returns them.
+        :param resource:
+        :param start:
+        :param end:
+        :param key:
+        :return: tl.TupList
+        """
         # here, we will be take the risk of just deleting everything.
         data = self.solution.data
         fixed_periods = self.instance.get_fixed_periods().to_set()
 
-        delete_assigned = []
+        delete_assigned = tl.TupList()
         periods = self.instance.get_periods_range(start, end)
         if resource not in data[key]:
             return delete_assigned
@@ -165,7 +201,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                 continue
             info = data[key][resource].pop(period, None)
             if info is not None:
-                delete_assigned.append((period, info))
+                delete_assigned.add(period, info)
         return delete_assigned
 
     def solve_repair(self, res_patterns, options):
@@ -360,27 +396,38 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             self.apply_pattern(p)
         return self.solution
 
+    def draw_graph(self, resource):
+        graph_data = self.get_graph_data(resource)
+        cp.draw_graph(self.instance, graph_data['graph'], graph_data['refs_inv'])
+        return True
+
 if __name__ == '__main__':
     import package.params as pm
     import package.instance as inst
     import data.test_data as test_d
 
-    data_in = test_d.dataset3()
+    data_in = test_d.dataset4()
     instance = inst.Instance(data_in)
     self = GraphOriented(instance)
     resources = self.instance.get_resources()
+    self.draw_graph("1")
+    self.draw_graph("2")
+    data_graph = self.get_graph_data('1')
+    vertices = tl.TupList(data_graph['graph'].vertices()).\
+        vapply(lambda v: data_graph['refs_inv'][v]).\
+        vfilter(lambda v: v.rut is None and v.period=='2018-02')
+    # vertices[0]
+    # vertices[1]
+
     # self.date_to_node(resource, '2018-12')
     date1 = '2018-03'
-    date2 = '2018-08'
+    date2 = '2019-10'
 
     # resource = '1'
     res_patterns = sd.SuperDict()
     for resource in resources:
         patterns = self.window_to_patterns(resource, date1, date2)
         res_patterns[resource] = self.filter_patterns(resource, date1, date2, patterns)
-
-    _next = self.instance.get_next_period
-    _prev = self.instance.get_prev_period
 
     self.solve_repair(res_patterns, options=pm.OPTIONS)
 

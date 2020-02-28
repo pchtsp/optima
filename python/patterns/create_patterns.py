@@ -94,7 +94,7 @@ def get_all_patterns(graph, refs, refs_inv, instance, resource):
     return nodes_to_patterns(graph, refs, refs_inv, source, sink)
 
 
-def draw_graph(g):
+def draw_graph(instance, g, refs_inv=None):
     try:
         import graph_tool.all as gr
     except:
@@ -106,8 +106,13 @@ def draw_graph(g):
                     VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
                     VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
                     )
-    extra_dist = {g.vp.assignment[v]: lambda: rn.uniform(-15, 15) for v in g.vertices()}
-    y_ranges = {**extra_dist, **y_ranges}
+    max_rut = instance.get_maintenances('max_used_time')['M']
+
+    def get_y_mission(v):
+        if not refs_inv[v].rut:
+            return - 15
+        return (refs_inv[v].rut['M'] / max_rut - 0.5) * 20
+
     colors = \
         {'VG': '#4cb33d',
          'VI': '#00c8c3',
@@ -128,7 +133,10 @@ def draw_graph(g):
     for v in g.vertices():
         x = instance.get_dist_periods(first, g.vp.period[v])
         assignment = g.vp.assignment[v]
-        y = y_ranges.get(assignment, lambda: 0)()
+        if assignment in y_ranges:
+            y = y_ranges.get(assignment, lambda: 0)()
+        else:
+            y = get_y_mission(v)
         pos[v] = (x, y)
         size[v] = 2
         shape[v] = 'circle'
@@ -137,7 +145,7 @@ def draw_graph(g):
     gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
-def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=None, **kwargs):
+def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, **kwargs):
     import graph_tool.all as gr
     all_paths = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
     # TODO: sample before proceding ?

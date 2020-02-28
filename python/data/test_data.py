@@ -156,7 +156,6 @@ def dataset3():
             , 'num_period': 10
             , 'min_usage_period': 5
             , 'maint_capacity': 4
-            , 'default_type2_capacity': 66
         },
         'resources': {
             '1': {
@@ -185,6 +184,80 @@ def dataset3():
     }
     return model_data
 
+def dataset4():
+    maints = {
+        'M': {
+            'duration_periods': 6
+            , 'capacity_usage': 1
+            , 'max_used_time': 1000
+            , 'max_elapsed_time': 60
+            , 'elapsed_time_size': 10
+            , 'used_time_size': 500
+            , 'type': '1'
+            , 'depends_on': []
+            , 'priority': 1
+            , 'min_usage_period': 5
+        }}
+    resources = {
+            '1': {
+                'initial': {
+                    'M': {'used': 500, 'elapsed': 30}
+                }
+                , 'states': {}
+                , 'type': 0
+                , 'capacities': [0]
+            },
+            '2': {
+                'initial': {
+                    'M': {'used': 700, 'elapsed': 40}
+                }
+                , 'states': {}
+                , 'type': 0
+                , 'capacities': [0]
+            }
+        }
+    missions = {
+            'O1': {
+                'start': '2018-02'
+                , 'end': '2018-07'
+                , 'consumption': 30
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 3
+                , 'capacities': [0]
+            },
+            'O2': {
+                'start': '2018-08'
+                , 'end': '2019-06'
+                , 'consumption': 70
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 4
+                , 'capacities': [0]
+            },
+            'O3': {
+                'start': '2019-07'
+                , 'end': '2020-12'
+                , 'consumption': 30
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 3
+                , 'capacities': [0]
+            }
+        }
+    model_data = {
+        'parameters': {
+            'start': '2018-01'
+            , 'num_period': 36
+            , 'min_usage_period': 5
+            , 'maint_capacity': 4
+        },
+        'resources': resources,
+        'maintenances': maints,
+        'tasks': missions,
+        'maint_types': {}
+    }
+    return model_data
 
 def solution2():
     return {
