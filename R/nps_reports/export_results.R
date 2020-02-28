@@ -287,5 +287,23 @@ if (FALSE){
     
     data_summary <- get_data_optimisation_summary()
     make_optimisation_summary(data_summary)
+ 
+}
+
+if (FALSE){
+    # getting summary of variables and constraints
+    # 
+    results <- 
+        data_optimisation_results$raw_df_progress %>% 
+        filter(sol_code > 0) %>% 
+        mutate(constraints = lapply(matrix, "[[", 'constraints') %>% unlist,
+               variables = lapply(matrix, "[[", 'variables') %>% unlist) %>% 
+        select(experiment, constraints, variables) %>% 
+        group_by(experiment) %>%
+        summarise(cons = mean(constraints),
+                  vars = mean(variables))
     
+    results[813, ]
+    lapply(results$matrix, "[[", 'constraints') %>% 
+        results %>% filter((matrix %>% length)>0) %>% nrow
 }
