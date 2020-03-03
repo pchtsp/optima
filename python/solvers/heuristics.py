@@ -497,16 +497,16 @@ class GreedyByMission(test.Experiment):
         :return:
         """
         period, category = self.get_next_assignment(resource, min_start,
-                                                    filter=maints,
+                                                    _filter=maints,
                                                     category='state_m',
                                                     search_future=True)
         return period
 
-    def get_next_assignment(self, resource, period_start, filter=None, category=None, search_future=True):
+    def get_next_assignment(self, resource, period_start, _filter=None, category=None, search_future=True):
         """
         :param resource:
         :param period_start:
-        :param filter:
+        :param _filter:
         :param category:
         :param search_future:
         :return:
@@ -516,14 +516,14 @@ class GreedyByMission(test.Experiment):
             category = {'task', 'state_m'}
         else:
             category = {category}
-        if filter is None:
-            filter = set()
+        if _filter is None:
+            _filter = set()
             if 'tasks' in category:
                 tasks = self.instance.get_tasks().keys()
-                filter |= tasks
+                _filter |= tasks
             if 'state_m' in category:
                 maints = self.instance.get_maintenances().keys()
-                filter |= maints
+                _filter |= maints
         ref = self.instance.get_param('end')
         move_period = self.instance.get_next_period
         ref_not_reached = lambda period: period <= ref
@@ -536,11 +536,11 @@ class GreedyByMission(test.Experiment):
         def condition_to_return(period):
             if 'task' in category:
                 task = self.solution.get_period_state(resource, period, 'task')
-                if task is not None and task in filter:
+                if task is not None and task in _filter:
                     return period, 'task'
             if 'state_m' in category:
                 states = self.solution.get_period_state(resource, period, 'state_m')
-                if states is not None and len(states.keys() & filter):
+                if states is not None and len(states.keys() & _filter):
                     return period, 'state_m'
             return None
 
@@ -550,15 +550,16 @@ class GreedyByMission(test.Experiment):
             return None, None
         return value
 
-    def get_start_of_assignment(self, resource, period, category, get_last=False):
+    def get_limit_of_assignment(self, resource, period, category, get_last=False):
         assignment = self.solution.get_period_state(resource, period, cat=category)
-        get_next_period = self.instance.get_prev_period
-        ref = self.instance.get_param('start')
-        stop_condition = lambda period: period >= ref
         if get_last:
             ref = self.instance.get_param('end')
             get_next_period = self.instance.get_next_period
             stop_condition = lambda period: period <= ref
+        else:
+            ref = self.instance.get_param('start')
+            get_next_period = self.instance.get_prev_period
+            stop_condition = lambda period: period >= ref
 
         def condition_to_return(period):
             next_period = get_next_period(period)

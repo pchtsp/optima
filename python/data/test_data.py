@@ -1,5 +1,4 @@
 
-
 def dataset1():
     maints = {
         'M': {
@@ -184,6 +183,14 @@ def dataset3():
     }
     return model_data
 
+
+def dataset3_no_default():
+    data = dataset3()
+    data['parameters']['min_usage_period'] = 0
+    data['resources']['1'].pop('min_usage_period')
+    return data
+
+
 def dataset4():
     maints = {
         'M': {
@@ -196,7 +203,6 @@ def dataset4():
             , 'type': '1'
             , 'depends_on': []
             , 'priority': 1
-            , 'min_usage_period': 5
         }}
     resources = {
             '1': {
@@ -249,7 +255,7 @@ def dataset4():
         'parameters': {
             'start': '2018-01'
             , 'num_period': 36
-            , 'min_usage_period': 5
+            , 'min_usage_period': 0
             , 'maint_capacity': 4
         },
         'resources': resources,

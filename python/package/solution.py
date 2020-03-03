@@ -102,6 +102,15 @@ class Solution(object):
         except KeyError:
             return None
 
+    def get_period_state_category(self, resource, period):
+        task = self.get_period_state(resource, period, 'task')
+        if task is not None:
+            return task, 'task'
+        states = self.get_period_state(resource, period, 'state_m')
+        if states is not None:
+            return states, 'state_m'
+        return None, None
+
     def is_resource_free(self, resource, period):
         if self.get_period_state(resource, period, 'task') is not None:
             return False

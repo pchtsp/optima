@@ -5,6 +5,7 @@ import numpy as np
 import solvers.heuristics as heur
 import solvers.model as mdl
 import patterns.create_patterns as cp
+import patterns.node as nd
 import solvers.config as conf
 import random as rn
 import pulp as pl
@@ -46,25 +47,40 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
     def date_to_node(self, resource, date, previous=True):
         # previous implies to look for the latest previous assignment.
         # if false, we look for the soonest next assignment
-        period, category = self.get_next_assignment(resource, date, search_future=not previous)
-        if period is None:
-            # there are no other assignments until reaching the end of the horizon
-            if previous:
-                return self.get_source_node(resource)
-            return self.get_sink_node(resource)
+        # period, category = self.get_next_assignment(resource, date, search_future=not previous)
+        # if period is None:
+        #     # there are no other assignments until reaching the end of the horizon
+        #     if previous:
+        #         return self.get_source_node(resource)
+        #     return self.get_sink_node(resource)
 
         # Now we know there is something in this period and what type.
         # But we do not know if it started in this period
-        period_start = self.get_start_of_assignment(resource, period, category)
-        period_end = self.get_start_of_assignment(resource, period, category, get_last=True)
-        assignment = self.solution.get_period_state(resource, period, cat=category)
-        _type = 0
-        if category == 'task':
-            _type = 1
+        assignment, category = self.solution.get_period_state_category(resource, date)
+        if category is None:
+            assignment = ''
+            period_start = date
+            period_end = date
+        else:
+            period_start = self.get_limit_of_assignment(resource, date, category)
+            period_end = self.get_limit_of_assignment(resource, date, category, get_last=True)
+
+        if category is None:
+            _type = nd.EMPTY_TYPE
+        elif category == 'task':
+            _type = nd.TASK_TYPE
+        elif category == 'state_m':
+            _type = nd.MAINT_TYPE
+        else:
+            _type = nd.DUMMY_TYPE
 
         if previous:
-            # TODO: no, we want to use ret and rut for the source.
-            _rts = sd.SuperDict(rut=None, ret=None)
+            maints = self.instance.get_maintenances()
+            _defaults = dict(resource=resource, period=period_start)
+            _rts = sd.SuperDict()
+            for time in ['ret', 'rut']:
+                _rts[time] = maints.kapply(lambda k: self.get_remainingtime(**_defaults, time=time, maint=k))
+
         else:
             _rts = sd.SuperDict(rut=None, ret=None)
         # we return the state of type: period, period_end, assignment, type, rut, ret
@@ -95,6 +111,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         node2 = self.date_to_node(resource, date2, previous=False)
 
         return cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource))
+
 
     def filter_patterns(self, resource, date1, date2, patterns):
         # TODO: here, we need to filter feasible patterns with the next maintenance cycle
@@ -221,7 +238,8 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                     (res, p, period, elem.assignment, elem.type)
                     for elem in pattern_clean for period in _range(elem.period, elem.period_end)
                 )
-        weight_pattern = lambda pattern: sum(_dist(first, elem.period) for elem in pattern if elem.type==0)
+        weight_pattern = lambda pattern: sum(_dist(first, elem.period) for elem in pattern
+                                             if elem.type == nd.MAINT_TYPE)
         assign_p = combos.vapply(weight_pattern)
 
         # Variables:
@@ -298,7 +316,10 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
         # num resources:
         mission_needs = self.check_task_num_resources()
-        p_mission_needs = info.vfilter(lambda v: v[4]==1).to_dict(indices=[3, 2], result_col=[0, 1])
+        p_mission_needs = \
+            info.\
+            vfilter(lambda v: v[4]==nd.TASK_TYPE).\
+            to_dict(indices=[3, 2], result_col=[0, 1])
         _constraints = \
             p_mission_needs.\
             vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
@@ -315,7 +336,8 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         # minimum availability per cluster and period
         min_aircraft_slack = self.check_min_available(deficit_only=False)
         p_clustdate = \
-            info.vfilter(lambda v: v[4] == 0). \
+            info.\
+            vfilter(lambda v: v[4] == nd.MAINT_TYPE). \
             vapply(lambda v: (*v, c_cand[v[0]])). \
             to_dict(indices=[5, 2], result_col=[0, 1])
 
@@ -355,7 +377,8 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=None)
         type_m = self.instance.get_maintenances('type')
         p_maint_used = \
-            info.vfilter(lambda v: v[4] == 0).\
+            info.\
+            vfilter(lambda v: v[4] == nd.MAINT_TYPE).\
             vapply(lambda v: (*v, type_m[v[3]])).\
             to_dict(indices=[5, 2], result_col=[0, 1])
         _constraints = \
@@ -388,8 +411,6 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
         return self.solution
 
-        pass
-
     def get_repaired_solution(self, combos, assign):
         patterns = assign.vapply(pl.value).vfilter(lambda v: v).kapply(lambda k: combos[k]).values_tl()
         for p in patterns:
@@ -406,30 +427,35 @@ if __name__ == '__main__':
     import package.instance as inst
     import data.test_data as test_d
 
+    # data_in = test_d.dataset3_no_default()
     data_in = test_d.dataset4()
     instance = inst.Instance(data_in)
     self = GraphOriented(instance)
     resources = self.instance.get_resources()
-    self.draw_graph("1")
-    self.draw_graph("2")
-    data_graph = self.get_graph_data('1')
-    vertices = tl.TupList(data_graph['graph'].vertices()).\
-        vapply(lambda v: data_graph['refs_inv'][v]).\
-        vfilter(lambda v: v.rut is None and v.period=='2018-02')
+    # self.draw_graph("1")
+    # self.draw_graph("2")
+    # data_graph = self.get_graph_data('1')
+    # vertices = tl.TupList(data_graph['graph'].vertices()).\
+    #     vapply(lambda v: data_graph['refs_inv'][v]).\
+    #     vfilter(lambda v: v.rut is None and v.period=='2018-02')
+    # vertices[1]
     # vertices[0]
     # vertices[1]
 
     # self.date_to_node(resource, '2018-12')
-    date1 = '2018-03'
+    date1 = '2018-02'
+    # date2 = '2018-09'
     date2 = '2019-10'
 
     # resource = '1'
     res_patterns = sd.SuperDict()
     for resource in resources:
         patterns = self.window_to_patterns(resource, date1, date2)
-        res_patterns[resource] = self.filter_patterns(resource, date1, date2, patterns)
+        # res_patterns[resource] = self.filter_patterns(resource, date1, date2, patterns)
+        res_patterns[resource] = patterns
 
-    self.solve_repair(res_patterns, options=pm.OPTIONS)
+    data = self.solve_repair(res_patterns, options=pm.OPTIONS)
+    # data.data
 
     # solution = self.solve(pm.OPTIONS)
 

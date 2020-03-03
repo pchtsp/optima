@@ -31,7 +31,7 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
         if neighbors is None:
             # I don't have any cache of the node.
             # I'll get neighbors and do cache
-            cache_neighbors[node] = neighbors = node.get_adjacency_list()
+            cache_neighbors[node] = neighbors = node.get_adjacency_list(only_next_period=True)
             if not len(neighbors):
                 # no neighbors means I need to go to the last_node
                 cache_neighbors[node] = neighbors = [last_node]
@@ -101,8 +101,7 @@ def draw_graph(instance, g, refs_inv=None):
         print('graph-tool is not available')
         return None
 
-    y_ranges = dict(M=lambda: 0,
-                    VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
+    y_ranges = dict(VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
                     VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
                     VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
                     )
@@ -123,6 +122,8 @@ def draw_graph(instance, g, refs_inv=None):
          'VG+VI+VS': '#EFCC00',
          'VI+VS': '#EFCC00'}
     extra_colors = {g.vp.assignment[v]: rn.choice(['#31c9ff', '#00c8c3', '#4cb33d']) for v in g.vertices()}
+    # empty assignments we put in white:
+    extra_colors['']  = '#ffffff'
     colors = {**extra_colors, **colors}
     pos = g.new_vp('vector<float>')
     size = g.new_vp('double')
@@ -168,9 +169,10 @@ def get_graph_of_resource(instance, resource):
     # 1. for each period, for each assignment,
     # 2. tie all nodes to a single node with the same period, same assignment but rut and ret to None
 
+    # We only create artificial nodes for mission assignments.
     nodes_artificial = \
         nodes_ady.keys_tl().\
-        vfilter(lambda v: v.assignment).\
+        vfilter(lambda v: v.assignment is not None and v.type != nd.MAINT_TYPE).\
         vapply(lambda v: (v.period, v.period_end, v.assignment, v.type, v)).\
         to_dict(result_col=4).list_reverse().vapply(lambda v: v[0]).\
         vapply(lambda v: dict(instance=instance, resource=resource,
@@ -216,6 +218,8 @@ if __name__ == '__main__':
 
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
+    info = get_graph_of_resource(instance, res)
+    draw_graph(instance, info['graph'])
 
     # Example creating paths between nodes:
 
