@@ -46,7 +46,8 @@ class Node(object):
         """
         chars = ['instance', 'resource', 'period', 'period_end', 'ret', 'rut', 'assignment', 'type']
         data = tl.TupList(chars).to_dict(None).vapply(lambda v: getattr(node, v))
-        data.update(kwargs)
+        # data = json.loads(json.dumps(data))
+        data = data._update(kwargs)
         new_node = cls(**data)
 
         # we keep the cache from the previous node:
@@ -223,9 +224,10 @@ class Node(object):
         max_opts = min(opts_tot.vapply(lambda l: max(l)).values())
         opts_tot = opts_tot.vapply(lambda v: [vv for vv in v if vv <= max_opts]).vapply(set)
         durations = self.get_maints_data('duration_periods')
+
         candidates = [self.create_adjacent(assignment=maint, num_periods=opt, duration=durations[maint], type=0)
                       for maint, opts in opts_tot.items() for opt in opts]
-        return [c for c in candidates if c.assignment is not None]
+        return [c for c in candidates if c is not None and c.assignment is not None]
 
     def get_adjacency_list_tasks(self, max_period_to_check):
 
@@ -235,6 +237,7 @@ class Node(object):
         min_period_to_check = shift(self.period_end, 1)
         possible_assignments_task = \
             self.get_assignment_between_dates(min_period_to_check, max_period_to_check)
+
         def prepare_tuple(tuple):
             task, period1, period2 = tuple
             return task, diff(period1), dist(period1, period2)+1
@@ -246,9 +249,14 @@ class Node(object):
             get_property('consumption').\
             vapply(lambda v: math.floor(min_rut / v))
 
-        return possible_assignments_task.vapply(prepare_tuple).\
+        # TODO: controversial hypothesis. not two consecutive assignments
+            # of the same task
+        return possible_assignments_task. \
+            vfilter(lambda v: v[0] != self.assignment).\
+            vapply(prepare_tuple).\
             vfilter(lambda v: v[2] <= max_duration[v[0]]).\
-            vapply(lambda v: self.create_adjacent(*v, type=1))
+            vapply(lambda v: self.create_adjacent(*v, type=1)).\
+            vfilter(lambda v: v is not None)
 
     def calculate_rut(self, assignment, period, num_periods):
         """
@@ -357,6 +365,10 @@ class Node(object):
             type = -1
         ret = self.calculate_ret(assignment, period)
         rut = self.calculate_rut(assignment, period, duration)
+        ret_min = min(ret.values())
+        rut_min = min(rut.values())
+        if rut_min < 0 or ret_min < 0:
+            return None
         return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 
 

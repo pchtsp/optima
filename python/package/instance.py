@@ -170,7 +170,7 @@ class Instance(object):
             return sd.SuperDict()
         if default_dict is not None:
             default_dict = sd.SuperDict.from_dict(default_dict)
-            data.vapply(lambda v: default_dict.update(v))
+            data.vapply(lambda v: {**default_dict, **v})
         if param is None:
             return data
         if param in list(data.values())[0]:
