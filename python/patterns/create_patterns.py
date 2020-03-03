@@ -149,7 +149,6 @@ def draw_graph(instance, g, refs_inv=None):
 def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, **kwargs):
     import graph_tool.all as gr
     all_paths = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-    # TODO: sample before proceding ?
     return tl.TupList(all_paths).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
 
 
@@ -182,11 +181,6 @@ def get_graph_of_resource(instance, resource):
 
     # TODO: fix assignment periods should only leave the possibility of the assignment
     # maybe changing the origin.
-
-    # TODO: maybe add dummy nodes for all non=assigned periods.
-    # two options.
-    # for each period, one dummy node that ties to all next assignments
-    # for each period, rut, ret combo: a node that ties to
 
     nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 

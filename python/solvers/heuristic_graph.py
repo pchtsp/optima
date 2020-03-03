@@ -45,23 +45,17 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         pass
 
     def date_to_node(self, resource, date, previous=True):
-        # previous implies to look for the latest previous assignment.
-        # if false, we look for the soonest next assignment
-        # period, category = self.get_next_assignment(resource, date, search_future=not previous)
-        # if period is None:
-        #     # there are no other assignments until reaching the end of the horizon
-        #     if previous:
-        #         return self.get_source_node(resource)
-        #     return self.get_sink_node(resource)
 
-        # Now we know there is something in this period and what type.
-        # But we do not know if it started in this period
+        # We check what the resource has in this period:
         assignment, category = self.solution.get_period_state_category(resource, date)
         if category is None:
+            # if nothing, we format as an EMPTY node
             assignment = ''
             period_start = date
             period_end = date
         else:
+            # if there is something, we look for the limits of the assignment
+            # to create the correct node.
             period_start = self.get_limit_of_assignment(resource, date, category)
             period_end = self.get_limit_of_assignment(resource, date, category, get_last=True)
 
@@ -75,12 +69,16 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             _type = nd.DUMMY_TYPE
 
         if previous:
-            maints = self.instance.get_maintenances()
-            _defaults = dict(resource=resource, period=period_start)
-            _rts = sd.SuperDict()
-            for time in ['ret', 'rut']:
-                _rts[time] = maints.kapply(lambda k: self.get_remainingtime(**_defaults, time=time, maint=k))
-
+            maints = self.instance.get_maintenances().vapply(lambda v: 1)
+            # we want to have the status of the resource in the moment the assignment ends
+            # because that will be the status on the node
+            _defaults = dict(resource=resource, period=period_end)
+            _rts = \
+                sd.SuperDict(ret=maints, rut=maints).\
+                to_dictup().\
+                kapply(lambda k: dict(**_defaults, time=k[0], maint=k[1])).\
+                vapply(lambda v: self.get_remainingtime(**v)).\
+                to_dictdict()
         else:
             _rts = sd.SuperDict(rut=None, ret=None)
         # we return the state of type: period, period_end, assignment, type, rut, ret
@@ -136,22 +134,21 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
         # We apply all the assignments
         # Warning, here I'm ignoring the two extremes[1:-1]
-        added_maints = 0
-        added_tasks = 0
+        added_maints = tl.TupList()
+        added_tasks = tl.TupList()
         for node in pattern[1:-1]:
-            if node.type == 1:
+            if node.type == nd.TASK_TYPE:
                 added_tasks += self.apply_task(node)
-            elif node.type == 0:
+            elif node.type == nd.MAINT_TYPE:
                 added_maints += self.apply_maint(node)
 
         # Update rut and ret.
-        first_date_to_update = start
-        # TODO: Instead of "start" we can choose the first thing that passes
         # for this we need to join all added and deleted things:
-        # all_del = (deleted_tasks + deleted_maints).unique2().sorted()
-
-        # if all_del:
-        #     first_date_to_update = all_del[0]
+        all_del = (deleted_tasks + deleted_maints + added_maints + added_tasks).unique2().sorted()
+        if all_del:
+            first_date_to_update = all_del[0][0]
+        else:
+            first_date_to_update = start
         times = ['rut']
         if added_maints or deleted_maints:
             times.append('ret')
@@ -187,14 +184,18 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         return True
 
     def apply_maint(self, node):
+        result = tl.TupList()
         for period in self.instance.get_periods_range(node.period, node.period_end):
             self.solution.data.set_m('state_m', node.resource, period, node.assignment, value=1)
-        return 1
+            result.add(period, node.assignment)
+        return result
 
     def apply_task(self, node):
+        result = tl.TupList()
         for period in self.instance.get_periods_range(node.period, node.period_end):
             self.solution.data.set_m('task', node.resource, period, value=node.assignment)
-        return 1
+            result.add(period, node.assignment)
+        return result
 
     def erase_between_dates(self, resource, start, end, key='task'):
         """
@@ -224,7 +225,6 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
     def solve_repair(self, res_patterns, options):
 
         # res_patterns is a sd.SuperDict of resource: [list of possible patterns]
-        # TODO: check if there is a good reason to use cleaned patterns ([1:-1] filtering)
         _range = self.instance.get_periods_range
         _dist = self.instance.get_dist_periods
         first, last = self.instance.get_first_last_period()
@@ -238,8 +238,8 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                     (res, p, period, elem.assignment, elem.type)
                     for elem in pattern_clean for period in _range(elem.period, elem.period_end)
                 )
-        weight_pattern = lambda pattern: sum(_dist(first, elem.period) for elem in pattern
-                                             if elem.type == nd.MAINT_TYPE)
+        weight_pattern = lambda pattern: sum(_dist(elem.period, last) for elem in pattern
+                                              if elem.type == nd.MAINT_TYPE)
         assign_p = combos.vapply(weight_pattern)
 
         # Variables:
