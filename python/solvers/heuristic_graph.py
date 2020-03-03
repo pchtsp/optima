@@ -234,27 +234,23 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         _slack_s_vt = sum_of_slots(slack_vts)
         slack_vts_p = slack_vts.kapply(lambda vts: (p_s[vts[2]] + 1) * 10000)
 
-        # Model:
-        model = pl.LpProblem('MFMP_repair', sense=pl.LpMinimize)
-
         # Constraints
+        constraints = tl.TupList()
 
         # objective:
-        model += pl.lpSum((assign * assign_p).values_tl()) + \
-                 pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
-                 pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
-                 pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
-                 pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
+        objective_function = \
+            pl.lpSum((assign * assign_p).values_tl()) + \
+            pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
+            pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
+            pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
+            pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
 
         # one pattern per resource:
-        _constraints = \
+        constraints += \
             combos.keys_tl().\
             vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]).\
             vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1).\
             values_tl()
-
-        for c in _constraints:
-            model += c
 
         # ##################################
         # Tasks and tasks starts
@@ -263,14 +259,11 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         # num resources:
         mission_needs = self.check_task_num_resources()
         p_mission_needs = info.vfilter(lambda v: v[4]==1).to_dict(indices=[3, 2], result_col=[0, 1])
-        _constraints = \
+        constraints += \
             p_mission_needs.\
             vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
             kvapply(lambda k, v: v + _slack_s_vt[k] >= mission_needs[k]).\
             values_tl()
-
-        for c in _constraints:
-            model += c
 
         # # ##################################
         # Clusters
@@ -283,14 +276,11 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             vapply(lambda v: (*v, c_cand[v[0]])). \
             to_dict(indices=[5, 2], result_col=[0, 1])
 
-        _constraints = \
+        constraints += \
             p_clustdate. \
             vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
             kvapply(lambda k, v: v - _slack_s_kt[k] <= min_aircraft_slack[k]). \
             values_tl()
-
-        for c in _constraints:
-            model += c
 
         # for (k, t), num in cluster_data['num'].items():
         #     model += \
@@ -322,13 +312,17 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             info.vfilter(lambda v: v[4] == 0).\
             vapply(lambda v: (*v, type_m[v[3]])).\
             to_dict(indices=[5, 2], result_col=[0, 1])
-        _constraints = \
+        constraints += \
             p_maint_used.\
             vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
             kvapply(lambda k, v: v - _slack_s_t[k[1]] <= rem_maint_capacity[k]).\
             values_tl()
 
-        for c in _constraints:
+        # We all constraints at the same time:
+
+        model = pl.LpProblem('MFMP_repair', sense=pl.LpMinimize)
+        model += objective_function
+        for c in constraints:
             model += c
 
         config = conf.Config(options)
