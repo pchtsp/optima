@@ -52,7 +52,7 @@ def get_create_node(refs, g, n):
     v = g.add_vertex()
     g.vp.period[v] = n.period
     g.vp.assignment[v] = n.assignment
-    refs[n] = v
+    refs[n] = int(v)
     return v
 
 
@@ -148,9 +148,14 @@ def draw_graph(instance, g, refs_inv=None):
 
 def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, **kwargs):
     import graph_tool.all as gr
+    # TODO: there is something going on with default consumption
+    # TODO: there is something going on with initial states
     all_paths = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
     return tl.TupList(all_paths).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
-
+    refs.keys_tl().\
+        vfilter(lambda v: v.period=='2019-01' and v.period_end=='2019-01' and v.assignment=='').\
+        vapply(lambda v: (v.rut, v.ret))
+    node1.rut, node1.ret
 
 def state_to_node(instance, resource, state):
     return nd.Node(instance=instance, resource=resource, **state)

@@ -170,7 +170,7 @@ class Instance(object):
             return sd.SuperDict()
         if default_dict is not None:
             default_dict = sd.SuperDict.from_dict(default_dict)
-            data.vapply(lambda v: {**default_dict, **v})
+            data = data.vapply(lambda v: {**default_dict, **v})
         if param is None:
             return data
         if param in list(data.values())[0]:
@@ -187,7 +187,8 @@ class Instance(object):
         return self.get_category('resources', param, default_resources)
 
     def get_maintenances(self, param=None):
-        return self.get_category('maintenances', param)
+        default = {'priority': 1}
+        return self.get_category('maintenances', param, default)
 
     def correct_initial_state(self, time_type):
         """

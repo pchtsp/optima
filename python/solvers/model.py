@@ -32,7 +32,7 @@ class Model(exp.Experiment):
         self.slack_ts = {}
         self.model = None
 
-    def solve(self, options=None):
+    def solve(self, options):
 
         seed = options.get('seed')
         if not seed:

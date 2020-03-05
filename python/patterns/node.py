@@ -342,7 +342,7 @@ class Node(object):
             # from the end of the maintenance
         return rut
 
-    def calculate_ret(self, assignment, period):
+    def calculate_ret(self, assignment, period, num_periods):
         """
         If next m=assignment and is done in t=period, how does ret change?
         :param str assignment: a maintenance or a task
@@ -360,7 +360,7 @@ class Node(object):
             m_affects = set(affects[assignment]) & maints_rets
 
         m_not_affect = maints_rets - m_affects
-        time = self.dif_period(period)
+        time = self.dif_period_end(period) + num_periods - 1
         ret = sd.SuperDict({m: self.ret[m] - time for m in m_not_affect})
 
         # in case of no affects, we leave early:
@@ -370,8 +370,7 @@ class Node(object):
         max_elapsed_times = self.get_maints_data('max_elapsed_time')
         duration_periods = self.get_maints_data('duration_periods')
         for m in m_affects:
-            ret[m] = max_elapsed_times[m] + \
-                     duration_periods[assignment]
+            ret[m] = max_elapsed_times[m]
         return ret
 
     def shift_period(self, num=1):
@@ -382,6 +381,9 @@ class Node(object):
 
     def dif_period(self, period):
         return self.instance.get_dist_periods(self.period, period)
+
+    def dif_period_end(self, period):
+        return self.instance.get_dist_periods(self.period_end, period)
 
     def dif_period_1(self, period):
         return self.instance.get_dist_periods(self.period, period) + 1
@@ -408,7 +410,7 @@ class Node(object):
             period = last
             assignment = None
             type = DUMMY_TYPE
-        ret = self.calculate_ret(assignment, period)
+        ret = self.calculate_ret(assignment, period, duration)
         rut = self.calculate_rut(assignment, period, duration)
         ret_min = min(ret.values())
         rut_min = min(rut.values())

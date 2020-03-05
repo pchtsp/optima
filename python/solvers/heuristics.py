@@ -6,8 +6,15 @@ import pytups.tuplist as tl
 import logging as log
 import pytups.superdict as sd
 import os
+import math
+
 
 class GreedyByMission(test.Experiment):
+
+    # statuses for detecting a new worse solution
+    status_worse = {2, 3}
+    # statuses for detecting if we accept a solution
+    status_accept = {0, 1, 2}
 
     def __init__(self, instance, solution=None):
 
@@ -140,7 +147,7 @@ class GreedyByMission(test.Experiment):
                 # self.set_state(resource, period, cat='state', value=state)
                 self.set_state(resource, period, state, cat='state_m', value=1)
             else:
-                self.set_state(resource, period, cat='state', value=state)
+                self.set_state(resource, period, cat='task', value=state)
 
         for time in ['rut', 'ret']:
             self.set_remaining_usage_time_all(time=time, resource=resource)
@@ -575,6 +582,65 @@ class GreedyByMission(test.Experiment):
         if value is None:
             return ref
         return value
+
+    def analyze_solution(self, temperature, assign_missions=False):
+        """
+        Compares solution quality with previous and best.
+        Updates the previous solution (always).
+        Updates the current solution based on acceptance criteria (Simulated Annealing)
+        Updates the best solution when relevant.
+
+        :return: (status int, error dictionary)
+        :rtype: tuple
+        """
+        # This commented function validates if I'm updating correctly rut and ret.
+        # self.check_consistency()
+        # errors = self.get_inconsistency()
+        errs = self.check_solution(recalculate=False, assign_missions=assign_missions)
+        error_cat = errs.to_lendict()
+        log.debug("errors: {}".format(error_cat))
+        objective = self.get_objective_function(error_cat)
+
+        # status
+        # 0: best,
+        # 1: improved,
+        # 2: not-improved + undo,
+        # 3: not-improved + not undo.
+        if objective > self.prev_objective:
+            # solution worse than previous
+            status = 3
+            if self.previous_solution and rn.random() > \
+                    math.exp((self.prev_objective - objective) / temperature / 50):
+                # we were unlucky: we go back to the previous solution
+                status = 2
+                self.set_solution(self.previous_solution)
+                errs = self.check_solution(recalculate=False)
+                log.debug('back to previous solution: {}'.format(self.prev_objective))
+                objective = self.prev_objective
+        else:
+            # solution better than previous
+            status = 1
+            if objective < self.best_objective:
+                # best solution found
+                status = 0
+                self.best_objective = objective
+                log.info('best solution found: {}'.format(objective))
+                self.best_solution = self.copy_solution()
+        if status in self.status_accept:
+            self.previous_solution = self.copy_solution()
+            self.prev_objective = objective
+        return objective, status, errs
+
+    def initialise_solution_stats(self):
+        """
+        Initializes caches of best and past solution
+        :return: None
+        """
+        self.previous_solution = self.best_solution = self.solution.data
+        errs = self.check_solution()
+        error_cat = errs.to_lendict()
+        self.prev_objective = self.get_objective_function(error_cat)
+        self.best_objective = self.prev_objective
 
     @staticmethod
     def iterate_periods_until(period, condition_to_return, stop_condition, move_period):

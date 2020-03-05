@@ -100,6 +100,9 @@ def engine_factory(engine):
     elif engine == 'ModelANORFixLP':
         import solvers.model_anor_fixingLP as model
         return model.ModelANORFixLP
+    elif engine == 'HEUR_Graph':
+        import solvers.heuristic_graph as go
+        return go.GraphOriented
     else:
         import solvers.model as model
         return model.Model

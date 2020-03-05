@@ -4,6 +4,9 @@ import pytups.tuplist as tl
 import solvers.heuristics as heur
 import solvers.model as mdl
 import solvers.config as conf
+import solvers.heuristics_maintfirst as heur_maint
+
+import package.solution as sol
 
 import patterns.create_patterns as cp
 import patterns.node as nd
@@ -14,27 +17,34 @@ import random as rn
 import math
 import time
 import logging as log
+import multiprocessing as multi
 
 
 
 class GraphOriented(heur.GreedyByMission,mdl.Model):
 
-    # statuses for detecting a new worse solution
-    status_worse = {2, 3}
-    # statuses for detecting if we accept a solution
-    status_accept = {0, 1, 2}
     {'aux': {'graphs': {'RESOURCE': {'graph': {}, 'refs': {}, 'refs_inv': {}, 'source': {}, 'sink': {}}}}}
     # graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink
 
     def __init__(self, instance, solution=None):
 
         heur.GreedyByMission.__init__(self, instance, solution)
-        resources = self.instance.get_resources()
-
         self.instance.data['aux']['graphs'] = sd.SuperDict()
+
+    def initialise_graphs(self, options):
+        multiproc = options['multiprocess']
+        resources = self.instance.get_resources()
+        if not multiproc:
+            for r in resources:
+                graph_data = cp.get_graph_of_resource(instance=self.instance, resource=r)
+                self.instance.data['aux']['graphs'][r] = graph_data
+            return
+        results = {}
+        pool = multi.Pool(processes=multiproc)
         for r in resources:
-            graph_data = cp.get_graph_of_resource(instance=instance, resource=r)
-            self.instance.data['aux']['graphs'][r] = graph_data
+            results[r] = pool.apply_async(cp.get_graph_of_resource, [self.instance, r])
+        for r, result in results.items():
+            self.instance.data['aux']['graphs'][r] = result.get(timeout=10000)
 
 
     def solve(self, options):
@@ -45,6 +55,72 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
          :return: solution to the planning problem
          :rtype: :py:class:`package.solution.Solution`
          """
+        periods = self.instance.get_periods()
+        resources = self.instance.get_resources().keys_tl().sorted()
+        first, last = self.instance.get_first_last_period()
+        _shift = self.instance.shift_period
+        temperature = options.get('temperature', 1)
+        cooling = options.get('cooling', 0.995)
+        max_time = options.get('timeLimit', 600)
+        max_iters = options.get('max_iters', 99999999)
+
+        # initialise logging, seed and solution status
+        self.set_log_config(options)
+        self.initialise_solution_stats()
+        self.initialise_seed(options)
+        self.initialise_graphs(options)
+
+        # 1. get an initial solution.
+        first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
+        options_fs = {**options, **{'max_iters': 10}}
+        first_solve.solve(options_fs)
+        self.solution = first_solve.solution
+
+        # 2. repair solution
+        time_init = time.time()
+        i = 0
+        while True:
+            start = rn.choice(periods)
+            size = rn.choice(range(20)) + 1
+            end = _shift(start, size)
+            if end > last:
+                continue
+            i += 1
+            # we choose a subset of resources
+            size_sample = rn.choice(range(len(resources)))
+            _resources = rn.sample(resources, size_sample)
+            log.info('Repairing periods {}-{} for {} resources'.format(start, end, size_sample))
+            patterns = {r: self.get_patterns_from_window(r, start, end) for r in _resources}
+            patterns = sd.SuperDict(patterns)
+            self.solve_repair(patterns, options)
+
+            objective, status, errors = self.analyze_solution(temperature, True)
+            num_errors = errors.to_lendict().values_tl()
+            num_errors = sum(num_errors)
+
+            # sometimes, we go back to the best solution found
+            if objective > self.best_objective and rn.random() < 0.01:
+                self.set_solution(self.best_solution)
+                objective = self.prev_objective = self.best_objective
+                log.info('back to best solution: {}'.format(self.best_objective))
+
+            if status in self.status_worse:
+                temperature *= cooling
+
+            self.get_objective_function()
+
+            clock = time.time()
+            time_now = clock - time_init
+
+            log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
+                     format(round(time_now), i, round(temperature, 4), objective, self.best_objective, num_errors))
+            i += 1
+
+            if not self.best_objective or i >= max_iters or time_now > max_time:
+                break
+
+        return sol.Solution(self.best_solution)
+
         pass
 
     def get_graph_data(self, resource):
@@ -55,6 +131,28 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
     def get_sink_node(self, resource):
         return self.instance.data['aux']['graphs'][resource]['sink']
+
+    def get_objective_function(self, error_cat=None):
+        """
+        Calculates the objective function for the current solution.
+
+        :param sd.SuperDict error_cat: possibility to take a cache of errors
+        :return: objective function
+        :rtype: int
+        """
+        if error_cat is None:
+            error_cat = self.check_solution().to_lendict()
+        num_errors = sum(error_cat.values())
+
+        # we count the number of maintenances and their distance to the end
+        first, last = self.instance.get_first_last_period()
+        _dist = self.instance.get_dist_periods
+        maintenances = \
+            self.get_maintenance_periods().\
+                take(1).\
+                vapply(_dist, last)
+
+        return num_errors + sum(maintenances)
 
     def filter_patterns(self, resource, date1, date2, patterns):
         # TODO: here, we need to filter feasible patterns with the next maintenance cycle
@@ -137,6 +235,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             _type = nd.TASK_TYPE
         elif category == 'state_m':
             _type = nd.MAINT_TYPE
+            assignment = self.M
         else:
             _type = nd.DUMMY_TYPE
 
@@ -541,7 +640,7 @@ if __name__ == '__main__':
     instance = inst.Instance(data_in)
     self = GraphOriented(instance)
     resources = self.instance.get_resources()
-    # self.draw_graph("1")
+    self.draw_graph("12")
     # self.draw_graph("2")
     # data_graph = self.get_graph_data('1')
     # vertices = tl.TupList(data_graph['graph'].vertices()).\

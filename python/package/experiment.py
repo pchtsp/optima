@@ -581,8 +581,8 @@ class Experiment(object):
             vapply(lambda v: ret_before_maint[v])
 
 
-    def get_objective_function(self):
-        raise NotImplementedError("This is no longer supported")
+    def get_objective_function(self, *args, **kwargs):
+        raise NotImplementedError("This is no longer supported in the master class")
 
     def get_kpis(self):
         raise NotImplementedError("This is no longer supported")
