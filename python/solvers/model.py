@@ -619,8 +619,11 @@ class Model(exp.Experiment):
 
         return max_elapsed_2M['min'], max_elapsed_2M['max']
 
-    def get_domains_sets(self, options):
-        
+    def get_domains_sets(self, options, force=True):
+
+        l = self.domains
+        if not force and l:
+            return l
         # this is the return dictionary
         l = sd.SuperDict()
 
@@ -865,6 +868,7 @@ class Model(exp.Experiment):
         , 'vtt2_between_att': vtt2_between_att
         }
         l.update(l_new)
+        self.domains = l
         return l
 
     def reduce_2M_window(self, options, domains):
