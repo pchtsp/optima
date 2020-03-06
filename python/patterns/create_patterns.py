@@ -173,10 +173,10 @@ def get_graph_of_resource(instance, resource):
     # 1. for each period, for each assignment,
     # 2. tie all nodes to a single node with the same period, same assignment but rut and ret to None
 
-    # We only create artificial nodes for mission assignments.
+    # We only create artificial nodes for all not None nodes.
     nodes_artificial = \
         nodes_ady.keys_tl().\
-        vfilter(lambda v: v.assignment is not None and v.type != nd.MAINT_TYPE).\
+        vfilter(lambda v: v.assignment is not None).\
         vapply(lambda v: (v.period, v.period_end, v.assignment, v.type, v)).\
         to_dict(result_col=4).list_reverse().vapply(lambda v: v[0]).\
         vapply(lambda v: dict(instance=instance, resource=resource,

@@ -162,7 +162,7 @@ class Experiment(object):
         values[1:] = values[1:] - values[:-1]
         return values, groups
 
-    def check_task_num_resources(self, strict=False, assign_missions=True, **params):
+    def check_task_num_resources(self, deficit_only=True, assign_missions=True, **params):
         if not assign_missions:
             return sd.SuperDict()
         task_reqs = self.instance.get_tasks('num_resource')
@@ -176,9 +176,10 @@ class Experiment(object):
             (task, period): task_reqs[task] - task_assigned[task, period]
             for (task, period) in task_assigned
         }
-        if strict:
-            return sd.SuperDict(task_under_assigned).vfilter(lambda x: x != 0)
-        return sd.SuperDict(task_under_assigned).vfilter(lambda x: x > 0)
+        if not deficit_only:
+            return sd.SuperDict(task_under_assigned)
+        else:
+            return sd.SuperDict(task_under_assigned).vfilter(lambda x: x > 0)
 
     def check_resource_in_candidates(self, **params):
         task_solution = self.solution.get_tasks()
