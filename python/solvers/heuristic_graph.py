@@ -46,7 +46,6 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         for r, result in results.items():
             self.instance.data['aux']['graphs'][r] = result.get(timeout=10000)
 
-
     def solve(self, options):
         """
          Solves an instance using the metaheuristic.
@@ -64,24 +63,25 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
 
+        # 1. get an initial solution.
+        first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
+        first_solve.get_objective_function = self.get_objective_function
+        options_fs = {**options, **dict(max_iters=100, assign_missions=True)}
+        first_solve.solve(options_fs)
+        self.solution.data = first_solve.best_solution
+
         # initialise logging, seed and solution status
         self.set_log_config(options)
         self.initialise_solution_stats()
         self.initialise_seed(options)
         self.initialise_graphs(options)
 
-        # 1. get an initial solution.
-        first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
-        options_fs = {**options, **{'max_iters': 10}}
-        first_solve.solve(options_fs)
-        self.solution = first_solve.solution
-
         # 2. repair solution
         time_init = time.time()
         i = 0
         while True:
             start = rn.choice(periods)
-            size = rn.choice(range(20)) + 1
+            size = rn.choice(range(15)) + 1
             end = _shift(start, size)
             if end > last:
                 continue
@@ -108,7 +108,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             if status in self.status_worse:
                 temperature *= cooling
 
-            self.get_objective_function()
+            # self.get_objective_function()
 
             clock = time.time()
             time_now = clock - time_init
@@ -153,18 +153,21 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                 take(1).\
                 vapply(_dist, last)
 
-        return num_errors + sum(maintenances)
+        return num_errors * 1000 + sum(maintenances)
 
-    def filter_patterns(self, date1, date2, patterns):
-        # TODO: here, we need to filter feasible patterns with the next maintenance cycle
-        # we are using 1 and -2 because of the tails we are not using.
-        # also, here. Filter assignments previous to dates, potentially
-        return \
-            patterns.\
-                vapply(lambda v: v).\
-                vfilter(lambda v: v and
-                                  v[1].period >= date1 and
-                                  v[-2].period_end <= date2)
+    def filter_patterns(self, resource, node2, patterns):
+        first, last = self.instance.get_first_last_period()
+        _shift = self.instance.shift_period
+        next_maint = self.get_next_maintenance(resource, _shift(node2.period_end, 1), {'M'})
+        if next_maint is None:
+            _period_to_look = last
+        else:
+            # If there is a next maintenances, we filter patterns depending on the last rut
+            _period_to_look = _shift(next_maint, -1)
+        rut_cycle = self.get_remainingtime(resource, _period_to_look, 'rut', maint=self.M)
+        rut = self.get_remainingtime(resource, node2.period_end, 'rut', maint=self.M)
+        min_rut = rut - rut_cycle
+        return patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut)
 
     def apply_pattern(self, pattern):
         resource = pattern[0].resource
@@ -188,9 +191,11 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
         # Update rut and ret.
         # for this we need to join all added and deleted things:
-        all_del = (deleted_tasks + deleted_maints + added_maints + added_tasks).unique2().sorted()
-        if all_del:
-            first_date_to_update = all_del[0][0]
+        all_modif = \
+            tl.TupList(deleted_tasks + deleted_maints + added_maints + added_tasks).\
+            unique2().sorted()
+        if all_modif:
+            first_date_to_update = all_modif[0][0]
         else:
             first_date_to_update = start
         times = ['rut']
@@ -258,7 +263,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                     assignment=assignment, type=_type, **_rts)
         return cp.state_to_node(self.instance, resource=resource, state=state)
 
-    def get_patterns_from_window(self, resource, date1, date2):
+    def get_patterns_from_window(self, resource, date1, date2, **kwargs):
         """
         This method is accessed by the repairing method.
         To know the options of assignments
@@ -270,19 +275,9 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         """
         node1 = self.date_to_node(resource, date1, previous=True)
         node2 = self.date_to_node(resource, date2, previous=False)
-        first, last = self.instance.get_first_last_period()
-        _patterns = cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource))
-        _shift = self.instance.shift_period
-        next_maint = self.get_next_maintenance(resource, _shift(node2.period_end, 1), {'M'})
-        if next_maint is None:
-            _period_to_look = last
-        else:
-            # If there is a next maintenances, we filter patterns depending on the last rut
-            _period_to_look = _shift(next_maint, -1)
-        rut_cycle = self.get_remainingtime(resource, _period_to_look, 'rut', maint=self.M)
-        rut = self.get_remainingtime(resource, node2.period_end, 'rut', maint=self.M)
-        min_rut = rut - rut_cycle
-        return _patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut)
+        patterns = cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource), **kwargs)
+        # we need to filter them to take out the ones that compromise the post-window periods
+        return self.filter_patterns(resource, node2, patterns)
 
     def set_remaining_time_in_window(self, resource, maint, start, end, rt):
         _shift = self.instance.shift_period

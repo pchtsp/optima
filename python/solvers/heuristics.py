@@ -178,7 +178,6 @@ class GreedyByMission(test.Experiment):
         previous_state = self.solution.data['task'].get(resource, {}).get(previous_period ,'')
         next_state = self.solution.data['task'].get(resource, {}).get(next_period, '')
         if (size_assign < min_asign
-            and last_period_to_assign != last_month_task
             and previous_state != task
             and next_state != task):
             # if not enough to assign
@@ -188,7 +187,7 @@ class GreedyByMission(test.Experiment):
             return self.instance.shift_period(start, -1)
         for period in periods_to_assign:
             tup = [resource, period]
-            self.solution.data['task'].tup_to_dicts(tup=tup, value=task)
+            self.solution.data['task'].set_m(*tup, value=task)
         # here, the updating of ret and rut is done.
         # It is done until the next maintenance or the end
         next_maint = self.get_next_maintenance(resource, end)
@@ -430,7 +429,7 @@ class GreedyByMission(test.Experiment):
 
         ct = self.instance.compare_tups
         startend = tl.TupList([(1, p) for p in candidate_periods]).to_start_finish(ct)
-        return startend.filter([1, 2])
+        return startend.take([1, 2])
 
     def update_time_maint(self, resource, periods, time='rut', maint='M'):
         """

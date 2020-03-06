@@ -405,17 +405,16 @@ class Node(object):
         period = self.shift_period(num_periods)
         period_end = self.shift_period(num_periods + duration - 1)
         last = self.instance.get_param('end')
-        if period > last:
-            # we link with the last node and we finish
-            period = last
-            assignment = None
-            type = DUMMY_TYPE
+        if period_end > last:
+            # this should only happen with maintenances and blank nodes.
+            period_end = last
         ret = self.calculate_ret(assignment, period, duration)
         rut = self.calculate_rut(assignment, period, duration)
-        ret_min = min(ret.values())
-        rut_min = min(rut.values())
-        if rut_min < 0 or ret_min < 0:
-            return None
+        if type != 0:
+            ret_min = min(ret.values())
+            rut_min = min(rut.values())
+            if rut_min < 0 or ret_min < 0:
+                return None
         return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 
 
