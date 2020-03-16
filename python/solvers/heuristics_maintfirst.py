@@ -171,7 +171,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return []
-        clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
+        clust_hours = clust_hours.to_tuplist().to_start_finish(self.instance.compare_tups)
         c_cand = self.instance.get_cluster_candidates()
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
@@ -190,7 +190,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
         :rtype: tl.TupList
         """
-        return errors.get('min_assign', sd.SuperDict()).to_tuplist().filter([0, 1])
+        return errors.get('min_assign', sd.SuperDict()).to_tuplist().take([0, 1])
 
     def get_candidates_dist_maints(self, errors):
         """

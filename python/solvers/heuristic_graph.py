@@ -7,9 +7,12 @@ import solvers.config as conf
 import solvers.heuristics_maintfirst as heur_maint
 
 import package.solution as sol
+import package.instance as inst
 
 import patterns.create_patterns as cp
 import patterns.node as nd
+
+import data.data_input as di
 
 import pulp as pl
 import operator as op
@@ -18,12 +21,12 @@ import math
 import time
 import logging as log
 import multiprocessing as multi
+import pandas as pd
 
 
-
-class GraphOriented(heur.GreedyByMission,mdl.Model):
-
+class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': {'graph': {}, 'refs': {}, 'refs_inv': {}, 'source': {}, 'sink': {}}}}}
+
     # graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink
 
     def __init__(self, instance, solution=None):
@@ -40,11 +43,14 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                 self.instance.data['aux']['graphs'][r] = graph_data
             return
         results = {}
-        pool = multi.Pool(processes=multiproc)
-        for r in resources:
-            results[r] = pool.apply_async(cp.get_graph_of_resource, [self.instance, r])
-        for r, result in results.items():
-            self.instance.data['aux']['graphs'][r] = result.get(timeout=10000)
+        with multi.Pool(processes=multiproc) as pool:
+            for r in resources:
+                _instance = inst.Instance.from_instance(self.instance)
+                results[r] = pool.apply_async(cp.get_graph_of_resource, [_instance, r])
+            for r, result in results.items():
+                self.instance.data['aux']['graphs'][r] = result.get(timeout=10000)
+        return
+
 
     def solve(self, options):
         """
@@ -54,21 +60,24 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
          :return: solution to the planning problem
          :rtype: :py:class:`package.solution.Solution`
          """
-        periods = self.instance.get_periods()
-        resources = self.instance.get_resources().keys_tl().sorted()
-        first, last = self.instance.get_first_last_period()
-        _shift = self.instance.shift_period
         temperature = options.get('temperature', 1)
         cooling = options.get('cooling', 0.995)
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
+        max_iters_initial = options.get('max_iters_initial', 10)
+        big_window = options.get('big_window', False)
+        num_max = options.get('num_max', 10000)
+        options_repair = di.copy_dict(options)
+        options_repair = sd.SuperDict.from_dict(options_repair)
+        options_repair['timeLimit'] = options.get('timeLimit_cycle', 10)
 
         # 1. get an initial solution.
-        first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
-        first_solve.get_objective_function = self.get_objective_function
-        options_fs = {**options, **dict(max_iters=100, assign_missions=True)}
-        first_solve.solve(options_fs)
-        self.solution.data = first_solve.best_solution
+        if self.solution is None or max_iters_initial:
+            first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
+            first_solve.get_objective_function = self.get_objective_function
+            options_fs = {**options, **dict(max_iters=max_iters_initial, assign_missions=True)}
+            first_solve.solve(options_fs)
+            self.set_solution(first_solve.best_solution)
 
         # initialise logging, seed and solution status
         self.set_log_config(options)
@@ -79,21 +88,25 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         # 2. repair solution
         time_init = time.time()
         i = 0
+        errors = sd.SuperDict()
         while True:
-            start = rn.choice(periods)
-            size = rn.choice(range(15)) + 1
-            end = _shift(start, size)
-            if end > last:
-                continue
-            # we choose a subset of resources
-            size_sample = rn.choice(range(len(resources))) + 1
-            res_to_change = rn.sample(resources, size_sample)
-            log.info('Repairing periods {} => {} for resources: {}'.format(start, end, res_to_change))
-            patterns = {r: self.get_patterns_from_window(r, start, end) for r in res_to_change}
+            # if rn.random() > 0.5 or not errors:
+            #     change = self.get_candidate_random()
+            # elif rn.random() > 0.5:
+            #     change = self.get_candidates_tasks(errors)
+            # else:
+            #     change = self.get_candidates_cluster(errors)
+            # if not change:
+            #     continue
+            change = self.get_candidate_random()
+            if big_window:
+                change = self.get_candidate_all()
+            log.info('Repairing periods {start} => {end} for resources: {resources}'.format(**change))
+            patterns = {r: self.get_pattern_options_from_window(r, change['start'], change['end'], num_max=num_max) for r in change['resources']}
             patterns = sd.SuperDict(patterns).vfilter(lambda v: len(v) > 0)
             if not len(patterns):
                 continue
-            self.solve_repair(patterns, options)
+            self.solve_repair(patterns, options_repair)
 
             objective, status, errors = self.analyze_solution(temperature, True)
             num_errors = errors.to_lendict().values_tl()
@@ -149,23 +162,34 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         first, last = self.instance.get_first_last_period()
         _dist = self.instance.get_dist_periods
         maintenances = \
-            self.get_maintenance_periods().\
-                take(1).\
+            self.get_maintenance_periods(). \
+                take(1). \
                 vapply(_dist, last)
 
         return num_errors * 1000 + sum(maintenances)
 
-    def filter_patterns(self, resource, node2, patterns):
+    def filter_patterns(self, node2, patterns):
+        """
+        gets feasible patterns with the resource's maintenance cycle
+
+        :param node2:
+        :param patterns:
+        :return:
+        """
         first, last = self.instance.get_first_last_period()
         _shift = self.instance.shift_period
-        next_maint = self.get_next_maintenance(resource, _shift(node2.period_end, 1), {'M'})
+        next_maint = self.get_next_maintenance(node2.resource, _shift(node2.period_end, 1), {'M'})
         if next_maint is None:
             _period_to_look = last
         else:
             # If there is a next maintenances, we filter patterns depending on the last rut
             _period_to_look = _shift(next_maint, -1)
-        rut_cycle = self.get_remainingtime(resource, _period_to_look, 'rut', maint=self.M)
-        rut = self.get_remainingtime(resource, node2.period_end, 'rut', maint=self.M)
+        rut_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'rut', maint=self.M)
+        rut = self.get_remainingtime(node2.resource, node2.period_end, 'rut', maint=self.M)
+        if rut is None:
+            # it could be we are at the dummy node at the end.
+            # here, we would not care about filtering
+            return patterns
         min_rut = rut - rut_cycle
         return patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut)
 
@@ -192,8 +216,8 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         # Update rut and ret.
         # for this we need to join all added and deleted things:
         all_modif = \
-            tl.TupList(deleted_tasks + deleted_maints + added_maints + added_tasks).\
-            unique2().sorted()
+            tl.TupList(deleted_tasks + deleted_maints + added_maints + added_tasks). \
+                unique2().sorted()
         if all_modif:
             first_date_to_update = all_modif[0][0]
         else:
@@ -220,13 +244,12 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             result.add(period, node.assignment)
         return result
 
-    def date_to_node(self, resource, date, previous=True):
+    def date_to_node(self, resource, date, use_rt=True):
 
         # We check what the resource has in this period:
         assignment, category = self.solution.get_period_state_category(resource, date)
         if category is None:
             # if nothing, we format as an EMPTY node
-            assignment = ''
             period_start = date
             period_end = date
         else:
@@ -236,34 +259,36 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             period_end = self.get_limit_of_assignment(resource, date, category, get_last=True)
 
         if category is None:
+            assignment = ''
             _type = nd.EMPTY_TYPE
         elif category == 'task':
             _type = nd.TASK_TYPE
         elif category == 'state_m':
             _type = nd.MAINT_TYPE
+            # maintenances have a different format for assignments
             assignment = assignment.keys_l()[0]
         else:
             _type = nd.DUMMY_TYPE
 
-        if previous:
+        if use_rt:
             maints = self.instance.get_maintenances().vapply(lambda v: 1)
             # we want to have the status of the resource in the moment the assignment ends
             # because that will be the status on the node
             _defaults = dict(resource=resource, period=period_end)
             _rts = \
-                sd.SuperDict(ret=maints, rut=maints).\
-                to_dictup().\
-                kapply(lambda k: dict(**_defaults, time=k[0], maint=k[1])).\
-                vapply(lambda v: self.get_remainingtime(**v)).\
-                to_dictdict()
+                sd.SuperDict(ret=maints, rut=maints). \
+                    to_dictup(). \
+                    kapply(lambda k: dict(**_defaults, time=k[0], maint=k[1])). \
+                    vapply(lambda v: self.get_remainingtime(**v)). \
+                    to_dictdict()
         else:
             _rts = sd.SuperDict(rut=None, ret=None)
         # we return the state of type: period, period_end, assignment, type, rut, ret
         state = sd.SuperDict(period=period_start, period_end=period_end,
-                    assignment=assignment, type=_type, **_rts)
+                             assignment=assignment, type=_type, **_rts)
         return cp.state_to_node(self.instance, resource=resource, state=state)
 
-    def get_patterns_from_window(self, resource, date1, date2, **kwargs):
+    def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, **kwargs):
         """
         This method is accessed by the repairing method.
         To know the options of assignments
@@ -273,11 +298,19 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         :param date2:
         :return:
         """
-        node1 = self.date_to_node(resource, date1, previous=True)
-        node2 = self.date_to_node(resource, date2, previous=False)
+        node1 = self.date_to_node(resource, date1, use_rt=True)
+        node2 = self.date_to_node(resource, date2, use_rt=False)
         patterns = cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource), **kwargs)
         # we need to filter them to take out the ones that compromise the post-window periods
-        return self.filter_patterns(resource, node2, patterns)
+        p_filtered = self.filter_patterns(node2, patterns)
+        if len(p_filtered) > num_max:
+            return rn.sample(p_filtered, num_max)
+        return p_filtered
+
+    def get_pattern_from_window(self, resource, date1, date2):
+        _range = self.instance.get_periods_range
+        nodes = tl.TupList([self.date_to_node(resource, p, use_rt=True) for p in _range(date1, date2)])
+        return nodes.unique2().sorted(key=lambda k: k.period)
 
     def set_remaining_time_in_window(self, resource, maint, start, end, rt):
         _shift = self.instance.shift_period
@@ -329,7 +362,7 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
                 continue
             info = data[key][resource].pop(period, None)
             if info is not None:
-                if key=='state_m':
+                if key == 'state_m':
                     delete_assigned.add(period, info.keys_l()[0])
                     continue
                 delete_assigned.add(period, info)
@@ -373,18 +406,22 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         end = example_pattern[-1].period
         old_info = tl.TupList()
         for r in resources:
-            old_info += self.get_assignments_window(resource=r, start=start, end=end)
+            for key in ['task', 'state_m']:
+                old_info += self.get_assignments_window(resource=r, start=start, end=end, key=key)
 
         _range = self.instance.get_periods_range
+        _dist = self.instance.get_dist_periods
         combos = sd.SuperDict()
         info = tl.TupList()
+
+        rut_or_None = lambda rut: rut[self.M] if rut is not None else None
+
         for res, _pat_list in res_patterns.items():
             for p, pattern in enumerate(_pat_list):
-                pattern_clean = pattern
-                combos[res, p] = pattern_clean
+                combos[res, p] = pattern
                 info += tl.TupList(
-                    (res, p, period, elem.assignment, elem.type)
-                    for elem in pattern_clean for period in _range(elem.period, elem.period_end)
+                    (res, p, period, e.assignment, e.type, rut_or_None(e.rut), pos, _dist(e.period, e.period_end))
+                    for e in pattern for pos, period in enumerate(_range(e.period, e.period_end))
                 )
 
         self.domains['combos'] = combos
@@ -396,10 +433,18 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
 
         # res_patterns is a sd.SuperDict of resource: [list of possible patterns]
         l = self.get_domains_sets_patterns(res_patterns=res_patterns, options=options, force=True)
+
         # Variables:
-        _vars = self.build_vars()
+        model_vars = self.build_vars()
+
+        if options.get('mip_start'):
+            self.fill_initial_solution(model_vars)
+        vars_to_fix = options.get('fix_vars', [])
+        if vars_to_fix:
+            self.fix_variables(model_vars.filter(vars_to_fix, check=False))
+
         # We all constraints at the same time:
-        objective_function, constraints = self.build_model(**_vars)
+        objective_function, constraints = self.build_model(**model_vars)
         model = pl.LpProblem('MFMP_repair', sense=pl.LpMinimize)
         model += objective_function
         for c in constraints:
@@ -422,15 +467,14 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             return None
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
-        self.solution = self.get_repaired_solution(l['combos'], _vars['assign'])
-
+        self.solution = self.get_repaired_solution(l['combos'], model_vars['assign'])
         return self.solution
 
     def get_repaired_solution(self, combos, assign):
-        patterns = assign.\
-            vapply(pl.value).\
-            vfilter(lambda v: v).\
-            kapply(lambda k: combos[k]).\
+        patterns = assign. \
+            vapply(pl.value). \
+            vfilter(lambda v: v). \
+            kapply(lambda k: combos[k]). \
             values_tl()
         for p in patterns:
             self.apply_pattern(p)
@@ -441,6 +485,61 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         cp.draw_graph(self.instance, graph_data['graph'], graph_data['refs_inv'])
         return True
 
+    def get_candidates_tasks(self, errors):
+        """
+        :return: a list of resources, a start time and an end time.
+        :rtype: sd.SuperDict
+        """
+        tasks_probs = \
+            errors.get('resources', sd.SuperDict()).\
+            to_tuplist().to_dict(result_col=2, indices=[0]).vapply(sum).to_tuplist().sorted()
+        if not tasks_probs:
+            return sd.SuperDict()
+        _tasks, _probs = zip(*tasks_probs)
+        task = rn.choices(_tasks, weights=_probs, k=1)[0]
+        t_cand = self.instance.get_task_candidates()[task]
+        t_info = self.instance.get_tasks()
+        start, end = t_info[task]['start'], t_info[task]['end']
+        return sd.SuperDict(resources=t_cand, start=start, end=end)
+
+    def get_candidate_random(self):
+        _shift = self.instance.shift_period
+        periods = self.instance.get_periods()
+        resources = self.instance.get_resources().keys_tl().sorted()
+        first, last = self.instance.get_first_last_period()
+        start = rn.choice(periods)
+        size = rn.choice(range(20)) + 1
+        end = _shift(start, size)
+        if end > last:
+            return sd.SuperDict()
+        # we choose a subset of resources
+        size_sample = rn.choice(range(len(resources))) + 1
+        res_to_change = rn.sample(resources, size_sample)
+        return sd.SuperDict(resources=res_to_change, start=start, end=end)
+
+    def get_candidate_all(self):
+        instance = self.instance
+        first, last = instance.get_first_last_period()
+        resources = instance.get_resources().keys_tl()
+        _shift = self.instance.shift_period
+        return sd.SuperDict(resources=resources, start=_shift(first, -1), end=_shift(last))
+
+    def get_candidates_cluster(self, errors):
+        """
+        :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
+        :rtype: tl.TupList
+        """
+        _dist = self.instance.get_dist_periods
+        clust_hours = errors.get('hours', sd.SuperDict())
+        if not len(clust_hours):
+            return sd.SuperDict()
+        options = clust_hours.keys_tl().to_dict(1).vapply(lambda v: sd.SuperDict(start=v[0], end=v[-1]))
+        opt_probs = options.vapply(lambda v: _dist(v['start'], v['end'])).to_tuplist()
+        _cluts, _probs = zip(*opt_probs)
+        cluster = rn.choices(_cluts, weights=_probs, k=1)[0]
+        c_cand = self.instance.get_cluster_candidates()[cluster]
+        return options[cluster]._update(sd.SuperDict(resources=c_cand))
+
     def build_vars(self):
 
         l = self.domains
@@ -448,7 +547,6 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         _vars = sd.SuperDict()
         assign = pl.LpVariable.dicts(name="assign", indexs=combos, cat=pl.LpBinary)
         _vars['assign'] = sd.SuperDict.from_dict(assign)
-
 
         ub = self.get_variable_bounds()
         p_s = {s: p for p, s in enumerate(l['slots'])}
@@ -469,25 +567,71 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         _vars['slack_ts'] = make_slack_var('slack_ts', l['ts'],
                                            lambda ts: ub['slack_ts'][ts[1]])
         _vars['slack_vts'] = make_slack_var('slack_vts', [(*vt, s) for vt in l['vt'] for s in l['slots']],
-                                            lambda vts: p_s[vts[2]]*2+1)
+                                            lambda vts: p_s[vts[2]] * 2 + 1)
+
         return _vars
+
+    def fill_initial_solution(self, vars):
+
+        l = self.domains
+        combos = l['combos']
+        resources = combos.keys_tl().take(0).unique()
+        res_old_pat = l['info_old'].to_dict(result_col=[2, 3, 4], indices=[0]).vapply(set)
+
+        res_pat_opts = \
+            l['info']. \
+                vfilter(lambda v: v[3]). \
+                to_dict(result_col=[2, 3, 4], indices=[0, 1]). \
+                vapply(set). \
+                to_dictdict()
+
+        _clean = lambda v: v[0] not in res_pat_opts or v[1] not in res_pat_opts[v[0]]
+        empties = l['info'].take([0, 1]).unique2().vfilter(_clean)
+
+        for res, pattern in empties:
+            res_pat_opts.set_m(res, pattern, value=set())
+
+        res_pattern = sd.SuperDict()
+        for r in resources:
+            pats = res_pat_opts.get(r)
+            _set2 = res_old_pat.get(r, set())
+            for p, _set1 in pats.items():
+                dif = _set2 ^ _set1
+                if not len(dif):
+                    res_pattern[r] = p
+                    break
+
+        for v in vars['assign'].values():
+            v.setInitialValue(0)
+
+        for k, v in res_pattern.items():
+            vars['assign'][k, v].setInitialValue(1)
+
+        return
+
+    def fix_variables(self, vars_to_fix):
+        for var_group in vars_to_fix.values():
+            for _var in var_group.values():
+                _var.fixValue()
+        return
 
     def build_model(self, assign, slack_vts, slack_ts, slack_kts, slack_kts_h):
 
         l = self.domains
         info = \
-            l['info'].\
-            to_dict(result_col=[0, 1, 2, 3]).\
-            fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
-        periods = l['info'].take(2).unique().sorted()
+            l['info']. \
+                to_dict(result_col=[0, 1, 2, 3], indices=[4]). \
+                fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
+        first, last = self.instance.get_first_last_period()
+        combos = l['combos']
+        periods = l['info'].take(2).unique().vfilter(lambda v: first <= v <= last).sorted()
+        resources = combos.keys_tl().take(0).unique().sorted()
         start = periods[0]
         end = periods[-1]
-        combos = l['combos']
-        old_info = l['info_old'].\
-            to_dict(result_col=[0, 1, 2, 3]).\
+        old_info = l['info_old']. \
+            to_dict(result_col=[0, 1, 2, 3]). \
             fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
         _dist = self.instance.get_dist_periods
-        first, last = self.instance.get_first_last_period()
         p_s = {s: p for p, s in enumerate(l['slots'])}
 
         p_t = self.instance.data['aux']['period_i']
@@ -501,17 +645,17 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
             result_col = len(variable_slots.keys_l()[0])
             indices = range(result_col - 1)
             return \
-                variable_slots.\
-                to_tuplist().\
-                to_dict(result_col=result_col, indices=indices).\
-                vapply(pl.lpSum)
+                variable_slots. \
+                    to_tuplist(). \
+                    to_dict(result_col=result_col, indices=indices). \
+                    vapply(pl.lpSum)
 
         def sum_of_two_dicts(dict1, dict2):
             return \
-                (dict1.keys_tl() + dict2.keys_tl()).\
-                to_dict(None).\
-                kapply(lambda k: dict1.get(k, 0)).\
-                kvapply(lambda k, v: v + dict2.get(k, 0))
+                (dict1.keys_tl() + dict2.keys_tl()). \
+                    to_dict(None). \
+                    kapply(lambda k: dict1.get(k, 0)). \
+                    kvapply(lambda k, v: v + dict2.get(k, 0))
 
         _slack_s_kt = sum_of_slots(slack_kts)
         slack_kts_p = {(k, t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 50 for k, t, s in l['kts']}
@@ -531,123 +675,138 @@ class GraphOriented(heur.GreedyByMission,mdl.Model):
         # objective:
         objective_function = \
             pl.lpSum((assign * assign_p).values_tl()) + \
-            pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
-            pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
-            pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
-            pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
+            100*pl.lpSum((slack_vts * slack_vts_p).values_tl()) + \
+            10*pl.lpSum((slack_ts * slack_ts_p).values_tl()) + \
+            10*pl.lpSum((slack_kts * slack_kts_p).values_tl()) + \
+            10*pl.lpSum((slack_kts_h * slack_kts_h_p).values_tl())
 
         # one pattern per resource:
         constraints += \
-            combos.keys_tl().\
-            vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]).\
-            vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1).\
-            values_tl()
+            combos.keys_tl(). \
+                vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]). \
+                vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1). \
+                values_tl()
 
         # ##################################
         # Tasks and tasks starts
         # ##################################
-
+        log.debug("constraints: tasks")
         # num resources:
         # TODO: filter inside the function
         mission_needs = self.check_task_num_resources(deficit_only=False).kfilter(lambda v: start <= v[1] <= end)
 
         prev_mission_needs = \
-            old_info[nd.TASK_TYPE].\
-            to_dict(indices=[3, 2], result_col=[0, 1]).\
-            vapply(len)
+            old_info[nd.TASK_TYPE]. \
+                to_dict(indices=[3, 2], result_col=[0, 1]). \
+                vapply(len)
         t_mission_needs = sum_of_two_dicts(mission_needs, prev_mission_needs)
 
         p_mission = \
-            info[nd.TASK_TYPE].\
-            to_dict(indices=[3, 2], result_col=[0, 1]).\
-            fill_with_default(t_mission_needs, default=[])
+            info[nd.TASK_TYPE]. \
+                to_dict(indices=[3, 2], result_col=[0, 1]). \
+                fill_with_default(t_mission_needs, default=[])
 
         constraints += \
             p_mission. \
-            kfilter(lambda k: t_mission_needs[k] > 0). \
-            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
-            kvapply(lambda k, v: v + _slack_s_vt[k] >= t_mission_needs[k]).\
-            values_tl()
+                kfilter(lambda k: t_mission_needs[k] > 0). \
+                vapply(lambda v: [(assign[vv], 1) for vv in v]). \
+                kvapply(lambda k, v: [(e, 1) for e in _slack_s_vt[k]]). \
+                kvapply(lambda k, v: pl.LpAffineExpression(v, constant=-t_mission_needs[k]) >= 0). \
+                values_tl()
 
         # # ##################################
         # Clusters
         # ##################################
-        c_cand = self.instance.get_cluster_candidates().list_reverse().vapply(lambda v: v[0])
+        log.debug("constraints: clusters number")
+        res_clusters = self.instance.get_cluster_candidates().list_reverse()
         # minimum availability per cluster and period
         # TODO: filter inside the function
         min_aircraft_slack = self.check_min_available(deficit_only=False)
         prev_aircraft = \
-            old_info[nd.MAINT_TYPE].\
-            vapply(lambda v: (*v, c_cand[v[0]])). \
-            to_dict(indices=[4, 2], result_col=[0, 1]).\
-            vapply(len)
+            old_info[nd.MAINT_TYPE]. \
+                to_dict(None). \
+                vapply(lambda v: res_clusters[v[0]]). \
+                to_tuplist(). \
+                to_dict(indices=[4, 2], result_col=[0, 1]). \
+                vapply(len)
+
         t_min_aircraft_slack = sum_of_two_dicts(min_aircraft_slack, prev_aircraft)
 
         p_clustdate = \
-            info[nd.MAINT_TYPE].\
-            vapply(lambda v: (*v, c_cand[v[0]])). \
-            to_dict(indices=[4, 2], result_col=[0, 1]).\
-            fill_with_default(t_min_aircraft_slack, default=[])
+            info[nd.MAINT_TYPE]. \
+                to_dict(None). \
+                vapply(lambda v: res_clusters[v[0]]). \
+                to_tuplist(). \
+                to_dict(indices=[4, 2], result_col=[0, 1]). \
+                fill_with_default(t_min_aircraft_slack, default=[])
 
         constraints += \
             p_clustdate. \
-            vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
-            kvapply(lambda k, v: v - _slack_s_kt[k] <= t_min_aircraft_slack[k]). \
-            values_tl()
+                vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
+                kvapply(lambda k, v: v - _slack_s_kt[k] <= t_min_aircraft_slack[k]). \
+                values_tl()
 
-        # for (k, t), num in cluster_data['num'].items():
-        #     model += \
-        #         pl.lpSum(start_M[a, t1, t2] for a in c_cand[k]
-        #                  for (t1, t2) in l['tt_maints_at'].get((a, t), [])
-        #                  ) <= num + pl.lpSum(slack_kts[k, t, s] for s in l['slots'])
-
+        log.debug("constraints: clusters hours 1")
         # Each cluster has a minimum number of usage hours to have
         # at each period.
         # TODO: filter inside the function
-        min_hours_slack = self.check_min_flight_hours(recalculate=False, deficit_only=False)
-        # TODO: use old_info to edit constant
-        # TODO: the ret in the last node should not be None!
-        # TODO: transform task and maintenance assignments into individual dates (period, period_end)
+        min_hours_slack = \
+            self.check_min_flight_hours(recalculate=False, deficit_only=False).\
+            vapply(op.mul, -1)
+
+        prevRuts_clustdate = \
+            tl.TupList((r, p) for r in resources for p in periods). \
+                to_dict(None). \
+                vapply(lambda v: res_clusters[v[0]]). \
+                to_tuplist(). \
+                to_dict(result_col=0, indices=[2, 1]). \
+                kvapply(lambda k, v: sum(self.get_remainingtime(p, k[1], 'rut', self.M) for p in v))
+
+        log.debug("constraints: clusters hours 2")
+        get_consum = lambda t: self.instance.data['tasks'][t]['consumption']
+        row_correct = lambda tup: tup[5] + (tup[7] - tup[6])*get_consum(tup[3]) if tup[4] == nd.TASK_TYPE else tup[5]
+
         p_clustdate = \
-            combos.\
-            vapply(lambda v: sd.SuperDict({vv.period: vv.rut[self.M] for vv in v if vv.rut is not None})).\
-            to_dictdict().\
-            to_dictup().\
-            to_tuplist().\
-            vapply(lambda v: (*v, c_cand[v[0]])).\
-            to_dict(indices=[4, 2], result_col=[0, 1, 3])
+            l['info'].\
+                to_dict(None). \
+                vapply(lambda v: res_clusters[v[0]]). \
+                to_tuplist().\
+                vapply(lambda v: (*v, row_correct(v))). \
+                to_dict(indices=[8, 2], result_col=[0, 1, 9]). \
+                fill_with_default(prevRuts_clustdate, [])
 
-        # constraints += \
-        #     p_clustdate. \
-        #     vapply(lambda v: pl.lpSum(assign[vv] for vv in v)). \
-        #     kvapply(lambda k, v: v - _slack_s_kt[k] <= t_min_aircraft_slack[k]). \
-        #     values_tl()
+        t_min_hour_slack = sum_of_two_dicts(prevRuts_clustdate, min_hours_slack)
 
-        # for (k, t), hours in cluster_data['hours'].items():
-        #     model += pl.lpSum(rut[a, t] for a in c_cand[k] if (a, t) in l['at']) >= hours - \
-        #              pl.lpSum(slack_kts_h[k, t, s] for s in l['slots'])
+        log.debug("constraints: clusters hours 3")
+        constraints += \
+            p_clustdate. \
+                kfilter(lambda k: t_min_hour_slack.get(k, 0) > 0). \
+                vapply(lambda v: [(assign[vv[0], vv[1]], vv[2]) for vv in v]). \
+                kvapply(lambda k, v: v + [(e, 1) for e in _slack_s_kt_h[k]]). \
+                kvapply(lambda k, v: pl.LpAffineExpression(v, constant=-t_min_hour_slack[k]) >= 0). \
+                values_tl()
 
-
+        log.debug("constraints: maintenances")
         # maintenance capacity
         rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=periods)
         type_m = self.instance.get_maintenances('type')
         p_maint_used = \
-            info[nd.MAINT_TYPE].\
-            vapply(lambda v: (*v, type_m[v[3]])).\
-            to_dict(indices=[4, 2], result_col=[0, 1])
+            info[nd.MAINT_TYPE]. \
+                vapply(lambda v: (*v, type_m[v[3]])). \
+                to_dict(indices=[4, 2], result_col=[0, 1])
 
         constraints += \
-            p_maint_used.\
-            vapply(lambda v:  pl.lpSum(assign[vv] for vv in v)).\
-            kvapply(lambda k, v: v - _slack_s_t[k[1]] <= rem_maint_capacity[k]).\
-            values_tl()
+            p_maint_used. \
+                vapply(lambda v: [(assign[vv], 1) for vv in v]). \
+                kvapply(lambda k, v: v + [(e, -1) for e in _slack_s_t[k[1]]]). \
+                kvapply(lambda k, v: pl.LpAffineExpression(v, constant= -rem_maint_capacity[k]) <= 0). \
+                values_tl()
 
         return objective_function, constraints
 
 
 if __name__ == '__main__':
     import package.params as pm
-    import package.instance as inst
     import data.test_data as test_d
 
     # data_in = test_d.dataset3_no_default()
@@ -673,7 +832,7 @@ if __name__ == '__main__':
     # resource = '1'
     res_patterns = sd.SuperDict()
     for resource in _resources:
-        _patterns = self.get_patterns_from_window(resource, date1, date2)
+        _patterns = self.get_pattern_options_from_window(resource, date1, date2)
         # res_patterns[resource] = self.filter_patterns(resource, date1, date2, patterns)
         res_patterns[resource] = _patterns
 

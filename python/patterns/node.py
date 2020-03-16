@@ -111,7 +111,7 @@ class Node(object):
         maints_ret = self.get_maints_rets()
         opts_ret = sd.SuperDict()
         for m in maints_ret:
-            start = max(self.ret[m] - elapsed_time_sizes[m], self.dif_period_1(self.period_end))
+            start = max(self.ret[m] - elapsed_time_sizes[m] + 1, self.dif_period_1(self.period_end))
             end = min(self.ret[m], self.dif_period(last))
             _range = range(int(start), int(end)+1)
             if _range:
@@ -427,13 +427,13 @@ def get_source_node(instance, resource):
     maints = instance.get_maintenances()
     rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
     ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
-    return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=None,
-                period_end=period, type=DUMMY_TYPE)
+    return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment='',
+                period_end=period, type=EMPTY_TYPE)
 
 
 def get_sink_node(instance, resource):
     last = instance.get_param('end')
     last_next = instance.get_next_period(last)
     defaults = dict(instance=instance, resource=resource)
-    return Node(period=last_next, assignment=None, rut=sd.SuperDict(),
-                ret=sd.SuperDict(), period_end = last_next, type=DUMMY_TYPE, **defaults)
+    return Node(period=last_next, assignment='', rut=None,
+                ret=None, period_end = last_next, type=EMPTY_TYPE, **defaults)

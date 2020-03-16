@@ -1,3 +1,8 @@
+import os
+
+this_file = os.path.realpath(__file__)
+parent_dir = os.path.dirname(this_file)
+
 
 def dataset1():
     maints = {
@@ -264,6 +269,22 @@ def dataset4():
         'maint_types': {}
     }
     return model_data
+
+def dataset5():
+    from .data_input import load_data
+    data_dir = os.path.join(parent_dir, 'cases/202003121542/data_in.json')
+    return load_data(data_dir)
+
+def solution5():
+    from .data_input import load_data
+    data_dir = os.path.join(parent_dir, 'cases/202003121542/data_out.json')
+    return load_data(data_dir)
+
+def options5():
+    from .data_input import load_data
+    data_dir = os.path.join(parent_dir, 'cases/202003121542/options.json')
+    return load_data(data_dir)
+
 
 def solution2():
     return {
