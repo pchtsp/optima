@@ -5,6 +5,7 @@ import numpy as np
 import math
 import pytups.superdict as sd
 import pytups.tuplist as tl
+import ujson as json
 
 
 class Instance(object):
@@ -33,6 +34,13 @@ class Instance(object):
         self.set_default_maintenances()
         self.prepare_maint_params()
         self.set_default_maint_types()
+
+    @classmethod
+    def from_instance(cls, instance):
+        data = instance.data
+        data_copy = json.loads(json.dumps(data))
+        new_instance = cls(sd.SuperDict.from_dict(data_copy))
+        return new_instance
 
     def set_default_params(self):
         # TODO: take out deprecated params
@@ -170,7 +178,7 @@ class Instance(object):
             return sd.SuperDict()
         if default_dict is not None:
             default_dict = sd.SuperDict.from_dict(default_dict)
-            data = data.vapply(lambda v: {**default_dict, **v})
+            data = data.vapply(lambda v: sd.SuperDict({**default_dict, **v}))
         if param is None:
             return data
         if param in list(data.values())[0]:
@@ -495,8 +503,7 @@ class Instance(object):
         limit = self.get_maintenances('max_used_time')['M']
         c_needs_hours = {(k, t): v * limit * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
-
-        return {'num': c_needs_num, 'hours': c_needs_hours}
+        return sd.SuperDict.from_dict({'num': c_needs_num, 'hours': c_needs_hours})
 
     def get_task_candidates(self, recalculate=True, task=None, resource=None):
 

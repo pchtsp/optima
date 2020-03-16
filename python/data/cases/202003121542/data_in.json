@@ -1,0 +1,794 @@
+{
+    "parameters": {
+        "maint_weight": 1,
+        "unavail_weight": 1,
+        "min_usage_period": 0,
+        "min_avail_percent": 0.1,
+        "min_avail_value": 1,
+        "min_hours_perc": 0.5,
+        "default_type2_capacity": 66,
+        "num_resources": 30,
+        "num_parallel_tasks": 2,
+        "maint_duration": 6,
+        "max_used_time": 1000,
+        "max_elapsed_time": 60,
+        "max_elapsed_time_2M": null,
+        "elapsed_time_size": 10,
+        "perc_capacity": 0.15,
+        "seed": 47,
+        "t_min_assign": [
+            2,
+            3,
+            6
+        ],
+        "initial_unbalance": [
+            -3,
+            3
+        ],
+        "t_required_hours": [
+            10,
+            50,
+            100
+        ],
+        "t_num_resource": [
+            1,
+            6
+        ],
+        "t_duration": [
+            6,
+            12
+        ],
+        "perc_in_maint": 0.07,
+        "perc_add_capacity": 0.1,
+        "maintenances": {
+            "M": {
+                "duration_periods": 4,
+                "capacity_usage": 1,
+                "max_used_time": 1000,
+                "max_elapsed_time": 60,
+                "elapsed_time_size": 3,
+                "used_time_size": 1000,
+                "type": "1",
+                "depends_on": [],
+                "affects": [],
+                "priority": 0
+            },
+            "VG": {
+                "duration_periods": 1,
+                "capacity_usage": 3,
+                "max_used_time": null,
+                "max_elapsed_time": 8,
+                "elapsed_time_size": 3,
+                "used_time_size": null,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 10
+            },
+            "VI": {
+                "duration_periods": 1,
+                "capacity_usage": 6,
+                "max_used_time": null,
+                "max_elapsed_time": 17,
+                "elapsed_time_size": 3,
+                "used_time_size": null,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 5
+            },
+            "VS": {
+                "duration_periods": 1,
+                "capacity_usage": 4,
+                "max_used_time": 600,
+                "max_elapsed_time": null,
+                "elapsed_time_size": null,
+                "used_time_size": 200,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 2
+            }
+        },
+        "start": "2018-01",
+        "num_period": 20,
+        "maint_capacity": 5,
+        "end": "2019-08"
+    },
+    "tasks": {
+        "0": {
+            "start": "2018-01",
+            "end": "2018-08",
+            "consumption": 30,
+            "num_resource": 1,
+            "type_resource": 0,
+            "matricule": "",
+            "min_assign": 2,
+            "capacities": [
+                0
+            ]
+        },
+        "1": {
+            "start": "2018-09",
+            "end": "2019-02",
+            "consumption": 89,
+            "num_resource": 3,
+            "type_resource": 0,
+            "matricule": "",
+            "min_assign": 3,
+            "capacities": [
+                0
+            ]
+        },
+        "2": {
+            "start": "2019-03",
+            "end": "2019-08",
+            "consumption": 65,
+            "num_resource": 6,
+            "type_resource": 0,
+            "matricule": "",
+            "min_assign": 6,
+            "capacities": [
+                0
+            ]
+        },
+        "3": {
+            "start": "2018-01",
+            "end": "2018-10",
+            "consumption": 45,
+            "num_resource": 1,
+            "type_resource": 1,
+            "matricule": "",
+            "min_assign": 3,
+            "capacities": [
+                1,
+                "A"
+            ]
+        },
+        "4": {
+            "start": "2018-11",
+            "end": "2019-07",
+            "consumption": 63,
+            "num_resource": 5,
+            "type_resource": 1,
+            "matricule": "",
+            "min_assign": 3,
+            "capacities": [
+                1
+            ]
+        },
+        "5": {
+            "start": "2019-08",
+            "end": "2019-08",
+            "consumption": 69,
+            "num_resource": 2,
+            "type_resource": 1,
+            "matricule": "",
+            "min_assign": 2,
+            "capacities": [
+                1,
+                "B"
+            ]
+        }
+    },
+    "resources": {
+        "0": {
+            "initial_elapsed": 54,
+            "initial_used": 850,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 54,
+                    "used": 850
+                }
+            }
+        },
+        "1": {
+            "initial_elapsed": 38,
+            "initial_used": 600,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 38,
+                    "used": 600
+                }
+            }
+        },
+        "2": {
+            "initial_elapsed": 59,
+            "initial_used": 1000,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {
+                "2017-12": "0",
+                "2017-11": "0"
+            },
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 59,
+                    "used": 1000
+                }
+            }
+        },
+        "3": {
+            "initial_elapsed": 19,
+            "initial_used": 350,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 19,
+                    "used": 350
+                }
+            }
+        },
+        "4": {
+            "initial_elapsed": 25,
+            "initial_used": 467,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 25,
+                    "used": 467
+                }
+            }
+        },
+        "5": {
+            "initial_elapsed": 37,
+            "initial_used": 667,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 37,
+                    "used": 667
+                }
+            }
+        },
+        "6": {
+            "initial_elapsed": 39,
+            "initial_used": 600,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 39,
+                    "used": 600
+                }
+            }
+        },
+        "7": {
+            "initial_elapsed": 60,
+            "initial_used": 1000,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {
+                "2017-12": "M",
+                "2017-11": "M",
+                "2017-10": "M"
+            },
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 60,
+                    "used": 1000
+                }
+            }
+        },
+        "8": {
+            "initial_elapsed": 33,
+            "initial_used": 534,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "B"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 33,
+                    "used": 534
+                }
+            }
+        },
+        "9": {
+            "initial_elapsed": 22,
+            "initial_used": 384,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 22,
+                    "used": 384
+                }
+            }
+        },
+        "10": {
+            "initial_elapsed": 39,
+            "initial_used": 700,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 39,
+                    "used": 700
+                }
+            }
+        },
+        "11": {
+            "initial_elapsed": 52,
+            "initial_used": 884,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 52,
+                    "used": 884
+                }
+            }
+        },
+        "12": {
+            "initial_elapsed": 28,
+            "initial_used": 484,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 28,
+                    "used": 484
+                }
+            }
+        },
+        "13": {
+            "initial_elapsed": 19,
+            "initial_used": 317,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 19,
+                    "used": 317
+                }
+            }
+        },
+        "14": {
+            "initial_elapsed": 60,
+            "initial_used": 1000,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {
+                "2017-12": "M",
+                "2017-11": "M",
+                "2017-10": "M",
+                "2017-09": "M",
+                "2017-08": "M"
+            },
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 60,
+                    "used": 1000
+                }
+            }
+        },
+        "15": {
+            "initial_elapsed": 36,
+            "initial_used": 650,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 36,
+                    "used": 650
+                }
+            }
+        },
+        "16": {
+            "initial_elapsed": 54,
+            "initial_used": 900,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 54,
+                    "used": 900
+                }
+            }
+        },
+        "17": {
+            "initial_elapsed": 17,
+            "initial_used": 267,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 17,
+                    "used": 267
+                }
+            }
+        },
+        "18": {
+            "initial_elapsed": 41,
+            "initial_used": 734,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "B"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 41,
+                    "used": 734
+                }
+            }
+        },
+        "19": {
+            "initial_elapsed": 10,
+            "initial_used": 117,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "B"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 10,
+                    "used": 117
+                }
+            }
+        },
+        "20": {
+            "initial_elapsed": 43,
+            "initial_used": 734,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 43,
+                    "used": 734
+                }
+            }
+        },
+        "21": {
+            "initial_elapsed": 56,
+            "initial_used": 917,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "B"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 56,
+                    "used": 917
+                }
+            }
+        },
+        "22": {
+            "initial_elapsed": 16,
+            "initial_used": 300,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "A"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 16,
+                    "used": 300
+                }
+            }
+        },
+        "23": {
+            "initial_elapsed": 27,
+            "initial_used": 467,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 27,
+                    "used": 467
+                }
+            }
+        },
+        "24": {
+            "initial_elapsed": 34,
+            "initial_used": 584,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 34,
+                    "used": 584
+                }
+            }
+        },
+        "25": {
+            "initial_elapsed": 19,
+            "initial_used": 350,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 19,
+                    "used": 350
+                }
+            }
+        },
+        "26": {
+            "initial_elapsed": 41,
+            "initial_used": 684,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 41,
+                    "used": 684
+                }
+            }
+        },
+        "27": {
+            "initial_elapsed": 38,
+            "initial_used": 667,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 38,
+                    "used": 667
+                }
+            }
+        },
+        "28": {
+            "initial_elapsed": 12,
+            "initial_used": 234,
+            "code": "",
+            "type": 0,
+            "capacities": [
+                0
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 12,
+                    "used": 234
+                }
+            }
+        },
+        "29": {
+            "initial_elapsed": 31,
+            "initial_used": 567,
+            "code": "",
+            "type": 1,
+            "capacities": [
+                1,
+                "A"
+            ],
+            "states": {},
+            "min_usage_period": {
+                "default": 0
+            },
+            "initial": {
+                "M": {
+                    "elapsed": 31,
+                    "used": 567
+                }
+            }
+        }
+    },
+    "maintenances": {
+        "M": {
+            "duration_periods": 6,
+            "capacity_usage": 1,
+            "max_used_time": 1000,
+            "max_elapsed_time": 60,
+            "elapsed_time_size": 10,
+            "used_time_size": 1000,
+            "type": "1",
+            "capacity": 5,
+            "depends_on": [
+                "M"
+            ],
+            "affects": [
+                "M"
+            ]
+        }
+    },
+    "maint_types": {
+        "1": {
+            "capacity": {}
+        }
+    }
+}

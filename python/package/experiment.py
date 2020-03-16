@@ -464,7 +464,7 @@ class Experiment(object):
         fixed_states = self.instance.get_fixed_states()
         fixed_states_h = fixed_states.\
             vfilter(lambda x: first_period <= x[2] <= last_period).\
-            filter([0, 2, 1])
+            take([0, 2, 1])
         # state_tasks_tab = pd.DataFrame(state_tasks,
         #                                columns=['resource', 'period', 'status'])
         # fixed_states_tab = pd.DataFrame(fixed_states_h,
@@ -480,20 +480,18 @@ class Experiment(object):
         """
         :return: periods where the min availability is not guaranteed.
         """
-        resources = self.instance.get_resources().keys()
-        c_candidates = self.instance.get_cluster_candidates()
+        res_clusters = self.instance.get_cluster_candidates().list_reverse()
         cluster_data = self.instance.get_cluster_constraints()
-        maint_periods = tl.TupList(self.get_maintenance_periods()).\
-            to_dict(result_col=[1, 2]).fill_with_default(keys=resources, default=[])
         max_candidates = cluster_data['num']
-        num_maintenances = sd.SuperDict().fill_with_default(max_candidates.keys())
-        for cluster, candidates in c_candidates.items():
-            for candidate in candidates:
-                for maint_period in maint_periods[candidate]:
-                    for period in self.instance.get_periods_range(*maint_period):
-                        if (cluster, period) in num_maintenances:
-                            num_maintenances[cluster, period] += 1
-        over_assigned = sd.SuperDict({k: max_candidates[k] - v for k, v in num_maintenances.items()})
+        num_maintenances = \
+            self.get_states().\
+            vfilter(lambda v: v[2] in {'M'}). \
+            to_dict(None). \
+            vapply(lambda v: res_clusters[v[0]]). \
+            to_tuplist(). \
+            vapply(lambda v: (*v, res_clusters[v[0]])).\
+            to_dict(indices=[3, 1]).to_lendict()
+        over_assigned = max_candidates.kvapply(lambda k, v: v - num_maintenances.get(k, 0))
         if deficit_only:
             over_assigned = over_assigned.vfilter(lambda x: x < 0)
         return over_assigned
@@ -502,21 +500,23 @@ class Experiment(object):
         """
         :return: periods where the min flight hours is not guaranteed.
         """
-        c_candidates = self.instance.get_cluster_candidates()
         cluster_data = self.instance.get_cluster_constraints()
         min_hours = cluster_data['hours']
+        first, last = self.instance.get_first_last_period()
+        res_clusters = self.instance.get_cluster_candidates().list_reverse()
         if recalculate:
             ruts = self.set_remaining_usage_time(time='rut', maint='M')
         else:
             ruts = self.get_remainingtime(time='rut', maint='M')
-        cluster_hours = sd.SuperDict().fill_with_default(min_hours.keys())
-        for cluster, candidates in c_candidates.items():
-            for candidate in candidates:
-                for period, hours in ruts[candidate].items():
-                    if period >= self.instance.get_param('start'):
-                        cluster_hours[cluster, period] += hours
-
-        hours_deficit = sd.SuperDict({k: v - min_hours[k] for k, v in cluster_hours.items()})
+        cluster_hours2 = \
+            ruts.to_dictup().\
+            kfilter(lambda k: k[1] >= first).\
+            to_tuplist().to_dict(None).\
+            vapply(lambda v: res_clusters[v[0]]).\
+            to_tuplist().\
+            to_dict(indices=[3, 1], result_col=2).\
+            vapply(sum)
+        hours_deficit = min_hours.kvapply(lambda k, v: cluster_hours2[k] - v)
         if deficit_only:
              hours_deficit = hours_deficit.vfilter(lambda x: x < 0)
         return hours_deficit
@@ -560,7 +560,7 @@ class Experiment(object):
             to_tuplist().sorted().\
             to_start_finish(compare_tups=compare, sort=False, pp=2).\
             vfilter(lambda x: x[4] < last).\
-            filter([0, 1, 2, 4]).\
+            take([0, 1, 2, 4]).\
             to_dict(result_col=None).\
             kapply(lambda k: (rets[k[0], k[1], k[3]], k[0])).\
             clean(func=lambda v: v[0] > elapsed_time_size[v[1]]).\
