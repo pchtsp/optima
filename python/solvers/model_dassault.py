@@ -85,7 +85,7 @@ class ModelMissions(exp.Experiment):
         self.reduction = pl.LpVariable.dicts('reduction', indexs=rem_rut_cycle, lowBound=0)
         self.reduction = sd.SuperDict.from_dict(self.reduction)
 
-        # penality for over-assigning missions to same aircraft
+        # penalty for over-assigning missions to same aircraft
         slots = [s for s in range(3)]
         _options = [(r, s) for r in resources for s in slots]
         self.num_missions_range = pl.LpVariable.dicts('num_missions_range', indexs=_options, lowBound=0, upBound=1)
@@ -112,7 +112,7 @@ class ModelMissions(exp.Experiment):
         # only one active mission assignment per aircraft.
         res_nb_mission = \
             task_period_rest.\
-            vfilter(lambda v: len(v)>1).\
+            vfilter(lambda v: len(v) > 1).\
             apply(lambda k, v: pl.lpSum(self.task[k[1], _v] for _v in v)).\
                 to_tuplist().take([1, 0, 2]).to_dict(2, is_list=False)
         for v in res_nb_mission.values():
@@ -212,88 +212,117 @@ class ModelMissions(exp.Experiment):
         _range_f = self.instance.get_periods_range
         assignments = self.task.vfilter(pl.value).keys_tl()
         tasks = self.instance.get_tasks()
-        _task = sd.SuperDict()
+        task_var = sd.SuperDict()
         for a, v in assignments:
             t1, t2 = tasks[v]['start'], tasks[v]['end']
             for t in _range_f(t1, t2):
-                _task[a, t] = v
+                task_var[a, t] = v
 
         sol_data = self.copy_solution()
-        sol_data['task'] = _task.to_dictdict()
+        sol_data['task'] = task_var.to_dictdict()
+
+        # we will try only with large maintenances.
+        # maint, check in [('M', {'M'}), ('VS', {'M', 'VS'})]
+        new_default_hours = sd.SuperDict()
+        for maint, check in [('VS', {'M', 'VS'}), ('M', {'M'})]:
+            new_default_hours = self.edit_default_hours_cycle(maint, check, task_var, new_default_hours)
+
+        sol_data['new_default'] = new_default_hours
+        return sol.Solution(sol_data)
+
+    def edit_default_hours_cycle(self, maint, check, task_solution, new_default_hours):
 
         # we add in aux some information
         # to discount the number of flight hours depending on the mission
-        
+        insta = self.instance
+        tasks = insta.get_tasks()
         consumption = tasks.get_property('consumption')
         total_consumption = \
-            self.instance.get_task_period_list().\
-            to_dict(1).to_lendict().\
-            kvapply(lambda k, v: v*consumption[k])
+            self.instance.get_task_period_list(). \
+                to_dict(1).to_lendict(). \
+                kvapply(lambda k, v: v * consumption[k])
 
-        task_start = _task.to_tuplist().to_dict(result_col=1).vapply(lambda v: v[0])
-        # we will try only with large maintenances.
-        resources = self.instance.get_resources()
+        resources = insta.get_resources()
         resource_cycles = \
-            self.get_maintenance_periods(state_list={'M'}). \
+            self.get_maintenance_periods(state_list=check). \
             to_dict(result_col=[1, 2]). \
             vapply(sorted). \
             fill_with_default(keys=resources, default=[]). \
             vapply(self.get_maintenance_cycles)
 
-        first, last = self.instance.get_start_end()
-        cycle_task = tl.TupList()
-        for (res, mission), _task_start in task_start.items():
-            for start, end in resource_cycles[res]:
-                # if the cycle has not finished... then it does not make sense
-                # to correct it
-                if end == last:
-                    continue
+        # cycles_all = resource_cycles.to_tuplist()
+        first, last = insta.get_start_end()
+        # we calculate which mission assignment is in which resource cycle.
+        task_start = task_solution.to_tuplist().to_dict(result_col=1).vapply(lambda v: v[0])
+        cycle_tasks = tl.TupList()
+        for (resource, mission), _task_start in task_start.items():
+            for start, end in resource_cycles[resource]:
                 if start <= _task_start <= end:
-                    cycle_task.add(res, start, end, mission)
+                    cycle_tasks.add(resource, start, end, mission)
 
-        mission_consumption = \
-            cycle_task.to_dict(result_col=3).\
+        # we sum the consumption of missions for each cycle.
+        cycle_missionHours = \
+            cycle_tasks.to_dict(result_col=3).\
             vapply(lambda v: v.vapply(lambda vv: total_consumption[vv])).\
             vapply(sum)
 
-        _range = lambda st, stp: set(self.instance.get_periods_range(st, stp))
+        _range = lambda st, stp: set(insta.get_periods_range(st, stp))
 
-        # we get the periods the resource is in task
+        # we get the periods the resource is in tasks in the cycle.
         mission_periods = sd.SuperDict()
-        for res, start, stop, v in cycle_task:
-            _tup = (res, start, stop)
-            if _tup not in mission_periods:
-                mission_periods[_tup] = set()
-            mission_periods[_tup] |= _range(tasks[v]['start'], tasks[v]['end'])
+        for resource, start, stop, v in cycle_tasks:
+            cycle = (resource, start, stop)
+            if cycle not in mission_periods:
+                mission_periods[cycle] = set()
+            mission_periods[cycle] |= _range(tasks[v]['start'], tasks[v]['end'])
+
+        # all periods on a cycle
+        cycle_allPeriods = cycle_missionHours.kapply(lambda k: _range(k[1], k[2]))
+
+        # we also consider periods already fixed as "missions":
+        res_fixedPeriods = new_default_hours.vapply(set)
+
+        # we do the same for the fixed default hours:
+        cycle_FixeDefPeriods = \
+            cycle_allPeriods.\
+            kvapply(lambda k, v: v & res_fixedPeriods.get(k[0], set()))
 
         # we subtract the task periods from the cycle
-        cycle_periods = mission_consumption.kapply(lambda k: _range(k[1], k[2]) - mission_periods[k])
+        cycle_noFixedPeriods = \
+            cycle_allPeriods.\
+            kvapply(lambda k, v: v - mission_periods[k] - cycle_FixeDefPeriods[k])
 
-        # we get the total  hours available in the cycle:
-        rut_init = self.instance.get_initial_state('used', maint='M').vapply(lambda v: sd.SuperDict({first: v}))
-        max_rut = self.instance.get_maintenances('max_used_time')['M']
-        cycle_rut = mission_consumption.kapply(lambda k: rut_init.get_m(k[0], k[1], default=max_rut))
+        # we get the total hours available in each cycle:
+        rut_init = \
+            insta.get_initial_state('used', maint=maint).\
+            vapply(lambda v: sd.SuperDict({first: v}))
+        max_rut = insta.get_maintenances('max_used_time')[maint]
+        cycle_rut = cycle_missionHours.kapply(lambda k: rut_init.get_m(k[0], k[1], default=max_rut))
+
+        cycle_fixedDefHours = \
+            cycle_FixeDefPeriods.\
+            kvapply(lambda k, v: sum(new_default_hours[k[0]][p] for p in v)).vapply(round, 2)
 
         # we get the amount of hours the aircraft should have to do
         # to comply with the cycle remaining hours
-        cycle_total = cycle_rut.kvapply(lambda k, v: (v- mission_consumption[k]))
+        cycle_maxDefaultHours = \
+            cycle_rut.\
+                kvapply(lambda k, v: (v - cycle_missionHours[k] - cycle_fixedDefHours[k]))
 
-        _old_default = self.instance.get_default_consumption
-        new_default_hours = sd.SuperDict()
-        for (res, start, stop), hours in cycle_total.items():
-            cy_periods = cycle_periods[res, start, stop]
-            total_default = sum(_old_default(res, p) for p in cy_periods)
-            # if we can do more than the default, we leave the default
-            if hours >= total_default:
-                continue
+        get_default = insta.get_default_consumption
+        cycle_defaults = \
+            cycle_noFixedPeriods.\
+            kvapply(lambda k, v: sum(get_default(k[0], p) for p in v))
+        # if we can do more than the default, we leave the default
+        cycle_wrong = cycle_maxDefaultHours.kfilter(lambda k: cycle_maxDefaultHours[k] < cycle_defaults[k])
+        for _tup, max_default_hours in cycle_wrong.items():
             # we distribute the hours among all periods
-            mean_hours = round(hours / len(cy_periods), 2)
+            cy_periods = cycle_noFixedPeriods[_tup]
+            mean_hours = round(max_default_hours / len(cy_periods), 2)
+            resource = _tup[0]
             for period in cy_periods:
-                new_default_hours.set_m(res, period, value=mean_hours)
-
-        sol_data['new_default'] = new_default_hours
-
-        return sol.Solution(sol_data)
+                new_default_hours.set_m(resource, period, value=mean_hours)
+        return new_default_hours
 
 
 if __name__ == '__main__':
