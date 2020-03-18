@@ -41,6 +41,7 @@ class Node(object):
         self._backup_maints = None
         self._backup_vtt2_between_tt = None
         self._backup_vtt2_that_start_t = None
+        self._backup_vtt2_that_start_t_and_end_before_t2 = None
         return
 
     @classmethod
@@ -61,6 +62,7 @@ class Node(object):
         new_node._backup_maints = node._backup_maints
         new_node._backup_vtt2_between_tt = node._backup_vtt2_between_tt
         new_node._backup_vtt2_that_start_t = node._backup_vtt2_that_start_t
+        new_node._backup_vtt2_that_start_t_and_end_before_t2 = node._backup_vtt2_that_start_t_and_end_before_t2
         return new_node
 
     def __repr__(self):
@@ -111,8 +113,8 @@ class Node(object):
         maints_ret = self.get_maints_rets()
         opts_ret = sd.SuperDict()
         for m in maints_ret:
-            start = max(self.ret[m] - elapsed_time_sizes[m] + 1, self.dif_period_1(self.period_end))
-            end = min(self.ret[m], self.dif_period(last))
+            start = max(self.ret[m] - elapsed_time_sizes[m] + 1, 1)
+            end = min(self.ret[m], self.dif_period_end(last))
             _range = range(int(start), int(end)+1)
             if _range:
                 opts_ret[m] = _range
@@ -147,6 +149,22 @@ class Node(object):
                 to_dict(result_col=[0, 1, 2], indices=[1]).\
                 vapply(lambda v: v.sorted())
         return self._backup_vtt2_that_start_t.get(period, tl.TupList())
+
+    def get_assignments_start_date_end_before_date(self, period1, period2):
+        if self._backup_vtt2_that_start_t_and_end_before_t2 is not None:
+            return self._backup_vtt2_that_start_t_and_end_before_t2.get((period1, period2), tl.TupList())
+        vtt2 = self.get_vtt2()
+        periods = self.instance.get_periods()
+        vtt2_before_t = {t: vtt2.vfilter(lambda x: x[2] <= t) for t in periods}
+        vtt2_before_t = sd.SuperDict.from_dict(vtt2_before_t).vapply(set)
+        vtt2_start_t = vtt2.to_dict(result_col=[0, 1, 2], indices=[1]).fill_with_default(periods, []).vapply(set)
+        result = \
+            {(t1, t2): vtt2_start_t[t1] & vtt2_before_t[t2]
+             for pos1, t1 in enumerate(periods) for t2 in periods[pos1:]}
+        self._backup_vtt2_that_start_t_and_end_before_t2 = \
+            sd.SuperDict.from_dict(result).vapply(lambda v: tl.TupList(v).sorted())
+        return self._backup_vtt2_that_start_t_and_end_before_t2.get((period1, period2), tl.TupList())
+
 
     def get_assignments_between_dates(self, period1, period2):
         if self._backup_vtt2_between_tt is not None:
@@ -204,37 +222,28 @@ class Node(object):
         last = self.instance.get_param('end')
         if self.period_end >= last:
             return []
-
-        adj_per_maints = self.get_adjacency_list_maints(only_next_period=only_next_period)
+        opts_tot = self.get_maint_options()
+        adj_per_maints = self.get_adjacency_list_maints(opts_tot=opts_tot, only_next_period=only_next_period)
         hard_last = self.instance.get_param('end')
+        last = self.get_last_possible_nonmaint_period(opts_tot=opts_tot)
         extra_nodes = []
-        last = hard_last
-        if adj_per_maints:
-            next_to_last = max(n.period for n in adj_per_maints)
-            # only update if it really is before the last period.
-            if next_to_last < hard_last:
-                last = self.instance.get_prev_period(next_to_last)
         if last == hard_last and (not only_next_period or self.period_end == last):
             # this means that we are not obliged to any node, we can go to the end.
-            extra_nodes = [get_sink_node(self.instance, self.resource)]
-        # real_last = self.instance.get_param('end')
+            extra_nodes.append(get_sink_node(self.instance, self.resource))
+        if last == hard_last or self.dif_period_end(last) > 0:
+            # if there is no mandatory maintenance: we can do nothing.
+            extra_nodes.extend(self.get_adjancency_list_nothing())
         return adj_per_maints + extra_nodes + \
-               self.get_adjacency_list_tasks(last, only_next_period=only_next_period) + \
-               self.get_adjancency_list_nothing()
+               self.get_adjacency_list_tasks(last, only_next_period=only_next_period)
 
     def get_adjancency_list_nothing(self):
-        distance = self.dif_period_1(self.period_end)
-        node = self.create_adjacent(assignment="", num_periods=distance, duration=1, type=EMPTY_TYPE)
+        # distance = self.dif_period_1(self.period_end)
+        node = self.create_adjacent(assignment="", num_periods=1, duration=1, type=EMPTY_TYPE)
         if node is None:
             return []
         return [node]
 
-    # @profile
-    def get_adjacency_list_maints(self, only_next_period=False):
-        """
-        gets all nodes that are reachable from this node.
-        :return: a list of nodes.
-        """
+    def get_maint_options(self):
         opts_ret = self.get_maint_options_ret()
         opts_rut = self.get_maint_options_rut()
 
@@ -248,15 +257,34 @@ class Node(object):
         opts_tot = opts_rut.clean(func=lambda v: v)
         opts_tot.update(opts_ret)
         opts_tot.update(int_dict)
-        # print(opts_tot)
-        # opts_tot = opts_rut._update(opts_ret)._update(int_dict).clean(func=lambda v: v)
+        return opts_tot
+
+    def get_last_possible_nonmaint_period(self, opts_tot):
+        hard_last = self.instance.get_param('end')
+        if not opts_tot:
+            return hard_last
+        max_opts = min(opts_tot.vapply(lambda l: max(l)).values())
+        next_to_last = self.shift_period_end(max_opts)
+        # next_to_last = max(n.period for n in adj_per_maints)
+        # only update if it really is before the last period.
+        if next_to_last < hard_last:
+            return self.instance.get_prev_period(next_to_last)
+        else:
+            return hard_last
+
+    # @profile
+    def get_adjacency_list_maints(self, opts_tot, only_next_period=False):
+        """
+        gets all nodes that are reachable from this node.
+        :return: a list of nodes.
+        """
         if not opts_tot:
             return []
         if only_next_period:
             # soonest possible maintenance
             min_opts = min(opts_tot.vapply(lambda l: min(l)).values())
             # if the soonest maintenance is more than a period away: do not bother
-            if min_opts - self.dif_period_1(self.period_end) > 1:
+            if min_opts > 1:
                 return []
             opts_tot = opts_tot.vfilter(lambda v: min_opts in v).vapply(lambda v: {min_opts})
         max_opts = min(opts_tot.vapply(lambda l: max(l)).values())
@@ -272,12 +300,12 @@ class Node(object):
         min_period_to_check = self.shift_period_end()
         if only_next_period:
             possible_assignments_task = \
-                self.get_assignments_start_date(min_period_to_check)
+                self.get_assignments_start_date_end_before_date(min_period_to_check, max_period_to_check)
         else:
             possible_assignments_task = \
                 self.get_assignments_between_dates(min_period_to_check, max_period_to_check)
 
-        diff = self.dif_period
+        diff = self.dif_period_end
         dist = self.instance.get_dist_periods
 
         def prepare_tuple(tuple):
@@ -291,8 +319,8 @@ class Node(object):
             get_property('consumption').\
             vapply(lambda v: math.floor(min_rut / v))
 
-        # TODO: controversial hypothesis implemented. not two consecutive assignments
-            # of the same task
+        # potentially controversial hypothesis implemented.
+            # not two consecutive assignments of the same task
         return possible_assignments_task. \
             vfilter(lambda v: v[0] != self.assignment).\
             vapply(prepare_tuple).\
@@ -344,7 +372,7 @@ class Node(object):
 
     def calculate_ret(self, assignment, period, num_periods):
         """
-        If next m=assignment and is done in t=period, how does ret change?
+        If next m=assignment and is done in t=period for duration=num_periods, how does ret change?
         :param str assignment: a maintenance or a task
         :param str period:
         :return:
@@ -373,20 +401,11 @@ class Node(object):
             ret[m] = max_elapsed_times[m]
         return ret
 
-    def shift_period(self, num=1):
-        return self.instance.shift_period(self.period, num)
-
     def shift_period_end(self, num=1):
         return self.instance.shift_period(self.period_end, num)
 
-    def dif_period(self, period):
-        return self.instance.get_dist_periods(self.period, period)
-
     def dif_period_end(self, period):
         return self.instance.get_dist_periods(self.period_end, period)
-
-    def dif_period_1(self, period):
-        return self.instance.get_dist_periods(self.period, period) + 1
 
     def get_consume(self, period):
         return self.instance.get_default_consumption(self.resource, period)
@@ -402,8 +421,17 @@ class Node(object):
             yield current
 
     def create_adjacent(self, assignment, num_periods, duration, type=0):
-        period = self.shift_period(num_periods)
-        period_end = self.shift_period(num_periods + duration - 1)
+        """
+
+        :param str assignment: actual thing to do
+        :param int num_periods: periods since the end of the present node (self.period_end)
+            and the start of the new_node (self.period)
+        :param int duration: periods the new_node will take (new_node.period => new_node.period_end)
+        :param int type: type of assignment (maintenance, mission, dummy, etc.)
+        :return: Node
+        """
+        period = self.shift_period_end(num_periods)
+        period_end = self.shift_period_end(num_periods + duration - 1)
         last = self.instance.get_param('end')
         if period_end > last:
             # this should only happen with maintenances and blank nodes.

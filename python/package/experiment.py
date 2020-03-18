@@ -531,8 +531,9 @@ class Experiment(object):
         def dist_periods(series, series2):
             return pd.Series(self.instance.get_dist_periods(p, p2) for p, p2 in zip(series, series2))
 
-        inside = np.any([m_s_tab_r.start > start, m_s_tab_r.end < end], axis=0)
-        m_s_tab = m_s_tab_r[inside]
+        # TODO: this check was too strict but the model complied with it, apparently...
+        inside = (m_s_tab_r.start > start) & (m_s_tab_r.end < end)
+        m_s_tab = m_s_tab_r[inside].reset_index()
         m_s_tab['dist'] = dist_periods(m_s_tab.start, m_s_tab.end) + 1
         m_s_tab['duration'] = m_s_tab.maint.map(duration)
         m_s_tab['value'] = m_s_tab.dist - m_s_tab.duration

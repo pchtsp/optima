@@ -442,6 +442,11 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         vars_to_fix = options.get('fix_vars', [])
         if vars_to_fix:
             self.fix_variables(model_vars.filter(vars_to_fix, check=False))
+            if 'assign' in vars_to_fix:
+                model_vars['assign'] = model_vars['assign'].vfilter(lambda v: v.value())
+                selected_assign = model_vars['assign'].keys_tl().to_set()
+                self.domains['info'] = self.domains['info'].vfilter(lambda v: (v[0], v[1]) in selected_assign)
+                self.domains['combos'] = self.domains['combos'].filter(selected_assign)
 
         # We all constraints at the same time:
         objective_function, constraints = self.build_model(**model_vars)
@@ -468,6 +473,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
         self.solution = self.get_repaired_solution(l['combos'], model_vars['assign'])
+
         return self.solution
 
     def get_repaired_solution(self, combos, assign):
@@ -654,8 +660,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             return \
                 (dict1.keys_tl() + dict2.keys_tl()). \
                     to_dict(None). \
-                    kapply(lambda k: dict1.get(k, 0)). \
-                    kvapply(lambda k, v: v + dict2.get(k, 0))
+                    kapply(lambda k: dict1.get(k, 0) + dict2.get(k, 0))
 
         _slack_s_kt = sum_of_slots(slack_kts)
         slack_kts_p = {(k, t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 50 for k, t, s in l['kts']}
@@ -684,7 +689,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         constraints += \
             combos.keys_tl(). \
                 vapply(lambda v: (v[0], *v)).to_dict(result_col=[1, 2]). \
-                vapply(lambda v: pl.lpSum(assign[vv] for vv in v) == 1). \
+                vapply(lambda v: ((assign[vv], 1) for vv in v)). \
+                vapply(lambda v: pl.LpAffineExpression(v, constant=-1) == 0). \
                 values_tl()
 
         # ##################################
@@ -697,20 +703,20 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         prev_mission_needs = \
             old_info[nd.TASK_TYPE]. \
-                to_dict(indices=[3, 2], result_col=[0, 1]). \
-                vapply(len)
+            to_dict(indices=[3, 2], result_col=[0, 1]). \
+            vapply(len)
         t_mission_needs = sum_of_two_dicts(mission_needs, prev_mission_needs)
 
         p_mission = \
             info[nd.TASK_TYPE]. \
                 to_dict(indices=[3, 2], result_col=[0, 1]). \
-                fill_with_default(t_mission_needs, default=[])
+                fill_with_default(t_mission_needs, default=tl.TupList())
 
         constraints += \
             p_mission. \
                 kfilter(lambda k: t_mission_needs[k] > 0). \
                 vapply(lambda v: [(assign[vv], 1) for vv in v]). \
-                kvapply(lambda k, v: [(e, 1) for e in _slack_s_vt[k]]). \
+                kvapply(lambda k, v: v + [(e, 1) for e in _slack_s_vt[k]]). \
                 kvapply(lambda k, v: pl.LpAffineExpression(v, constant=-t_mission_needs[k]) >= 0). \
                 values_tl()
 
@@ -762,10 +768,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 to_dict(result_col=0, indices=[2, 1]). \
                 kvapply(lambda k, v: sum(self.get_remainingtime(p, k[1], 'rut', self.M) for p in v))
 
+        t_min_hour_slack = sum_of_two_dicts(prevRuts_clustdate, min_hours_slack)
+
         log.debug("constraints: clusters hours 2")
         get_consum = lambda t: self.instance.data['tasks'][t]['consumption']
         row_correct = lambda tup: tup[5] + (tup[7] - tup[6])*get_consum(tup[3]) if tup[4] == nd.TASK_TYPE else tup[5]
-
+        # l['info'].vfilter(lambda v: (v[0], v[1])==('22', 1095))
         p_clustdate = \
             l['info'].\
                 to_dict(None). \
@@ -774,8 +782,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 vapply(lambda v: (*v, row_correct(v))). \
                 to_dict(indices=[8, 2], result_col=[0, 1, 9]). \
                 fill_with_default(prevRuts_clustdate, [])
-
-        t_min_hour_slack = sum_of_two_dicts(prevRuts_clustdate, min_hours_slack)
 
         log.debug("constraints: clusters hours 3")
         constraints += \
@@ -790,6 +796,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # maintenance capacity
         rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=periods)
         type_m = self.instance.get_maintenances('type')
+
+        prevMaints_usage = \
+            old_info[nd.MAINT_TYPE]. \
+                vapply(lambda v: (*v, type_m[v[3]])). \
+                to_dict(indices=[4, 2]).vapply(len)
+        t_max_maint_slack = sum_of_two_dicts(prevMaints_usage, rem_maint_capacity)
         p_maint_used = \
             info[nd.MAINT_TYPE]. \
                 vapply(lambda v: (*v, type_m[v[3]])). \
@@ -799,7 +811,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             p_maint_used. \
                 vapply(lambda v: [(assign[vv], 1) for vv in v]). \
                 kvapply(lambda k, v: v + [(e, -1) for e in _slack_s_t[k[1]]]). \
-                kvapply(lambda k, v: pl.LpAffineExpression(v, constant= -rem_maint_capacity[k]) <= 0). \
+                kvapply(lambda k, v: pl.LpAffineExpression(v, constant= -t_max_maint_slack[k]) <= 0). \
                 values_tl()
 
         return objective_function, constraints
