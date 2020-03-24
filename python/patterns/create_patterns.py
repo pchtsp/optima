@@ -1,8 +1,14 @@
 import package.instance as inst
+import data.data_input as di
+
 import pytups.superdict as sd
 import pytups.tuplist as tl
 import numpy.random as rn
 import patterns.node as nd
+import random
+import os
+import logging as log
+
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
@@ -39,7 +45,7 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
             # we have the cache AND we don't want paths, we leave
             continue
         remaining_nodes += [(n, path) for n in neighbors]
-        print("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
+        # log.debug("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
     if get_nodes_only:
         return cache_neighbors
     return final_paths
@@ -146,16 +152,22 @@ def draw_graph(instance, g, refs_inv=None):
     gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
-def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, **kwargs):
+def shortest_path(graph, refs, node1, node2, **kwargs):
+    import graph_tool.all as gr
+    return gr.shortest_distance(graph, source=refs[node1], target=refs[node2])
+
+def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, max_paths=1000, **kwargs):
     import graph_tool.all as gr
     # TODO: there is something going on with default consumption
     # TODO: there is something going on with initial states
-    all_paths = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-    return tl.TupList(all_paths).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
+    paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
+    sample = iter_sample_fast(paths_iterator, max_paths, max_paths*100)
+    return tl.TupList(sample).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
+    node = node1
     refs.keys_tl().\
-        vfilter(lambda v: v.period=='2019-01' and v.period_end=='2019-01' and v.assignment=='').\
-        vapply(lambda v: (v.rut, v.ret))
-    node1.rut, node1.ret
+        vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
+        vapply(lambda v: (v.rut, v.ret, v.type))
+    node.rut, node.ret, node.type
 
 def state_to_node(instance, resource, state):
     return nd.Node(instance=instance, resource=resource, **state)
@@ -185,7 +197,7 @@ def get_graph_of_resource(instance, resource):
             vapply(lambda v: [nd.Node(**v)])
 
     # TODO: fix assignment periods should only leave the possibility of the assignment
-    # maybe changing the origin.
+    #   maybe changing the origin.
 
     nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 
@@ -197,6 +209,62 @@ def get_graph_of_resource(instance, resource):
     g, refs = adjacency_to_graph(nodes_ady_2)
     return sd.SuperDict(graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink)
 
+
+def iter_sample_fast(iterable, samplesize, max_iterations=9999999):
+    """
+
+    :param iter iterable:
+    :param samplesize:
+    :return:
+    # https://stackoverflow.com/questions/12581437/python-random-sample-with-a-generator-iterable-iterator
+    """
+    results = []
+    iterator = iter(iterable)
+    # Fill in the first samplesize elements:
+    try:
+        for _ in range(samplesize):
+            results.append(next(iterator))
+    except StopIteration:
+        return results
+    random.shuffle(results)  # Randomize their positions
+    for i, v in enumerate(iterator, samplesize):
+        # log.debug('In node number: {}'.format(i))
+        r = random.randint(0, i)
+        if r < samplesize:
+            results[r] = v  # at a decreasing rate, replace random items
+        if i >= max_iterations:
+            break
+    return results
+
+
+def export_graph_data(path, data, resource):
+
+    name = 'cache_info_{}'.format(resource)
+    graph_file = os.path.join(path, 'graph_{}_.gt'.format(resource))
+    _data = data[resource]['refs_inv'].vapply(lambda v: v.get_data()).to_tuplist()
+    di.export_data(path, _data, name = name)
+    data[resource]['graph'].save(graph_file)
+
+
+def import_graph_data(path, resource):
+    import graph_tool.all as gr
+
+    _path = os.path.join(path, 'cache_info_{}.json'.format(resource))
+    refs_inv = di.load_data(_path)
+    graph = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
+    return sd.SuperDict(graph=graph, refs_inv=refs_inv)
+
+# def random_items(iterable, k=1):
+#     result = [None] * k
+#     for i, item in enumerate(iterable):
+#         if i < k:
+#             result[i] = item
+#         else:
+#             j = int(random() * (i+1))
+#             if j < k:
+#                 result[j] = item
+#     shuffle(result)
+#     return result
 
 if __name__ == '__main__':
     import package.params as params
