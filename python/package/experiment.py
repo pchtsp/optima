@@ -162,24 +162,32 @@ class Experiment(object):
         values[1:] = values[1:] - values[:-1]
         return values, groups
 
-    def check_task_num_resources(self, deficit_only=True, assign_missions=True, **params):
+    def check_task_num_resources(self, deficit_only=True, assign_missions=True, periods=None, **params):
         if not assign_missions:
             return sd.SuperDict()
-        task_reqs = self.instance.get_tasks('num_resource')
-        task_period_list = self.instance.get_task_period_list()
-
-        task_assigned = \
-            sd.SuperDict.from_dict(self.solution.get_task_num_resources()).\
-                fill_with_default(task_period_list)
-
-        task_under_assigned = {
-            (task, period): task_reqs[task] - task_assigned[task, period]
-            for (task, period) in task_assigned
-        }
-        if not deficit_only:
-            return sd.SuperDict(task_under_assigned)
+        if periods is None:
+            periods = self.instance.get_periods().to_set()
         else:
-            return sd.SuperDict(task_under_assigned).vfilter(lambda x: x > 0)
+            periods = set(periods)
+        task_reqs = self.instance.get_tasks('num_resource')
+        task_period_list = \
+            self.instance.get_task_period_list().\
+            vfilter(lambda k: k[1] in periods)
+
+        task_under_assigned = \
+            self.solution.get_task_num_resources().\
+            kfilter(lambda k: k[1] in periods).\
+            fill_with_default(task_period_list).\
+            kvapply(lambda k, v: task_reqs[k[0]] - v)
+
+        # task_under_assigned = {
+        #     (task, period): task_reqs[task] - task_assigned[task, period]
+        #     for (task, period) in task_assigned
+        # }
+        if not deficit_only:
+            return task_under_assigned
+        else:
+            return task_under_assigned.vfilter(lambda x: x > 0)
 
     def check_resource_in_candidates(self, **params):
         task_solution = self.solution.get_tasks()
@@ -383,12 +391,12 @@ class Experiment(object):
         return self.solution.data['aux'][time][maint]
 
     def check_usage_consumption(self, **params):
-        return self.check_resource_consumption(time='rut', **params)
+        return self.check_resource_consumption(time='rut', **params, min_value=-1)
 
     def check_elapsed_consumption(self, **params):
-        return self.check_resource_consumption(time='ret', **params)
+        return self.check_resource_consumption(time='ret', **params, min_value=0)
 
-    def check_resource_consumption(self, time='rut', recalculate=True, **params):
+    def check_resource_consumption(self, time='rut', recalculate=True, min_value=0, **params):
         """
         This function (calculates and) checks the "remaining time" for all maintenances
         :param time: calculate rut or ret
@@ -403,7 +411,7 @@ class Experiment(object):
 
 
         return sd.SuperDict(rt_maint).to_dictup().\
-            clean(func=lambda x: x is not None and x <= 0)
+            clean(func=lambda x: x is not None and x <= min_value)
 
     def check_resource_state(self, **params):
         task_solution = self.solution.get_tasks()
@@ -476,16 +484,20 @@ class Experiment(object):
         #                      result[result.state_x != result.state_y].to_records(index=False)})
 
 
-    def check_min_available(self, deficit_only=True, **params):
+    def check_min_available(self, deficit_only=True, periods=None, **params):
         """
         :return: periods where the min availability is not guaranteed.
         """
+        if periods is None:
+            periods = self.instance.get_periods().to_set()
+        else:
+            periods = set(periods)
         res_clusters = self.instance.get_cluster_candidates().list_reverse()
         cluster_data = self.instance.get_cluster_constraints()
-        max_candidates = cluster_data['num']
+        max_candidates = cluster_data['num'].kfilter(lambda k: k[1] in periods)
         num_maintenances = \
             self.get_states().\
-            vfilter(lambda v: v[2] in {'M'}). \
+            vfilter(lambda v: v[1] in periods and v[2] in {'M'}). \
             to_dict(None). \
             vapply(lambda v: res_clusters[v[0]]). \
             to_tuplist(). \
@@ -496,21 +508,26 @@ class Experiment(object):
             over_assigned = over_assigned.vfilter(lambda x: x < 0)
         return over_assigned
 
-    def check_min_flight_hours(self, recalculate=True, deficit_only=True, **params):
+    def check_min_flight_hours(self, recalculate=True, deficit_only=True, periods=None, **params):
         """
+        :param recalculate: if True, we recalculate rut
+        :param list periods: optional filter
         :return: periods where the min flight hours is not guaranteed.
         """
-        cluster_data = self.instance.get_cluster_constraints()
-        min_hours = cluster_data['hours']
-        first, last = self.instance.get_first_last_period()
-        res_clusters = self.instance.get_cluster_candidates().list_reverse()
         if recalculate:
             ruts = self.set_remaining_usage_time(time='rut', maint='M')
         else:
             ruts = self.get_remainingtime(time='rut', maint='M')
+        if periods is None:
+            periods = self.instance.get_periods().to_set()
+        else:
+            periods = set(periods)
+        cluster_data = self.instance.get_cluster_constraints()
+        min_hours = cluster_data['hours'].kfilter(lambda k: k[1] in periods)
+        res_clusters = self.instance.get_cluster_candidates().list_reverse()
         cluster_hours2 = \
             ruts.to_dictup().\
-            kfilter(lambda k: k[1] >= first).\
+            kfilter(lambda k: k[1] in periods).\
             to_tuplist().to_dict(None).\
             vapply(lambda v: res_clusters[v[0]]).\
             to_tuplist().\
@@ -754,7 +771,7 @@ class Experiment(object):
         # table.columns = ['rut', 'ret', 'state', 'task']
         # return table
 
-    def copy_solution(self):
+    def copy_solution(self, exclude_aux=False):
         """
         Makes a deep copy of the current solution.
 
@@ -763,6 +780,8 @@ class Experiment(object):
         """
         data = self.solution.data
         data_copy = ujson.loads(ujson.dumps(data))
+        if exclude_aux:
+            data_copy.pop('aux', None)
         return sd.SuperDict.from_dict(data_copy)
 
     def set_solution(self, data):

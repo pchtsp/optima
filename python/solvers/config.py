@@ -126,7 +126,7 @@ class Config(object):
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)
-                result = model.solve(solver, timeout=self.timeLimit + 60)
+                result = model.solve(solver)
                 dup2(orig_std_out, 1)
                 close(orig_std_out)
                 tmp_output.seek(0)

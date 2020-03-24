@@ -135,7 +135,7 @@ def execute_solve(model_data, options, solution_data=None):
     if solution is None:
         return None
 
-    experiment = exp.Experiment(instance, solution)
+    experiment.set_solution(solution.data)
     errors = experiment.check_solution()
     errors = {k: v.to_dictdict() for k, v in errors.items()}
 
@@ -143,6 +143,12 @@ def execute_solve(model_data, options, solution_data=None):
     di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json', exclude_aux=exclude_aux)
     if len(errors):
         di.export_data(output_path, errors, name='errors', file_type="json")
+
+    try:
+        sol_store = experiment.solution_store
+        di.export_data(output_path, sol_store, name="data_history", file_type='json')
+    except AttributeError:
+        sol_store = None
 
     if options.get('template', False):
         td.export_output_template(options['output_template_path'], experiment)

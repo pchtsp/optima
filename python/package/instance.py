@@ -368,7 +368,7 @@ class Instance(object):
     def get_periods_range(self, start, end):
         pos_period = self.get_period_positions()
         period_pos = self.get_periods_by_position()
-        return [period_pos[t] for t in range(pos_period[start], pos_period[end]+1)]
+        return tl.TupList(period_pos[t] for t in range(pos_period[start], pos_period[end]+1))
 
     def get_dist_periods(self, start, end):
         pos_period = self.get_period_positions()

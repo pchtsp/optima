@@ -739,8 +739,9 @@ class Model(exp.Experiment):
                  ])
 
         # first maintenance starts possibilities because of initial state of aircraft
+        # FP 20200323: edited <= to a < in ret_initial
         l['at_M_ini'] = tl.TupList([(a, t) for (a, t) in at_free_start
-                    if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
+                    if ret_init_adjusted[a] <= p_pos[t] < ret_init[a]
                     ])
 
         # att_maints is the domain for the maintenance m_itt variable
