@@ -3,6 +3,32 @@ import os
 this_file = os.path.realpath(__file__)
 parent_dir = os.path.dirname(this_file)
 
+class DataSet(object):
+
+    def __init__(self, input_data, solution_data=None, options=None):
+        self.input_data = input_data
+        self.solution_data = solution_data
+        self.options = options
+        pass
+
+    def get_instance(self):
+        return self.input_data
+        pass
+
+    def get_solution(self):
+        return self.solution_data
+
+    def get_options(self):
+        return self.options
+
+    @classmethod
+    def from_directory(cls, rel_path):
+        abs_path = os.path.join(parent_dir, rel_path)
+        input_data = get_file_path(os.path.join(abs_path, 'data_in.json'))
+        solution_data = get_file_path(os.path.join(abs_path, 'data_out.json'))
+        options = get_file_path(os.path.join(abs_path, 'options.json'))
+        options['path'] = abs_path
+        return cls(input_data, solution_data, options)
 
 def dataset1():
     maints = {
@@ -141,6 +167,12 @@ def dataset2():
     }
     return model_data
 
+def solution2():
+    return {
+        'state_m':
+            {'1': {'2018-07': {'VI': 1}, '2018-03': {'VG': 1}}}
+    }
+
 def dataset3():
     maints = {
         'M': {
@@ -271,23 +303,13 @@ def dataset4():
     return model_data
 
 def dataset5():
+    return DataSet.from_directory('cases/202003121542')
+
+def dataset6():
+    return DataSet.from_directory('cases/202003231502')
+
+def get_file_path(abs_path):
     from .data_input import load_data
-    data_dir = os.path.join(parent_dir, 'cases/202003121542/data_in.json')
+    data_dir = abs_path
     return load_data(data_dir)
 
-def solution5():
-    from .data_input import load_data
-    data_dir = os.path.join(parent_dir, 'cases/202003121542/data_out.json')
-    return load_data(data_dir)
-
-def options5():
-    from .data_input import load_data
-    data_dir = os.path.join(parent_dir, 'cases/202003121542/options.json')
-    return load_data(data_dir)
-
-
-def solution2():
-    return {
-        'state_m':
-            {'1': {'2018-07': {'VI': 1}, '2018-03': {'VG': 1}}}
-    }
