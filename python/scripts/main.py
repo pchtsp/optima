@@ -5,7 +5,11 @@ import argparse
 import datetime as dt
 import json
 import execution.exec as exec
-import desktop_app.app as gui_app
+try:
+    import desktop_app.app as gui_app
+except Exception as e:
+    gui_app = None
+    gui_error = e
 import data.data_input as di
 
 if __name__ == "__main__":
@@ -56,6 +60,9 @@ if __name__ == "__main__":
     options = params.OPTIONS
     options['PATHS'] = params.PATHS
     if args.open_desktop_app:
+        if gui_app is None:
+            print('GUI needs additional libraries.')
+            raise gui_error
         options['template'] = True
         gui_app.MainWindow_EXCEC(options)
     else:

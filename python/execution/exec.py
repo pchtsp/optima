@@ -9,7 +9,6 @@ import data.template_data as td
 
 import package.instance as inst
 import package.solution as sol
-import package.experiment as exp
 import data.simulation as sim
 import pytups.superdict as sd
 
