@@ -24,9 +24,6 @@ import multiprocessing as multi
 import pandas as pd
 import os
 
-# TODO: making a cache of cluster constraint info
-# TODO: use pandas or numpy to do the wrangling
-
 
 class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': {'graph': {}, 'refs': {}, 'refs_inv': {}, 'source': {}, 'sink': {}}}}}
@@ -478,7 +475,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
     def get_domains_sets_patterns(self, options, res_patterns, force=False):
         if self.domains and not force:
             return self.domains
-        l = self.domains = mdl.Model.get_domains_sets(self, options, force=False)
+
         resources = res_patterns.keys_tl()
         resource = resources[0]
         example_pattern = res_patterns[resource][0]
@@ -489,31 +486,23 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             for key in ['task', 'state_m']:
                 old_info += self.get_assignments_window(resource=r, start=start, end=end, key=key)
 
-        combos = \
-            {(res, p): pattern
-             for res, _pat_list in res_patterns.items()
-             for p, pattern in enumerate(_pat_list)
-             }
+        InfoOld_type = \
+            old_info. \
+            to_dict(result_col=[0, 1, 2, 3]). \
+            fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
 
-        _range = self.instance.get_periods_range
-        _dist = self.instance.get_dist_periods
-        rut_or_None = lambda rut: rut[self.M] if rut is not None else None
+        combos = cp.get_patterns_into_dictup(res_patterns)
 
-        info = tl.TupList(
-            (res, p, period, e.assignment, e.type, rut_or_None(e.rut), pos, _dist(e.period, e.period_end))
-            for (res, p), pattern in combos.items()
-            for e in pattern for pos, period in enumerate(_range(e.period, e.period_end))
-        )
+        info = cp.get_assignments_from_patterns(self.instance, combos, self.M)
 
         info_type = \
             info. \
                 to_dict(result_col=[0, 1, 2, 3], indices=[4]). \
                 fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
-        InfoOld_type = old_info. \
-            to_dict(result_col=[0, 1, 2, 3]). \
-            fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
+
 
         first, last = self.instance.get_start_end()
+        l = self.domains = mdl.Model.get_domains_sets(self, options, force=False)
         l['combos'] = sd.SuperDict(combos)
         l['info'] = info
         l['info_type'] = info_type
@@ -571,6 +560,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         if result != 1:
             print("Model resulted in non-feasible status: {}".format(result))
+            import datetime as dt
+            model.writeLP(filename=options['path'] + 'formulation_{}.lp'.
+                          format(dt.datetime.now().strftime("%Y%m%d%H%MT%S")))
             return None
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
@@ -816,6 +808,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 kvapply(lambda k, v: v - _slack_s_kt[k] <= t_min_aircraft_slack[k]). \
                 values_tl()
 
+    # @profile
     def get_constraints_hours_df(self, assign, _slack_s_kt_h):
 
         log.debug("constraints: clusters hours 1")
@@ -840,55 +833,68 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 kvapply(lambda k, v: sum(self.get_remainingtime(p, k[1], 'rut', self.M) for p in v))
 
         t_min_hour_slack = self.sum_of_two_dicts(prevRuts_clustdate, min_hours_slack).vfilter(lambda v: v >0)
-
-        log.debug("constraints: clusters hours 2")
-        get_consum = lambda t: self.instance.data['tasks'][t]['consumption']
-        # TODO: we're filtering None ruts. Not sure if this should be done here and only here.
-        ff = pd.DataFrame.from_records(l['info'].to_list(),
-                                       columns=['res', 'pat', 'period', 'assign', 'type', 'rut', 'pos', 'tot'])
         consumption = self.instance.get_tasks('consumption').to_tuplist().to_list()
-        consumption_pd = pd.DataFrame.from_records(consumption, columns=['assign', 'consum'])
-        # pd.DataFrame.from_dict()
-        assign_pd = pd.DataFrame.from_records(assign.to_tuplist().to_list(),
-                                              columns=['res', 'pat', 'var'])
-        t_min_hour_slack_pd = pd.DataFrame.from_records(t_min_hour_slack.to_tuplist().to_list(),
-                                                        columns=['clust', 'period', 'min_hour'])
         _slack_s_kt_h_pd = pd.Series(data=_slack_s_kt_h.values_l(),
-                                     index=pd.MultiIndex.from_tuples(_slack_s_kt_h.keys_l()))
-
-        res_clusters_tl = res_clusters.to_tuplist().to_list()
-        res_clusters_pd = pd.DataFrame.from_records(res_clusters_tl, columns=['res', 'clust'])
-        ff_n = ff[~ff.rut.isna()].\
-            merge(res_clusters_pd, on='res').\
-            merge(consumption_pd, on='assign', how='left').\
-            merge(t_min_hour_slack_pd, on=['clust', 'period']).\
-            merge(assign_pd, on=['res', 'pat'], how='left')
-
-        ff_n['rut_new'] = ff_n.rut
-        ff_n.loc[ff_n.type == nd.TASK_TYPE, 'rut_new'] = ff_n.rut + (ff_n.tot - ff_n.pos) * ff_n.consum
-        # TODO: try pd.DataFrame.where
-        # ff_n.set_index(['clust', 'period'], inplace=True)
-        # _filter = ff_n.index.map(t_min_hour_slack)
-        # ff_n = ff_n[(~_filter.isna()) & (_filter > 0)]
-
-        # ff_n['var_rut'] = ff_n[['var', 'rut_new']].itertuples(index=False, name=None)
-        ff_n['var_rut'] = ff_n[['var', 'rut_new']].apply(tuple, axis=1)
-        ff_nnn = ff_n.reset_index().groupby(['clust', 'period'])['var_rut'].apply(list)
-        aa = (ff_nnn + _slack_s_kt_h_pd)
+                                     index=pd.MultiIndex.from_tuples(_slack_s_kt_h.keys_l(),
+                                                                     names=['clust', 'period'])).rename('slack')
         t_min_hour_slack_pd = \
             pd.Series(data = t_min_hour_slack.values_l(),
-                      index=pd.MultiIndex.from_tuples(t_min_hour_slack.keys_l()))\
-                .rename('min_hour').to_frame()
-        t_min_hour_slack_pd.index.rename(['clust', 'period'], inplace=True)
-        aaa = \
-            aa.rename('vars').to_frame().\
-            merge(t_min_hour_slack_pd, left_index=True, right_index=True)
-        result = aaa.apply(lambda x:
-                                 pl.LpConstraint(x.vars, rhs=x.min_hour, sense=pl.LpConstraintGE),
-                                 axis=1)
-        return result.reset_index(drop=True).tolist()
+                      index=pd.MultiIndex.from_tuples(t_min_hour_slack.keys_l(),
+                                                      names=['clust', 'period']))\
+                .rename('min_hour')
+        assign_pd = pd.DataFrame.from_records(assign.to_tuplist().to_list(),
+                                              columns=['res', 'pat', '_var'])
+        consumption_pd = pd.DataFrame.from_records(consumption, columns=['assign', 'consum'])
 
-    def get_contraints_hours(self, assign, _slack_s_kt_h):
+        res_clusters_tl = res_clusters.to_tuplist().to_list()
+        res_clusters_pd = pd.DataFrame(res_clusters_tl, columns=['res', 'clust'])
+
+        log.debug("constraints: clusters hours 2")
+        info = l['info']
+        varList_grouped = self.get_constraints_hours_df_step2(
+            assign_pd, consumption_pd, info.to_list(), res_clusters_pd
+        )
+        # cache = varList_grouped.to_dict()
+        # cache = sd.SuperDict(cache).to_tuplist().to_set()
+        #
+        # _path = '/home/pchtsp/Downloads/cache/'
+        # assign_pd.to_csv(_path + 'assign_pd.csv', index=False)
+        # consumption_pd.to_csv(_path + 'consumption_pd.csv', index=False)
+        # res_clusters_pd.to_csv(_path + 'res_clusters_pd.csv', index=False)
+        # info.to_csv(_path + 'info.csv')
+        # t_min_hour_slack_pd.to_csv(_path + 't_min_hour_slack.csv', header=True)
+        # _slack_s_kt_h_pd.apply(pd.Series).stack().apply(lambda v: v[0]).to_csv(_path + 'slack_s_kt_h.csv', header=True)
+
+        # result = varList_grouped.to_dict()
+        # result = sd.SuperDict(result).to_tuplist().to_set()
+        # dif = result ^ cache
+
+        # #
+        log.debug("constraints: clusters hours 3")
+
+        final_table = pd.concat([varList_grouped, t_min_hour_slack_pd, _slack_s_kt_h_pd], axis=1, join='inner')
+        final_table['vars'] = final_table.var_rut + final_table.slack
+
+        result = final_table.apply(
+            lambda x: pl.LpConstraint(x.vars, rhs=x.min_hour, sense=pl.LpConstraintGE),
+            axis=1)
+        return result.to_dict()
+
+    def get_constraints_hours_df_step2(self, assign_pd, consumption_pd, info, res_clusters_pd):
+        ff = pd.DataFrame(info,
+                          columns=['res', 'pat', 'period', 'assign', 'type', 'rut', 'pos', 'tot'])
+        merged_data = ff[~ff.rut.isna()]. \
+            merge(res_clusters_pd, on='res'). \
+            merge(consumption_pd, on='assign', how='left'). \
+            merge(assign_pd, on=['res', 'pat'], how='left')
+        merged_data.loc[merged_data.type == nd.TASK_TYPE, 'rut'] = merged_data.rut + (
+                    merged_data.tot - merged_data.pos) * merged_data.consum
+        merged_data = merged_data.loc[merged_data.rut > 0]
+        merged_data['var_rut'] = list(zip(merged_data._var, merged_data.rut))
+        varList_grouped = merged_data.groupby(['clust', 'period'])['var_rut'].apply(list)
+        return varList_grouped
+
+    def get_constraints_hours(self, assign, _slack_s_kt_h):
 
         log.debug("constraints: clusters hours 1")
         l = self.domains
@@ -920,13 +926,13 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # l['info'].vfilter(lambda v: (v[0], v[1])==('22', 1095))
         p_clustdate = \
             l['info']. \
-                vfilter(lambda v: v[5]). \
+                vfilter(lambda v: v[5] is not None). \
                 to_dict(None). \
                 vapply(lambda v: res_clusters[v[0]]). \
                 to_tuplist().\
                 vapply(lambda v: (*v, row_correct(v))). \
-                to_dict(indices=[8, 2], result_col=[0, 1, 9]). \
-                fill_with_default(prevRuts_clustdate, [])
+                vfilter(lambda v: v[9] > 0). \
+                to_dict(indices=[8, 2], result_col=[0, 1, 9])
 
         log.debug("constraints: clusters hours 3")
         return \
@@ -934,8 +940,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 kfilter(lambda k: t_min_hour_slack.get(k, 0) > 0). \
                 vapply(lambda v: [(assign[vv[0], vv[1]], vv[2]) for vv in v]). \
                 kvapply(lambda k, v: v + _slack_s_kt_h[k]). \
-                kvapply(lambda k, v: pl.LpConstraint(v, rhs=t_min_hour_slack[k], sense=pl.LpConstraintGE)). \
-                values_tl()
+                kvapply(lambda k, v: pl.LpConstraint(v, rhs=t_min_hour_slack[k], sense=pl.LpConstraintGE))
 
     def build_model(self, assign, slack_vts, slack_ts, slack_kts, slack_kts_h):
 
@@ -952,14 +957,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                     if elem.type == nd.MAINT_TYPE)
         assign_p = combos.vapply(weight_pattern)
 
-        def sum_of_slots(variable_slots):
+        def sum_of_slots(variable_slots, coef=1):
             result_col = len(variable_slots.keys_l()[0])
             indices = range(result_col - 1)
             return \
                 variable_slots. \
                     to_tuplist(). \
                     to_dict(result_col=result_col, indices=indices). \
-                    vapply(lambda v: zip(v, [1]*len(v))).\
+                    vapply(lambda v: zip(v, [coef]*len(v))).\
                     vapply(list)
 
         _slack_s_kt = sum_of_slots(slack_kts)
@@ -968,7 +973,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         _slack_s_kt_h = sum_of_slots(slack_kts_h)
         slack_kts_h_p = {(k, t, s): (p_s[s] + 2 - 0.001 * p_t[t]) ** 2 for k, t, s in l['kts']}
 
-        _slack_s_t = sum_of_slots(slack_ts)
+        _slack_s_t = sum_of_slots(slack_ts, coef=-1)
         slack_ts_p = {(t, s): (p_s[s] + 1 - 0.001 * p_t[t]) * 1000 for t, s in l['ts']}
 
         _slack_s_vt = sum_of_slots(slack_vts)
@@ -1006,7 +1011,16 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         constraints += self.get_constraints_number(assign, _slack_s_kt)
 
         log.debug("constraints: clusters hours")
-        constraints += self.get_contraints_hours(assign, _slack_s_kt_h)
+        cons = self.get_constraints_hours_df(assign, _slack_s_kt_h)
+        # cons2 = self.get_constraints_hours_df(assign, _slack_s_kt_h)
+        # a_c = sd.SuperDict(cons).vapply(lambda v: ('c', v.constant)).to_tuplist().to_set()
+        # b_c = sd.SuperDict(cons2).vapply(lambda v: ('c', v.constant)).to_tuplist().to_set()
+        # aa = sd.SuperDict.from_dict(cons).to_dictdict().to_dictup().to_tuplist().to_set() | a_c
+        # bb = sd.SuperDict.from_dict(cons2).to_dictdict().to_dictup().to_tuplist().to_set() | b_c
+        # dif = aa ^ bb
+        # aa - bb
+        # bb - aa
+        constraints += list(cons.values())
 
         log.debug("constraints: maintenances")
         # maintenance capacity

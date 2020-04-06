@@ -100,7 +100,7 @@ def get_all_patterns(graph, refs, refs_inv, instance, resource):
     return nodes_to_patterns(graph, refs, refs_inv, source, sink)
 
 
-def draw_graph(instance, g, refs_inv=None):
+def draw_graph(instance, g, refs_inv=None, not_show_None=True):
     try:
         import graph_tool.all as gr
     except:
@@ -115,8 +115,8 @@ def draw_graph(instance, g, refs_inv=None):
 
     def get_y_mission(v):
         if not refs_inv[v].rut:
-            return - 15
-        return (refs_inv[v].rut['M'] / max_rut - 0.5) * 20
+            return 0
+        return -(refs_inv[v].rut['M'] / max_rut - 0.5) * 20
 
     colors = \
         {'VG': '#4cb33d',
@@ -131,15 +131,28 @@ def draw_graph(instance, g, refs_inv=None):
     # empty assignments we put in white:
     extra_colors['']  = '#ffffff'
     colors = {**extra_colors, **colors}
-    pos = g.new_vp('vector<float>')
-    size = g.new_vp('double')
-    shape = g.new_vp('string')
-    color = g.new_vp('string')
-    first = instance.get_param('start')
 
-    for v in g.vertices():
-        x = instance.get_dist_periods(first, g.vp.period[v])
-        assignment = g.vp.assignment[v]
+    first, last = instance.get_first_last_period()
+
+    if not_show_None:
+        keep_node = g.new_vp('bool')
+        for v in g.vertices():
+            if refs_inv[v].rut is None and first < refs_inv[v].period < last:
+                keep_node[v] = 0
+            else:
+                keep_node[v] = 1
+        g_filt = gr.GraphView(g, vfilt=keep_node)
+    else:
+        g_filt = g
+
+    pos = g_filt.new_vp('vector<float>')
+    size = g_filt.new_vp('double')
+    shape = g_filt.new_vp('string')
+    color = g_filt.new_vp('string')
+
+    for v in g_filt.vertices():
+        x = instance.get_dist_periods(first, g_filt.vp.period[v])
+        assignment = g_filt.vp.assignment[v]
         if assignment in y_ranges:
             y = y_ranges.get(assignment, lambda: 0)()
         else:
@@ -149,7 +162,7 @@ def draw_graph(instance, g, refs_inv=None):
         shape[v] = 'circle'
         color[v] = colors.get(assignment, 'red')
 
-    gr.graph_draw(g, pos=pos, vertex_text=g.vp.period,
+    gr.graph_draw(g_filt, pos=pos, vertex_text=g_filt.vp.period,
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
 def shortest_path(graph, refs, node1, node2, **kwargs):
@@ -253,6 +266,26 @@ def import_graph_data(path, resource):
     refs_inv = di.load_data(_path)
     graph = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
     return sd.SuperDict(graph=graph, refs_inv=refs_inv)
+
+def get_patterns_into_dictup(res_patterns):
+    return \
+        {(res, p): pattern
+         for res, _pat_list in res_patterns.items()
+         for p, pattern in enumerate(_pat_list)
+         }
+
+
+def get_assignments_from_patterns(instance, combos, maint='M'):
+    _range = instance.get_periods_range
+    _dist = instance.get_dist_periods
+    rut_or_None = lambda rut: rut[maint] if rut is not None else None
+
+    info = tl.TupList(
+        (res, p, period, e.assignment, e.type, rut_or_None(e.rut), pos, _dist(e.period, e.period_end))
+        for (res, p), pattern in combos.items()
+        for e in pattern for pos, period in enumerate(_range(e.period, e.period_end))
+    )
+    return info
 
 # def random_items(iterable, k=1):
 #     result = [None] * k
