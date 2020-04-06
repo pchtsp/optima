@@ -4,12 +4,18 @@ library(magrittr)
 library(ggplot2)
 library(data.table)
 library(stringr)
+library(latex2exp)
+library(RColorBrewer)
+library(ggalluvial)
 
 value_filt_tails <- function(value, each_tail) value %>% between(., quantile(., c(each_tail[1])), quantile(., c(1-each_tail[2])))
 
 filter_all_exps <- function(table){
-    num <- table %>% distinct(experiment) %>% nrow
+    num <- 
+        table %>% 
+        distinct(experiment) %>% nrow
     table %>% 
+        filter(sol_code %>% is.na %>% not) %>% 
         group_by(scenario, instance) %>% 
         filter(n()==num) %>% 
         ungroup
@@ -33,11 +39,7 @@ get_summary <- function(raw_df, compare=TRUE){
         filter_all_exps %>% 
         mutate(sol_code = if_else(is.na(sol_code), 2, sol_code)) %>% 
         group_by(scenario, experiment) %>%
-        summarise(Infeasible = sum(sol_code==-1),
-                  IntegerFeasible=sum(sol_code==2),
-                  IntegerInfeasible=sum(sol_code==0),
-                  Optimal=sum(sol_code==1),
-                  Total = n())
+        summarise_states
     if (!compare){
         return(result)
     }
@@ -116,8 +118,8 @@ get_quality_degr <- function(raw_df){
 
 get_time_perf_integer <- function(raw_df){
     raw_df %>% 
-        select(scenario, instance, experiment, time) %>% 
         filter_all_exps %>% 
+        select(scenario, instance, experiment, time) %>% 
         spread(experiment, time) %>% 
         arrange(base) %>% 
         mutate(instance = row_number()) %>% 
@@ -160,6 +162,39 @@ get_infeasible_instances <- function(raw_df){
         distinct(experiment, instance)
 }
 
+get_transitions_stats <- function(raw_df){
+    df <- 
+        raw_df %>% 
+        inner_join(get_status_from_code()) %>% 
+        mutate(experiment_parent = experiment %>% str_replace('\\_.*', ''))
+        
+    df %>% 
+        filter_all_exps %>% 
+        filter(experiment %in% c("base", "old")) %>% 
+        select(scenario, experiment_parent, instance, prev_status=sol_txt) %>% 
+        inner_join(df) %>%
+        group_by(scenario, experiment, prev_status, post_status=sol_txt) %>% 
+        summarise(num= n())
+        
+}
+
+get_status_from_code <- function(){
+    data.table(
+        sol_txt = c('Infeasible', 'IntegerInfeasible', 'IntegerFeasible', 'Optimal') %>% 
+            factor(., levels=.),
+        sol_code = c(-1, 0, 2, 1)
+        )
+}
+
+summarise_states <- function(grouped_table){
+    grouped_table %>% 
+        summarise(Infeasible = sum(sol_code==-1),
+                  IntegerFeasible=sum(sol_code==2),
+                  IntegerInfeasible=sum(sol_code==0),
+                  Optimal=sum(sol_code==1),
+                  Total = n())
+}
+
 get_infeasible_stats <- function(raw_df){
     raw_df %>% 
         filter_all_exps %>% 
@@ -169,11 +204,7 @@ get_infeasible_stats <- function(raw_df){
         filter(experiment!="base") %>% 
         filter(sol_code %>% is.na %>% not) %>% 
         group_by(scenario, experiment) %>% 
-        summarise(Infeasible = sum(sol_code==-1),
-                  IntegerFeasible=sum(sol_code==2),
-                  IntegerInfeasible=sum(sol_code==0),
-                  Optimal=sum(sol_code==1),
-                  Total = n()) %>% 
+        summarise_states %>% 
         aux_compare %>% 
         gather(key="case", 'value', -scenario, -Indicator) %>% 
         filter(value>0) %>% 

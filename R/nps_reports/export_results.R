@@ -1,10 +1,10 @@
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
-library(latex2exp)
 
 
-path_export_img <- '../../NPS2019/img/'
-path_export_tab <- '../../NPS2019/tab/'
+
+path_export_img <- '../../NPS2019/'
+path_export_tab <- '../../NPS2019/'
 # size <- 'small'
 # df_original <- compare_sto$get_instances[[size]]()
 
@@ -86,13 +86,18 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     
     # time performance
     graph_performance <- function(data, path){
-        ggplot(data=data, aes(x=percentage, y=time, color=experiment)) + 
-            theme_minimal() + geom_point(size=0.5) + xlab('Instance percentage') + 
+        ggplot(data=data, aes(x=percentage, y=time)) + 
+            # theme_minimal() +
+            # geom_line(aes(linetype=experiment, color=experiment)) + 
+            geom_point(aes(color=experiment, shape=experiment), size=0.7) + xlab('Instance percentage') +
             ylab('Time to solve instance') + 
+            scale_colour_brewer(palette='Spectral') +
             theme(text = element_text(size=element_text_size)) + 
-            guides(color = guide_legend(override.aes = list(size=legend_size))) + ggsave(path)    
+            guides(color = guide_legend(override.aes = list(size=legend_size))) +
+            labs(shape='Experiment', color='Experiment') +
+            ggsave(path)    
     }
-    
+
     data <- get_time_perf_integer_reorder(get_stoch_a2r_data)
     path <- '%stime_performance_ordered_2tasks.png' %>% sprintf(path_export_img)
     graph_performance(data, path)
@@ -103,28 +108,74 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
 
     # infeasible and soft constraints
     infeasible_stats <- get_infeasible_stats(get_stoch_a2r_data)
-    errors_stats <- get_soft_constraints(get_stoch_a2r_data)
+    errors_stats <- 
+        get_soft_constraints(get_stoch_a2r_data) %>% 
+        mutate(Indicator = Indicator %>% str_replace('\\_', '\\\\_'))
     path <- '%sinfeas_2tasks.tex' %>% sprintf(path_export_tab)
     
     infeasible_stats %>% 
         filter(!(Indicator %in% c('Total', 'Infeasible'))) %>% 
-        mutate(Indicator = '%s_new' %>% sprintf(Indicator)) %>% 
+        mutate(Indicator = '%s $\\to$ Infeasible' %>% sprintf(Indicator)) %>% 
         bind_rows(errors_stats) %>% 
         ungroup %>% select(-scenario) %>% 
-        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        set_names(., names(.) %>% str_replace('\\_', '\\\\_')) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
         write_file(path)
+    
+    # status graph
+    transitions <- get_transitions_stats(get_stoch_a2r_data)
+    graph_parent <- function(data, path){
+        max_num <- 50
+        data %>% 
+            mutate(label1 = ifelse(num >= max_num, as.character(num), NA)) %>% 
+            mutate(label2 = ifelse(num < max_num, as.character(num), NA)) %>% 
+            to_lodes_form(axes=3:4, id='alluvium') %>% 
+            ggplot(aes(x=x, stratum=stratum, alluvium=alluvium, y=num, fill=stratum, 
+                       label = num)) +
+            # scale_x_discrete(expand = c(.1, .1)) +
+            scale_x_discrete(expand = c(.4, 0)) +
+            geom_flow() +
+            geom_stratum(alpha = .5) +
+            geom_text(stat = "stratum", size=3) +
+            theme_minimal() +
+            # theme(legend.title = "Status") +
+            theme(text = element_text(size=element_text_size)) +
+            labs(fill='Status') +
+            scale_fill_brewer(palette='Spectral') +
+            xlab('Experiment') + ylab('Number of instances') +
+            guides(color = guide_legend(override.aes = list(size=legend_size))) +
+            # ggrepel::geom_text_repel(
+            #     aes(label = label2),
+            #     stat = "stratum", size = 4, direction = "y", nudge_x = -0.5
+            # ) +
+            # ggfittext::geom_fit_text(stat = "stratum", width = 1, min.size = 2) +
+            ggsave(path)
+    }
+    
+    path <- '%stransitions_base_2tasks.png' %>% sprintf(path_export_img)
+    transitions %>% 
+        filter(experiment=='base_a2r') %>% 
+        rename(base=prev_status, base_a2r=post_status) %>% 
+        graph_parent(path=path)
+    path <- '%stransitions_old_2tasks.png' %>% sprintf(path_export_img)
+    transitions %>% 
+        filter(experiment=='old_a2r') %>%
+        rename(old=prev_status, old_a2r=post_status) %>% 
+        graph_parent(path=path)    
     
     # infeasible: fixLP
     infeasible_stats <- get_infeasible_stats(df_fixed)
-    errors_stats <- get_soft_constraints(df_fixed)
+    errors_stats <- get_soft_constraints(df_fixed) %>% 
+        mutate(Indicator = Indicator %>% str_replace('\\_', '\\\\_'))
     path <- '%sinfeas_fixed_2tasks.tex' %>% sprintf(path_export_tab)
     
     infeasible_stats %>% 
         filter(!(Indicator %in% c('Total', 'Infeasible'))) %>% 
-        mutate(Indicator = '%s_new' %>% sprintf(Indicator)) %>% 
+        mutate(Indicator = '%s $\\to$ Infeasible' %>% sprintf(Indicator)) %>% 
         bind_rows(errors_stats) %>% 
         ungroup %>% select(-scenario) %>% 
-        kable(format='latex', booktabs = TRUE, linesep="") %>% 
+        set_names(., names(.) %>% str_replace('\\_', '\\\\_')) %>% 
+        kable(format='latex', booktabs = TRUE, linesep="", escape=FALSE) %>% 
         write_file(path)
     
     # variance
