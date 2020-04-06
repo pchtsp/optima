@@ -7,7 +7,6 @@ import numpy.random as rn
 import patterns.node as nd
 import random
 import os
-import logging as log
 
 
 # installing graph-tool and adding it to venv:

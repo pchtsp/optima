@@ -9,10 +9,6 @@ import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
 import ujson
-import math
-import shutil
-import re
-import orloge as ol
 
 
 class Experiment(object):
