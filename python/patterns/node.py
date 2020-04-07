@@ -441,7 +441,7 @@ class Node(object):
         if type != 0:
             ret_min = min(ret.values())
             rut_min = min(rut.values())
-            if rut_min < 0 or ret_min < 0:
+            if rut_min < 0 or ret_min <= 0:
                 return None
         return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 

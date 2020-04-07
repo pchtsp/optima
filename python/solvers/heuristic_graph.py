@@ -225,10 +225,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         if error_cat is None:
             error_cat = self.check_solution().to_lendict()
-        # TODO: in theory, we should not have dist_maints here.
-        weights = sd.SuperDict(resources=10000, usage=1000, elapsed=1000,
-                               hours=1000, available=1000, capacity=10000, dist_maints=1000)
-
+        weights = sd.SuperDict(resources=10000, hours=1000, available=1000, capacity=10000,
+                               )
+        # a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
         num_errors = sum((error_cat*weights).values())
 
         # we count the number of maintenances and their distance to the end
@@ -249,22 +248,33 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :param patterns:
         :return:
         """
+        rut = self.get_remainingtime(node2.resource, node2.period_end, 'rut', maint=self.M)
+        if rut is None:
+            # it could be we are at the dummy node at the end.
+            # here, we would not care about filtering
+            return patterns
+        ret = self.get_remainingtime(node2.resource, node2.period_end, 'ret', maint=self.M)
         first, last = self.instance.get_first_last_period()
         _shift = self.instance.shift_period
+        size = self.instance.get_maintenances('elapsed_time_size')[self.M]
         next_maint = self.get_next_maintenance(node2.resource, _shift(node2.period_end, 1), {'M'})
         if next_maint is None:
             _period_to_look = last
         else:
             # If there is a next maintenances, we filter patterns depending on the last rut
             _period_to_look = _shift(next_maint, -1)
+        ret_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'ret', maint=self.M)
         rut_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'rut', maint=self.M)
-        rut = self.get_remainingtime(node2.resource, node2.period_end, 'rut', maint=self.M)
-        if rut is None:
-            # it could be we are at the dummy node at the end.
-            # here, we would not care about filtering
-            return patterns
+        min_ret = ret - ret_cycle
+        if next_maint is None:
+            # if there is no maintenance later, we do not care about time
+            max_ret = self.instance.get_maintenances('max_elapsed_time')[self.M]
+        else:
+            # if there is a maintenance later, we cannot make them too close
+            max_ret = min_ret + size
         min_rut = rut - rut_cycle
-        return patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut)
+        return patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut and
+                                          min_ret <= v[-2].ret[self.M] <= max_ret)
 
     def apply_pattern(self, pattern):
         resource = pattern[0].resource
