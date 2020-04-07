@@ -55,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, required=True)
     parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, required=True)
     parser.add_argument('-nb', '--no_base_case', dest='no_base_case', action='store_true')
+    parser.add_argument('-nmp', '--no_multiprocess', dest='no_multiprocess', action='store_true')
 
     args = parser.parse_args()
 
@@ -87,6 +88,8 @@ if __name__ == "__main__":
 
     seed_backup = sim_data['seed']
     multiproc = options.get('multiprocess')
+    if args.no_multiprocess:
+        multiproc = False
     time_limit_default = options.get('timeLimit', 3600) + 600
     results = {}
     pos = 0
