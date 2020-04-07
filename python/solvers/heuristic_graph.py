@@ -38,7 +38,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
     def initialise_graphs(self, options):
         path_cache = options.get('cache_graph_path', '')
-        if os.path.exists(path_cache):
+        if path_cache and os.path.exists(path_cache):
             self.import_graph_data(path_cache)
             return
         multiproc = options['multiprocess']
