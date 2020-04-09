@@ -53,7 +53,6 @@ get_comparable_sets <- function(raw_df) {
                          ,raw_df %>% get_all_integer %>% distinct(instance) %>% nrow
                          ,raw_df %>% get_all_infeasible %>% distinct(instance) %>% nrow)
         )
-    
 }
 
 get_all_same_status <- function(raw_df, code_status){

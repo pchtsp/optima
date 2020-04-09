@@ -29,7 +29,8 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
 
     # compare models
     path <- '%scomparison_models_status_task2.tex' %>% sprintf(path_export_tab)
-    get_summary(raw_df_progress) %>% 
+    raw_df_progress %>% 
+        get_summary %>% 
         ungroup %>% 
         select(-scenario) %>%
         kable(format='latex', booktabs = TRUE, linesep="") %>% 
@@ -53,7 +54,6 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
         write_file(path)
     
     # summary interception:
-    
     summary_int <- get_comparable_sets(get_stoch_a2r_data)
     path <- '%sstats_int_2tasks.tex' %>% sprintf(path_export_tab)
     summary_int %>%
@@ -123,17 +123,19 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
         write_file(path)
     
     # status graph
-    transitions <- get_transitions_stats(get_stoch_a2r_data)
+    # we will pre-filter instances where base, old and base_determ return correct results.
+    clean_instances <- raw_df_progress %>% filter_all_exps %>% distinct(instance)
+    transitions <- get_stoch_a2r_data %>% inner_join(clean_instances) %>% get_transitions_stats
     graph_parent <- function(data, path){
         max_num <- 50
         data %>% 
-            mutate(label1 = ifelse(num >= max_num, as.character(num), NA)) %>% 
-            mutate(label2 = ifelse(num < max_num, as.character(num), NA)) %>% 
+            # mutate(label1 = ifelse(num >= max_num, as.character(num), NA)) %>% 
+            # mutate(label2 = ifelse(num < max_num, as.character(num), NA)) %>% 
             to_lodes_form(axes=3:4, id='alluvium') %>% 
             ggplot(aes(x=x, stratum=stratum, alluvium=alluvium, y=num, fill=stratum, 
                        label = num)) +
-            # scale_x_discrete(expand = c(.1, .1)) +
-            scale_x_discrete(expand = c(.4, 0)) +
+            scale_x_discrete(expand = c(.1, .1)) +
+            # scale_x_discrete(expand = c(.4, 0)) +
             geom_flow() +
             geom_stratum(alpha = .5) +
             geom_text(stat = "stratum", size=3) +

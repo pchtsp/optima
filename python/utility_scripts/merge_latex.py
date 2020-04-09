@@ -18,3 +18,9 @@ def edit_file(base_file, output_file):
 # merge .tex
 edit_file(base_file, output_file)
 
+
+# compare latex:
+# latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align)[\w\d*@]*" manuscript_old.tex manuscript_new.tex > tmpdiff.tex
+# (replace quotes apparently and some equation).
+# \"([\_\\\*\w]+)\"
+# ``\1''
