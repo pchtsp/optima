@@ -10,30 +10,7 @@ import re
 import copy
 import multiprocessing as multi
 
-# Windows workaround for python 3.7 (sigh...)
-# import _winapi
-# import multiprocessing.spawn
-# multiprocessing.spawn.set_executable(_winapi.GetModuleFileName(0))
-#################
-
-def merge_resources(model_data, initial_data):
-    model_data = sd.SuperDict.from_dict(model_data)
-    initial_data = sd.SuperDict.from_dict(initial_data)
-    init_elapsed = initial_data['resources'].get_property('initial_elapsed')
-    init_used = initial_data['resources'].get_property('initial_used')
-
-    # of the resources has no previous assignments,
-    # we'll get its stats to the "fixed" ones
-    res_with_previous_states = model_data['resources'].get_property('states').clean(func=lambda x: len(x)).keys_l()
-    for k, v in model_data['resources'].items():
-        if k not in res_with_previous_states:
-            v['initial_elapsed'] = init_elapsed[k]
-            v['initial_used'] = init_used[k]
-
-    return model_data
-
-
-def solve_errors(initial_data, _option):
+def solve_errors(_option):
     try:
         print('path is : {}'.format(_option['path']))
         model_data = sim.create_dataset(_option)
@@ -116,9 +93,6 @@ if __name__ == "__main__":
         # this needs to be enforced so feasible instances can be obtained:
         _sim_data['num_resources'] = 15 * _sim_data['num_parallel_tasks']
 
-        # this data is the reference data for the scenario. Specifically for resources.
-        initial_data = sim.create_dataset(options)
-
         for _ in range(num_instances):
             if _sim_data['seed']:
                 _sim_data['seed'] += 1
@@ -135,7 +109,7 @@ if __name__ == "__main__":
             if not os.path.exists(_path_instance):
                 os.mkdir(_path_instance)
 
-            args = [initial_data, copy.deepcopy(_option)]
+            args = [copy.deepcopy(_option)]
             if multiproc:
                 # print('create poolasync')
                 results[pos] = pool.apply_async(solve_errors, args)

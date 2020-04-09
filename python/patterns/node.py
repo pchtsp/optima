@@ -219,22 +219,18 @@ class Node(object):
 
     def get_adjacency_list(self, only_next_period=False):
 
-        last = self.instance.get_param('end')
-        if self.period_end >= last:
-            return []
+        hard_last = self.instance.get_param('end')
+        if self.period_end >= hard_last:
+            return [get_sink_node(self.instance, self.resource)]
         opts_tot = self.get_maint_options()
         adj_per_maints = self.get_adjacency_list_maints(opts_tot=opts_tot, only_next_period=only_next_period)
-        hard_last = self.instance.get_param('end')
-        last = self.get_last_possible_nonmaint_period(opts_tot=opts_tot)
+        mandatory_maint_period = self.get_last_possible_nonmaint_period(opts_tot=opts_tot)
         extra_nodes = []
-        if last == hard_last and (not only_next_period or self.period_end == last):
-            # this means that we are not obliged to any node, we can go to the end.
-            extra_nodes.append(get_sink_node(self.instance, self.resource))
-        if last == hard_last or self.dif_period_end(last) > 0:
+        if mandatory_maint_period == hard_last or self.dif_period_end(mandatory_maint_period) > 0:
             # if there is no mandatory maintenance: we can do nothing.
             extra_nodes.extend(self.get_adjancency_list_nothing())
         return adj_per_maints + extra_nodes + \
-               self.get_adjacency_list_tasks(last, only_next_period=only_next_period)
+               self.get_adjacency_list_tasks(mandatory_maint_period, only_next_period=only_next_period)
 
     def get_adjancency_list_nothing(self):
         # distance = self.dif_period_1(self.period_end)
@@ -260,6 +256,8 @@ class Node(object):
         return opts_tot
 
     def get_last_possible_nonmaint_period(self, opts_tot):
+        # returns the moment where maintenance will be mandatory
+
         hard_last = self.instance.get_param('end')
         if not opts_tot:
             return hard_last
@@ -336,23 +334,31 @@ class Node(object):
         :param num_periods: number of periods for assignment to mission
         :return:
         """
-        # TODO: rounding down to
         maints_ruts = self.get_maints_ruts()
         m_affects = set()
         affects = self.get_maints_data('affects')
         task_consum = 0
-        if assignment is not None:
+        default_period_end = period
+        if assignment:
+            # there is a maintenance or mission
             if assignment in affects:
+                # if it's a maintenance, we check which maintenances to restart
                 m_affects = affects[assignment] & maints_ruts
             else:
+                # if it's a task, we calculate the amount of flight hours
                 tasks_consumption = self.get_tasks_data('consumption')
                 task_consum = tasks_consumption.get(assignment, 0) * num_periods
+            # in order to count default hours, we do not count "period"
+            prev = self.instance.get_prev_period
+            default_period_end = prev(period)
 
         m_not_affect = maints_ruts - m_affects
 
         # we want consumption starting after the end of the present node (period_end).
         # until the period we are arriving to (period).
-        total_consumption = sum(self.get_consume(p) for p in self.iter_until_period(period))
+        # we only count "period" if it's a blank period.
+        total_consumption = sum(self.get_consume(p) for p in
+                                self.iter_until_period(default_period_end))
         # if it's a task, we need to add the consumption of the task.
         total_consumption += task_consum
 

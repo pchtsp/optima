@@ -8,6 +8,8 @@ import patterns.node as nd
 import random
 import os
 
+import graph_tool.all as gr
+
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
@@ -37,9 +39,9 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
             # I don't have any cache of the node.
             # I'll get neighbors and do cache
             cache_neighbors[node] = neighbors = node.get_adjacency_list(only_next_period=True)
-            if not len(neighbors):
-                # no neighbors means I need to go to the last_node
-                cache_neighbors[node] = neighbors = [last_node]
+            # Here, we assigned the last if there were not neighbors.
+            # in fact, this is not so: no neighbors means exactly that.
+            # we will then need to delete all this "orphan nodes"
         elif get_nodes_only:
             # we have the cache AND we don't want paths, we leave
             continue
@@ -62,12 +64,6 @@ def get_create_node(refs, g, n):
 
 
 def adjacency_to_graph(nodes_ady):
-    try:
-        import graph_tool.all as gr
-    except:
-        print('graph-tool is not available')
-        return None, None
-
     g = gr.Graph()
     g.vp.period = g.new_vp('string')
     g.vp.assignment = g.new_vp('string')
@@ -87,12 +83,6 @@ def adjacency_to_graph(nodes_ady):
 
 
 def get_all_patterns(graph, refs, refs_inv, instance, resource):
-    try:
-        import graph_tool.all as gr
-    except:
-        print('graph-tool is not available')
-        return None
-
     source = nd.get_source_node(instance, resource)
     sink = nd.get_sink_node(instance, resource)
 
@@ -100,12 +90,6 @@ def get_all_patterns(graph, refs, refs_inv, instance, resource):
 
 
 def draw_graph(instance, g, refs_inv=None, not_show_None=True):
-    try:
-        import graph_tool.all as gr
-    except:
-        print('graph-tool is not available')
-        return None
-
     y_ranges = dict(VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
                     VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
                     VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
@@ -164,12 +148,17 @@ def draw_graph(instance, g, refs_inv=None, not_show_None=True):
     gr.graph_draw(g_filt, pos=pos, vertex_text=g_filt.vp.period,
                   edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
 
-def shortest_path(graph, refs, node1, node2, **kwargs):
-    import graph_tool.all as gr
-    return gr.shortest_distance(graph, source=refs[node1], target=refs[node2])
+def shortest_path(graph, refs, node1=None, node2=None, distances=None, **kwargs):
+    target, source = None, None
+    if node1 is not None:
+        source = refs[node1]
+    if node2 is not None:
+        target = refs[node2]
+    if source and target and distances:
+        return distances[source][target]
+    return gr.shortest_distance(graph, source=source, target=target, dag=True, **kwargs)
 
 def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, max_paths=1000, **kwargs):
-    import graph_tool.all as gr
     # TODO: there is something going on with default consumption
     # TODO: there is something going on with initial states
     paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
@@ -219,7 +208,21 @@ def get_graph_of_resource(instance, resource):
     # We create a graph-tool version of the graph
     # and links between the original nodes and the graph tool ones
     g, refs = adjacency_to_graph(nodes_ady_2)
-    return sd.SuperDict(graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink)
+    refs_inv = refs.reverse()
+
+    # delete nodes with infinite distance to sink:
+    distances = shortest_path(g, refs=refs)
+    max_dist = instance.get_dist_periods(*instance.get_first_last_period()) + 5
+    nodes = [n for n in g.vertices()
+             if distances[n][refs[sink]] > max_dist and
+             refs_inv[n].rut is not None]
+    # tl.TupList(nodes).vapply(lambda v: refs_inv[v])
+    keep_node = g.new_vp('bool', val=1)
+    for v in nodes:
+        keep_node[v] = 0
+    g = gr.GraphView(g, vfilt=keep_node)
+
+    return sd.SuperDict(graph=g, refs=refs, refs_inv=refs_inv, source=source, sink=sink, distances=None)
 
 
 def iter_sample_fast(iterable, samplesize, max_iterations=9999999):
@@ -259,8 +262,6 @@ def export_graph_data(path, data, resource):
 
 
 def import_graph_data(path, resource):
-    import graph_tool.all as gr
-
     _path = os.path.join(path, 'cache_info_{}.json'.format(resource))
     refs_inv = di.load_data(_path)
     graph = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
@@ -318,8 +319,23 @@ if __name__ == '__main__':
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
     info = get_graph_of_resource(instance, res)
-    draw_graph(instance, info['graph'])
+    draw_graph(instance, info['graph'], info['refs_inv'])
+    info['node1'] = info['source']
+    info['node2'] = info['sink']
+    paths = nodes_to_patterns(**info)
+    combos = get_patterns_into_dictup({'1': paths})
 
+    info = get_assignments_from_patterns(instance, combos, 'M')
+    import pandas as pd
+
+    equiv = info.take(2).unique2().sorted().kvapply(lambda k, v: (k, v)).to_dict(is_list=False)
+    info_pd = \
+        pd.DataFrame.\
+            from_records(info.to_list(), columns=['res', 'pat', 'period', 'assign']+list(range(4))).\
+            filter(['pat', 'period', 'assign'])
+    info_pd.period = info_pd.period.map(equiv)
+    latex_str = info_pd.query('period>0 & period<11').set_index(['pat', 'period']).unstack('period')['assign'].to_latex(longtable=True)
+    print(latex_str)
     # Example creating paths between nodes:
 
     # node1 = rn.choice([n for n in nodes_ady.keys() if n.period=='2017-12'])

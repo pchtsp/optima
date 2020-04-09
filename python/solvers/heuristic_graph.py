@@ -383,13 +383,16 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         node1 = self.date_to_node(resource, date1, use_rt=True)
         node2 = self.date_to_node(resource, date2, use_rt=False)
+        data = self.get_graph_data(resource)
         if cutoff is None:
-            min_cutoff = cp.shortest_path(node1=node1, node2=node2, **self.get_graph_data(resource))
+            min_cutoff = cp.shortest_path(node1=node1, node2=node2,
+                                          graph=data['graph'], refs=data['refs'],
+                                          distances=data.get('distances'))
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
-        patterns = cp.nodes_to_patterns(node1=node1, node2=node2, **self.get_graph_data(resource),
-                                        max_paths=num_max, cutoff=cutoff, **kwargs)
+        patterns = cp.nodes_to_patterns(node1=node1, node2=node2, graph=data['graph'], refs=data['refs'],
+                                        refs_inv=data['refs_inv'], max_paths=num_max, cutoff=cutoff, **kwargs)
         # we need to filter them to take out the ones that compromise the post-window periods
         p_filtered = self.filter_patterns(node2, patterns)
         return p_filtered
