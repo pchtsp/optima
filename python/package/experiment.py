@@ -466,19 +466,12 @@ class Experiment(object):
         last_period = self.instance.get_param('end')
         state_tasks = self.solution.get_state_tasks().to_list()
         fixed_states = self.instance.get_fixed_states()
-        fixed_states_h = fixed_states.\
+        fixed_states_h = \
+            fixed_states.\
             vfilter(lambda x: first_period <= x[2] <= last_period).\
             take([0, 2, 1])
-        # state_tasks_tab = pd.DataFrame(state_tasks,
-        #                                columns=['resource', 'period', 'status'])
-        # fixed_states_tab = pd.DataFrame(fixed_states_h,
-        #                                 columns=['resource', 'status', 'period'])
         diff_tups = set(fixed_states_h) - set(state_tasks)
-        # result = pd.merge(fixed_states_tab, state_tasks_tab, how='left', on=['resource', 'period'])
         return sd.SuperDict({k: 1 for k in diff_tups})
-        # return sd.SuperDict({tuple(x): 1 for x in
-        #                      result[result.state_x != result.state_y].to_records(index=False)})
-
 
     def check_min_available(self, deficit_only=True, periods=None, **params):
         """

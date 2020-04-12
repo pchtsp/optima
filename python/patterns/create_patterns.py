@@ -17,13 +17,33 @@ import graph_tool.all as gr
 
 
 def walk_over_nodes(node: nd.Node, get_nodes_only=False):
+    """
+
+    :param node: node from where we start the DFS
+    :param get_nodes_only: True if we only care about taking the arcs.
+        False we return all paths
+    :return: all arcs or all paths
+    """
+
     remaining_nodes = [(node, [])]
     # we store the neighbors of visited nodes, not to recalculate them
     cache_neighbors = sd.SuperDict()
     i = 0
     final_paths = []
-    # this code gets all combinations
     last_node = nd.get_sink_node(node.instance, node.resource)
+    ct = node.instance.compare_tups
+    fixed = \
+        node.instance.\
+        get_fixed_states(resource=node.resource, filter_horizon=True).\
+        to_start_finish(ct, pp=2)
+    if len(fixed):
+        # we start from the initial fixed nodes
+        # instead of starting from the initial node
+        neighbors = get_fixed_initial_nodes(node, fixed)
+        cache_neighbors[node] = neighbors
+        # we replace remaining_nodes, this losing the origin.
+        remaining_nodes = [(n, [node]) for n in neighbors]
+
     while len(remaining_nodes) and i < 10000000:
         i += 1
         node, path = remaining_nodes.pop()
@@ -39,9 +59,6 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
             # I don't have any cache of the node.
             # I'll get neighbors and do cache
             cache_neighbors[node] = neighbors = node.get_adjacency_list(only_next_period=True)
-            # Here, we assigned the last if there were not neighbors.
-            # in fact, this is not so: no neighbors means exactly that.
-            # we will then need to delete all this "orphan nodes"
         elif get_nodes_only:
             # we have the cache AND we don't want paths, we leave
             continue
@@ -50,6 +67,24 @@ def walk_over_nodes(node: nd.Node, get_nodes_only=False):
     if get_nodes_only:
         return cache_neighbors
     return final_paths
+
+
+def get_fixed_initial_nodes(node, fixed):
+    _, assignment, start, end = fixed[0]
+    # we take out the source from the list
+    if assignment == 'M':
+        # if the fixed assignment is a maintenance
+        # we just need to create a small(er) maintenance node
+        return [node.create_adjacent(assignment, 1, node.dif_period_end(end), 0)]
+    # if the fixed assignment is a task
+    # we have to look for nodes that comply with the fixed period
+    neighbors = node.get_adjacency_list(only_next_period=True)
+    return \
+        tl.TupList(neighbors). \
+            vfilter(lambda v: v.period <= start and
+                              v.period_end >= end and
+                              v.assignment == assignment and
+                              v.type == nd.TASK_TYPE)
 
 
 def get_create_node(refs, g, n):
@@ -159,8 +194,6 @@ def shortest_path(graph, refs, node1=None, node2=None, distances=None, **kwargs)
     return gr.shortest_distance(graph, source=source, target=target, dag=True, **kwargs)
 
 def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, max_paths=1000, **kwargs):
-    # TODO: there is something going on with default consumption
-    # TODO: there is something going on with initial states
     paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
     sample = iter_sample_fast(paths_iterator, max_paths, max_paths*100)
     return tl.TupList(sample).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
@@ -196,9 +229,6 @@ def get_graph_of_resource(instance, resource):
                               period=v[0], period_end=v[1], assignment=v[2],
                               rut=None, ret=None, type=v[3])).\
             vapply(lambda v: [nd.Node(**v)])
-
-    # TODO: fix assignment periods should only leave the possibility of the assignment
-    #   maybe changing the origin.
 
     nodes_ady_2 = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 

@@ -251,7 +251,7 @@ class GreedyByMission(test.Experiment):
         self.update_time_usage(resource, periods_to_update, time=time, maint=maint)
         return periods_to_update
 
-    def check_assign_task(self, resource, periods, task):
+    def check_assign_task(self, resource, periods, task, maint='M'):
         """
         Calculates the amount of periods it's possible to assign
         a given task to a resource.
@@ -269,14 +269,13 @@ class GreedyByMission(test.Experiment):
         number_periods = len(periods)
 
         horizon_end = self.instance.get_param('end')
-        next_maint = self.get_next_maintenance(resource, end)
-        # TODO: deal with M
+        next_maint = self.get_next_maintenance(resource, end, {maint})
         if next_maint is not None:
             before_maint = self.instance.shift_period(next_maint, -1)
-            rut = self.get_remainingtime(resource, before_maint, 'rut', 'M')
+            rut = self.get_remainingtime(resource, before_maint, 'rut', maint)
         else:
-            rut = self.get_remainingtime(resource, horizon_end, 'rut', 'M')
-        number_periods_ret = self.get_remainingtime(resource, start, 'ret', 'M')
+            rut = self.get_remainingtime(resource, horizon_end, 'rut', maint)
+        number_periods_ret = self.get_remainingtime(resource, start, 'ret', maint)
         number_periods_rut = int(rut // net_consumption)
         final_number_periods = max(min(number_periods_ret, number_periods_rut, number_periods), 0)
         return periods[:final_number_periods]

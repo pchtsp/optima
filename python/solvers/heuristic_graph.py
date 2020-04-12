@@ -935,8 +935,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         log.debug("constraints: clusters hours 2")
         get_consum = lambda t: self.instance.data['tasks'][t]['consumption']
         row_correct = lambda tup: tup[5] + (tup[7] - tup[6]) * get_consum(tup[3]) if tup[4] == nd.TASK_TYPE else tup[5]
-        # TODO: we're filtering None ruts. Not sure if this should be done here and only here.
-        # l['info'].vfilter(lambda v: (v[0], v[1])==('22', 1095))
         p_clustdate = \
             l['info']. \
                 vfilter(lambda v: v[5] is not None). \

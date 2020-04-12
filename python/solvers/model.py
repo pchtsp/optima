@@ -190,6 +190,7 @@ class Model(exp.Experiment):
 
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
         # we need to fix the corresponding variable.
+        # TODO: we can do this by just taking out variables that do not comply???
         for avt in l['at_mission_m']:
             a, v, t = avt
             if t < first_period:

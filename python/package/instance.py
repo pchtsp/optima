@@ -318,8 +318,8 @@ class Instance(object):
             fixed_future.extend(previous_n)
         return fixed_future
 
-    def get_fixed_maintenances(self, dict_key=None, resource=None):
-        fixed_states = self.get_fixed_states(resource)
+    def get_fixed_maintenances(self, dict_key=None, *args, **kwargs):
+        fixed_states = self.get_fixed_states(*args, **kwargs)
         fixed_maints = tl.TupList([(a, t) for (a, s, t) in fixed_states if s == 'M'])
         if dict_key is None:
             return fixed_maints
@@ -328,9 +328,9 @@ class Instance(object):
         if dict_key == 'period':
             return fixed_maints.to_dict(result_col=0)
 
-    def get_fixed_tasks(self):
+    def get_fixed_tasks(self, *args, **kwargs):
         tasks = self.get_tasks()
-        states = self.get_fixed_states()
+        states = self.get_fixed_states(*args, **kwargs)
         return tl.TupList([(a, s, t) for (a, s, t) in states if s in tasks])
 
     def get_fixed_periods(self):

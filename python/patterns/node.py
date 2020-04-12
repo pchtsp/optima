@@ -131,13 +131,27 @@ class Node(object):
         vt = tl.TupList((v, t) for v in tasks for t in _range(start_time[v], end_time[v]))
         t_v = vt.to_dict(result_col=1)
         p_pos = {periods[pos]: pos for pos in range(len(periods))}
+        _prev = self.instance.get_prev_period
         min_assign = self.instance.get_tasks('min_assign')
-        last_period = self.instance.get_param('end')
+        first_period, last_period = self.instance.get_start_end()
+        at_mission_m = self.instance.get_fixed_tasks(resource=self.resource).take([1, 2])
+        at_mission_m_horizon = at_mission_m.vfilter(lambda x: first_period <= x[1] <= last_period).to_set()
 
         vtt2 = tl.TupList([(v, t1, t2) for (v, t1) in vt for t2 in t_v[v] if
                             (p_pos[t2] >= p_pos[t1] + min_assign[v] - 1) or
                             (p_pos[t2] >= p_pos[t1] and t2 == last_period)
                             ])
+
+        # For Start-stop options, during fixed periods, we do not care of the minimum time assignment.
+        vtt2_fixed = tl.TupList([(v, t1, t2) for (v, t1) in vt for t2 in t_v[v] if
+                                  (p_pos[t2] >= p_pos[t1]) and
+                                  ((v, t1) in at_mission_m_horizon or
+                                   (v, t2) in at_mission_m_horizon or
+                                   (v, _prev(t1)) in at_mission_m)
+                                  ])
+        vtt2.extend(vtt2_fixed)
+        # we had a repetition problem:
+        vtt2 = vtt2.unique2()
         return vtt2
 
     def get_assignments_start_date(self, period):
@@ -165,7 +179,6 @@ class Node(object):
             sd.SuperDict.from_dict(result).vapply(lambda v: tl.TupList(v).sorted())
         return self._backup_vtt2_that_start_t_and_end_before_t2.get((period1, period2), tl.TupList())
 
-
     def get_assignments_between_dates(self, period1, period2):
         if self._backup_vtt2_between_tt is not None:
             return self._backup_vtt2_between_tt.get((period1, period2), tl.TupList())
@@ -186,6 +199,7 @@ class Node(object):
     def get_maint_options_rut(self):
         return sd.SuperDict()
         # TODO: maybe reformulate this so it's not run for missions.
+        #   I need to redo this whole function to work with missions and multiple maintenances
         last = self.instance.get_param('end')
         acc_cons = 0
         maints_rut = self.get_maints_ruts()
@@ -208,8 +222,8 @@ class Node(object):
                 elif rut_future < dif_m[m]:
                     # we still can do the maintenance in this period
                     # but we don't want the same one at 0; duh.
-                    # TODO: maybe check this now that it's assignment instead of maint
-                    if m != self.assignment and num != 0:
+                    if (self.type != MAINT_TYPE) or \
+                        (m != self.assignment and num != 0):
                         opts_rut[m].add(num)
             # it means we reached the upper limit of at least
             # one of the maintenances
@@ -420,7 +434,6 @@ class Node(object):
         return self.iter_between_periods(self.period_end, period)
 
     def iter_between_periods(self, start, end):
-        # TODO: I need to be sure this logic has no off-by-one errors.
         current = start
         while current < end:
             current = self.instance.get_next_period(current)
