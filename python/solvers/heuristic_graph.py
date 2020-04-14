@@ -99,6 +99,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         options_repair = sd.SuperDict(options_repair)
         options_repair['timeLimit'] = options.get('timeLimit_cycle', 10)
         max_patterns_initial = options.get('max_patterns_initial', 0)
+        timeLimit_initial = options.get('timeLimit_initial', options_repair['timeLimit'])
 
         # set clock!
         time_init = time.time()
@@ -111,7 +112,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         # 1. get an initial solution.
         log.info("Initial solution.")
-        initial_opts = dict(max_iters=max_iters_initial, assign_missions=True, num_max=max_patterns_initial)
+        initial_opts = dict(max_iters=max_iters_initial,
+                            assign_missions=True,
+                            num_max=max_patterns_initial,
+                            timeLimit=timeLimit_initial)
         options_fs = {**options, **initial_opts}
         if self.solution is None or max_iters_initial:
             first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
