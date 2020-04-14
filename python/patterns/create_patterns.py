@@ -9,6 +9,7 @@ import random
 import os
 
 import graph_tool.all as gr
+import logging as log
 
 
 # installing graph-tool and adding it to venv:
@@ -240,13 +241,15 @@ def get_graph_of_resource(instance, resource):
     g, refs = adjacency_to_graph(nodes_ady_2)
     refs_inv = refs.reverse()
 
+    log.debug("Calculating distances for resources: {}".format(resource))
     # delete nodes with infinite distance to sink:
-    distances = shortest_path(g, refs=refs)
+    g.set_reversed(is_reversed=True)
+    distances = shortest_path(graph=g, refs=refs, node1=sink)
     max_dist = instance.get_dist_periods(*instance.get_first_last_period()) + 5
     nodes = [n for n in g.vertices()
-             if distances[n][refs[sink]] > max_dist and
+             if distances[n] > max_dist and
              refs_inv[n].rut is not None]
-    # tl.TupList(nodes).vapply(lambda v: refs_inv[v])
+    g.set_reversed(is_reversed=False)
     keep_node = g.new_vp('bool', val=1)
     for v in nodes:
         keep_node[v] = 0

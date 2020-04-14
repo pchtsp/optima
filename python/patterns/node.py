@@ -472,8 +472,14 @@ def get_source_node(instance, resource):
     resources = instance.get_resources()
 
     maints = instance.get_maintenances()
-    rut = maints.kapply(lambda m: resources[resource]['initial'][m]['used']).clean(func=lambda v: v)
-    ret = maints.kapply(lambda m: resources[resource]['initial'][m]['elapsed']).clean(func=lambda v: v)
+    rut = \
+        maints.\
+        kapply(lambda m: resources[resource]['initial'][m]['used']).\
+        clean(func=lambda v: v is not None)
+    ret = \
+        maints.\
+        kapply(lambda m: resources[resource]['initial'][m]['elapsed']).\
+        clean(func=lambda v: v is not None)
     return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment='',
                 period_end=period, type=EMPTY_TYPE)
 

@@ -45,6 +45,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         resources = self.instance.get_resources()
         if not multiproc:
             for r in resources:
+                log.debug('Creating graph for resource: {}'.format(r))
                 graph_data = cp.get_graph_of_resource(instance=self.instance, resource=r)
                 self.instance.data['aux']['graphs'][r] = graph_data
             return
