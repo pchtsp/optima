@@ -168,7 +168,7 @@ class Experiment(object):
         task_reqs = self.instance.get_tasks('num_resource')
         task_period_list = \
             self.instance.get_task_period_list().\
-            vfilter(lambda k: k[1] in periods)
+            vfilter(lambda v: v[1] in periods)
 
         task_under_assigned = \
             self.solution.get_task_num_resources().\
@@ -515,7 +515,8 @@ class Experiment(object):
         min_hours = cluster_data['hours'].kfilter(lambda k: k[1] in periods)
         res_clusters = self.instance.get_cluster_candidates().list_reverse()
         cluster_hours2 = \
-            ruts.to_dictup().\
+            ruts.\
+            to_dictup().\
             kfilter(lambda k: k[1] in periods).\
             to_tuplist().to_dict(None).\
             vapply(lambda v: res_clusters[v[0]]).\

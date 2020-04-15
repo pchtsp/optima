@@ -67,7 +67,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         multiproc = options['multiprocess']
         resources = change['resources']
         args = (change['start'], change['end'], options['num_max'], options.get('cutoff', 200))
-        if not multiproc or True:
+        if not multiproc or not options.get('multiproc_patterns', False):
             patterns = \
                 sd.SuperDict().fill_with_default(change['resources']).\
                 kapply(self.get_pattern_options_from_window, *args)
@@ -93,11 +93,13 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         cooling = options.get('cooling', 0.995)
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
-        max_iters_initial = options.get('max_iters_initial', 10)
         big_window = options.get('big_window', False)
+
         options_repair = di.copy_dict(options)
         options_repair = sd.SuperDict(options_repair)
         options_repair['timeLimit'] = options.get('timeLimit_cycle', 10)
+
+        max_iters_initial = options.get('max_iters_initial', 10)
         max_patterns_initial = options.get('max_patterns_initial', 0)
         timeLimit_initial = options.get('timeLimit_initial', options_repair['timeLimit'])
 
@@ -116,7 +118,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                             assign_missions=True,
                             num_max=max_patterns_initial,
                             timeLimit=timeLimit_initial)
-        options_fs = {**options, **initial_opts}
+        options_fs = {**options_repair, **initial_opts}
         if self.solution is None or max_iters_initial:
             first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
             first_solve.get_objective_function = self.get_objective_function
@@ -125,7 +127,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         elif max_patterns_initial:
             ch = self.get_candidate_all()
             patterns = self.get_patterns_from_window(ch, options_fs)
-            self.solve_repair(patterns, options_repair)
+            self.solve_repair(patterns, options_fs)
 
         # initialise solution status
         self.initialise_solution_stats()
@@ -386,6 +388,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :param date2:
         :return:
         """
+        log.debug('Get patterns for resource: {}'.format(resource))
         node1 = self.date_to_node(resource, date1, use_rt=True)
         node2 = self.date_to_node(resource, date2, use_rt=False)
         data = self.get_graph_data(resource)
@@ -397,7 +400,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
         patterns = cp.nodes_to_patterns(node1=node1, node2=node2, graph=data['graph'], refs=data['refs'],
-                                        refs_inv=data['refs_inv'], max_paths=num_max, cutoff=cutoff, **kwargs)
+                                        refs_inv=data['refs_inv'], vp_not_task=data['vp_not_task'],
+                                        max_paths=num_max, cutoff=cutoff, **kwargs)
         # we need to filter them to take out the ones that compromise the post-window periods
         p_filtered = self.filter_patterns(node2, patterns)
         return p_filtered
@@ -446,7 +450,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         # here, we will be take the risk of just deleting everything.
         data = self.solution.data
-        fixed_periods = self.instance.get_fixed_periods().to_set()
+        fixed_periods = self.instance.get_fixed_periods(resource=resource).to_set()
 
         delete_assigned = tl.TupList()
         periods = self.instance.get_periods_range(start, end)
@@ -517,7 +521,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             info. \
                 to_dict(result_col=[0, 1, 2, 3], indices=[4]). \
                 fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
-
 
         first, last = self.instance.get_start_end()
         l = self.domains = mdl.Model.get_domains_sets(self, options, force=False)
@@ -629,7 +632,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         resources = self.instance.get_resources().keys_tl().sorted()
         first, last = self.instance.get_first_last_period()
         start = rn.choice(periods)
-        size = rn.choice(range(10, 31))
+        size = rn.choice(range(10, len(periods)))
         end = min(_shift(start, size), last)
         # we choose a subset of resources
         size_sample = rn.choice(range(15, len(resources)+1))
@@ -781,14 +784,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         p_mission = \
             info[nd.TASK_TYPE]. \
-                to_dict(indices=[3, 2], result_col=[0, 1]). \
-                fill_with_default(t_mission_needs, default=tl.TupList())
+                to_dict(indices=[3, 2], result_col=[0, 1])
 
         return \
             p_mission. \
-                kfilter(lambda k: t_mission_needs[k] > 0). \
-                vapply(lambda v: [(assign[vv], 1) for vv in v]). \
-                kvapply(lambda k, v: v + _slack_s_vt[k]). \
+                kfilter(lambda k: t_mission_needs.get(k, 0) > 0). \
+                kvapply(lambda k, v: [(assign[vv], 1) for vv in v] + _slack_s_vt[k]). \
                 kvapply(lambda k, v: pl.LpConstraint(v, rhs=t_mission_needs[k], sense=pl.LpConstraintGE)). \
                 values_tl()
 
@@ -954,8 +955,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return \
             p_clustdate. \
                 kfilter(lambda k: t_min_hour_slack.get(k, 0) > 0). \
-                vapply(lambda v: [(assign[vv[0], vv[1]], vv[2]) for vv in v]). \
-                kvapply(lambda k, v: v + _slack_s_kt_h[k]). \
+                kvapply(lambda k, v: [(assign[vv[0], vv[1]], vv[2]) for vv in v] + _slack_s_kt_h[k]). \
                 kvapply(lambda k, v: pl.LpConstraint(v, rhs=t_min_hour_slack[k], sense=pl.LpConstraintGE))
 
     def build_model(self, assign, slack_vts, slack_ts, slack_kts, slack_kts_h):

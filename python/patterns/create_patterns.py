@@ -194,10 +194,23 @@ def shortest_path(graph, refs, node1=None, node2=None, distances=None, **kwargs)
         return distances[source][target]
     return gr.shortest_distance(graph, source=source, target=target, dag=True, **kwargs)
 
-def nodes_to_patterns(graph, refs, refs_inv, node1, node2, cutoff=1000, max_paths=1000, **kwargs):
+def get_cleaned_graph(g, node1, node2, refs, refs_inv, vp_not_task):
+    # returns a graph without task assignments.
+    # Except the node1 and node2 and previous nodes to node2
+    nodes = [refs[node1], refs[node2]] + list(g.vertex(refs[node2]).in_neighbors())
+    _temp_vp = vp_not_task.copy()
+    for v in nodes:
+        _temp_vp[v] = 1
+    return gr.GraphView(g, vfilt=_temp_vp)
+
+def nodes_to_patterns(graph, refs, refs_inv, node1, node2, vp_not_task,
+                      cutoff=1000, max_paths=1000,  **kwargs):
     paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
+    gfilt = get_cleaned_graph(graph, node1, node2, refs, refs_inv, vp_not_task)
+    paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
     sample = iter_sample_fast(paths_iterator, max_paths, max_paths*100)
-    return tl.TupList(sample).vapply(lambda v: tl.TupList(v).vapply(lambda vv: refs_inv[vv]))
+    sample2 = iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+    return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
     node = node1
     refs.keys_tl().\
         vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
@@ -241,7 +254,6 @@ def get_graph_of_resource(instance, resource):
     g, refs = adjacency_to_graph(nodes_ady_2)
     refs_inv = refs.reverse()
 
-    log.debug("Calculating distances for resources: {}".format(resource))
     # delete nodes with infinite distance to sink:
     g.set_reversed(is_reversed=True)
     distances = shortest_path(graph=g, refs=refs, node1=sink)
@@ -255,7 +267,13 @@ def get_graph_of_resource(instance, resource):
         keep_node[v] = 0
     g = gr.GraphView(g, vfilt=keep_node)
 
-    return sd.SuperDict(graph=g, refs=refs, refs_inv=refs_inv, source=source, sink=sink, distances=None)
+    vp_not_task = g.new_vp('bool', val=1)
+    for v in g.vertices():
+        if refs_inv[v].type == nd.TASK_TYPE:
+            vp_not_task[v] = 0
+
+    return sd.SuperDict(graph=g, refs=refs, refs_inv=refs_inv,
+                        source=source, sink=sink, distances=None, vp_not_task=vp_not_task)
 
 
 def iter_sample_fast(iterable, samplesize, max_iterations=9999999):
@@ -300,6 +318,7 @@ def import_graph_data(path, resource):
     graph = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
     return sd.SuperDict(graph=graph, refs_inv=refs_inv)
 
+
 def get_patterns_into_dictup(res_patterns):
     return \
         {(res, p): pattern
@@ -312,11 +331,16 @@ def get_assignments_from_patterns(instance, combos, maint='M'):
     _range = instance.get_periods_range
     _dist = instance.get_dist_periods
     rut_or_None = lambda rut: rut[maint] if rut is not None else None
+    _range_backup = sd.SuperDict(combos).to_tuplist().\
+        take(2).unique2().\
+        vapply(lambda v: (v.period, v.period_end)).unique2().\
+        to_dict(None).\
+        vapply(lambda v: _range(*v))
 
     info = tl.TupList(
         (res, p, period, e.assignment, e.type, rut_or_None(e.rut), pos, _dist(e.period, e.period_end))
         for (res, p), pattern in combos.items()
-        for e in pattern for pos, period in enumerate(_range(e.period, e.period_end))
+        for e in pattern for pos, period in enumerate(_range_backup[e.period, e.period_end])
     )
     return info
 

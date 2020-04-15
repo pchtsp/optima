@@ -333,10 +333,9 @@ class Instance(object):
         states = self.get_fixed_states(*args, **kwargs)
         return tl.TupList([(a, s, t) for (a, s, t) in states if s in tasks])
 
-    def get_fixed_periods(self):
-        states = self.get_fixed_states()
+    def get_fixed_periods(self, *args, **kwargs):
+        states = self.get_fixed_states(*args, **kwargs)
         return states.take([0, 2])
-        # return tl.TupList([(a, t) for (a, s, t) in states]).unique()
 
     def get_task_period_list(self, in_dict=False):
 
