@@ -52,7 +52,12 @@
 
   The first section is a description of the input data. Then the master problem is presented. The pattern definition, representation and sampling follows. Lastly, several alternatives to subproblems are described.
 
+\subsection{Pattern}
+
+  We call pattern to a feasible combination of missions assignments and checks for aircraft $i$ between the beginning of period $t$ and the end of period $t^\prime$.
+
 \section{Input data}
+
     \subsection{Basic sets}
 
         \begin{tabular}{p{15mm}p{140mm}}
@@ -130,23 +135,27 @@
   % Specification of nodes (position, etc.)
     \node (start)             [activityStarts]              {Start};
     \node (initSol)     [startstop, below of=start]          {Initial solution};
-    \node (objFunc)      [master, below of=initSol]   {Get objective};
+    \node (maybeStop)      [master, below of=initSol]   {Reached time limit \\or max iterations?};
+    \node (Stop)      [activityStarts, right of=maybeStop, xshift=4cm]   {End};
+    \node (objFunc)      [master, below of=maybeStop]   {Get objective};
     \node (bestSol)      [master, below of=objFunc]   {Update best solution};
     \node (prevSol)      [master, below of=bestSol]   {Update previous solution};
-    \node (getErrors)      [master, below of=prevSol]   {Get errors};
-    \node (getCandidate)     [master, below of=getErrors]   {Find good window candidate};
+    \node (getErrors)      [master, below of=prevSol]   {Get errors $e$};
+    \node (getCandidate)     [master, below of=getErrors]   {Find candidate $\mathcal{T}_{c}$, $\mathcal{I}_{c}$};
     \node (samplePatterns)      [subproblem, below of=getCandidate]
                                                         {Sample patterns};
-    \node (decidePatterns)      [subproblem, below of=samplePatterns, yshift=-1cm]
+    \node (decidePatterns)      [subproblem, below of=samplePatterns]
                                                                   {Decide patterns};
-    \node (applyPatterns)       [subproblem, below of=decidePatterns, yshift=-1cm]
+    \node (applyPatterns)       [subproblem, below of=decidePatterns]
                                                                    {Apply patterns};
     % \node (ActivityDestroyed) [startstop, below of=onDestroyBlock]
     %                                                   {Activity is shut down};     
     % Specification of lines between nodes specified above
     % with aditional nodes for description 
     \draw[->]             (start) -- (initSol);
-    \draw[->]     (initSol) -- (objFunc);
+    \draw[->]     (initSol) -- (maybeStop);
+    \draw[->]     (maybeStop) -- (Stop);
+    \draw[->]     (maybeStop) -- (objFunc);
     \draw[->]     (objFunc) -- (bestSol);
     \draw[->]      (bestSol) -- (prevSol);
     \draw[->]      (prevSol) -- (getErrors);
@@ -165,8 +174,8 @@
                                       % {User navigates back to the activity}
                                       % (initSol);
     % \draw[->]      (applyPatterns.east) -- (objFunc.east);
-  \draw[->] (applyPatterns.east) -- ++(2.6,0) -- ++(0,2) -- ++(0,2) --                
-     (objFunc.east);
+  \draw[->] (applyPatterns.west) -- ++(-2.6,0) -- ++(0,10) -- ++(0,2) --                
+     (maybeStop.west);
   \end{tikzpicture}
 
 \section{Pattern generation}
@@ -251,7 +260,19 @@
     We obtain those two nodes in the graph, given an existing feasible solution and the time window $\mathcal{T}_{c}$.
     For the first node $X_1$ we do the following. Let $t_{init}$ be the first period in time window $\mathcal{T}_{c}$, we calculate the state of the aircraft $i \in \mathcal{I}_{c}$ in period $t_{init}$. In the case the assignment is an empty assignment, the state will be directly calculated using $rft=rft_i$, $rct=rct_i$, $t^s=t^f=t_{init}$, $y=2$, $j=''$. In the case the assignment is a check or mission assignment, one needs to find the initial period ($t^\prime_{init}$) and the end period ($t^{\prime\prime}_{init}$) for the assignment update the rest accordingly: $rft=rft_i$, $rct=rct_i$, $t^s=t^\prime_{init}$, $t^f=t^{\prime\prime}_{init}$, $y=1$, $j='1'$ if the assignment is mission '1'.
 
-    For the second node $X_2$ this m
+    For the second node $X_2$ this process needs to be modified somewhat since we do not want to fix the $rct$ and $rft$ of the end node. This implies creating several artificial nodes that have $rft=-1$ and $rct=-1$ and connecting all the other nodes that share $t^s, t^f, y, j$ to these nodes. This is done in Line \ref{algo:artificial} of Algorithm \ref{algo:graph-building}. Let $t_{end}$ be the last period in time window $\mathcal{T}_{c}$. We then calculate the end node like so: $rft=-1$, $rct=-1$, $t^s=t^\prime_{end}$, $t^f=t^{\prime\prime}_{end}$, $y=0$, $j='M'$ for the case the assignment at the end is a check.
+
+    Using the example in figure \ref{fig:graph_resource1}, there exist 5 unique paths that start in the selected node in blue. Table \ref{tab:pattern_enumeration} shows all possible patterns for that aircraft that start in that node and finish in the sink.
+
+    \input{table_paths}
+
+  \subsection{Sampling paths}
+
+    The previous procedure can be trivially modified so it renders a maximum number of paths at each time, by stopping the DFS process after a number of paths is returned. This, nevertheless, results in a extremely biased sampling of the paths since, by construction, the DFS guarantees that consecutive paths share most of the path. In addition to this, by default, most DFS implementations use the same sequence of choices given the same graph. This approach is, thus, limited.
+
+    The first question that arises is how to take unbiased samples of paths in a graph, in between two nodes. This is possible and can be done in a DAG by first pre-calculating the number of paths that pass through each node in their trip from $X_1$ to $X_2$. This last operation can be done in $\mathcal{O}(V)$, where $V$ is the number of edges in between the two nodes. Then, we use this information to sample one neighbor at each node when iterating from $X_1$. This implies not doing a DFS but starting each path at $X_1$.
+
+    The second question that arises is how to take biased samples of paths in a graph, by giving more probability to paths that are similar to the paths we are looking for (i.e., have nodes that are more useful for the solution). This implies having information about the paths we are looking for, which we do from the Master (e.g., the same information we use to determine where to repair: the number of errors in the solution). Doing this avoids having to generate too many samples to get a good solution.
 
 \section{Subproblem}
 
