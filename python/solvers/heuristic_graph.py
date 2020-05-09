@@ -63,6 +63,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.export_graph_data(path_cache)
         return
 
+    def sub_problem_mip(self, change, options):
+        patterns = self.get_patterns_from_window(change, options)
+        if not patterns:
+            return None
+        return self.solve_repair(patterns, options)
+
     def get_patterns_from_window(self, change, options):
         multiproc = options['multiprocess']
         resources = change['resources']
@@ -75,10 +81,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         results = sd.SuperDict()
         _data = sd.SuperDict()
         with multi.Pool(processes=multiproc) as pool:
+            data = {}
             for r in resources:
-                results[r] = pool.apply_async(self.get_pattern_options_from_window, [r, *args])
+                data[r] = self.prepare_data_to_get_patterns(r, *args)
+                # we need to filter them to take out the ones that compromise the post-window periods
+                results[r] = pool.apply_async(cp.nodes_to_patterns, kwds=data[r])
             for r, result in results.items():
-                _data[r] = result.get(timeout=100)
+                try:
+                   _data[r] = result.get(timeout=100)
+                   _data[r] = self.filter_patterns(data[r]['node2'], _data[r])
+                except multi.TimeoutError:
+                    _data[r] = []
         return _data.vfilter(lambda v: len(v) > 0)
 
     def solve(self, options):
@@ -149,10 +162,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if not change:
                 continue
             log.info('Repairing periods {start} => {end} for resources: {resources}'.format(**change))
-            patterns = self.get_patterns_from_window(change, options)
-            if not len(patterns):
+            solution = self.sub_problem_mip(change, options)
+            if solution is None:
                 continue
-            self.solve_repair(patterns, options_repair)
 
             objective, status, errors = self.analyze_solution(temperature, True)
             num_errors = errors.to_lendict().values_tl()
@@ -378,17 +390,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                              assignment=assignment, type=_type, **_rts)
         return cp.state_to_node(self.instance, resource=resource, state=state)
 
-    def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
-        """
-        This method is accessed by the repairing method.
-        To know the options of assignments
+    def prepare_data_to_get_patterns(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
 
-        :param resource:
-        :param date1:
-        :param date2:
-        :return:
-        """
-        log.debug('Get patterns for resource: {}'.format(resource))
         node1 = self.date_to_node(resource, date1, use_rt=True)
         node2 = self.date_to_node(resource, date2, use_rt=False)
         data = self.get_graph_data(resource)
@@ -399,11 +402,24 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
-        patterns = cp.nodes_to_patterns(node1=node1, node2=node2, graph=data['graph'], refs=data['refs'],
+        return dict(node1=node1, node2=node2, graph=data['graph'], refs=data['refs'],
                                         refs_inv=data['refs_inv'], vp_not_task=data['vp_not_task'],
                                         max_paths=num_max, cutoff=cutoff, **kwargs)
+
+    def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
+        """
+        This method is accessed by the repairing method.
+        To know the options of assignments
+
+        :param resource:
+        :param date1:
+        :param date2:
+        :return:
+        """
+        data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
+        patterns = cp.nodes_to_patterns(**data)
         # we need to filter them to take out the ones that compromise the post-window periods
-        p_filtered = self.filter_patterns(node2, patterns)
+        p_filtered = self.filter_patterns(data['node2'], patterns)
         return p_filtered
 
     def get_pattern_from_window(self, resource, date1, date2):
@@ -416,6 +432,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         _start = start
         maint_data = self.instance.data['maintenances'][maint]
         duration = maint_data['duration_periods']
+        horizon_end = self.instance.get_param('end')
+        affected_maints = maint_data['affects']
         while _start <= end:
             # iterate over maintenance periods
             updated_periods = self.update_rt_until_next_maint(resource, _start, maint, rt)
@@ -429,13 +447,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 break
             # if the maintenance falls inside the period: update the maintenance values
             # and continue the while
-            horizon_end = self.instance.get_param('end')
-            affected_maints = maint_data['affects']
             maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
             periods_maint = self.instance.get_periods_range(maint_start, maint_end)
             for m in affected_maints:
-                self.update_time_maint(resource, periods_maint, time='ret', maint=m)
-                self.update_time_maint(resource, periods_maint, time='rut', maint=m)
+                self.update_time_maint(resource, periods_maint, time=rt, maint=m)
             _start = _shift(maint_end, 1)
         return True
 
@@ -587,6 +602,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             return None
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
+
+        # TODO: we should return the mapping: resource => pattern
+        # TODO: we should plug and play the subproblem as another class
         self.solution = self.get_repaired_solution(l['combos'], model_vars['assign'])
 
         return self.solution

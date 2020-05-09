@@ -7,9 +7,9 @@ import numpy.random as rn
 import patterns.node as nd
 import random
 import os
+import numpy as np
 
 import graph_tool.all as gr
-import logging as log
 
 
 # installing graph-tool and adding it to venv:
@@ -89,32 +89,23 @@ def get_fixed_initial_nodes(node, fixed):
 
 
 def get_create_node(refs, g, n):
-    v = refs.get(n)
-    if v is not None:
+    try:
+        return refs[n]
+    except KeyError:
+        v = g.add_vertex()
+        refs[n] = int(v)
         return v
-    v = g.add_vertex()
-    g.vp.period[v] = n.period
-    g.vp.assignment[v] = n.assignment
-    refs[n] = int(v)
-    return v
 
 
 def adjacency_to_graph(nodes_ady):
+    # TODO: make this faster
     g = gr.Graph()
-    g.vp.period = g.new_vp('string')
-    g.vp.assignment = g.new_vp('string')
-    g.ep.assignment = g.new_ep('string')
     refs = sd.SuperDict()
     for n, n2_list in nodes_ady.items():
         v1 = get_create_node(refs, g, n)
         for n2 in n2_list:
             v2 = get_create_node(refs, g, n2)
-            e = g.add_edge(v1, v2)
-            if n2.assignment is None:
-                g.ep.assignment[e] = ""
-            else:
-                g.ep.assignment[e] = n2.assignment
-
+            e = g.add_edge(v1, v2, add_missing=False)
     return g, refs
 
 
@@ -125,7 +116,9 @@ def get_all_patterns(graph, refs, refs_inv, instance, resource):
     return nodes_to_patterns(graph, refs, refs_inv, source, sink)
 
 
-def draw_graph(instance, g, refs_inv=None, not_show_None=True):
+def draw_graph(instance, g, refs_inv=None, not_show_None=True,
+               edge_label=None, node_label=None,
+               tikz=False, filename=None):
     y_ranges = dict(VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
                     VI=lambda: rn.uniform(5, 10) * (1 - 2 * (rn.random() > 0.5)),
                     VS=lambda: rn.uniform(0, 5) * (1 - 2 * (rn.random() > 0.5))
@@ -146,7 +139,7 @@ def draw_graph(instance, g, refs_inv=None, not_show_None=True):
          'VG+VS': '#EFCC00',
          'VG+VI+VS': '#EFCC00',
          'VI+VS': '#EFCC00'}
-    extra_colors = {g.vp.assignment[v]: rn.choice(['#31c9ff', '#00c8c3', '#4cb33d']) for v in g.vertices()}
+    extra_colors = {refs_inv[v].assignment: rn.choice(['#31c9ff', '#00c8c3', '#4cb33d']) for v in g.vertices()}
     # empty assignments we put in white:
     extra_colors['']  = '#ffffff'
     colors = {**extra_colors, **colors}
@@ -156,7 +149,7 @@ def draw_graph(instance, g, refs_inv=None, not_show_None=True):
     if not_show_None:
         keep_node = g.new_vp('bool')
         for v in g.vertices():
-            if refs_inv[v].rut is None and first < refs_inv[v].period < last:
+            if refs_inv[v].rut is None and first <= refs_inv[v].period <= last:
                 keep_node[v] = 0
             else:
                 keep_node[v] = 1
@@ -168,21 +161,62 @@ def draw_graph(instance, g, refs_inv=None, not_show_None=True):
     size = g_filt.new_vp('double')
     shape = g_filt.new_vp('string')
     color = g_filt.new_vp('string')
+    vertex_text = g_filt.new_vp('string')
+    assignment = g.new_ep('string')
+
+    if not edge_label:
+        def edge_label(tail):
+            a = tail.assignment
+            if a is None:
+                return ""
+            return a
+
+    for e in g_filt.edges():
+        assignment[e] = edge_label(refs_inv[e.target()])
+
+    if not node_label:
+        node_label = lambda node: node.period
 
     for v in g_filt.vertices():
-        x = instance.get_dist_periods(first, g_filt.vp.period[v])
-        assignment = g_filt.vp.assignment[v]
-        if assignment in y_ranges:
-            y = y_ranges.get(assignment, lambda: 0)()
+        vertex_text[v] = node_label(refs_inv[v])
+        x = instance.get_dist_periods(first, refs_inv[v].period)
+        a = refs_inv[v].assignment
+        if a in y_ranges:
+            y = y_ranges.get(a, lambda: 0)()
         else:
             y = get_y_mission(v)
         pos[v] = (x, y)
         size[v] = 2
         shape[v] = 'circle'
-        color[v] = colors.get(assignment, 'red')
+        color[v] = colors.get(a, 'red')
 
-    gr.graph_draw(g_filt, pos=pos, vertex_text=g_filt.vp.period,
-                  edge_text=g.ep.assignment, vertex_shape=shape, vertex_fill_color=color)
+    options = dict(pos=pos, vertex_text=vertex_text, edge_text=assignment,
+                       vertex_shape=shape, vertex_fill_color=color)
+    if not tikz:
+        gr.graph_draw(g=g_filt, **options)
+    else:
+        graph_draw_tikz(g=g_filt, **options, filename=filename)
+
+def graph_draw_tikz(g, pos, vertex_text, edge_text, vertex_shape, vertex_fill_color, filename):
+    import network2tikz as nt
+    import webcolors as wc
+
+    nodes = [int(v) for p, v in enumerate(g.vertices())]
+    _edges = list(g.edges())
+    edges = [(int(e.source()), int(e.target())) for e in _edges]
+    visual_style = {}
+    visual_style['vertex_color'] = [wc.hex_to_rgb(vertex_fill_color[v]) for v in nodes]
+    visual_style['edge_label'] = [edge_text[e] for e in _edges]
+    visual_style['vertex_label'] = [vertex_text[v] for v in nodes]
+    visual_style['layout'] = {v: (pos[v][0], np.cbrt(-pos[v][1])) for p, v in enumerate(nodes)}
+    visual_style['vertex_size'] = 1.5
+    visual_style['keep_aspect_ratio'] = False
+    visual_style['canvas'] = (10, 10)
+    # visual_style['node_opacity'] = 0.5
+
+
+    nt.plot(network = (nodes, edges), **visual_style, filename=filename)
+
 
 def shortest_path(graph, refs, node1=None, node2=None, distances=None, **kwargs):
     target, source = None, None
@@ -204,18 +238,59 @@ def get_cleaned_graph(g, node1, node2, refs, refs_inv, vp_not_task):
     return gr.GraphView(g, vfilt=_temp_vp)
 
 def nodes_to_patterns(graph, refs, refs_inv, node1, node2, vp_not_task,
-                      cutoff=1000, max_paths=1000,  **kwargs):
+                      cutoff=1000, max_paths=1000, add_empty=True,  **kwargs):
     paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-    gfilt = get_cleaned_graph(graph, node1, node2, refs, refs_inv, vp_not_task)
-    paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
     sample = iter_sample_fast(paths_iterator, max_paths, max_paths*100)
-    sample2 = iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+    sample2 = []
+    if add_empty:
+        gfilt = get_cleaned_graph(graph, node1, node2, refs, refs_inv, vp_not_task)
+        paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
+        sample2 = iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
     return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
     node = node1
     refs.keys_tl().\
         vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
         vapply(lambda v: (v.rut, v.ret, v.type))
     node.rut, node.ret, node.type
+
+def nodes_to_pattern(graph, refs, refs_inv, node1, node2, all_weights,
+                      cutoff=1000, **kwargs):
+
+    # input:
+    # graph = gr.Graph()
+    # graph initialization
+    node1 = graph.vertex(refs[node1])  # example source
+    node2 = graph.vertex(refs[node2])
+    # all_weights = {}  # edge => weight
+    # cutoff = 10
+
+    current = node1
+    path = []
+    visited = set()
+    while True:
+        if current == node2:
+            # we finished!
+            return path + [current]
+        visited.add(current)  # maybe we should add (current, len(path))
+        neighbors = set(current.out_neighbors()) - visited
+        if len(path) >= cutoff or not len(neighbors):
+            # this path does not reach node2
+            # we backtrack
+            # and we will never visit this node again
+            current = path.pop()
+            continue
+        if not len(path) and not len(neighbors):
+            # there is no path to node2
+            # this should not be possible
+            return None
+        # we haven't reached node2
+        # but there is still hope
+        path.append(current)
+        weights = [all_weights.get((current, n), 1) for n in neighbors]
+        _sum = sum(weights)
+        weights = [w/_sum for w in weights]
+        current = np.random.choice(a=list(neighbors), p=weights)
+
 
 def state_to_node(instance, resource, state):
     return nd.Node(instance=instance, resource=resource, **state)
@@ -376,23 +451,7 @@ if __name__ == '__main__':
     instance = inst.Instance(data_in)
     res = instance.get_resources().keys_l()[0]
     info = get_graph_of_resource(instance, res)
-    draw_graph(instance, info['graph'], info['refs_inv'])
-    info['node1'] = info['source']
-    info['node2'] = info['sink']
-    paths = nodes_to_patterns(**info)
-    combos = get_patterns_into_dictup({'1': paths})
 
-    info = get_assignments_from_patterns(instance, combos, 'M')
-    import pandas as pd
-
-    equiv = info.take(2).unique2().sorted().kvapply(lambda k, v: (k, v)).to_dict(is_list=False)
-    info_pd = \
-        pd.DataFrame.\
-            from_records(info.to_list(), columns=['res', 'pat', 'period', 'assign']+list(range(4))).\
-            filter(['pat', 'period', 'assign'])
-    info_pd.period = info_pd.period.map(equiv)
-    latex_str = info_pd.query('period>0 & period<11').set_index(['pat', 'period']).unstack('period')['assign'].to_latex(longtable=True)
-    print(latex_str)
     # Example creating paths between nodes:
 
     # node1 = rn.choice([n for n in nodes_ady.keys() if n.period=='2017-12'])
