@@ -13,7 +13,6 @@ class DataSet(object):
 
     def get_instance(self):
         return self.input_data
-        pass
 
     def get_solution(self):
         return self.solution_data
@@ -186,6 +185,17 @@ def dataset3():
             , 'depends_on': []
             , 'priority': 1
         }}
+    missions = {
+            '1': {
+                'start': '2018-02'
+                , 'end': '2018-07'
+                , 'consumption': 30
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 3
+                , 'capacities': [0]
+            }
+        }
     model_data = {
         'parameters': {
             'start': '2018-01'
@@ -205,17 +215,7 @@ def dataset3():
             }
         },
         'maintenances': maints,
-        'tasks': {
-            'O1': {
-                'start': '2018-02'
-                , 'end': '2018-07'
-                , 'consumption': 30
-                , 'num_resource': 1
-                , 'type_resource': 0
-                , 'min_assign': 3
-                , 'capacities': [0]
-            }
-        },
+        'tasks': missions,
         'maint_types': {'1': {'capacity': {'2018-05': 0}}}
     }
     return model_data
@@ -225,6 +225,13 @@ def dataset3_no_default():
     data = dataset3()
     data['parameters']['min_usage_period'] = 0
     data['resources']['1'].pop('min_usage_period')
+    return data
+
+
+def dataset3_no_default_5_periods():
+    data = dataset3_no_default()
+    data['parameters']['num_period'] = 5
+    data['tasks']['1']['end'] = '2018-05'
     return data
 
 
