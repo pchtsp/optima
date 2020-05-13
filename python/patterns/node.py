@@ -70,6 +70,10 @@ class Node(object):
         new_node._backup_vtt2_that_start_t_and_end_before_t2 = node._backup_vtt2_that_start_t_and_end_before_t2
         return new_node
 
+    @classmethod
+    def from_state(cls, instance, resource, state):
+        return Node(instance=instance, resource=resource, **state)
+
     def __repr__(self):
         return repr('({}<>{}) => {}'.format(self.period, self.period_end, self.assignment))
 
@@ -469,6 +473,66 @@ class Node(object):
                 return None
         return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 
+    def walk_over_nodes(self):
+        """
+
+        :param node: node from where we start the DFS
+        :return: all arcs
+        """
+
+        remaining_nodes = [self]
+        # we store the neighbors of visited nodes, not to recalculate them
+        cache_neighbors = sd.SuperDict()
+        i = 0
+        last_node = get_sink_node(self.instance, self.resource)
+        ct = self.instance.compare_tups
+        fixed = \
+            self.instance.\
+            get_fixed_states(resource=self.resource, filter_horizon=True).\
+            to_start_finish(ct, pp=2)
+        if len(fixed):
+            # we start from the initial fixed nodes
+            # instead of starting from the initial node
+            neighbors = self.get_fixed_initial_nodes(fixed)
+            cache_neighbors[self] = neighbors
+            # we replace remaining_nodes, this losing the origin.
+            remaining_nodes = neighbors
+
+        while len(remaining_nodes) and i < 10000000:
+            i += 1
+            node = remaining_nodes.pop()
+            # we need to make a copy of the path
+            if node == last_node:
+                # if last_node reached, go back
+                continue
+            # we're not in the last_node.
+            neighbors = cache_neighbors.get(node)
+            if neighbors is None:
+                # I don't have any cache of the node.
+                # I'll get neighbors and do cache
+                cache_neighbors[node] = neighbors = node.get_adjacency_list(only_next_period=True)
+                # since the node is new, we want to visit it's neighbors
+                remaining_nodes += neighbors
+            # log.debug("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
+        return cache_neighbors
+
+    def get_fixed_initial_nodes(self, fixed):
+        _, assignment, start, end = fixed[0]
+        # we take out the source from the list
+        if assignment == 'M':
+            # if the fixed assignment is a maintenance
+            # we just need to create a small(er) maintenance node
+            return [self.create_adjacent(assignment, 1, self.dif_period_end(end), 0)]
+        # if the fixed assignment is a task
+        # we have to look for nodes that comply with the fixed period
+        neighbors = self.get_adjacency_list(only_next_period=True)
+        return \
+            tl.TupList(neighbors). \
+                vfilter(lambda v: v.period <= start and
+                                  v.period_end >= end and
+                                  v.assignment == assignment and
+                                  v.type == TASK_TYPE)
+
 
 def get_source_node(instance, resource):
     start = instance.get_param('start')
@@ -494,3 +558,5 @@ def get_sink_node(instance, resource):
     defaults = dict(instance=instance, resource=resource)
     return Node(period=last_next, assignment='', rut=None,
                 ret=None, period_end = last_next, type=EMPTY_TYPE, **defaults)
+
+

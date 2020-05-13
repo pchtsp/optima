@@ -9,7 +9,7 @@ import solvers.heuristics_maintfirst as heur_maint
 import package.solution as sol
 import package.instance as inst
 
-import patterns.create_patterns as cp
+import patterns.graph_generator as gg
 import patterns.node as nd
 
 import data.data_input as di
@@ -17,7 +17,6 @@ import data.data_input as di
 import pulp as pl
 import operator as op
 import random as rn
-import math
 import time
 import logging as log
 import multiprocessing as multi
@@ -26,7 +25,7 @@ import os
 
 
 class GraphOriented(heur.GreedyByMission, mdl.Model):
-    {'aux': {'graphs': {'RESOURCE': {'graph': {}, 'refs': {}, 'refs_inv': {}, 'source': {}, 'sink': {}}}}}
+    {'aux': {'graphs': {'RESOURCE': 'gg.DAG'}}}
 
     # graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink
 
@@ -46,7 +45,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if not multiproc:
             for r in resources:
                 log.debug('Creating graph for resource: {}'.format(r))
-                graph_data = cp.get_graph_of_resource(instance=self.instance, resource=r)
+                graph_data = gg.graph_factory(instance=self.instance, resource=r, options=options)
                 self.instance.data['aux']['graphs'][r] = graph_data
             return
         results = sd.SuperDict()
@@ -54,7 +53,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         with multi.Pool(processes=multiproc) as pool:
             for r in resources:
                 _instance = inst.Instance.from_instance(self.instance)
-                results[r] = pool.apply_async(cp.get_graph_of_resource, [_instance, r])
+                results[r] = pool.apply_async(gg.graph_factory, [_instance, r, options])
             for r, result in results.items():
                 _data[r] = result.get(timeout=10000)
         self.instance.data['aux']['graphs'] = _data
@@ -84,8 +83,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             data = {}
             for r in resources:
                 data[r] = self.prepare_data_to_get_patterns(r, *args)
+                graph = self.get_graph_data(r)
                 # we need to filter them to take out the ones that compromise the post-window periods
-                results[r] = pool.apply_async(cp.nodes_to_patterns, kwds=data[r])
+                results[r] = pool.apply_async(graph.nodes_to_patterns, kwds=data[r])
             for r, result in results.items():
                 try:
                    _data[r] = result.get(timeout=100)
@@ -202,31 +202,33 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
     def export_graph_data(self, path):
         instance = self.instance
         for r in instance.get_resources():
-            cp.export_graph_data(path=path, data = instance.data['aux']['graphs'], resource=r)
+            graph = self.get_graph_data(r)
+            graph.to_file(path=path)
 
     def import_graph_data(self, path):
-        instance = self.instance
-        resources = self.instance.get_resources()
-        source = resources.kapply(lambda k: nd.get_source_node(instance, k))
-        sink = resources.kapply(lambda k: nd.get_sink_node(instance, k))
-        sink_source = \
-            sd.SuperDict(source=source, sink=sink).\
-            to_dictup().\
-            to_tuplist().\
-            to_dict(result_col=2, indices=[1, 0], is_list=False).\
-            to_dictdict()
-        data = \
-            resources.\
-            kapply(lambda k: cp.import_graph_data(path=path, resource=k))
-        format_node = lambda res, v: sd.SuperDict(v)._update(dict(instance=instance, resource=res))
-        for res in resources:
-            keys = tl.TupList(data[res]['refs_inv']).take(0)
-            values = tl.TupList(data[res]['refs_inv']).take(1).vapply(lambda v: format_node(res, v)).vapply(lambda v: nd.Node(**v))
-            data[res]['refs_inv'] = sd.SuperDict(zip(keys, values))
-            data[res]['refs'] = sd.SuperDict(zip(values, keys))
-
-        data.update(sink_source)
-        self.instance.data['aux']['graphs'] = data
+        raise NotImplementedError("Needs to be adapted to graph from_file")
+        # instance = self.instance
+        # resources = self.instance.get_resources()
+        # source = resources.kapply(lambda k: nd.get_source_node(instance, k))
+        # sink = resources.kapply(lambda k: nd.get_sink_node(instance, k))
+        # sink_source = \
+        #     sd.SuperDict(source=source, sink=sink).\
+        #     to_dictup().\
+        #     to_tuplist().\
+        #     to_dict(result_col=2, indices=[1, 0], is_list=False).\
+        #     to_dictdict()
+        # data = \
+        #     resources.\
+        #     kapply(lambda k: cp.from_file(path=path, resource=k))
+        # format_node = lambda res, v: sd.SuperDict(v)._update(dict(instance=instance, resource=res))
+        # for res in resources:
+        #     keys = tl.TupList(data[res]['refs_inv']).take(0)
+        #     values = tl.TupList(data[res]['refs_inv']).take(1).vapply(lambda v: format_node(res, v)).vapply(lambda v: nd.Node(**v))
+        #     data[res]['refs_inv'] = sd.SuperDict(zip(keys, values))
+        #     data[res]['refs'] = sd.SuperDict(zip(values, keys))
+        #
+        # data.update(sink_source)
+        # self.instance.data['aux']['graphs'] = data
 
     def get_source_node(self, resource):
         return self.instance.data['aux']['graphs'][resource]['source']
@@ -260,6 +262,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return num_errors * 1000 + sum(maintenances)
 
     def filter_patterns(self, node2, patterns):
+        # TODO: this can be filtered before sampling
         """
         gets feasible patterns with the resource's maintenance cycle
 
@@ -388,23 +391,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # we return the state of type: period, period_end, assignment, type, rut, ret
         state = sd.SuperDict(period=period_start, period_end=period_end,
                              assignment=assignment, type=_type, **_rts)
-        return cp.state_to_node(self.instance, resource=resource, state=state)
+        return nd.Node.from_state(self.instance, resource=resource, state=state)
 
     def prepare_data_to_get_patterns(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
 
         node1 = self.date_to_node(resource, date1, use_rt=True)
         node2 = self.date_to_node(resource, date2, use_rt=False)
-        data = self.get_graph_data(resource)
+        graph = self.get_graph_data(resource)
         if cutoff is None:
-            min_cutoff = cp.shortest_path(node1=node1, node2=node2,
-                                          graph=data['graph'], refs=data['refs'],
-                                          distances=data.get('distances'))
+            min_cutoff = graph.shortest_path(node1=node1, node2=node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
-        return dict(node1=node1, node2=node2, graph=data['graph'], refs=data['refs'],
-                                        refs_inv=data['refs_inv'], vp_not_task=data['vp_not_task'],
-                                        max_paths=num_max, cutoff=cutoff, **kwargs)
+        return dict(node1=node1, node2=node2, max_paths=num_max, cutoff=cutoff, **kwargs)
 
     def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
         """
@@ -417,7 +416,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :return:
         """
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        patterns = cp.nodes_to_patterns(**data)
+        graph = self.get_graph_data(resource)
+        patterns = graph.nodes_to_patterns(**data)
+        # patterns = cp.nodes_to_patterns(**data)
         # we need to filter them to take out the ones that compromise the post-window periods
         p_filtered = self.filter_patterns(data['node2'], patterns)
         return p_filtered
@@ -528,9 +529,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             to_dict(result_col=[0, 1, 2, 3]). \
             fill_with_default([nd.MAINT_TYPE, nd.TASK_TYPE], default=tl.TupList())
 
-        combos = cp.get_patterns_into_dictup(res_patterns)
+        combos = get_patterns_into_dictup(res_patterns)
 
-        info = cp.get_assignments_from_patterns(self.instance, combos, self.M)
+        info = get_assignments_from_patterns(self.instance, combos, self.M)
 
         info_type = \
             info. \
@@ -620,8 +621,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return self.solution
 
     def draw_graph(self, resource):
-        graph_data = self.get_graph_data(resource)
-        cp.draw_graph(self.instance, graph_data['graph'], graph_data['refs_inv'])
+        graph = self.get_graph_data(resource)
+        graph.draw()
         return True
 
     def get_candidates_tasks(self, errors):
@@ -1062,12 +1063,38 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         return objective_function, constraints
 
-    @staticmethod
-    def sum_of_two_dicts(dict1, dict2):
-        return \
-            (dict1.keys_tl() + dict2.keys_tl()). \
-                to_dict(None). \
-                kapply(lambda k: dict1.get(k, 0) + dict2.get(k, 0))
+
+def sum_of_two_dicts(dict1, dict2):
+    return \
+        (dict1.keys_tl() + dict2.keys_tl()). \
+            to_dict(None). \
+            kapply(lambda k: dict1.get(k, 0) + dict2.get(k, 0))
+
+
+def get_patterns_into_dictup(res_patterns):
+    return \
+        {(res, p): pattern
+         for res, _pat_list in res_patterns.items()
+         for p, pattern in enumerate(_pat_list)
+         }
+
+
+def get_assignments_from_patterns(instance, combos, maint='M'):
+    _range = instance.get_periods_range
+    _dist = instance.get_dist_periods
+    rut_or_None = lambda rut: rut[maint] if rut is not None else None
+    _range_backup = sd.SuperDict(combos).to_tuplist().\
+        take(2).unique2().\
+        vapply(lambda v: (v.period, v.period_end)).unique2().\
+        to_dict(None).\
+        vapply(lambda v: _range(*v))
+
+    info = tl.TupList(
+        (res, p, period, e.assignment, e.type, rut_or_None(e.rut), pos, _dist(e.period, e.period_end))
+        for (res, p), pattern in combos.items()
+        for e in pattern for pos, period in enumerate(_range_backup[e.period, e.period_end])
+    )
+    return info
 
 
 if __name__ == '__main__':

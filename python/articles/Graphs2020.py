@@ -1,18 +1,26 @@
-import patterns.create_patterns as cp
+import pandas as pd
+
+import patterns.graph_generator as gg
+
 import data.test_data as test_d
 import package.instance as inst
 import network2tikz as nt
+import package.params as params
+
+import solvers.heuristic_graph as hg
+
+abs_path = params.PATHS['root'] +  'Graph2020/'
 
 def temp():
     from importlib import reload
     reload(test_d)
-    reload(cp)
+    reload(gg)
 
 def draw():
     data_in = test_d.dataset3_no_default_5_periods()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '1')
-    path = '/home/pchtsp/Documents/projects/Graph2020/graph_example.tex'
+    graph = gg.GraphTool(instance, '1')
+    path = abs_path + 'graph_example.tex'
     first, last = instance.get_start_end()
     def edge_label(tail):
         equiv = {'M': '-1', '': '0'}
@@ -30,28 +38,23 @@ def draw():
             ret = node.ret['M']
         return '{}/{}/{}'.format(pos, rut, ret)
     # node_label = lambda node:
-    cp.draw_graph(instance, info['graph'], info['refs_inv'],
-                  edge_label=edge_label, node_label=node_label, tikz=True, filename=path)
+    graph.draw(edge_label=edge_label, node_label=node_label, tikz=True, filename=path)
 
 def draw2():
     nt.plot()
     pass
 
 def table():
-    data_in = test_d.dataset3()
+    data_in = test_d.dataset3_no_default_5_periods()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '0')
-    node = [k for k, v in info['refs'].items() if
-            k.period == '2018-02' and k.period_end == '2018-06' and k.rut is not None].pop()
-    info['node1'] = node
-    info['node2'] = info['sink']
-
-    paths = cp.nodes_to_patterns(**info, add_empty=False)
-    combos = cp.get_patterns_into_dictup({'1': paths})
+    info = gg.graph_factory(instance, '1', {})
+    path = abs_path + 'table_paths.tex'
+    # node = [k for k, v in info['refs'].items() if
+    #         k.period == '2018-02' and k.period_end == '2018-06' and k.rut is not None].pop()
+    paths = info.nodes_to_patterns(info.source, info.sink, add_empty=False)
+    combos = hg.get_patterns_into_dictup({'1': paths})
     first, last = instance.get_first_last_period()
-
-    assignments = cp.get_assignments_from_patterns(instance, combos, 'M')
-    import pandas as pd
+    assignments = hg.get_assignments_from_patterns(instance, combos, 'M')
 
     equiv = assignments.take(2).unique2().sorted().kvapply(lambda k, v: (k, v)).to_dict(is_list=False)
     info_pd = \
@@ -60,46 +63,45 @@ def table():
             filter(['pat', 'period', 'assign']).query('period>="{}" & period<="{}"'.format(first, last))
     info_pd.period = info_pd.period.map(equiv)
     latex_str = info_pd.set_index(['pat', 'period']).unstack('period')['assign']. \
-        to_latex(longtable=True, index_names=False, header=False)
-    print(latex_str)
+        to_latex(longtable=False, index_names=False, header=False, index=False)
+    with open(path, 'w') as f:
+        f.write(latex_str)
 
 
 def compare_num_paths():
-    def num_paths(info, max_paths=10000):
-        info['node1'] = info['source']
-        info['node2'] = info['sink']
-        paths = cp.nodes_to_patterns(**info, add_empty=False, max_paths=max_paths)
+    def num_paths(graph, max_paths=10000):
+        paths = graph.nodes_to_patterns(graph.source, graph.sink, add_empty=False, max_paths=max_paths)
         return len(paths)
 
     data_in = test_d.dataset3()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '0')
+    info = gg.graph_factory(instance, '0')
     a = num_paths(info)
     # 61
     data_in = test_d.dataset4()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '0')
+    info = gg.graph_factory(instance, '0')
     b = num_paths(info, max_paths=1000000)
     # 123011
     data_in = test_d.dataset4()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '1')
+    info = gg.graph_factory(instance, '1')
     b = num_paths(info, max_paths=1000000)
     # 815747
     data_in = test_d.dataset5().get_instance()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '0')
+    info = gg.graph_factory(instance, '0')
     d = num_paths(info, max_paths=1000000)
     # 4208
     data_in = test_d.dataset5().get_instance()
     instance = inst.Instance(data_in)
-    info = cp.get_graph_of_resource(instance, '1')
+    info = gg.graph_factory(instance, '1')
     d = num_paths(info, max_paths=1000000)
     # 1862
     data_in = test_d.dataset6().get_instance()
     instance = inst.Instance(data_in)
     infos = instance.get_resources().\
-        kapply(lambda k: cp.get_graph_of_resource(instance, k)).\
+        kapply(lambda k: gg.graph_factory(instance, k)).\
         vapply(num_paths, max_paths=1000000)
     # {'0': 59165,
     #  '1': 28050,
@@ -163,4 +165,4 @@ def compare_num_paths():
     #  '9': 6204}
 
 if __name__ == '__main__':
-    draw()
+    table()
