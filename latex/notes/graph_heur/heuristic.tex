@@ -52,10 +52,14 @@
 
   The first section is a description of the input data. Then the master problem is presented. The pattern definition, representation and sampling follows. Lastly, several alternatives to subproblems are described.
 
-\subsection{Pattern}
+\section{State of the art}
 
-  We call pattern to a feasible combination of missions assignments and checks for aircraft $i$ between the beginning of period $t$ and the end of period $t^\prime$.
+  The Flight and Maintenance Planning problem was first presented by \ref{} for the civil aviation, where it has received much attention. It is also usually called Tail Assignment Problem or Aircraft Assignment Problem and it consists on assigning already scheduled flight legs to a fleet of aircraft (also called tails) while taking into account a number of constraints such as maintenance operations (checks), leg-aircraft compatibility. Methods used to solve this problem are grouped by \ref{Khaled2017} in three categories: column generation techniques, multi-comodity flow formulations and time-space network models. Several techniques have been used to solve this problem, including compact MIP models, Column Generation, Constraint Programming and Metaheuristics.
 
+  In its military variant, this problem has been studied less. It was first presented in \ref{} and the main differences imply the notion of mission instead of using the flight legs. Aircraft are assigned to missions for an interval of time periods. Since all aircraft return to base after each use, the location of the aircraft (airport) is not taken into account. Regarding maintenances, there is only one maintenance workshop. This problem usually is concerned with medium and long term checks (B, C and D).
+
+  % talk about rolling horizon
+  % used to partition the planning horizon into pieces, solve those pieces and then join them into a single solution 
 \section{Input data}
 
     \subsection{Basic sets}
@@ -94,7 +98,7 @@
 
     \subsection{Parametric sets}
 
-        \begin{tabular}{p{15mm}p{140mm}}
+        \begin{tabular}{p{20mm}p{135mm}}
           $t \in \mathcal{TJ}_j$     &  time periods $t \in \mathcal{T}$ in which mission $j$ is active. \\
           $j \in \mathcal{JT}_t$    &  missions $j \in \mathcal{J}$ to be realized in period $t$. \\
           $i \in \mathcal{IK}_k$     &  aircraft $i \in \mathcal{I}$ that are included in cluster $k$. One aircraft can belong to more than one cluster. \\
@@ -108,75 +112,72 @@
     \subsection{Interval deviation and objective function parameters}
 
        \begin{tabular}{p{15mm}p{105mm}p{15mm}}
-            $P\hspace{-0.5mm}A_s$   & penalty cost for violating serviceability constraint in interval $s$. & [$\frac{penalty}{aircraft.period}$] \\
-            $P\hspace{-0.5mm}H_s$   & penalty cost for violating sustainability constraint in interval $s$. & [$\frac{penalty}{hour-period}$] \\
-            $PC_s$   & penalty cost for violating capacity constraint in interval $s$. & [$\frac{penalty}{aircraft.period}$]\\
-            $PM_p$    & reward per period for the start of each check in patter $p$. & [$\frac{penalty}{aircraft.period}$]\\
-            $U\hspace{-0.5mm}A_s$   & maximum deviation for violating the serviceability limit in interval $s$. & [aircraft] \\
-            $U\hspace{-0.5mm}H_s$   & maximum deviation for violating the sustainability limit in interval $s$. & [hours] \\
-            $U\hspace{-0.5mm}C_s$   & maximum deviation for violating the maintenance capacity limit in interval $s$. & [aircraft] \\
+          $P\hspace{-0.5mm}A_s$   & penalty cost for violating serviceability constraint in interval $s$. & [$\frac{penalty}{aircraft.period}$] \\
+          $P\hspace{-0.5mm}H_s$   & penalty cost for violating sustainability constraint in interval $s$. & [$\frac{penalty}{hour-period}$] \\
+          $PC_s$   & penalty cost for violating capacity constraint in interval $s$. & [$\frac{penalty}{aircraft.period}$]\\
+          $PM_p$    & reward per period for the start of each check in patter $p$. & [$\frac{penalty}{aircraft.period}$]\\
+          $U\hspace{-0.5mm}A_s$   & maximum deviation for violating the serviceability limit in interval $s$. & [aircraft] \\
+          $U\hspace{-0.5mm}H_s$   & maximum deviation for violating the sustainability limit in interval $s$. & [hours] \\
+          $U\hspace{-0.5mm}C_s$   & maximum deviation for violating the maintenance capacity limit in interval $s$. & [aircraft] \\
         \end{tabular}
 
-\section{General logic and master problem}
+\section{General strategy}
 
+  We will use an approach inspired on the Rolling Horizon methodology in most large planning problems and the Column Generation algorithms used in the Tail Assignment literature. 
 
-  The master problem is used to do the following tasks at each iteration.
+  The Rolling Horizon concept will be used to slice any current solution and extract a piece, solve (or repair) that piece independently and then incorporate the solution to the whole solution. The slicing and the joining will be guaranteed to be compatible with the original solution. More formally, a piece sliced in iteration $c$ is defined as a time window ($\mathcal{T}_{c} \in \mathcal{T}$) and a subset of aircraft ($\mathcal{I}_{c} \in \mathcal{I}$). The choice of the piece will be determined partly randomly and partly based on the number of soft constraints violations. This will constitute the master problem.
 
-  \begin{enumerate}
-    \item Find good candidates of time window ($\mathcal{T}_{c}$) and aircrafts ($\mathcal{I}_{c}$) to repair.
-    \item Call the subproblem to obtain a new solution.
-    \item Decide whether to accept or not the new solution.
-  \end{enumerate}
+  The Column Generation concept will be applied when solving each piece. A number of variables (patterns $p \in \mathcal{P}_i$) will be created, each one corresponding to an ordered list of flights and checks that can be assigned to each aircraft $i$. These variables will then be used to obtain a solution to that piece by assigning each aircraft $i \in \mathcal{I}_{c}$ a pattern $p$. In practice, we will not be generating all possible patterns, because the number would be prohibitive. Instead, we will be doing sampling, as explained in Section \ref{sec:sampling}. This will constitute the subproblem.
 
-  The initial solution ($c=0$) consists of calling the subproblem with a time window the size of the planning horizon ($\mathcal{T}_{0} = \mathcal{T}$) and the complete set of aircraft ($\mathcal{I}_{0} = \mathcal{I}$).
+  The initial solution ($c=0$) consists of calling the subproblem with a time window the size of the planning horizon ($\mathcal{T}_{c=0} = \mathcal{T}$) and the complete set of aircraft ($\mathcal{I}_{c=0} = \mathcal{I}$).
 
-  \begin{tikzpicture}[node distance=1.5cm,
-    every node/.style={fill=white, font=\sffamily}, align=center]
-  % Specification of nodes (position, etc.)
-    \node (start)             [activityStarts]              {Start};
-    \node (initSol)     [startstop, below of=start]          {Initial solution};
-    \node (maybeStop)      [master, below of=initSol]   {Reached time limit \\or max iterations?};
-    \node (Stop)      [activityStarts, right of=maybeStop, xshift=4cm]   {End};
-    \node (objFunc)      [master, below of=maybeStop]   {Get objective};
-    \node (bestSol)      [master, below of=objFunc]   {Update best solution};
-    \node (prevSol)      [master, below of=bestSol]   {Update previous solution};
-    \node (getErrors)      [master, below of=prevSol]   {Get errors $e$};
-    \node (getCandidate)     [master, below of=getErrors]   {Find candidate $\mathcal{T}_{c}$, $\mathcal{I}_{c}$};
-    \node (samplePatterns)      [subproblem, below of=getCandidate]
-                                                        {Sample patterns};
-    \node (decidePatterns)      [subproblem, below of=samplePatterns]
-                                                                  {Decide patterns};
-    \node (applyPatterns)       [subproblem, below of=decidePatterns]
-                                                                   {Apply patterns};
-    % \node (ActivityDestroyed) [startstop, below of=onDestroyBlock]
-    %                                                   {Activity is shut down};     
-    % Specification of lines between nodes specified above
-    % with aditional nodes for description 
-    \draw[->]             (start) -- (initSol);
-    \draw[->]     (initSol) -- (maybeStop);
-    \draw[->]     (maybeStop) -- (Stop);
-    \draw[->]     (maybeStop) -- (objFunc);
-    \draw[->]     (objFunc) -- (bestSol);
-    \draw[->]      (bestSol) -- (prevSol);
-    \draw[->]      (prevSol) -- (getErrors);
-    \draw[->]      (getErrors) -- (getCandidate);
-    \draw[->]     (getCandidate) -- (samplePatterns);
-    \draw[->]      (samplePatterns) -- (decidePatterns);
-    \draw[->]      (decidePatterns) -- (applyPatterns);
-    % \draw[->]       (applyPatterns) -- node {The activity is shut down by
-    %                                  user or system} (onDestroyBlock);
-    % \draw[->]    (onDestroyBlock) -- (ActivityDestroyed);
-    % \draw[->]      (decidePatterns) -| node(priorityXMemory)
-    %                                  {higher priority $\rightarrow$ more memory}
-    %                                  (ActivityEnds);
-    % \draw           (applyPatterns) -| (priorityXMemory);
-    % \draw[->]     (ActivityEnds)  |- node [yshift=-2cm, text width=3.1cm]
-                                      % {User navigates back to the activity}
-                                      % (initSol);
-    % \draw[->]      (applyPatterns.east) -- (objFunc.east);
-  \draw[->] (applyPatterns.west) -- ++(-2.6,0) -- ++(0,10) -- ++(0,2) --                
-     (maybeStop.west);
-  \end{tikzpicture}
+  A number of alternative subproblems will be tested, as explained in Section \ref{sec:subproblems}.
+
+  \subsection{Pattern representation}
+
+    We define a pattern as any feasible combination of missions assignments and checks for aircraft $i$ inside the planning horizon. For a pattern to be feasible, it should comply with maintenance rules regarding flight hours and calendar periods between visits, the initial state of the aircraft, the periods in which each mission is available, the minimum and maximum durations of assignment to missions and the capacity of the aircraft to do a particular mission.
+
+  \subsection{Decomposition strategy}
+
+  The Algorithm \ref{fig:general-logic} presents the general decomposition logic.
+
+    \begin{figure}
+      \centering
+      \begin{tikzpicture}[node distance=1.5cm,
+      every node/.style={fill=white, font=\sffamily}, align=center]
+     % Specification of nodes (position, etc.)
+      \node (start)             [activityStarts]              {Start};
+      \node (initSol)     [startstop, below of=start]          {$x^* = x = get\_initial\_sol()$\\$OBJ^* = Inf$};
+      \node (maybeStop)      [master, below of=initSol]   {$time > limit$};
+      \node (Stop)      [activityStarts, right of=maybeStop, xshift=4cm]   {End};
+      \node (objFunc)      [master, below of=maybeStop, yshift=-0.5cm]   {$e= getErrors(x)$\\$OBJ=get\_objective(x,e)$};
+      % \node (updateSol)      [master, below of=objFunc]   {Update best / previous solution};
+      \node (maybeBest)      [master, below of=objFunc]   {$OBJ < OBJ^*$};
+      \node (updateBest)      [master, right of=maybeBest, xshift=3cm]   {$x^* = x$\\$OBJ^* = OBJ$};
+      \node (getCandidate)     [master, below of=maybeBest, yshift=-0.5cm]   {$\mathcal{T}_{c}, \mathcal{I}_{c} = get\_candidate(e)$};
+      \node (samplePatterns)      [subproblem, below of=getCandidate]
+                                                          {$\mathcal{P}_i = sample\_patterns(\mathcal{T}_{c}) \,\, \forall i \in \mathcal{I}_{c}$};
+      \node (decidePatterns)      [subproblem, below of=samplePatterns]
+                                                                    {$p_i^* = decide\_patterns(\mathcal{P}_i)$};
+      \node (applyPatterns)       [subproblem, below of=decidePatterns]
+                                                                     {$x = apply\_patterns(p_i^*)$};
+
+      \draw[->]             (start) -- (initSol);
+      \draw[->]     (initSol) -- (maybeStop);
+      \draw[->]     (maybeStop) -- node {Yes}  (Stop);
+      \draw[->]     (maybeStop) -- node {No} (objFunc);
+      \draw[->]     (objFunc) -- (maybeBest);
+      \draw[->]      (maybeBest) -- node {Yes} (updateBest);
+      \draw[->]      (updateBest.south) -- ++(0,-1.5) -- ++(-2,0)  -- (getCandidate.east);
+      \draw[->]      (maybeBest) -- node {No} (getCandidate);
+      \draw[->]     (getCandidate) -- (samplePatterns);
+      \draw[->]      (samplePatterns) -- (decidePatterns);
+      \draw[->]      (decidePatterns) -- (applyPatterns);
+      \draw[->] (applyPatterns.west) -- ++(-2.6,0) -- ++(0,8) -- ++(0,2) --                
+       (maybeStop.west);
+      \end{tikzpicture}
+      \caption{General algorithm. In yellow is the master, in green is the subproblem} \label{fig:general-logic}
+    \end{figure}
 
 \section{Pattern generation}
 
@@ -208,7 +209,8 @@
 
     In order to generate a graph from an aircraft, an exhaustive exploration of all possible states for a given aircraft needs to be done. This exploration starts in a node we will call source, where we apply a depth-first search (DFS), looking at each step for all the immediately consecutive neighbors of the node.
 
-    Algorithm \ref{algo:graph-building} shows the procedure executed to create the graph for every aircraft. The logic of $get\_neighbors$ is described in Function \ref{algo:node-neighbors}. TODO: finish describing the $get\_neighbors$ function.
+    Algorithm \ref{algo:graph-building} shows the procedure executed to create the graph for every aircraft. 
+    % The logic of $get\_neighbors$ is described in Function \ref{algo:node-neighbors}. TODO: finish describing the $get\_neighbors$ function.
 
     \begin{algorithm}
     \DontPrintSemicolon
@@ -237,21 +239,21 @@
     \caption{Depth-first search to populate states graph}\label{algo:graph-building}
     \end{algorithm}
 
-    \begin{algorithm}
-    \DontPrintSemicolon
-    \SetKwData{node}{$n$}
-    \KwData{\\$n$: current node.}
-    \BlankLine
-    \Begin{
-      \If{$\node.end ==last\_period$}{
-        $return [get\_sink\_node()]$\;
-      }
-      $\node.Get\_maint\_neighbors()$\;
-      $\node.Get\_mission\_neighbors()$\;
-      $\node.Get\_nothing\_neighbors()$\;
-    }
-    \caption{Get neighbors from node}\label{algo:node-neighbors}
-    \end{algorithm}
+    % \begin{algorithm}
+    % \DontPrintSemicolon
+    % \SetKwData{node}{$n$}
+    % \KwData{\\$n$: current node.}
+    % \BlankLine
+    % \Begin{
+    %   \If{$\node.end ==last\_period$}{
+    %     $return [get\_sink\_node()]$\;
+    %   }
+    %   $\node.Get\_maint\_neighbors()$\;
+    %   $\node.Get\_mission\_neighbors()$\;
+    %   $\node.Get\_nothing\_neighbors()$\;
+    % }
+    % \caption{Get neighbors from node}\label{algo:node-neighbors}
+    % \end{algorithm}
 
   \subsection{Path extraction}
 
@@ -267,23 +269,17 @@
     \input{table_paths}
 
   \subsection{Sampling paths}
+    \label{sec:sampling}
 
-    The previous procedure can be trivially modified so it renders a maximum number of paths at each time, by stopping the DFS process after a number of paths is returned. This, nevertheless, results in a extremely biased sampling of the paths since, by construction, the DFS guarantees that consecutive paths share most of the path. In addition to this, by default, most DFS implementations use the same sequence of choices given the same graph. This approach is, thus, limited.
+    The previous procedure can be easily modified so it renders a maximum number of paths at each time, by stopping the DFS process after a number of paths is returned. This, nevertheless, results in a extremely biased sampling of the paths since, by construction, the DFS guarantees that consecutive paths share most of the path. In addition to this, by default, most DFS implementations use the same sequence of choices given the same graph. This approach is, thus, limited.
 
     The first question that arises is how to take unbiased samples of paths in a graph, in between two nodes. This is possible and can be done in a DAG by first pre-calculating the number of paths that pass through each node in their trip from $X_1$ to $X_2$. This last operation can be done in $\mathcal{O}(V)$, where $V$ is the number of edges in between the two nodes. Then, we use this information to sample one neighbor at each node when iterating from $X_1$. This implies not doing a DFS but starting each path at $X_1$.
 
     The second question that arises is how to take biased samples of paths in a graph, by giving more probability to paths that are similar to the paths we are looking for (i.e., have nodes that are more useful for the solution). This implies having information about the paths we are looking for, which we do from the Master (e.g., the same information we use to determine where to repair: the number of errors in the solution). Doing this avoids having to generate too many samples to get a good solution.
 
 \section{Subproblem}
-
-  The subproblem is a pattern-aircraft assignment problem. 
-  In each iteration $c$, it takes as input the following:
-
-  \begin{enumerate}
-    \item A range of consecutive dates $\mathcal{T}_{c} \subset \mathcal{T}$ (time window).
-    \item A set of aircraft $\mathcal{I}_{c} \subset \mathcal{I}$.
-  \end{enumerate}
-  
+  \label{sec:subproblems}
+    
   The main steps this algorithm does are:
 
   \begin{enumerate}
@@ -307,7 +303,7 @@
           $a_{ip}$ &  =1 if aircraft $i$ uses pattern $p$. \\  
       \end{tabular}
 
-      Auxiliary variables control the status of each aircraft or group of aircraft.
+      Auxiliary elastic variables control the status of each aircraft or group of aircraft in order to always obtain a feasible solution from the subproblem.
 
       \begin{tabular}{p{8mm}p{147mm}}
           $e^{A}_{kts}$ & Continuous, positive. Elastic variable for serviceability constraint (\ref{eq:serviceability-cluster}). \\
