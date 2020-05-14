@@ -1,6 +1,6 @@
 import pandas as pd
 
-import patterns.graph_generator as gg
+import patterns.graphs as gg
 
 import data.test_data as test_d
 import package.instance as inst
@@ -57,13 +57,15 @@ def table():
     assignments = hg.get_assignments_from_patterns(instance, combos, 'M')
 
     equiv = assignments.take(2).unique2().sorted().kvapply(lambda k, v: (k, v)).to_dict(is_list=False)
+    equiv2 = {'M': -1, '': 0, '1': 1}
     info_pd = \
         pd.DataFrame. \
-            from_records(assignments.to_list(), columns=['res', 'pat', 'period', 'assign'] + list(range(4))). \
-            filter(['pat', 'period', 'assign']).query('period>="{}" & period<="{}"'.format(first, last))
+            from_records(assignments.to_list(), columns=['res', 'pat', 'period', 'task'] + list(range(4))). \
+            filter(['pat', 'period', 'task']).query('period>="{}" & period<="{}"'.format(first, last))
     info_pd.period = info_pd.period.map(equiv)
-    latex_str = info_pd.set_index(['pat', 'period']).unstack('period')['assign']. \
-        to_latex(longtable=False, index_names=False, header=False, index=False)
+    info_pd.task = info_pd.task.map(equiv2)
+    latex_str = info_pd.set_index(['pat', 'period']).unstack('period')['task']. \
+        to_latex(longtable=False, index_names=False, index=False)
     with open(path, 'w') as f:
         f.write(latex_str)
 
