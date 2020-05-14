@@ -153,7 +153,7 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
             # ggfittext::geom_fit_text(stat = "stratum", width = 1, min.size = 2) +
             ggsave(path)
     }
-    
+        
     path <- '%stransitions_base_2tasks.png' %>% sprintf(path_export_img)
     transitions %>% 
         filter(experiment=='base_a2r') %>% 
@@ -253,7 +253,7 @@ make_forecasting_limits <- function(result_tab, element_text_size=10, dataset='I
                geomean_cons_cut = cut2(geomean_cons, labels1))
 
     xlab <- 'Sum of all remaining flight hours at the beginning of first period'
-    ylab <- 'Average distance between maintenances'
+    ylab <- 'Average distance between checks'
     path <- '%sprediction_upper_bounds_%s.png' %>% sprintf(path_export_img, dataset)
     ggplot(data=result_tab_n, aes(x=init, y=mean_dist_complete)) + 
         facet_grid(
