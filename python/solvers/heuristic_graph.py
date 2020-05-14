@@ -9,7 +9,7 @@ import solvers.heuristics_maintfirst as heur_maint
 import package.solution as sol
 import package.instance as inst
 
-import patterns.graph_generator as gg
+import patterns.graphs as gg
 import patterns.node as nd
 
 import data.data_input as di
@@ -26,8 +26,6 @@ import os
 
 class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': 'gg.DAG'}}}
-
-    # graph=g, refs=refs, refs_inv=refs.reverse(), source=source, sink=sink
 
     def __init__(self, instance, solution=None):
 
@@ -83,9 +81,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             data = {}
             for r in resources:
                 data[r] = self.prepare_data_to_get_patterns(r, *args)
-                graph = self.get_graph_data(r)
                 # we need to filter them to take out the ones that compromise the post-window periods
-                results[r] = pool.apply_async(graph.nodes_to_patterns, kwds=data[r])
+                results[r] = pool.apply_async(self.get_graph_data(r).nodes_to_patterns, kwds=data[r])
             for r, result in results.items():
                 try:
                    _data[r] = result.get(timeout=100)
@@ -202,8 +199,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
     def export_graph_data(self, path):
         instance = self.instance
         for r in instance.get_resources():
-            graph = self.get_graph_data(r)
-            graph.to_file(path=path)
+            self.get_graph_data(r).to_file(path=path)
 
     def import_graph_data(self, path):
         raise NotImplementedError("Needs to be adapted to graph from_file")
@@ -231,10 +227,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # self.instance.data['aux']['graphs'] = data
 
     def get_source_node(self, resource):
-        return self.instance.data['aux']['graphs'][resource]['source']
+        return self.get_graph_data(resource).source
 
     def get_sink_node(self, resource):
-        return self.instance.data['aux']['graphs'][resource]['sink']
+        return self.get_graph_data(resource).sink
 
     def get_objective_function(self, error_cat=None):
         """
@@ -397,9 +393,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         node1 = self.date_to_node(resource, date1, use_rt=True)
         node2 = self.date_to_node(resource, date2, use_rt=False)
-        graph = self.get_graph_data(resource)
         if cutoff is None:
-            min_cutoff = graph.shortest_path(node1=node1, node2=node2)
+            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
@@ -417,8 +412,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        graph = self.get_graph_data(resource)
-        patterns = graph.nodes_to_patterns(**data)
+        patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
         # patterns = cp.nodes_to_patterns(**data)
         # we need to filter them to take out the ones that compromise the post-window periods
         p_filtered = self.filter_patterns(data['node2'], patterns)
@@ -622,8 +616,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return self.solution
 
     def draw_graph(self, resource):
-        graph = self.get_graph_data(resource)
-        graph.draw()
+        self.get_graph_data(resource).draw()
         return True
 
     def get_candidates_tasks(self, errors):
