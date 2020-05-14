@@ -132,9 +132,9 @@ class Instance(object):
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
         self.data['aux'] = sd.SuperDict()
-
-        begin_year = int(start[:4]) - 5
-        end_year = int(start[:4]) + 5 + num_periods//12
+        extra_time = num_periods//12 * 2
+        begin_year = int(start[:4]) - extra_time
+        end_year = int(start[:4]) + num_periods//12 + extra_time
         many_months = ['{}-{:02.0f}'.format(_a, _b)
                        for _a in range(begin_year, end_year)
                        for _b in range(1, 13)]
