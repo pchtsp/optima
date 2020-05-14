@@ -31,7 +31,7 @@ class DAG(object):
         self.g = nodes_ady.kvapply(lambda k, v: v + nodes_artificial.get(k, []))
 
         # this should deal with almost all nodes. maybe not the last one?
-        self.refs = self.g.kvapply(lambda k: k)
+        self.refs = self.g.kapply(lambda k: k)
         self.refs_inv = self.refs
 
         pass
@@ -45,7 +45,7 @@ class DAG(object):
     def nodes_to_patterns(self, node1, node2, vp_not_task, cutoff=1000, max_paths=1000, add_empty=True,  **kwargs):
         pass
 
-    def notes_to_pattern(self, node1, node2, all_weights, cutoff=1000, **kwargs):
+    def nodes_to_pattern(self, node1, node2, all_weights, cutoff=1000, **kwargs):
         pass
 
     @staticmethod
@@ -79,7 +79,7 @@ class DAG(object):
 
     def get_artificial_nodes(self, nodes_ady):
         return \
-            nodes_ady.g.keys_tl().\
+            nodes_ady.keys_tl().\
             vfilter(lambda v: v.assignment is not None).\
             vapply(lambda v: (v.period, v.period_end, v.assignment, v.type, v)).\
             to_dict(result_col=4).list_reverse().vapply(lambda v: v[0]).\
@@ -105,6 +105,7 @@ except ImportError:
     pass
 else:
     class GraphTool(DAG):
+        # TODO: only create a graph per aircraft type to reuse some nodes??
 
         def get_create_node(self, node):
             try:
@@ -134,16 +135,123 @@ else:
                      if distances[n] > max_dist and
                      self.refs_inv[n].rut is not None]
             self.g.set_reversed(is_reversed=False)
-            keep_node = self.g.new_vp('bool', val=1)
-            for v in nodes:
-                keep_node[v] = 0
-            self.g = gr.GraphView(self.g, vfilt=keep_node)
+            self.g.remove_vertex(nodes, fast=True)
+            # TODO: there is an issue with storing the GraphView and not the original object
+            #  for now, we delete the nodes...
+            # keep_node = self.g.new_vp('bool', val=1)
+            # for v in nodes:
+            #     keep_node[v] = 0
+            # # self._g = self.g
+            # self.g = gr.GraphView(self.g, vfilt=keep_node)
 
             # create dictionary to filter nodes that have no tasks
             self.vp_not_task = self.g.new_vp('bool', val=1)
             for v in self.g.vertices():
                 if self.refs_inv[v].type == nd.TASK_TYPE:
                     self.vp_not_task[v] = 0
+
+        def shortest_path(self, node1=None, node2=None, **kwargs):
+            target, source = None, None
+            if node1 is not None:
+                source = self.refs[node1]
+            if node2 is not None:
+                target = self.refs[node2]
+            return gr.shortest_distance(self.g, source=source, target=target, dag=True, **kwargs)
+
+        def filter_by_tasks(self, node1, node2):
+            # returns a graph without task assignments.
+            # Except the node1 and node2 and previous nodes to node2
+            nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
+            _temp_vp = self.vp_not_task.copy()
+            for v in nodes:
+                _temp_vp[v] = 1
+            return gr.GraphView(self.g, vfilt=_temp_vp)
+
+        def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, **kwargs):
+            graph = self.g
+            refs = self.refs
+            refs_inv = self.refs_inv
+            paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
+            sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
+            sample2 = []
+            if add_empty:
+                gfilt = self.filter_by_tasks(node1, node2)
+                paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
+                sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+            return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
+            # node = node1
+            # refs.keys_tl().\
+            #     vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
+            #     vapply(lambda v: (v.rut, v.ret, v.type))
+            # node.rut, node.ret, node.type
+
+        def nodes_to_pattern2(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, **kwargs):
+            graph = self.g
+            refs = self.refs
+            refs_inv = self.refs_inv
+            weights = self.g.new_ep('double')
+            pattern = gr.shortest_path(self.g, source=refs[node1], target=refs[node2], weights=1, dag=True)
+            paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
+            sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
+            sample2 = []
+            if add_empty:
+                gfilt = self.filter_by_tasks(node1, node2)
+                paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
+                sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+            return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
+
+        def nodes_to_pattern1(self, node1, node2, all_weights, cutoff=1000, **kwargs):
+
+            # input:
+            # graph initialization
+            node1 = self.g.vertex(self.refs[node1])  # example source
+            node2 = self.g.vertex(self.refs[node2])
+            # all_weights = {}  # edge => weight
+            # cutoff = 10
+
+            current = node1
+            path = []
+            visited = set()
+            while True:
+                if current == node2:
+                    # we finished!
+                    return path + [current]
+                visited.add(current)  # maybe we should add (current, len(path))
+                neighbors = set(current.out_neighbors()) - visited
+                if len(path) >= cutoff or not len(neighbors):
+                    # this path does not reach node2
+                    # we backtrack
+                    # and we will never visit this node again
+                    current = path.pop()
+                    continue
+                if not len(path) and not len(neighbors):
+                    # there is no path to node2
+                    # this should not be possible
+                    return None
+                # we haven't reached node2
+                # but there is still hope
+                path.append(current)
+                weights = [all_weights.get((current, n), 1) for n in neighbors]
+                _sum = sum(weights)
+                weights = [w/_sum for w in weights]
+                current = np.random.choice(a=list(neighbors), p=weights)
+            return None
+
+        def to_file(self, path):
+            name = 'cache_info_{}'.format(self.resource)
+            graph_file = os.path.join(path, 'graph_{}_.gt'.format(self.resource))
+            _data = self.refs_inv.vapply(lambda v: v.get_data()).to_tuplist()
+            di.export_data(path, _data, name=name)
+            self.g.save(graph_file)
+
+        @classmethod
+        def from_file(cls, path, instance, resource):
+            graph = DAG(instance, resource)
+            _path = os.path.join(path, 'cache_info_{}.json'.format(resource))
+            graph.refs_inv = di.load_data(_path)
+            graph.refs = graph.refs_inv.reverse()
+            graph.g = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
+            return graph
 
         def draw(self, not_show_None=True, edge_label=None, node_label=None, tikz=False, filename=None):
             y_ranges = dict(VG=lambda: rn.uniform(10, 15) * (1 - 2 * (rn.random() > 0.5)),
@@ -245,90 +353,3 @@ else:
             visual_style['canvas'] = (10, 10)
             # visual_style['node_opacity'] = 0.5
             nt.plot(network=(nodes, edges), **visual_style, filename=filename)
-
-        def shortest_path(self, node1=None, node2=None, **kwargs):
-            target, source = None, None
-            if node1 is not None:
-                source = self.refs[node1]
-            if node2 is not None:
-                target = self.refs[node2]
-            return gr.shortest_distance(self.g, source=source, target=target, dag=True, **kwargs)
-
-        def filter_by_tasks(self, node1, node2):
-            # returns a graph without task assignments.
-            # Except the node1 and node2 and previous nodes to node2
-            nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
-            _temp_vp = self.vp_not_task.copy()
-            for v in nodes:
-                _temp_vp[v] = 1
-            return gr.GraphView(self.g, vfilt=_temp_vp)
-
-        def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, **kwargs):
-            graph = self.g
-            refs = self.refs
-            refs_inv = self.refs_inv
-            paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-            sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
-            sample2 = []
-            if add_empty:
-                gfilt = self.filter_by_tasks(node1, node2)
-                paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
-                sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
-            return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
-            # node = node1
-            # refs.keys_tl().\
-            #     vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
-            #     vapply(lambda v: (v.rut, v.ret, v.type))
-            # node.rut, node.ret, node.type
-
-        def nodes_to_pattern(self, node1, node2, all_weights, cutoff=1000, **kwargs):
-
-            # input:
-            # graph initialization
-            node1 = self.g.vertex(self.refs[node1])  # example source
-            node2 = self.g.vertex(self.refs[node2])
-            # all_weights = {}  # edge => weight
-            # cutoff = 10
-
-            current = node1
-            path = []
-            visited = set()
-            while True:
-                if current == node2:
-                    # we finished!
-                    return path + [current]
-                visited.add(current)  # maybe we should add (current, len(path))
-                neighbors = set(current.out_neighbors()) - visited
-                if len(path) >= cutoff or not len(neighbors):
-                    # this path does not reach node2
-                    # we backtrack
-                    # and we will never visit this node again
-                    current = path.pop()
-                    continue
-                if not len(path) and not len(neighbors):
-                    # there is no path to node2
-                    # this should not be possible
-                    return None
-                # we haven't reached node2
-                # but there is still hope
-                path.append(current)
-                weights = [all_weights.get((current, n), 1) for n in neighbors]
-                _sum = sum(weights)
-                weights = [w/_sum for w in weights]
-                current = np.random.choice(a=list(neighbors), p=weights)
-
-        def to_file(self, path):
-            name = 'cache_info_{}'.format(self.resource)
-            graph_file = os.path.join(path, 'graph_{}_.gt'.format(self.resource))
-            _data = self.refs_inv.vapply(lambda v: v.get_data()).to_tuplist()
-            di.export_data(path, _data, name=name)
-            self.g.save(graph_file)
-
-        @classmethod
-        def from_file(cls, path, instance, resource):
-            graph = DAG(instance, resource)
-            _path = os.path.join(path, 'cache_info_{}.json'.format(resource))
-            graph.refs_inv = di.load_data(_path)
-            graph.refs = graph.refs_inv.reverse()
-            graph.g = gr.load_graph(os.path.join(path, 'graph_{}_.gt'.format(resource)))
-            return graph

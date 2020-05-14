@@ -415,6 +415,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :param date2:
         :return:
         """
+        log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
         graph = self.get_graph_data(resource)
         patterns = graph.nodes_to_patterns(**data)
@@ -773,7 +774,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             old_info[nd.MAINT_TYPE]. \
                 vapply(lambda v: (*v, type_m[v[3]])). \
                 to_dict(indices=[4, 2]).vapply(len)
-        t_max_maint_slack = self.sum_of_two_dicts(prevMaints_usage, rem_maint_capacity)
+        t_max_maint_slack = sum_of_two_dicts(prevMaints_usage, rem_maint_capacity)
         p_maint_used = \
             info[nd.MAINT_TYPE]. \
                 vapply(lambda v: (*v, type_m[v[3]])). \
@@ -799,7 +800,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             old_info[nd.TASK_TYPE]. \
             to_dict(indices=[3, 2], result_col=[0, 1]). \
             vapply(len)
-        t_mission_needs = self.sum_of_two_dicts(mission_needs, prev_mission_needs)
+        t_mission_needs = sum_of_two_dicts(mission_needs, prev_mission_needs)
 
         p_mission = \
             info[nd.TASK_TYPE]. \
@@ -830,7 +831,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 to_dict(indices=[4, 2], result_col=[0, 1]). \
                 vapply(len)
 
-        t_min_aircraft_slack = self.sum_of_two_dicts(min_aircraft_slack, prev_aircraft)
+        t_min_aircraft_slack = sum_of_two_dicts(min_aircraft_slack, prev_aircraft)
 
         p_clustdate = \
             info[nd.MAINT_TYPE]. \
@@ -870,7 +871,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 to_dict(result_col=0, indices=[2, 1]). \
                 kvapply(lambda k, v: sum(self.get_remainingtime(p, k[1], 'rut', self.M) for p in v))
 
-        t_min_hour_slack = self.sum_of_two_dicts(prevRuts_clustdate, min_hours_slack).vfilter(lambda v: v >0)
+        t_min_hour_slack = sum_of_two_dicts(prevRuts_clustdate, min_hours_slack).vfilter(lambda v: v >0)
         consumption = self.instance.get_tasks('consumption').to_tuplist().to_list()
         _slack_s_kt_h_pd = pd.Series(data=_slack_s_kt_h.values_l(),
                                      index=pd.MultiIndex.from_tuples(_slack_s_kt_h.keys_l(),
@@ -955,7 +956,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 to_dict(result_col=0, indices=[2, 1]). \
                 kvapply(lambda k, v: sum(self.get_remainingtime(p, k[1], 'rut', self.M) for p in v))
 
-        t_min_hour_slack = self.sum_of_two_dicts(prevRuts_clustdate, min_hours_slack).vfilter(lambda v: v >0)
+        t_min_hour_slack = sum_of_two_dicts(prevRuts_clustdate, min_hours_slack).vfilter(lambda v: v >0)
 
         log.debug("constraints: clusters hours 2")
         get_consum = lambda t: self.instance.data['tasks'][t]['consumption']
