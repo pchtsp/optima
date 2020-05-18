@@ -75,7 +75,7 @@ class Experiment(object):
     def check_solution_count(self, **params):
         return self.check_solution(**params).to_lendict()
 
-    def check_solution(self, **params):
+    def check_solution(self, list_tests=None, **params):
         func_list = {
             'candidates':  self.check_resource_in_candidates
             ,'state':       self.check_resource_state
@@ -90,7 +90,9 @@ class Experiment(object):
             ,'capacity': self.check_sub_maintenance_capacity
             ,'maint_size': self.check_maints_size
         }
-        result = {k: v(**params) for k, v in func_list.items()}
+        if list_tests is None:
+            list_tests = func_list.keys()
+        result = {k: func_list[k](**params) for k in list_tests}
         return sd.SuperDict({k: v for k, v in result.items() if v})
 
     # @profile
