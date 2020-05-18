@@ -6,6 +6,8 @@ import os
 from .core import DAG
 import patterns.node as nd
 import random as rn
+import package.instance as inst
+import logging as log
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
@@ -23,7 +25,7 @@ class GraphTool(DAG):
             self.refs[node] = int(v)
             return v
 
-    def __init__(self, instance, resource):
+    def __init__(self, instance: inst.Instance, resource):
         super().__init__(instance, resource)
         nodes_ady = self.g
         self.g = gr.Graph()
@@ -44,19 +46,35 @@ class GraphTool(DAG):
                  self.refs_inv[n].rut is not None]
         self.g.set_reversed(is_reversed=False)
         self.g.remove_vertex(nodes, fast=True)
-        # TODO: there is an issue with storing the GraphView and not the original object
-        #  for now, we delete the nodes...
-        # keep_node = self.g.new_vp('bool', val=1)
-        # for v in nodes:
-        #     keep_node[v] = 0
-        # # self._g = self.g
-        # self.g = gr.GraphView(self.g, vfilt=keep_node)
 
         # create dictionary to filter nodes that have no tasks
         self.vp_not_task = self.g.new_vp('bool', val=1)
+        self.period_vp = self.g.new_vp('int')
+        self.period_end_vp = self.g.new_vp('int')
+        self.type_vp = self.g.new_vp('int')
+        positions = self.instance.get_period_positions()
+        self._equiv_task = {k: v +1 for v, k in enumerate(self.instance.get_tasks())}
+        self._equiv_task[''] = 0
+        self._equiv_task['M'] = -1
+        self.assgin_vp = self.g.new_vp('int')
         for v in self.g.vertices():
-            if self.refs_inv[v].type == nd.TASK_TYPE:
-                self.vp_not_task[v] = 0
+            self.type_vp[v] = self.refs_inv[v].type
+            self.period_vp[v] = positions[self.refs_inv[v].period]
+            self.period_end_vp[v] = positions[self.refs_inv[v].period_end]
+            self.assgin_vp[v] = self._equiv_task[self.refs_inv[v].assignment]
+
+        self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
+        self.weights = self.g.new_ep('int')
+        multiplier = 10
+        _dist = lambda *v: (instance.get_dist_periods(*v) + 1) * multiplier
+        _inv = self.refs_inv
+        default = 0.7 * multiplier
+        for e in self.g.edges():
+            target = _inv[e.target()]
+            if target.type == nd.EMPTY_TYPE:
+                self.weights[e] = default
+            self.weights[e] = _dist(target.period, target.period_end)
+
 
     def shortest_path(self, node1=None, node2=None, **kwargs):
         target, source = None, None
@@ -66,24 +84,39 @@ class GraphTool(DAG):
             target = self.refs[node2]
         return gr.shortest_distance(self.g, source=source, target=target, dag=True, **kwargs)
 
-    def filter_by_tasks(self, node1, node2):
+    def filter_by_tasks(self, node1, node2, g=None):
         # returns a graph without task assignments.
         # Except the node1 and node2 and previous nodes to node2
         nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
         _temp_vp = self.vp_not_task.copy()
         for v in nodes:
             _temp_vp[v] = 1
-        return gr.GraphView(self.g, vfilt=_temp_vp)
+        if g is None:
+            g = self.g
+        return gr.GraphView(g, vfilt=_temp_vp)
 
-    def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, **kwargs):
-        graph = self.g
+    def filter_by_mask(self, mask, node2):
+        vfilt = self.g.new_vp('bool', val=1)
+        predecessors = self.g.vertex(self.refs[node2]).in_neighbors()
+        _func = lambda n: mask(self.refs_inv[n])
+        nodes = [int(n) for n in predecessors if not _func(n)]
+        vfilt.a[nodes] = 0
+        # for n in nodes:
+        #     vfilt[n] = 0
+        return gr.GraphView(self.g, vfilt=vfilt)
+
+    def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
+        if mask:
+            graph = self.filter_by_mask(mask, node2)
+        else:
+            graph = self.g
         paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
         sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
         sample2 = []
         if add_empty:
-            gfilt = self.filter_by_tasks(node1, node2)
+            gfilt = self.filter_by_tasks(node1, node2, g=graph)
             paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
             sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
         return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
@@ -93,24 +126,32 @@ class GraphTool(DAG):
         #     vapply(lambda v: (v.rut, v.ret, v.type))
         # node.rut, node.ret, node.type
 
-    def nodes_to_pattern2(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, **kwargs):
-        graph = self.g
+    def nodes_to_patterns2(self, node1, node2, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
-        weights = self.g.new_ep('double')
+        if mask:
+            graph = self.filter_by_mask(mask, node2)
+        else:
+            graph = self.g
+        # get edges between node1 and node 2 only
+        # edges = self.get_edges_between_nodes(node1, node2)
 
-        # g.set_edge_filter(tree)
-        # g.set_edge_filter(None)
+        sample = tl.TupList()
+        for i in range(max_paths):
+            weights = self.weights.copy()
+            arr = weights.get_array()
+            weights.a = np.floor(arr * (1 + np.random.random(self.g.num_edges())))
+            # weights.a[edges] = np.floor(arr[edges] * (1 + 0.5 * np.random.random(np.sum(edges))))
 
-        pattern = gr.shortest_path(self.g, source=refs[node1], target=refs[node2], weights=weights, dag=True)
-        paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-        sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
-        sample2 = []
+            patterns = gr.all_shortest_paths(graph, source=refs[node1], target=refs[node2], weights=weights, dag=True)
+            _paths = list(patterns)
+            # log.debug("number of patterns for resource {}: {}".format(node1.resource, len(_paths)))
+            sample.extend(_paths)
         if add_empty:
-            gfilt = self.filter_by_tasks(node1, node2)
+            gfilt = self.filter_by_tasks(node1, node2, g=graph)
             paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
-            sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
-        return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
+            sample += self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+        return sample.vapply(lambda v: [refs_inv[vv] for vv in v])
 
     def nodes_to_pattern1(self, node1, node2, all_weights, cutoff=1000, **kwargs):
 
@@ -148,6 +189,66 @@ class GraphTool(DAG):
             weights = [w / _sum for w in weights]
             current = np.random.choice(a=list(neighbors), p=weights)
         return None
+
+    def nodes_to_pattern2(self, node1, node2, mask, errors, **kwargs):
+        refs = self.refs
+        refs_inv = self.refs_inv
+        if mask:
+            graph = self.filter_by_mask(mask, node2)
+        else:
+            graph = self.g
+
+        weights = self.get_weights(node1, node2, errors)
+
+        source = graph.vertex(refs[node1])
+        target = graph.vertex(refs[node2])
+        nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
+        return [refs_inv[n] for n in nodes]
+
+    def get_weights(self, node1, node2, errors):
+        # hours => add 1 to each edge  if resource is assigned something
+        # resources => subtract 1 to each edge if mission is assigned
+        # capacity => add 1 to each edge if maintenance has started? or it's going on
+
+        # get edges between node1 and node 2 only
+        positions = self.instance.get_period_positions()
+        relevant_nodes = \
+            (self.period_vp.get_array() >= positions[node1.period]) & \
+            (self.period_end_vp.get_array() <= positions[node2.period_end])
+        nodes = np.where(relevant_nodes)
+        edges_all = self.g.get_edges()
+        relevant_edge = np.in1d(edges_all[:, 0], nodes) & np.in1d(edges_all[:, 1], nodes)
+        weights = self.weights.copy()
+        weights_arr = weights.get_array()
+
+        positions = self.instance.get_period_positions()
+        arr_per = self.period_vp.get_array()
+        hours_periods = errors.get('hours')
+        if hours_periods:
+            max_period = positions[hours_periods[-1]]
+            arr_type = self.type_vp.get_array()
+            nodes = np.where(relevant_nodes & (arr_type == nd.TASK_TYPE) & (arr_per <= max_period))
+            edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
+            weights.a[edges] = np.floor(weights_arr[edges]*1.2)
+        resources = errors.get('resources')
+        if resources:
+            arr_per_end = self.period_end_vp.get_array()
+            arr_assign = self.assgin_vp.get_array()
+            for task, period in resources:
+                t = self._equiv_task[task]
+                p = positions[period]
+                nodes = np.where(relevant_nodes
+                                 & (arr_assign == t)
+                                 & (arr_per <= p)
+                                 & (arr_per_end >= p)
+                                 )
+                edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
+                weights.a[edges] = np.floor(weights_arr[edges] / 1.2)
+        weights.a[relevant_edge] = np.floor(weights_arr[relevant_edge] *
+                                            (1 + 0.5 * np.random.random(np.sum(relevant_edge))))
+        #     weights.a = np.floor(
+        #         arr * (1 + 0.5 * np.random.random(self.g.num_edges())))
+        return weights
 
     def to_file(self, path):
         name = 'cache_info_{}'.format(self.resource)

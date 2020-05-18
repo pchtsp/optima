@@ -61,10 +61,66 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return
 
     def sub_problem_mip(self, change, options):
+        """
+        always two or three phases:
+        1. (optional) sample patterns
+        2. get a list of patterns to apply
+        3. apply patterns
+        :param change: candidate
+        :param options: config
+        :return: a solution
+        """
         patterns = self.get_patterns_from_window(change, options)
         if not patterns:
             return None
-        return self.solve_repair(patterns, options)
+        patterns =  self.solve_repair(patterns, options)
+        for p in patterns:
+            self.apply_pattern(p)
+        return self.solution
+
+    def get_errors_in_format(self):
+        errors = self.check_solution(recalculate=False, assign_missions=True,
+                                   list_tests=['resources', 'hours', 'capacity'])
+
+        # hours
+        clust_hours = errors.get('hours', sd.SuperDict())
+        clust_periods = clust_hours.keys_tl().to_dict(1)
+        c_cand = \
+            self.instance.get_cluster_candidates().\
+                list_reverse().\
+                vapply(lambda v: [p for vv in v for p in clust_periods.get(vv, [])]).\
+                vapply(lambda v: sd.SuperDict(hours=v))
+
+        # resources
+        res = sd.SuperDict(resources=errors.get('resources', sd.SuperDict()).keys_tl())
+
+        data = c_cand.vapply(lambda v: v._update(res))
+        return data
+
+    def sub_problem_shortest(self, change, options):
+        """
+        always two or three phases:
+        1. get a list of patterns to apply
+        2. apply patterns
+        :param change: candidate
+        :param options: config
+        :return: a solution
+        """
+        # errors.get('resources', sd.SuperDict())
+        _func = lambda resource: \
+            self.prepare_data_to_get_patterns(resource, change['start'], change['end'], cutoff=1)
+        res_pattern = \
+            sd.SuperDict().\
+            fill_with_default(change['resources']).\
+            kapply(_func)
+        for k, v in res_pattern.items():
+            data = self.get_errors_in_format()
+            pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=data[k])
+            self.apply_pattern(pattern)
+
+        # for pattern in res_patterh.values():
+        #     self.apply_pattern(pattern)
+        return self.solution
 
     def get_patterns_from_window(self, change, options):
         multiproc = options['multiprocess']
@@ -82,11 +138,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             for r in resources:
                 data[r] = self.prepare_data_to_get_patterns(r, *args)
                 # we need to filter them to take out the ones that compromise the post-window periods
-                results[r] = pool.apply_async(self.get_graph_data(r).nodes_to_patterns, kwds=data[r])
+                results[r] = pool.apply_async(self.get_graph_data(r).nodes_to_patterns2, kwds=data[r])
             for r, result in results.items():
                 try:
                    _data[r] = result.get(timeout=100)
-                   _data[r] = self.filter_patterns(data[r]['node2'], _data[r])
                 except multi.TimeoutError:
                     _data[r] = []
         return _data.vfilter(lambda v: len(v) > 0)
@@ -137,7 +192,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         elif max_patterns_initial:
             ch = self.get_candidate_all()
             patterns = self.get_patterns_from_window(ch, options_fs)
-            self.solve_repair(patterns, options_fs)
+            patterns = self.solve_repair(patterns, options_fs)
+            for p in patterns:
+                self.apply_pattern(p)
 
         # initialise solution status
         self.initialise_solution_stats()
@@ -160,6 +217,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 continue
             log.info('Repairing periods {start} => {end} for resources: {resources}'.format(**change))
             solution = self.sub_problem_mip(change, options)
+            # solution = self.sub_problem_shortest(change, options)
             if solution is None:
                 continue
 
@@ -244,7 +302,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             error_cat = self.check_solution().to_lendict()
         weights = sd.SuperDict(resources=10000, hours=1000, available=1000, capacity=10000,
                                )
-        # a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
+        a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
         num_errors = sum((error_cat*weights).values())
 
         # we count the number of maintenances and their distance to the end
@@ -257,20 +315,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         return num_errors * 1000 + sum(maintenances)
 
-    def filter_patterns(self, node2, patterns):
-        # TODO: this can be filtered before sampling
+    def filter_node2(self, node2):
         """
-        gets feasible patterns with the resource's maintenance cycle
 
-        :param node2:
-        :param patterns:
-        :return:
+        :param node2: node2 of candidate
+        :return: a function that returns True if a node complies with node2 rut and ret constraints
         """
         rut = self.get_remainingtime(node2.resource, node2.period_end, 'rut', maint=self.M)
         if rut is None:
             # it could be we are at the dummy node at the end.
             # here, we would not care about filtering
-            return patterns
+            return None
         ret = self.get_remainingtime(node2.resource, node2.period_end, 'ret', maint=self.M)
         first, last = self.instance.get_first_last_period()
         _shift = self.instance.shift_period
@@ -291,8 +346,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             # if there is a maintenance later, we cannot make them too close
             max_ret = min_ret + size
         min_rut = rut - rut_cycle
-        return patterns.vfilter(lambda v: v[-2].rut[self.M] >= min_rut and
-                                          min_ret <= v[-2].ret[self.M] <= max_ret)
+        _func = lambda node: node.rut[self.M] >= min_rut and \
+                             min_ret <= node.ret[self.M] <= max_ret
+        return _func
 
     def apply_pattern(self, pattern):
         resource = pattern[0].resource
@@ -345,7 +401,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             result.add(period, node.assignment)
         return result
 
-    def date_to_node(self, resource, date, use_rt=True):
+    def date_to_state(self, resource, date):
 
         # We check what the resource has in this period:
         assignment, category = self.solution.get_period_state_category(resource, date)
@@ -371,34 +427,34 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         else:
             _type = nd.DUMMY_TYPE
 
-        if use_rt:
-            maints = self.instance.get_maintenances().vapply(lambda v: 1)
-            # we want to have the status of the resource in the moment the assignment ends
-            # because that will be the status on the node
-            _defaults = dict(resource=resource, period=period_end)
-            _rts = \
-                sd.SuperDict(ret=maints, rut=maints). \
-                    to_dictup(). \
-                    kapply(lambda k: dict(**_defaults, time=k[0], maint=k[1])). \
-                    vapply(lambda v: self.get_remainingtime(**v)). \
-                    to_dictdict()
-        else:
-            _rts = sd.SuperDict(rut=None, ret=None)
+        maints = self.instance.get_maintenances().vapply(lambda v: 1)
+        # we want to have the status of the resource in the moment the assignment ends
+        # because that will be the status on the node
+        _defaults = dict(resource=resource, period=period_end)
+        _rts = \
+            sd.SuperDict(ret=maints, rut=maints). \
+                to_dictup(). \
+                kapply(lambda k: dict(**_defaults, time=k[0], maint=k[1])). \
+                vapply(lambda v: self.get_remainingtime(**v)). \
+                to_dictdict()
         # we return the state of type: period, period_end, assignment, type, rut, ret
-        state = sd.SuperDict(period=period_start, period_end=period_end,
+        return sd.SuperDict(period=period_start, period_end=period_end,
                              assignment=assignment, type=_type, **_rts)
-        return nd.Node.from_state(self.instance, resource=resource, state=state)
 
     def prepare_data_to_get_patterns(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
-
-        node1 = self.date_to_node(resource, date1, use_rt=True)
-        node2 = self.date_to_node(resource, date2, use_rt=False)
+        node1 = nd.Node.from_state(self.instance, resource=resource,
+                                   state=self.date_to_state(resource, date1))
+        node2_data = self.date_to_state(resource, date2)
+        node2 = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
+        mask = self.filter_node2(node2)
+        node2_data = {**node2_data, **sd.SuperDict(rut=None, ret=None)}
+        dummy_node2  = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
         if cutoff is None:
-            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=node2)
+            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
-        return dict(node1=node1, node2=node2, max_paths=num_max, cutoff=cutoff, **kwargs)
+        return dict(node1=node1, node2=dummy_node2, max_paths=num_max, cutoff=cutoff, mask=mask, **kwargs)
 
     def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
         """
@@ -412,15 +468,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
-        # patterns = cp.nodes_to_patterns(**data)
+        patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
         # we need to filter them to take out the ones that compromise the post-window periods
-        p_filtered = self.filter_patterns(data['node2'], patterns)
-        return p_filtered
+        # not anymore, we do it now by passing ar argument mask to filter out the bad nodes
+        # p_filtered = self.filter_patterns(data['node2'], patterns)
+        return patterns
 
     def get_pattern_from_window(self, resource, date1, date2):
         _range = self.instance.get_periods_range
-        nodes = tl.TupList([self.date_to_node(resource, p, use_rt=True) for p in _range(date1, date2)])
+        nodes = \
+            tl.TupList([self.date_to_state(resource, p) for p in _range(date1, date2)]).\
+                vapply(lambda v: nd.Node.from_state(self.instance, resource, state=v))
         return nodes.unique2().sorted(key=lambda k: k.period)
 
     def set_remaining_time_in_window(self, resource, maint, start, end, rt):
@@ -599,11 +657,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
 
-        # TODO: we should return the mapping: resource => pattern
+        # TODO: we should return the mapping: resource => pattern or list of patterns
         # TODO: we should plug and play the subproblem as another class
-        self.solution = self.get_repaired_solution(l['combos'], model_vars['assign'])
-
-        return self.solution
+        return self.get_repaired_solution(l['combos'], model_vars['assign'])
 
     def get_repaired_solution(self, combos, assign):
         patterns = assign. \
@@ -611,12 +667,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             vfilter(lambda v: v). \
             kapply(lambda k: combos[k]). \
             values_tl()
-        for p in patterns:
-            self.apply_pattern(p)
-        return self.solution
+        return patterns
 
-    def draw_graph(self, resource):
-        self.get_graph_data(resource).draw()
+    def draw_graph(self, resource, **kwargs):
+        self.get_graph_data(resource).draw(**kwargs)
         return True
 
     def get_candidates_tasks(self, errors):
@@ -668,7 +722,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return sd.SuperDict()
-        options = clust_hours.keys_tl().to_dict(1).vapply(lambda v: sd.SuperDict(start=v[0], end=v[-1]))
+        options = clust_hours.keys_tl().to_dict(1).vapply(sorted).vapply(lambda v: sd.SuperDict(start=v[0], end=v[-1]))
         opt_probs = options.vapply(lambda v: _dist(v['start'], v['end'])).to_tuplist()
         _cluts, _probs = zip(*opt_probs)
         cluster = rn.choices(_cluts, weights=_probs, k=1)[0]
