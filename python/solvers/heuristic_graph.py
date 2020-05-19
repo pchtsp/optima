@@ -78,25 +78,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.apply_pattern(p)
         return self.solution
 
-    def get_errors_in_format(self):
-        errors = self.check_solution(recalculate=False, assign_missions=True,
-                                   list_tests=['resources', 'hours', 'capacity'])
-
-        # hours
-        clust_hours = errors.get('hours', sd.SuperDict())
-        clust_periods = clust_hours.keys_tl().to_dict(1)
-        c_cand = \
-            self.instance.get_cluster_candidates().\
-                list_reverse().\
-                vapply(lambda v: [p for vv in v for p in clust_periods.get(vv, [])]).\
-                vapply(lambda v: sd.SuperDict(hours=v))
-
-        # resources
-        res = sd.SuperDict(resources=errors.get('resources', sd.SuperDict()).keys_tl())
-
-        data = c_cand.vapply(lambda v: v._update(res))
-        return data
-
     def sub_problem_shortest(self, change, options):
         """
         always two or three phases:
@@ -114,9 +95,11 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             fill_with_default(change['resources']).\
             kapply(_func)
         for k, v in res_pattern.items():
-            data = self.get_errors_in_format()
-            pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=data[k])
-            self.apply_pattern(pattern)
+            errors = self.check_solution(recalculate=False, assign_missions=True,
+                                         list_tests=['resources', 'hours', 'capacity'])
+            pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
+            if pattern:
+                self.apply_pattern(pattern)
 
         # for pattern in res_patterh.values():
         #     self.apply_pattern(pattern)
@@ -159,6 +142,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
         big_window = options.get('big_window', False)
+        max_candidates = options.get('max_candidates')
+        subproblem_choice = options.get('subproblem', 'mip')
 
         options_repair = di.copy_dict(options)
         options_repair = sd.SuperDict(options_repair)
@@ -199,14 +184,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # initialise solution status
         self.initialise_solution_stats()
 
+        # choose a subproblem
+        subproblem = self.sub_problem_mip
+        if subproblem_choice == 'short':
+            subproblem = self.sub_problem_shortest
+
         # 2. repair solution
         log.info("Solving phase.")
         i = 0
         errors = sd.SuperDict()
         while i < max_iters:
             if rn.random() > 0.5 or not errors:
-                change = self.get_candidate_random()
-            elif rn.random() > 0.5:
+                change = self.get_candidate_random(options)
+            elif errors.get('resources') and rn.random() > 0.5:
                 change = self.get_candidates_tasks(errors)
             else:
                 change = self.get_candidates_cluster(errors)
@@ -215,13 +205,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 change = self.get_candidate_all()
             if not change:
                 continue
+            if max_candidates and len(change['resources']) > max_candidates:
+                change['resources'] = rn.sample(change['resources'], max_candidates)
             log.info('Repairing periods {start} => {end} for resources: {resources}'.format(**change))
-            solution = self.sub_problem_mip(change, options)
-            # solution = self.sub_problem_shortest(change, options)
+            solution = subproblem(change, options)
             if solution is None:
                 continue
-
-            objective, status, errors = self.analyze_solution(temperature, True)
+            kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
+            objective, status, errors = self.analyze_solution(temperature, **kwargs)
             num_errors = errors.to_lendict().values_tl()
             num_errors = sum(num_errors)
 
@@ -299,9 +290,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :rtype: int
         """
         if error_cat is None:
-            error_cat = self.check_solution().to_lendict()
-        weights = sd.SuperDict(resources=10000, hours=1000, available=1000, capacity=10000,
-                               )
+            error_cat = self.check_solution(list_tests=['resources', 'hours', 'capacity']).to_lendict()
+        weights = sd.SuperDict(resources=10000, hours=1000, capacity=10000)
+        # TODO: there is an issue with elapsed being sometimes 0 in the last period
         a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
         num_errors = sum((error_cat*weights).values())
 
@@ -693,13 +684,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         start, end = t_info[task]['start'], t_info[task]['end']
         return sd.SuperDict(resources=t_cand, start=start, end=end)
 
-    def get_candidate_random(self):
+    def get_candidate_random(self, options):
         _shift = self.instance.shift_period
         periods = self.instance.get_periods()
         resources = self.instance.get_resources().keys_tl().sorted()
         first, last = self.instance.get_first_last_period()
-        start = rn.choice(periods)
-        size = rn.choice(range(10, len(periods)))
+        min_size = min(options.get('min_window_size', 10), len(periods))
+        size = rn.choice(range(min_size, len(periods)+1))
+        start = rn.choice(periods[:-size+1])
         end = min(_shift(start, size), last)
         # we choose a subset of resources
         size_sample = rn.choice(range(15, len(resources)+1))

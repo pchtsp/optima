@@ -14,7 +14,7 @@ class GreedyByMission(test.Experiment):
     # statuses for detecting a new worse solution
     status_worse = {2, 3}
     # statuses for detecting if we accept a solution
-    status_accept = {0, 1, 2}
+    status_accept = {0, 1, 3}
 
     def __init__(self, instance, solution=None):
 
@@ -581,7 +581,7 @@ class GreedyByMission(test.Experiment):
             return ref
         return value
 
-    def analyze_solution(self, temperature, assign_missions=False):
+    def analyze_solution(self, temperature, **kwargs):
         """
         Compares solution quality with previous and best.
         Updates the previous solution (always).
@@ -594,7 +594,7 @@ class GreedyByMission(test.Experiment):
         # This commented function validates if I'm updating correctly rut and ret.
         # self.check_consistency()
         # errors = self.get_inconsistency()
-        errs = self.check_solution(recalculate=False, assign_missions=assign_missions)
+        errs = self.check_solution(recalculate=False, **kwargs)
         error_cat = errs.to_lendict()
         log.debug("errors: {}".format(error_cat))
         objective = self.get_objective_function(error_cat)

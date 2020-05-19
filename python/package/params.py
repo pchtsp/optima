@@ -83,14 +83,19 @@ OPTIONS = {
     , 'log_handler': None
     , 'assign_missions': False
     # heuristic_graph params
+    , 'multiproc_patterns': 0
+    , 'multiproc_problems': False
     , 'max_iters_initial': 0
-    , 'max_patterns_initial': 1000
+    , 'max_patterns_initial': 50
+    , 'timeLimit_initial': 60
     , 'big_window': 0
-    , 'num_max': 500
-    , 'timeLimit_start': 60
+    , 'num_max': 20
     , 'timeLimit_cycle': 20
-    , 'cache_graph_path': path_results + 'cache_graph/{}t_{}v/'.format(_periods, _tasks)
+    , 'cache_graph_path': None
     , 'cutoff': None
+    , 'max_candidates': 1
+    , 'subproblem': 'short'
+    , 'min_window_size': 40
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0
