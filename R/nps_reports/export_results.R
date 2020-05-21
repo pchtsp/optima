@@ -1,7 +1,7 @@
 source('nps_reports/functions.R')
 source('nps_reports/datasets.R')
 library(latex2exp)
-
+library(RColorBrewer)
 
 path_export_img <- '../../NPS2019/img/'
 path_export_tab <- '../../NPS2019/tab/'
@@ -88,7 +88,7 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     graph_performance <- function(data, path){
         ggplot(data=data, aes(x=percentage, y=time, color=experiment)) + 
             theme_minimal() + geom_point(size=0.5) + xlab('Instance percentage') + 
-            ylab('Time to solve instance') + 
+            ylab('Time to solve instance') + scale_color_brewer(palette='Spectral') +
             theme(text = element_text(size=element_text_size)) + 
             guides(color = guide_legend(override.aes = list(size=legend_size))) + ggsave(path)    
     }
