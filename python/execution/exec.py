@@ -1,5 +1,5 @@
 import os, sys
-import subprocess
+import resource
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import data.dates as aux
@@ -9,7 +9,6 @@ import data.template_data as td
 
 import package.instance as inst
 import package.solution as sol
-import package.experiment as exp
 import data.simulation as sim
 import pytups.superdict as sd
 
@@ -100,6 +99,9 @@ def engine_factory(engine):
     elif engine == 'ModelANORFixLP':
         import solvers.model_anor_fixingLP as model
         return model.ModelANORFixLP
+    elif engine == 'HEUR_Graph':
+        import solvers.heuristic_graph as go
+        return go.GraphOriented
     else:
         import solvers.model as model
         return model.Model
@@ -132,7 +134,7 @@ def execute_solve(model_data, options, solution_data=None):
     if solution is None:
         return None
 
-    experiment = exp.Experiment(instance, solution)
+    experiment.set_solution(solution.data)
     errors = experiment.check_solution()
     errors = {k: v.to_dictdict() for k, v in errors.items()}
 
@@ -140,6 +142,12 @@ def execute_solve(model_data, options, solution_data=None):
     di.export_data(output_path, experiment.solution.data, name="data_out", file_type='json', exclude_aux=exclude_aux)
     if len(errors):
         di.export_data(output_path, errors, name='errors', file_type="json")
+
+    try:
+        sol_store = experiment.solution_store
+        di.export_data(output_path, sol_store, name="data_history", file_type='json')
+    except AttributeError:
+        sol_store = None
 
     if options.get('template', False):
         td.export_output_template(options['output_template_path'], experiment)
@@ -178,3 +186,16 @@ def udpdate_case_read_options(options, path):
         options.update(new_options)
     update_case_path(options, path)
     return options
+
+def memory_limit(percentage=0.5):
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    resource.setrlimit(resource.RLIMIT_AS, (int(get_memory() * 1024 * percentage), hard))
+
+def get_memory():
+    with open('/proc/meminfo', 'r') as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                free_memory += int(sline[1])
+    return free_memory

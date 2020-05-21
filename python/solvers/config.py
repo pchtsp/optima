@@ -73,7 +73,7 @@ class Config(object):
 
     def config_cplex(self):
         # CPLEX parameters: https://www.ibm.com/support/knowledgecenter/en/SSSA5P_12.6.0/ilog.odms.cplex.help/CPLEX/GettingStarted/topics/tutorials/InteractiveOptimizer/settingParams.html
-
+        # CPLEX status: https://www.ibm.com/support/knowledgecenter/en/SSSA5P_12.10.0/ilog.odms.cplex.help/refcallablelibrary/macros/Solution_status_codes.html
         params_eq  = \
             dict(log_path='set logFile {}',
                  timeLimit='set timelimit {}',
@@ -100,14 +100,14 @@ class Config(object):
         if self.solver == "CPLEX":
             solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=self.keepfiles, mip_start=self.mip_start)
         if self.solver == "CPLEX_PY":
-            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path)
+            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path, msg=1, mip_start=self.mip_start)
         if self.solver == "CHOCO":
             solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=self.keepfiles, msg=0)
         if self.solver == "MIPCL":
             solver = pl.MIPCL_CMD(options=['-time 60'], keepFiles=self.keepfiles, msg=1)
         if solver is not None:
             try:
-                result = model.solve(solver, timeout=self.timeLimit + 60)
+                result = model.solve(solver)
             except pl.PulpSolverError as e:
                 print('Possible PuLP TimeoutError happened.')
                 print(e)
@@ -126,7 +126,7 @@ class Config(object):
             with tempfile.TemporaryFile() as tmp_output:
                 orig_std_out = dup(1)
                 dup2(tmp_output.fileno(), 1)
-                result = model.solve(solver, timeout=self.timeLimit + 60)
+                result = model.solve(solver)
                 dup2(orig_std_out, 1)
                 close(orig_std_out)
                 tmp_output.seek(0)

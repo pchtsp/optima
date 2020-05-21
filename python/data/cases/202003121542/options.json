@@ -1,0 +1,200 @@
+{
+    "timeLimit": 300,
+    "solver": "CPLEX_PY",
+    "black_list": [
+        "O8",
+        "O10",
+        "O6"
+    ],
+    "white_list": [],
+    "start": "2018-01",
+    "num_period": 20,
+    "simulate": true,
+    "template": false,
+    "solve": true,
+    "graph": 0,
+    "warm_start": false,
+    "path": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../optima_results_old/experiments/202003121543/",
+    "input_template_path": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../optima_results_old/experiments/202003121543/template_in.xlsx",
+    "output_template_path": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../optima_results_old/experiments/202003121543/template_out.xlsx",
+    "exclude_aux": true,
+    "multiprocess": 7,
+    "seed": 42,
+    "num_change": [
+        0.8,
+        0.1,
+        0.1
+    ],
+    "temperature": 0.5,
+    "prob_free_aircraft": 0.1,
+    "prob_free_periods": 0.5,
+    "cooling": 0.999,
+    "debug": false,
+    "max_iters": 1,
+    "prob_delete_maint": 0.5,
+    "log_output": [
+        "file",
+        "console"
+    ],
+    "log_handler": null,
+    "assign_missions": false,
+    "noise_assignment": true,
+    "gap": 0,
+    "gap_abs": 40,
+    "memory": null,
+    "slack_vars": "No",
+    "integer": false,
+    "relax": false,
+    "writeLP": false,
+    "writeMPS": false,
+    "price_rut_end": 0,
+    "solver_add_opts": {
+        "CPLEX": [
+            "set mip cuts flowcovers 1",
+            "set mip cuts mircut 1",
+            "set mip strategy backtrack 0.1",
+            "set mip strategy heuristicfreq 100",
+            "set mip strategy presolvenode 2",
+            "set mip strategy probe 3",
+            "set mip limits gomorycand 10000",
+            "set mip limits gomorypass 10"
+        ],
+        "CBC": [
+            "presolve on",
+            "gomory on",
+            "probing on"
+        ]
+    },
+    "mip_start": false,
+    "fix_vars": [],
+    "threads": null,
+    "solver_path": null,
+    "keepfiles": 0,
+    "do_not_solve": false,
+    "default_type2_capacity": 66,
+    "StochCuts": {
+        "active": 0,
+        "bounds": [
+            "max"
+        ],
+        "cuts": [
+            "maints"
+        ]
+    },
+    "reduce_2M_window": {
+        "active": 0,
+        "window_size": 10,
+        "percent_add": 0,
+        "tolerance_mean": {
+            "min": 5,
+            "max": -5
+        }
+    },
+    "DetermCuts": 0,
+    "simulation": {
+        "num_resources": 30,
+        "num_parallel_tasks": 2,
+        "maint_duration": 6,
+        "max_used_time": 1000,
+        "max_elapsed_time": 60,
+        "max_elapsed_time_2M": null,
+        "elapsed_time_size": 10,
+        "min_usage_period": 0,
+        "perc_capacity": 0.15,
+        "min_avail_percent": 0.1,
+        "min_avail_value": 1,
+        "min_hours_perc": 0.5,
+        "seed": 47,
+        "t_min_assign": [
+            2,
+            3,
+            6
+        ],
+        "initial_unbalance": [
+            -3,
+            3
+        ],
+        "t_required_hours": [
+            10,
+            50,
+            100
+        ],
+        "t_num_resource": [
+            1,
+            6
+        ],
+        "t_duration": [
+            6,
+            12
+        ],
+        "perc_in_maint": 0.07,
+        "perc_add_capacity": 0.1,
+        "maintenances": {
+            "M": {
+                "duration_periods": 4,
+                "capacity_usage": 1,
+                "max_used_time": 1000,
+                "max_elapsed_time": 60,
+                "elapsed_time_size": 3,
+                "used_time_size": 1000,
+                "type": "1",
+                "depends_on": [],
+                "affects": [],
+                "priority": 0
+            },
+            "VG": {
+                "duration_periods": 1,
+                "capacity_usage": 3,
+                "max_used_time": null,
+                "max_elapsed_time": 8,
+                "elapsed_time_size": 3,
+                "used_time_size": null,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 10
+            },
+            "VI": {
+                "duration_periods": 1,
+                "capacity_usage": 6,
+                "max_used_time": null,
+                "max_elapsed_time": 17,
+                "elapsed_time_size": 3,
+                "used_time_size": null,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 5
+            },
+            "VS": {
+                "duration_periods": 1,
+                "capacity_usage": 4,
+                "max_used_time": 600,
+                "max_elapsed_time": null,
+                "elapsed_time_size": null,
+                "used_time_size": 200,
+                "type": "2",
+                "depends_on": [
+                    "M"
+                ],
+                "affects": [],
+                "priority": 2
+            }
+        }
+    },
+    "root": "/home/pchtsp/Documents/projects/OPTIMA/",
+    "PATHS": {
+        "root": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../",
+        "results": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../optima_results_old/",
+        "experiments": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../../optima_results_old/experiments/",
+        "img": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../img/",
+        "latex": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../latex/",
+        "data": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../data/",
+        "input": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../data/raw/parametres_DGA_final.xlsm",
+        "hist": "/home/pchtsp/Documents/projects/OPTIMA/python/package/../../data/raw/Planifs M2000.xlsm"
+    }
+}

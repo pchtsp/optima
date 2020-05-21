@@ -4,6 +4,7 @@ import numpy as np
 import copy
 import json
 import pickle
+import ujson
 
 
 def load_data(path, file_type=None):
@@ -22,7 +23,7 @@ def load_data(path, file_type=None):
             return pickle.load(f)
     if file_type == 'json':
         with open(path, 'r') as f:
-            return json.load(f)
+            return ujson.load(f)
 
 
 def load_data_zip(zipobj, path, file_type='json'):
@@ -33,7 +34,7 @@ def load_data_zip(zipobj, path, file_type='json'):
             data = zipobj.read(path)
         except KeyError:
             return False
-        return json.loads(data)
+        return ujson.loads(data)
 
 
 def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False):
@@ -52,7 +53,7 @@ def export_data(path, dictionary, name=None, file_type="json", exclude_aux=False
             pickle.dump(dictionary, f)
     if file_type == 'json':
         with open(path, 'w') as f:
-            json.dump(dictionary, f, cls=MyEncoder, indent=4)
+            json.dump(dictionary, f, cls=MyEncoder, indent=4, sort_keys=True)
     return True
 
 
@@ -66,3 +67,7 @@ class MyEncoder(json.JSONEncoder):
             return obj.tolist()
         else:
             return super(MyEncoder, self).default(obj)
+
+
+def copy_dict(_dict):
+    return ujson.loads(ujson.dumps(_dict))

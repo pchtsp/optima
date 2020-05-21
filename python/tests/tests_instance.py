@@ -1,5 +1,4 @@
 import unittest
-import package.exec as exec
 import data.data_input as di
 import package.instance as inst
 import os
@@ -28,27 +27,29 @@ class TestInstance(unittest.TestCase):
         periods = self.instance.get_periods()
         periods_real = aux.get_months(self.instance.get_param('start'),
                                       self.instance.get_param('end'))
-        self.assertEquals(periods, periods_real)
+        self.assertEqual(periods, periods_real)
 
     def test_get_periods_range(self):
 
         for start, end in self.dates_to_test:
             periods = self.instance.get_periods_range(start, end)
             periods_real = aux.get_months(start, end)
-            self.assertEquals(periods, periods_real)
+            self.assertEqual(periods, periods_real)
 
     def test_get_next_period(self):
         for start, end in self.dates_to_test:
             period = self.instance.get_next_period(start)
             period_real = aux.get_next_month(start)
-            self.assertEquals(period, period_real)
+            self.assertEqual(period, period_real)
 
     def test_get_next_periods(self):
         for start, end in self.dates_to_test:
             period = self.instance.get_prev_period(start)
             period_real = aux.get_prev_month(start)
-            self.assertEquals(period, period_real)
+            self.assertEqual(period, period_real)
 
+    def test_resources_equal(self):
+        resources = self.instance.get_resources()
     pass
 
     if __name__ == "__main__":

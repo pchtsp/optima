@@ -5,6 +5,7 @@ import numpy as np
 import math
 import pytups.superdict as sd
 import pytups.tuplist as tl
+import ujson as json
 
 
 class Instance(object):
@@ -33,6 +34,13 @@ class Instance(object):
         self.set_default_maintenances()
         self.prepare_maint_params()
         self.set_default_maint_types()
+
+    @classmethod
+    def from_instance(cls, instance):
+        data = instance.data
+        data_copy = json.loads(json.dumps(data))
+        new_instance = cls(sd.SuperDict.from_dict(data_copy))
+        return new_instance
 
     def set_default_params(self):
         # TODO: take out deprecated params
@@ -124,9 +132,9 @@ class Instance(object):
         start = self.get_param('start')
         num_periods = self.get_param('num_period')
         self.data['aux'] = sd.SuperDict()
-
-        begin_year = int(start[:4]) - 5
-        end_year = int(start[:4]) + 5 + num_periods//12
+        extra_time = num_periods//12 * 2 + 5
+        begin_year = int(start[:4]) - extra_time
+        end_year = int(start[:4]) + num_periods//12 + extra_time
         many_months = ['{}-{:02.0f}'.format(_a, _b)
                        for _a in range(begin_year, end_year)
                        for _b in range(1, 13)]
@@ -170,7 +178,7 @@ class Instance(object):
             return sd.SuperDict()
         if default_dict is not None:
             default_dict = sd.SuperDict.from_dict(default_dict)
-            data.vapply(lambda v: {**default_dict, **v})
+            data = data.vapply(lambda v: sd.SuperDict({**default_dict, **v}))
         if param is None:
             return data
         if param in list(data.values())[0]:
@@ -187,7 +195,8 @@ class Instance(object):
         return self.get_category('resources', param, default_resources)
 
     def get_maintenances(self, param=None):
-        return self.get_category('maintenances', param)
+        default = {'priority': 1}
+        return self.get_category('maintenances', param, default)
 
     def correct_initial_state(self, time_type):
         """
@@ -309,8 +318,8 @@ class Instance(object):
             fixed_future.extend(previous_n)
         return fixed_future
 
-    def get_fixed_maintenances(self, dict_key=None, resource=None):
-        fixed_states = self.get_fixed_states(resource)
+    def get_fixed_maintenances(self, dict_key=None, *args, **kwargs):
+        fixed_states = self.get_fixed_states(*args, **kwargs)
         fixed_maints = tl.TupList([(a, t) for (a, s, t) in fixed_states if s == 'M'])
         if dict_key is None:
             return fixed_maints
@@ -319,15 +328,14 @@ class Instance(object):
         if dict_key == 'period':
             return fixed_maints.to_dict(result_col=0)
 
-    def get_fixed_tasks(self):
+    def get_fixed_tasks(self, *args, **kwargs):
         tasks = self.get_tasks()
-        states = self.get_fixed_states()
+        states = self.get_fixed_states(*args, **kwargs)
         return tl.TupList([(a, s, t) for (a, s, t) in states if s in tasks])
 
-    def get_fixed_periods(self):
-        states = self.get_fixed_states()
+    def get_fixed_periods(self, *args, **kwargs):
+        states = self.get_fixed_states(*args, **kwargs)
         return states.take([0, 2])
-        # return tl.TupList([(a, t) for (a, s, t) in states]).unique()
 
     def get_task_period_list(self, in_dict=False):
 
@@ -359,7 +367,7 @@ class Instance(object):
     def get_periods_range(self, start, end):
         pos_period = self.get_period_positions()
         period_pos = self.get_periods_by_position()
-        return [period_pos[t] for t in range(pos_period[start], pos_period[end]+1)]
+        return tl.TupList(period_pos[t] for t in range(pos_period[start], pos_period[end]+1))
 
     def get_dist_periods(self, start, end):
         pos_period = self.get_period_positions()
@@ -494,8 +502,7 @@ class Instance(object):
         limit = self.get_maintenances('max_used_time')['M']
         c_needs_hours = {(k, t): v * limit * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
-
-        return {'num': c_needs_num, 'hours': c_needs_hours}
+        return sd.SuperDict.from_dict({'num': c_needs_num, 'hours': c_needs_hours})
 
     def get_task_candidates(self, recalculate=True, task=None, resource=None):
 

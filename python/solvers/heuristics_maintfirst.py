@@ -13,11 +13,6 @@ import logging as log
 
 class MaintenanceFirst(heur.GreedyByMission):
 
-    # statuses for detecting a new worse solution
-    status_worse = {2, 3}
-    # statuses for detecting if we accept a solution
-    status_accept = {0, 1, 2}
-
     def __init__(self, instance, solution=None):
 
         super().__init__(instance, solution)
@@ -51,17 +46,6 @@ class MaintenanceFirst(heur.GreedyByMission):
         num_errors += sum(sum_of_dates)/scale
 
         return num_errors
-
-    def initialise_solution_stats(self):
-        """
-        Initializes caches of best and past solution
-        :return: None
-        """
-        self.previous_solution = self.best_solution = self.solution.data
-        errs = self.check_solution()
-        error_cat = errs.to_lendict()
-        self.prev_objective = self.get_objective_function(error_cat)
-        self.best_objective = self.prev_objective
 
     def solve(self, options):
         """
@@ -137,53 +121,6 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         return sol.Solution(self.best_solution)
 
-    def analyze_solution(self, temperature, assign_missions=False):
-        """
-        Compares solution quality with previous and best.
-        Updates the previous solution (always).
-        Updates the current solution based on acceptance criteria (Simulated Annealing)
-        Updates the best solution when relevant.
-
-        :return: (status int, error dictionary)
-        :rtype: tuple
-        """
-        # This commented function validates if I'm updating correctly rut and ret.
-        # self.check_consistency()
-        # errors = self.get_inconsistency()
-        errs = self.check_solution(recalculate=False, assign_missions=assign_missions)
-        error_cat = errs.to_lendict()
-        log.debug("errors: {}".format(error_cat))
-        objective = self.get_objective_function(error_cat)
-
-        # status
-        # 0: best,
-        # 1: improved,
-        # 2: not-improved + undo,
-        # 3: not-improved + not undo.
-        if objective > self.prev_objective:
-            # solution worse than previous
-            status = 3
-            if self.previous_solution and rn.random() > \
-                    math.exp((self.prev_objective - objective) / temperature / 50):
-                # we were unlucky: we go back to the previous solution
-                status = 2
-                self.set_solution(self.previous_solution)
-                errs = self.check_solution(recalculate=False)
-                log.debug('back to previous solution: {}'.format(self.prev_objective))
-                objective = self.prev_objective
-        else:
-            # solution better than previous
-            status = 1
-            if objective < self.best_objective:
-                # best solution found
-                status = 0
-                self.best_objective = objective
-                log.info('best solution found: {}'.format(objective))
-                self.best_solution = self.copy_solution()
-        if status in self.status_accept:
-            self.previous_solution = self.copy_solution()
-            self.prev_objective = objective
-        return objective, status, errs
 
     def get_candidates(self, errors, k=5, assign_missions=False):
         """
@@ -234,7 +171,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return []
-        clust_hours = clust_hours.to_tuplist().tup_to_start_finish(self.instance.compare_tups)
+        clust_hours = clust_hours.to_tuplist().to_start_finish(self.instance.compare_tups)
         c_cand = self.instance.get_cluster_candidates()
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
@@ -253,7 +190,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
         :rtype: tl.TupList
         """
-        return errors.get('min_assign', sd.SuperDict()).to_tuplist().filter([0, 1])
+        return errors.get('min_assign', sd.SuperDict()).to_tuplist().take([0, 1])
 
     def get_candidates_dist_maints(self, errors):
         """

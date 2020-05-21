@@ -47,20 +47,23 @@ temp_path = \
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
 
+_periods = 50
+_tasks = 1
+
 OPTIONS = {
     'timeLimit': 600  # seconds
-    , 'solver': "HEUR_mf"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
-    # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX
+    , 'solver': "HEUR_Graph.CPLEX_PY"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
+    # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX, HEUR_Graph.CPLEX_PY
     , 'black_list': ['O8', 'O10', 'O6']  # only used to read from DGA Excel.
     , 'white_list': []  # only used to read from DGA Excel.
     , 'start': '2018-01'
-    , 'num_period': 90
+    , 'num_period': _periods
     , 'simulate': True
     , 'template': False
     , 'solve': True
     , 'graph': 0
     , 'warm_start': False
-    # data
+    # data:
     , 'path': temp_path
     , 'input_template_path': temp_path + 'template_in.xlsx'
     , 'output_template_path': temp_path + 'template_out.xlsx'
@@ -79,6 +82,32 @@ OPTIONS = {
     , 'log_output': ['file', 'console']
     , 'log_handler': None
     , 'assign_missions': False
+    # heuristic_graph params
+    , 'multiproc_patterns': 0
+    , 'multiproc_problems': False
+    , 'max_iters_initial': 0
+    , 'max_patterns_initial': 50
+    , 'timeLimit_initial': 60
+    , 'big_window': 0
+    , 'num_max': 20
+    , 'timeLimit_cycle': 20
+    , 'cache_graph_path': None
+    , 'cutoff': None
+    , 'subproblem': {
+        'short': {
+            'max_candidates': 1
+            , 'min_window_size': 50
+            , 'max_window_size': _periods
+            , 'weight': 100
+        }
+        ,'mip': {
+            'min_candidates': 10*_tasks
+            , 'max_candidates': 15*_tasks
+            , 'min_window_size': 5
+            , 'max_window_size': 20
+            , 'weight': 1
+        }
+    }
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0
@@ -111,24 +140,24 @@ OPTIONS = {
     }, 'DetermCuts': 0
     # simulation params:
     , 'simulation': {
-        'num_resources': 15  # this depends on the number of tasks actually
-        , 'num_parallel_tasks': 1
+        'num_resources': 15*_tasks  # this depends on the number of tasks actually
+        , 'num_parallel_tasks': _tasks
         , 'maint_duration': 6
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'max_elapsed_time_2M': None
-        , 'elapsed_time_size': 30  # size of window to do next maintenance
-        , 'min_usage_period': 15 # minimum consumption per period
-        , 'perc_capacity': 0.3
-        , 'min_avail_percent': 0  # min percentage of available aircraft per type
-        , 'min_avail_value': 0  # min num of available aircraft per type
-        , 'min_hours_perc': 0.05  # min percentage of maximum possible hours of fleet type
+        , 'elapsed_time_size': 10  # size of window to do next maintenance
+        , 'min_usage_period': 0 # minimum consumption per period
+        , 'perc_capacity': 0.15
+        , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
+        , 'min_avail_value': 1  # min num of available aircraft per type
+        , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
         , 'seed': 47
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)
-        , 't_required_hours': (30, 50, 80) # triangular distribution params
-        , 't_num_resource': (2, 5)
+        , 't_required_hours': (10, 50, 100) # triangular distribution params
+        , 't_num_resource': (1, 6)
         , 't_duration': (6, 12)
         , 'perc_in_maint': 0.07
         , 'perc_add_capacity': 0.1  # probability of having an added capacity to mission

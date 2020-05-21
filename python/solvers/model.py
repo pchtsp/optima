@@ -32,7 +32,7 @@ class Model(exp.Experiment):
         self.slack_ts = {}
         self.model = None
 
-    def solve(self, options=None):
+    def solve(self, options):
 
         seed = options.get('seed')
         if not seed:
@@ -66,8 +66,9 @@ class Model(exp.Experiment):
             # t_2 - t_1 + 1
             return self.instance.get_dist_periods(t1, t2) + 1
 
-        shift = self.instance.shift_period
-        prev = self.instance.get_prev_period
+        _shift = self.instance.shift_period
+        _prev = self.instance.get_prev_period
+        _dist = self.instance.get_dist_periods
 
         # In order to break some symmetries, we're gonna give a
         # (different) price for each assignment:
@@ -147,12 +148,14 @@ class Model(exp.Experiment):
 
         # OBJECTIVE:
         # try to make the second maintenance the most late possible
+        start_M_p = l['att_maints'].to_dict(None).vapply(lambda v: _dist(v[1], last_period) + _dist(v[2], last_period))
+
         objective = \
             pl.lpSum(price_assign[a, v] * task for (a, v, t, t2), task in start_T.items()) + \
             + 10*pl.lpSum(price_slack_kts[_tup] * slack for _tup, slack in slack_kts.items()) \
             + 10*pl.lpSum(price_slack_kts_h[_tup] * slack for _tup, slack in slack_kts_h.items()) \
             + 10*pl.lpSum(price_slack_ts[_tup] * slack for _tup, slack in slack_ts.items()) \
-            - pl.lpSum(start_M[a, t1, t2] * period_pos[t2] for a, t1, t2 in l['att_maints'])\
+            + pl.lpSum(start_M[_tup] * start_M_p[_tup] for _tup in l['att_maints'])\
             + 1000000 * pl.lpSum(slack_vt.values()) \
             + 1000 * pl.lpSum(slack_at.values())
 
@@ -187,6 +190,7 @@ class Model(exp.Experiment):
 
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
         # we need to fix the corresponding variable.
+        # TODO: we can do this by just taking out variables that do not comply???
         for avt in l['at_mission_m']:
             a, v, t = avt
             if t < first_period:
@@ -238,11 +242,11 @@ class Model(exp.Experiment):
         for a, t1, t2 in l['att_maints']:
             # t1 and t2 cut the horizon in three parts
             # we're going to calculate the three ranges
-            part1 = first_period, prev(t1), rut_init[a]  # before the first maintenance
-            part2 = shift(t1, duration), prev(t2), ub['rut']  # in between maintenances
+            part1 = first_period, _prev(t1), rut_init[a]  # before the first maintenance
+            part2 = _shift(t1, duration), _prev(t2), ub['rut']  # in between maintenances
             if t2 == last_period:
-                part2 = shift(t1, duration), last_period, ub['rut']
-            part3 = shift(t2, duration), last_period, ub['rut']  # after the second maintenance
+                part2 = _shift(t1, duration), last_period, ub['rut']
+            part3 = _shift(t2, duration), last_period, ub['rut']  # after the second maintenance
 
             # Each part of the horizon needs to satisfy max hour consumption
             # TODO: get better bigM following Alain's comments
@@ -360,7 +364,7 @@ class Model(exp.Experiment):
         maint_cycles = \
             self.get_all_maintenance_cycles(). \
                 vapply(lambda x: [_next(ii) for i, ii in x if _next(ii) <= last][:2]). \
-                apply(lambda k, v: maint_starts.get(k, []) + v)
+                kvapply(lambda k, v: maint_starts.get(k, []) + v)
         # if the resource has only one maintenance: we add one at the end (by convention)
         only_one = maint_cycles.to_lendict().clean(default_value=2).vapply(lambda x: [last])
         maints = maint_cycles.kvapply(lambda k, v: v + only_one.get(k, []))
@@ -513,7 +517,7 @@ class Model(exp.Experiment):
     @staticmethod
     def vars_to_dicts(var):
         return sd.SuperDict.from_dict(var). \
-            apply(lambda k, v: v.value()). \
+            kvapply(lambda k, v: v.value()). \
             clean()
 
     def add_stochastic_cuts(self, model, start_M, _type, options):
@@ -550,7 +554,7 @@ class Model(exp.Experiment):
         dist_m2_end = \
             filtered_att_no_last. \
                 to_dict(result_col=None). \
-                apply(lambda k, v: _dist(k[2], last_period))
+                kvapply(lambda k, v: _dist(k[2], last_period))
         # we get for each combination: the distance between the first and second manintenance
         # we need to add a distance when the second maintenance is at the end
         # because that is not really a maintenance.
@@ -558,8 +562,8 @@ class Model(exp.Experiment):
             tl.TupList(l['att_maints']). \
             vfilter(function=lambda v: v[0] in resources). \
             to_dict(result_col=None). \
-            apply(lambda k, v: _dist(k[1], k[2]) - duration). \
-            apply(lambda k, v: v + (k[2] == last_period))
+            kvapply(lambda k, v: _dist(k[1], k[2]) - duration). \
+            kvapply(lambda k, v: v + (k[2] == last_period))
 
         active_cuts = StochCuts.get('cuts', ['maints', 'mean_2maint', 'mean_dist'])
         str_cut = {}
@@ -619,8 +623,11 @@ class Model(exp.Experiment):
 
         return max_elapsed_2M['min'], max_elapsed_2M['max']
 
-    def get_domains_sets(self, options):
-        
+    def get_domains_sets(self, options, force=True):
+
+        l = self.domains
+        if not force and l:
+            return l
         # this is the return dictionary
         l = sd.SuperDict()
 
@@ -733,8 +740,9 @@ class Model(exp.Experiment):
                  ])
 
         # first maintenance starts possibilities because of initial state of aircraft
+        # FP 20200323: edited <= to a < in ret_initial
         l['at_M_ini'] = tl.TupList([(a, t) for (a, t) in at_free_start
-                    if ret_init_adjusted[a] <= p_pos[t] <= ret_init[a]
+                    if ret_init_adjusted[a] <= p_pos[t] < ret_init[a]
                     ])
 
         # att_maints is the domain for the maintenance m_itt variable
@@ -865,6 +873,7 @@ class Model(exp.Experiment):
         , 'vtt2_between_att': vtt2_between_att
         }
         l.update(l_new)
+        self.domains = l
         return l
 
     def reduce_2M_window(self, options, domains):

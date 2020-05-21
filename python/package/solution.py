@@ -59,13 +59,10 @@ class Solution(object):
         return data.to_dictup()
 
     def get_task_resources(self):
-        task_solution = self.get_tasks()
-        task_resources = sd.SuperDict.from_dict(task_solution).to_tuplist().to_dict(result_col=0, is_list=True)
-        return {(a, t): v for (t, a), v in task_resources.items()}
+        return self.get_tasks().to_tuplist().to_dict(result_col=0, indices=[2, 1], is_list=True)
 
     def get_task_num_resources(self):
-        task_resources = self.get_task_resources()
-        return {key: len(value) for key, value in task_resources.items()}
+        return self.get_task_resources().vapply(len)
 
     def get_state_tasks(self):
         statesMissions = self.get_state_tuplist() + self.get_tasks().to_tuplist()

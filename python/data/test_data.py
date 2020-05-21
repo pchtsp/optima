@@ -1,3 +1,33 @@
+import os
+
+this_file = os.path.realpath(__file__)
+parent_dir = os.path.dirname(this_file)
+
+class DataSet(object):
+
+    def __init__(self, input_data, solution_data=None, options=None):
+        self.input_data = input_data
+        self.solution_data = solution_data
+        self.options = options
+        pass
+
+    def get_instance(self):
+        return self.input_data
+
+    def get_solution(self):
+        return self.solution_data
+
+    def get_options(self):
+        return self.options
+
+    @classmethod
+    def from_directory(cls, rel_path):
+        abs_path = os.path.join(parent_dir, rel_path)
+        input_data = get_file_path(os.path.join(abs_path, 'data_in.json'))
+        solution_data = get_file_path(os.path.join(abs_path, 'data_out.json'))
+        options = get_file_path(os.path.join(abs_path, 'options.json'))
+        options['path'] = abs_path
+        return cls(input_data, solution_data, options)
 
 def dataset1():
     maints = {
@@ -136,6 +166,12 @@ def dataset2():
     }
     return model_data
 
+def solution2():
+    return {
+        'state_m':
+            {'1': {'2018-07': {'VI': 1}, '2018-03': {'VG': 1}}}
+    }
+
 def dataset3():
     maints = {
         'M': {
@@ -149,6 +185,17 @@ def dataset3():
             , 'depends_on': []
             , 'priority': 1
         }}
+    missions = {
+            '1': {
+                'start': '2018-02'
+                , 'end': '2018-07'
+                , 'consumption': 30
+                , 'num_resource': 1
+                , 'type_resource': 0
+                , 'min_assign': 3
+                , 'capacities': [0]
+            }
+        }
     model_data = {
         'parameters': {
             'start': '2018-01'
@@ -168,17 +215,7 @@ def dataset3():
             }
         },
         'maintenances': maints,
-        'tasks': {
-            'O1': {
-                'start': '2018-02'
-                , 'end': '2018-07'
-                , 'consumption': 30
-                , 'num_resource': 1
-                , 'type_resource': 0
-                , 'min_assign': 3
-                , 'capacities': [0]
-            }
-        },
+        'tasks': missions,
         'maint_types': {'1': {'capacity': {'2018-05': 0}}}
     }
     return model_data
@@ -188,6 +225,13 @@ def dataset3_no_default():
     data = dataset3()
     data['parameters']['min_usage_period'] = 0
     data['resources']['1'].pop('min_usage_period')
+    return data
+
+
+def dataset3_no_default_5_periods():
+    data = dataset3_no_default()
+    data['parameters']['num_period'] = 5
+    data['tasks']['1']['end'] = '2018-05'
     return data
 
 
@@ -265,8 +309,14 @@ def dataset4():
     }
     return model_data
 
-def solution2():
-    return {
-        'state_m':
-            {'1': {'2018-07': {'VI': 1}, '2018-03': {'VG': 1}}}
-    }
+def dataset5():
+    return DataSet.from_directory('cases/202003121542')
+
+def dataset6():
+    return DataSet.from_directory('cases/202003231502')
+
+def get_file_path(abs_path):
+    from .data_input import load_data
+    data_dir = abs_path
+    return load_data(data_dir)
+
