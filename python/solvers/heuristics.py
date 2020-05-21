@@ -613,7 +613,8 @@ class GreedyByMission(test.Experiment):
                 status = 2
                 self.set_solution(self.previous_solution)
                 errs = self.check_solution(recalculate=False)
-                log.debug('back to previous solution: {}'.format(self.prev_objective))
+                log.debug('back to previous solution: {} (from {})'.
+                          format(self.prev_objective, objective))
                 objective = self.prev_objective
         else:
             # solution better than previous

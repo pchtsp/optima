@@ -54,17 +54,20 @@ class GraphTool(DAG):
         self.period_vp = self.g.new_vp('int')
         self.period_end_vp = self.g.new_vp('int')
         self.type_vp = self.g.new_vp('int')
-        self.weights = self.g.new_ep('int')
         self.assgin_vp = self.g.new_vp('int')
+        self.rut_vp = self.g.new_vp('int')
+        self.weights = self.g.new_ep('int')
         positions = self.instance.get_period_positions()
         self._equiv_task = {k: v +1 for v, k in enumerate(self.instance.get_tasks())}
         self._equiv_task[''] = 0
         self._equiv_task['M'] = -1
         for v in self.g.vertices():
-            self.type_vp[v] = self.refs_inv[v].type
-            self.period_vp[v] = positions[self.refs_inv[v].period]
-            self.period_end_vp[v] = positions[self.refs_inv[v].period_end]
-            self.assgin_vp[v] = self._equiv_task[self.refs_inv[v].assignment]
+            node = self.refs_inv[v]
+            self.type_vp[v] = node.type
+            self.period_vp[v] = positions[node.period]
+            self.period_end_vp[v] = positions[node.period_end]
+            self.assgin_vp[v] = self._equiv_task[node.assignment]
+            self.rut_vp[v] = node.rut['M'] if node.rut else 0
 
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
         multiplier = 100
@@ -73,9 +76,9 @@ class GraphTool(DAG):
         targets = self.g.get_edges()[:, 1]
         self.weights.a = durations[targets]
         edge_target_type = self.type_vp.get_array()[targets]
-        default = 0.7 * multiplier
-        # empty_edge = edge_target_type == nd.EMPTY_TYPE
-        # self.weights.a[empty_edge] = default
+        default = 0.9 * multiplier
+        empty_edge = edge_target_type == nd.EMPTY_TYPE
+        self.weights.a[empty_edge] = default
         last = max(self.period_vp.get_array())
         maint_edge = edge_target_type == nd.MAINT_TYPE
         maint_weight = (last - self.period_vp.get_array()[targets] - 1)
@@ -204,6 +207,11 @@ class GraphTool(DAG):
         weights = self.get_weights(node1, node2, errors)
 
         source = graph.vertex(refs[node1])
+        # TODO: this is failing, sometimes?
+        # try:
+        #     source = graph.vertex(refs[node1])
+        # except ValueError:
+        #     return None
         target = graph.vertex(refs[node2])
         nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
         return [refs_inv[n] for n in nodes]
@@ -243,16 +251,20 @@ class GraphTool(DAG):
         arr_per = self.period_vp.get_array()
         hours_periods = errors.get('hours')
         if hours_periods:
-            # hours => multiply by X to each edge  if resource is assigned something
+            # hours => multiply by X to each edge, depending on lower rut
             weights_arr = weights.get_array()
+            ruts = self.rut_vp.get_array()
+            _max = max(ruts)
             max_period = positions[hours_periods[-1]]
-            arr_type = self.type_vp.get_array()
-            nodes = np.where(relevant_nodes & (arr_type == nd.TASK_TYPE) & (arr_per <= max_period))
+            weight_hours = (_max - ruts) / _max + 1
+            # arr_type = self.type_vp.get_array()
+            targets = self.g.get_edges()[:, 1]
+            nodes = np.where(relevant_nodes & (arr_per <= max_period))
             edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
-            weights.a[edges] = np.floor(weights_arr[edges]*2)
+            weights.a[edges] = np.floor(weights_arr[edges] * weight_hours[targets[edges]])
         resources = errors.get('resources')
         if resources:
-            # resources => multiply by X to each edge if mission is assigned
+            # resources => divide by X to each edge if mission is assigned
             weights_arr = weights.get_array()
             arr_per_end = self.period_end_vp.get_array()
             arr_assign = self.assgin_vp.get_array()
@@ -265,7 +277,7 @@ class GraphTool(DAG):
                                  & (arr_per_end >= p)
                                  )
                 edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
-                weights.a[edges] = np.floor(weights_arr[edges] / 2)
+                weights.a[edges] = np.floor(weights_arr[edges] / 1.1)
         capacity = errors.get('capacity')
         if capacity:
             # capacity => multiply by X to each edge if maintenance has started? or it's going on
@@ -280,10 +292,10 @@ class GraphTool(DAG):
                                  & (arr_per_end >= p)
                                  )
                 edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
-                weights.a[edges] = np.floor(weights_arr[edges] * 2)
+                weights.a[edges] = np.floor(weights_arr[edges] * 1.1)
         weights_arr = weights.get_array()
         weights.a[relevant_edge] = np.floor(weights_arr[relevant_edge] *
-                                            (1 + 0.5 * np.random.random(np.sum(relevant_edge))))
+                                            (-0.75 + 0.5* np.random.random(np.sum(relevant_edge))))
         return weights
 
     def to_file(self, path):

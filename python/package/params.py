@@ -93,9 +93,21 @@ OPTIONS = {
     , 'timeLimit_cycle': 20
     , 'cache_graph_path': None
     , 'cutoff': None
-    , 'max_candidates': 1
-    , 'subproblem': 'short'
-    , 'min_window_size': 40
+    , 'subproblem': {
+        'short': {
+            'max_candidates': 1
+            , 'min_window_size': 50
+            , 'max_window_size': _periods
+            , 'weight': 100
+        }
+        ,'mip': {
+            'min_candidates': 10*_tasks
+            , 'max_candidates': 15*_tasks
+            , 'min_window_size': 5
+            , 'max_window_size': 20
+            , 'weight': 1
+        }
+    }
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0

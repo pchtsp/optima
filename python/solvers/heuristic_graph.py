@@ -22,7 +22,7 @@ import logging as log
 import multiprocessing as multi
 import pandas as pd
 import os
-
+import numpy as np
 
 class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': 'gg.DAG'}}}
@@ -94,15 +94,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             sd.SuperDict().\
             fill_with_default(change['resources']).\
             kapply(_func)
+        _shift = self.instance.shift_period
+        _range = self.instance.get_periods_range
         for k, v in res_pattern.items():
+            start = _shift(v['node1'].period_end, 1)
+            end = _shift(v['node2'].period, -1)
+            deleted_tasks = self.clean_assignments_window(k, start, end, 'task')
+            deleted_maints = self.clean_assignments_window(k, start, end, 'state_m')
+            self.update_ret_rut(k, start, end, deleted_maints)
             errors = self.check_solution(recalculate=False, assign_missions=True,
                                          list_tests=['resources', 'hours', 'capacity'])
             pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
-            if pattern:
-                self.apply_pattern(pattern)
+            self.apply_pattern(pattern)
 
-        # for pattern in res_patterh.values():
-        #     self.apply_pattern(pattern)
         return self.solution
 
     def get_patterns_from_window(self, change, options):
@@ -142,8 +146,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
         big_window = options.get('big_window', False)
-        max_candidates = options.get('max_candidates')
-        subproblem_choice = options.get('subproblem', 'mip')
 
         options_repair = di.copy_dict(options)
         options_repair = sd.SuperDict(options_repair)
@@ -184,31 +186,31 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # initialise solution status
         self.initialise_solution_stats()
 
-        # choose a subproblem
-        subproblem = self.sub_problem_mip
-        if subproblem_choice == 'short':
-            subproblem = self.sub_problem_shortest
-
         # 2. repair solution
         log.info("Solving phase.")
         i = 0
         errors = sd.SuperDict()
         while i < max_iters:
+
+            # choose a subproblem for the iteration
+            subproblem, sub_options = self.choose_subproblem(options)
             if rn.random() > 0.5 or not errors:
-                change = self.get_candidate_random(options)
-            elif errors.get('resources') and rn.random() > 0.5:
-                change = self.get_candidates_tasks(errors)
+                change = self.get_candidate_random(sub_options)
             else:
-                change = self.get_candidates_cluster(errors)
-            # change = self.get_candidate_random()
+                func_options = sd.SuperDict(
+                    resources=self.get_candidates_tasks,
+                     hours=self.get_candidates_cluster,
+                     capacity=self.get_candidate_capacity
+                     )
+                options_filtered = func_options.keys_tl().intersect(errors).sorted()
+                opt = rn.choice(options_filtered)
+                change = func_options[opt](errors, sub_options)
             if big_window:
                 change = self.get_candidate_all()
             if not change:
                 continue
-            if max_candidates and len(change['resources']) > max_candidates:
-                change['resources'] = rn.sample(change['resources'], max_candidates)
             log.info('Repairing periods {start} => {end} for resources: {resources}'.format(**change))
-            solution = subproblem(change, options)
+            solution = subproblem(change, sub_options)
             if solution is None:
                 continue
             kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
@@ -232,7 +234,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.solution_store.append(self.copy_solution(exclude_aux=True))
 
             log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
-                     format(round(time_now), i, round(temperature, 4), objective, self.best_objective, num_errors))
+                     format(round(time_now), i, round(temperature, 4), objective,
+                            self.best_objective, num_errors))
             i += 1
 
             if not self.best_objective or i >= max_iters or time_now > max_time:
@@ -241,6 +244,16 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return sol.Solution(self.best_solution)
 
         pass
+
+    def choose_subproblem(self, options):
+        sb_func = dict(mip=self.sub_problem_mip, short=self.sub_problem_shortest)
+        subproblem_choice = options.get('subproblem')
+        if not subproblem_choice:
+            return self.sub_problem_mip, options
+        sb_prob = sd.SuperDict(subproblem_choice).get_property('weight').to_tuplist().sorted()
+        _opts, _probs = zip(*sb_prob)
+        choice = rn.choices(_opts, _probs)[0]
+        return sb_func[choice], {**options, **subproblem_choice[choice]}
 
     def get_graph_data(self, resource):
         return self.instance.data['aux']['graphs'][resource]
@@ -274,12 +287,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         #
         # data.update(sink_source)
         # self.instance.data['aux']['graphs'] = data
-
-    def get_source_node(self, resource):
-        return self.get_graph_data(resource).source
-
-    def get_sink_node(self, resource):
-        return self.get_graph_data(resource).sink
 
     def get_objective_function(self, error_cat=None):
         """
@@ -370,13 +377,16 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             first_date_to_update = all_modif[0][0]
         else:
             first_date_to_update = start
+        self.update_ret_rut(resource, first_date_to_update, end, added_maints + deleted_maints)
+        return True
+
+    def update_ret_rut(self, resource, start, end, modified_mants):
         times = ['rut']
-        if added_maints or deleted_maints:
+        if modified_mants:
             times.append('ret')
         for t in times:
             for m in self.instance.get_rt_maints(t):
-                self.set_remaining_time_in_window(resource, m, first_date_to_update, end, t)
-        return True
+                self.set_remaining_time_in_window(resource, m, start, end, t)
 
     def apply_maint(self, node):
         result = tl.TupList()
@@ -460,9 +470,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
         patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
-        # we need to filter them to take out the ones that compromise the post-window periods
-        # not anymore, we do it now by passing ar argument mask to filter out the bad nodes
-        # p_filtered = self.filter_patterns(data['node2'], patterns)
         return patterns
 
     def get_pattern_from_window(self, resource, date1, date2):
@@ -664,38 +671,69 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.get_graph_data(resource).draw(**kwargs)
         return True
 
-    def get_candidates_tasks(self, errors):
+    def get_window_size(self, options):
+        horizon_length = self.instance.get_param('num_period')
+        # the horizon includes the fake first and last periods
+        # so we add two to the size
+        max_size = options.get('max_window_size', horizon_length) + 2
+        min_size = min(options.get('min_window_size', 10), max_size)
+        return rn.choice(range(min_size, max_size + 1))
+
+    def get_window_from_dates(self, periods, options):
+        _shift = self.instance.shift_period
+        _range = self.instance.get_periods_range
+        _first = min(periods)
+        _last = max(periods)
+        window_size = self.get_window_size(options)
+        first, last = self.instance.get_first_last_period()
+        last_plus_one = _shift(last, 1)
+        first_minus_one = _shift(first, -1)
+        first_option = max(_shift(_first, -window_size), first_minus_one)
+        last_option = max(_shift(_last, -window_size), first_minus_one)
+        start = rn.choice(_range(first_option, last_option))
+        end = min(_shift(start, window_size), last_plus_one)
+        return start, end
+
+    def get_subfleet_from_list(self, resources, options):
+        size = self.get_subfleet_size(options)
+        extra_needed = size - len(resources)
+        if extra_needed < 0:
+            return rn.sample(resources, size)
+        remaining = self.instance.get_resources().keys_tl().set_diff(resources).sorted()
+        extra = rn.sample(remaining, extra_needed)
+        return resources + extra
+
+    def get_subfleet_size(self, options):
+        fleet_size = len(self.instance.get_resources())
+        max_size = options.get('max_candidates', fleet_size)
+        min_size = min(options.get('min_candidates', 10), max_size)
+        return rn.choice(range(min_size, max_size + 1))
+
+    def get_candidates_tasks(self, errors, options):
         """
         :return: a list of resources, a start time and an end time.
         :rtype: sd.SuperDict
         """
         tasks_probs = \
-            errors.get('resources', sd.SuperDict()).\
+            errors['resources'].\
             to_tuplist().to_dict(result_col=2, indices=[0]).vapply(sum).to_tuplist().sorted()
-        if not tasks_probs:
-            return sd.SuperDict()
         _tasks, _probs = zip(*tasks_probs)
         task = rn.choices(_tasks, weights=_probs, k=1)[0]
+        # we choose dates
+        periods_t = self.instance.get_task_period_list(True)
+        start, end = self.get_window_from_dates(periods_t[task], options)
+        # we choose a subfleet
         t_cand = self.instance.get_task_candidates()[task]
-        extra = self.instance.get_resources().keys() - set(t_cand)
-        size_sample = min(5, len(extra))
-        t_cand += rn.sample(extra, size_sample)
-        t_info = self.instance.get_tasks()
-        start, end = t_info[task]['start'], t_info[task]['end']
-        return sd.SuperDict(resources=t_cand, start=start, end=end)
+        res_to_change = self.get_subfleet_from_list(t_cand, options)
+        return sd.SuperDict(resources=res_to_change, start=start, end=end)
 
     def get_candidate_random(self, options):
-        _shift = self.instance.shift_period
+        # dates
         periods = self.instance.get_periods()
-        resources = self.instance.get_resources().keys_tl().sorted()
-        first, last = self.instance.get_first_last_period()
-        min_size = min(options.get('min_window_size', 10), len(periods))
-        size = rn.choice(range(min_size, len(periods)+1))
-        start = rn.choice(periods[:-size+1])
-        end = min(_shift(start, size), last)
+        start, end = self.get_window_from_dates(periods, options)
         # we choose a subset of resources
-        size_sample = rn.choice(range(15, len(resources)+1))
-        res_to_change = rn.sample(resources, size_sample)
+        resources = self.instance.get_resources().keys_tl().sorted()
+        res_to_change = self.get_subfleet_from_list(resources, options)
         return sd.SuperDict(resources=res_to_change, start=start, end=end)
 
     def get_candidate_all(self):
@@ -705,25 +743,30 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         _shift = self.instance.shift_period
         return sd.SuperDict(resources=resources, start=_shift(first, -1), end=_shift(last))
 
-    def get_candidates_cluster(self, errors):
+    def get_candidate_capacity(self, errors, options):
+        cap_periods = errors['capacity'].keys_tl().take(1)
+        start, end = self.get_window_from_dates(cap_periods, options)
+        resources = self.instance.get_resources().keys_tl().sorted()
+        res_to_change = self.get_subfleet_from_list(resources, options)
+        return sd.SuperDict(resources=res_to_change, start=start, end=end)
+
+    def get_candidates_cluster(self, errors, options):
         """
         :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
         :rtype: tl.TupList
         """
         _dist = self.instance.get_dist_periods
-        clust_hours = errors.get('hours', sd.SuperDict())
-        if not len(clust_hours):
-            return sd.SuperDict()
-        options = clust_hours.keys_tl().to_dict(1).vapply(sorted).vapply(lambda v: sd.SuperDict(start=v[0], end=v[-1]))
-        opt_probs = options.vapply(lambda v: _dist(v['start'], v['end'])).to_tuplist()
+        periods_cluster = errors['hours'].keys_tl().to_dict(1).vapply(sorted)
+        # we choose a cluster
+        opt_probs = periods_cluster.vapply(len).to_tuplist()
         _cluts, _probs = zip(*opt_probs)
         cluster = rn.choices(_cluts, weights=_probs, k=1)[0]
+        # we choose dates
+        start, end = self.get_window_from_dates(periods_cluster[cluster], options)
+        # we choose a subfleet
         c_cand = self.instance.get_cluster_candidates()[cluster]
-        extra = self.instance.get_resources().keys() - set(c_cand)
-        size_sample = min(5, len(extra))
-        c_cand += rn.sample(extra, size_sample)
-
-        return options[cluster]._update(sd.SuperDict(resources=c_cand))
+        res_to_change = self.get_subfleet_from_list(c_cand, options)
+        return sd.SuperDict(resources=res_to_change, start=start, end=end)
 
     def build_vars(self):
 
