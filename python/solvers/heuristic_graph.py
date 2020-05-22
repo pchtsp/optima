@@ -105,7 +105,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             errors = self.check_solution(recalculate=False, assign_missions=True,
                                          list_tests=['resources', 'hours', 'capacity'])
             pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
-            self.apply_pattern(pattern)
+            # TODO: not sure why I have to check, I should not have empty paths
+            if pattern:
+                self.apply_pattern(pattern)
 
         return self.solution
 
