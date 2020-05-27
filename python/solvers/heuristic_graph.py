@@ -148,6 +148,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         max_time = options.get('timeLimit', 600)
         max_iters = options.get('max_iters', 99999999)
         big_window = options.get('big_window', False)
+        solution_store = options.get('solution_store', False)
 
         options_repair = di.copy_dict(options)
         options_repair = sd.SuperDict(options_repair)
@@ -233,7 +234,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
             clock = time.time()
             time_now = clock - time_init
-            self.solution_store.append(self.copy_solution(exclude_aux=True))
+            if solution_store:
+                self.solution_store.append(self.copy_solution(exclude_aux=True))
 
             log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
                      format(round(time_now), i, round(temperature, 4), objective,
@@ -702,7 +704,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if extra_needed < 0:
             return rn.sample(resources, size)
         remaining = self.instance.get_resources().keys_tl().set_diff(resources).sorted()
-        extra = rn.sample(remaining, extra_needed)
+        extra_quantity = min(extra_needed, len(remaining))
+        extra = rn.sample(remaining, extra_quantity)
         return resources + extra
 
     def get_subfleet_size(self, options):
