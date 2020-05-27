@@ -2,7 +2,6 @@ import os, sys
 import resource
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-import data.dates as aux
 import data.data_input as di
 import data.data_dga as dga
 import data.template_data as td
@@ -14,29 +13,12 @@ import pytups.superdict as sd
 
 
 def config_and_solve(options):
-
     if options.get('simulate', False):
         model_data = sim.create_dataset(options)
     elif options.get('template', False):
         model_data = td.import_input_template(options['input_template_path'])
     else:
-        model_data = dga.get_model_data(options['PATHS']['input'])
-        historic_data = dga.generate_solution_from_source(options['PATHS']['hist'])
-        model_data = dga.combine_data_states(model_data, historic_data)
-        model_data['parameters']['start'] = options['start']
-        model_data['parameters']['end'] = \
-            aux.shift_month(model_data['parameters']['start'], options['num_period'] - 1)
-        white_list = options.get('white_list', [])
-        black_list = options.get('black_list', [])
-
-        tasks = model_data['tasks']
-        if len(black_list) > 0:
-            tasks = {k: v for k, v in model_data['tasks'].items() if k not in black_list}
-        if len(white_list) > 0:
-            tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
-        model_data['tasks'] = tasks
-
-
+        model_data = dga.get_model_data_all(options)
     execute_solve(model_data, options)
 
 
@@ -143,11 +125,12 @@ def execute_solve(model_data, options, solution_data=None):
     if len(errors):
         di.export_data(output_path, errors, name='errors', file_type="json")
 
-    try:
-        sol_store = experiment.solution_store
-        di.export_data(output_path, sol_store, name="data_history", file_type='json')
-    except AttributeError:
-        sol_store = None
+    if options.get('solution_store', False):
+        try:
+            sol_store = experiment.solution_store
+            di.export_data(output_path, sol_store, name="data_history", file_type='json')
+        except AttributeError:
+            sol_store = None
 
     if options.get('template', False):
         td.export_output_template(options['output_template_path'], experiment)

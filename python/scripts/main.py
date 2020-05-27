@@ -4,13 +4,12 @@ import pytups.superdict as sd
 import argparse
 import datetime as dt
 import json
+import re
+
 import execution.exec as exec
-try:
-    import desktop_app.app as gui_app
-except Exception as e:
-    gui_app = None
-    gui_error = e
+import execution.exec_batch as exec_batch
 import data.data_input as di
+
 
 if __name__ == "__main__":
 
@@ -24,9 +23,10 @@ if __name__ == "__main__":
 
     # simulation related:
     parser.add_argument('-s', '--simulation', dest='sim_dict', type=json.loads)
-    # parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, required=True)
-    # parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, required=True)
-    # parser.add_argument('-nb', '--no_base_case', dest='no_base_case', action='store_true')
+    parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, required=True)
+    parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, required=True)
+    parser.add_argument('-nb', '--no_base_case', dest='no_base_case', action='store_true')
+    parser.add_argument('-nmp', '--no_multiprocess', dest='no_multiprocess', action='store_true')
 
     # Exceptions
     parser.add_argument('-mm', '--max_memory', dest='max_memory', type=float, default=0.5)
@@ -82,11 +82,43 @@ if __name__ == "__main__":
     if args.max_memory:
         exec.memory_limit(args.max_memory)
 
+    num_instances = args.num_inst
+    case_options = args.case_opt
+    no_base_case = args.no_base_case
+    multiproc = options.get('multiprocess')
+    if args.no_multiprocess:
+        multiproc = False
+
+    # batch mode uses slightly more complicated functions
+    batch = num_instances or case_options
+
     if args.open_desktop_app:
-        if gui_app is None:
+        try:
+            import desktop_app.app as gui_app
+        except Exception as e:
             print('GUI needs additional libraries.')
-            raise gui_error
+            raise e
         options['template'] = True
         gui_app.MainWindow_EXCEC(options)
-    else:
+        sys.exit()
+    if not batch:
         exec.config_and_solve(options)
+        sys.exit()
+
+    # batch mode
+    case_data = [{k: vv, 'name': '{}_{}'.format(re.sub('_', '', k), vv)}
+                 for k, v in case_options.items() for vv in v]
+    if not no_base_case:
+        case_data += [{'name': 'base'}]
+
+    options_list = exec_batch.prepare_directories_and_optionlist(case_data, options, num_instances)
+
+    # if no multiprocess, we execute everything and exit
+    if not multiproc:
+        for args in options_list:
+            exec.config_and_solve(args)
+    else:
+        # in case we do multiprocessing
+        time_limit_default = options.get('timeLimit', 3600) + 600
+        exec_batch.execute_with_multiprocessing(multiproc, options_list, time_limit_default)
+

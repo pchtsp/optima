@@ -6,6 +6,7 @@ import numpy as np
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import copy
+import data.dates as aux
 
 
 def make_name(name):
@@ -188,4 +189,20 @@ def combine_data_states(model_data, historic_data):
         model_data_n['resources'][key]['states'] = value
     return model_data_n
 
+def get_model_data_all(options):
+    model_data = get_model_data(options['PATHS']['input'])
+    historic_data = generate_solution_from_source(options['PATHS']['hist'])
+    model_data = combine_data_states(model_data, historic_data)
+    model_data['parameters']['start'] = options['start']
+    model_data['parameters']['end'] = \
+        aux.shift_month(model_data['parameters']['start'], options['num_period'] - 1)
+    white_list = options.get('white_list', [])
+    black_list = options.get('black_list', [])
 
+    tasks = model_data['tasks']
+    if len(black_list) > 0:
+        tasks = {k: v for k, v in model_data['tasks'].items() if k not in black_list}
+    if len(white_list) > 0:
+        tasks = {k: v for k, v in model_data['tasks'].items() if k in white_list}
+    model_data['tasks'] = tasks
+    return model_data
