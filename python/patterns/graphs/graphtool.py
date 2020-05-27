@@ -239,14 +239,14 @@ class GraphTool(DAG):
         errors = self.get_errors_in_format(errors).get(self.resource, {})
         # get edges between node1 and node 2 only
         positions = self.instance.get_period_positions()
-        relevant_nodes = \
+        nodes_window = \
             (self.period_vp.get_array() >= positions[node1.period]) & \
             (self.period_end_vp.get_array() <= positions[node2.period_end])
-        nodes = np.where(relevant_nodes)
+        # nodes = np.where(relevant_nodes)
         edges_all = self.g.get_edges()
-        relevant_edge = np.in1d(edges_all[:, 0], nodes) & np.in1d(edges_all[:, 1], nodes)
+        # relevant_edge = np.in1d(edges_all[:, 0], nodes) & np.in1d(edges_all[:, 1], nodes)
+        relevant_edge = nodes_window[edges_all[:, 0]] & nodes_window[edges_all[:, 1]]
         weights = self.weights.copy()
-
         positions = self.instance.get_period_positions()
         arr_per = self.period_vp.get_array()
         hours_periods = errors.get('hours')
@@ -257,10 +257,9 @@ class GraphTool(DAG):
             _max = max(ruts)
             max_period = positions[hours_periods[-1]]
             weight_hours = (_max - ruts) / _max + 1
-            # arr_type = self.type_vp.get_array()
             targets = self.g.get_edges()[:, 1]
-            nodes = np.where(relevant_nodes & (arr_per <= max_period))
-            edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
+            relevant_node = nodes_window & (arr_per <= max_period)
+            edges = relevant_edge & relevant_node[edges_all[:, 1]]
             weights.a[edges] = np.floor(weights_arr[edges] * weight_hours[targets[edges]])
         resources = errors.get('resources')
         if resources:
@@ -271,12 +270,9 @@ class GraphTool(DAG):
             for task, period in resources:
                 t = self._equiv_task[task]
                 p = positions[period]
-                nodes = np.where(relevant_nodes
-                                 & (arr_assign == t)
-                                 & (arr_per <= p)
-                                 & (arr_per_end >= p)
-                                 )
-                edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
+                relevant_node = \
+                    nodes_window & (arr_assign == t) & (arr_per <= p) & (arr_per_end >= p)
+                edges = relevant_edge & relevant_node[edges_all[:, 1]]
                 weights.a[edges] = np.floor(weights_arr[edges] / 1.1)
         capacity = errors.get('capacity')
         if capacity:
@@ -286,12 +282,11 @@ class GraphTool(DAG):
             arr_type = self.type_vp.get_array()
             for period in capacity:
                 p = positions[period]
-                nodes = np.where(relevant_nodes
-                                 & (arr_type == nd.MAINT_TYPE)
-                                 & (arr_per <= p)
-                                 & (arr_per_end >= p)
-                                 )
-                edges = relevant_edge & np.in1d(edges_all[:, 1], nodes)
+                relevant_node = nodes_window \
+                        & (arr_type == nd.MAINT_TYPE)\
+                        & (arr_per <= p)\
+                        & (arr_per_end >= p)
+                edges = relevant_edge & relevant_node[edges_all[:, 1]]
                 weights.a[edges] = np.floor(weights_arr[edges] * 1.1)
         weights_arr = weights.get_array()
         weights.a[relevant_edge] = np.floor(weights_arr[relevant_edge] *

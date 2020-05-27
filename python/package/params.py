@@ -93,6 +93,7 @@ OPTIONS = {
     , 'timeLimit_cycle': 20
     , 'cache_graph_path': None
     , 'cutoff': None
+    , 'solution_store': False
     , 'subproblem': {
         'short': {
             'max_candidates': 1

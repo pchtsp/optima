@@ -591,10 +591,9 @@ class Model(exp.Experiment):
 
     def get_min_max_2M(self, options):
 
-        param_data = self.instance.get_param()
         reduce_2M_window = options['reduce_2M_window']
-        # TODO: M is assumed
-        duration = param_data['maint_duration']
+        maint_data = self.instance.get_maintenances()[self.M]
+        duration = maint_data['duration_periods']
         types = self.instance.get_types()
         tolerance = reduce_2M_window.get('tolerance_mean')
 
@@ -604,8 +603,7 @@ class Model(exp.Experiment):
         min_dist_types = min_max_dist_types.get_property('min')
         max_dist_types = min_max_dist_types.get_property('max')
 
-        # TODO: M is assumed
-        max_et = self.instance.get_param('max_elapsed_time')
+        max_et = maint_data['max_elapsed_time']
         max_dist_types = \
             max_dist_types. \
                 vapply(min, max_et). \
@@ -884,6 +882,7 @@ class Model(exp.Experiment):
         min_elapsed_2M_cut, max_elapsed_2M_cut = self.get_min_max_2M(options)
         percent_add = reduce_2M_window.get('percent_add', 0)
         param_data = self.instance.get_param()
+        # TODO: assume 'M'
         duration = param_data['maint_duration']
         max_elapsed = param_data['max_elapsed_time'] + duration
         min_elapsed = max_elapsed - param_data['elapsed_time_size']
@@ -916,13 +915,6 @@ class Model(exp.Experiment):
         domains['att_M'] = \
             domains['att_maints'].\
             vfilter(lambda x: p_pos[x[1]] + max_elapsed_2M_cut[x[0]] < len(periods))
-
-        # we need to be sure that we have a register for each of the at combo that are far from the end of the horizon
-        # # TODO: take out some variables here, maybe?
-        # att_M_imposible_starts = \
-        #     domains['at_start_maint'].\
-        #         vfilter(lambda x: p_pos[x[1]] + max_elapsed_2M_cut[x[0]] < len(periods))
-
 
         # we're constraining all possibilities outside the patterns
         # in the att_maints list

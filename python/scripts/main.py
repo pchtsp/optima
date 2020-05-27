@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 import json
 import re
+import gc
 
 import execution.exec as exec
 import execution.exec_batch as exec_batch
@@ -23,8 +24,8 @@ if __name__ == "__main__":
 
     # simulation related:
     parser.add_argument('-s', '--simulation', dest='sim_dict', type=json.loads)
-    parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, required=True)
-    parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, required=True)
+    parser.add_argument('-q', '--num_instances', dest='num_inst', type=int, default=0)
+    parser.add_argument('-c', '--case_options', dest='case_opt', type=json.loads, default=None)
     parser.add_argument('-nb', '--no_base_case', dest='no_base_case', action='store_true')
     parser.add_argument('-nmp', '--no_multiprocess', dest='no_multiprocess', action='store_true')
 
@@ -116,7 +117,8 @@ if __name__ == "__main__":
     # if no multiprocess, we execute everything and exit
     if not multiproc:
         for args in options_list:
-            exec.config_and_solve(args)
+            exec_batch.solve_errors(args)
+            gc.collect()
     else:
         # in case we do multiprocessing
         time_limit_default = options.get('timeLimit', 3600) + 600

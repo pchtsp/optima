@@ -39,7 +39,6 @@ class Node(object):
         data = self.get_data()
         self.jsondump = json.dumps(data, sort_keys=True)
         self.hash = hash(self.jsondump)
-        # self.data_set = data.to_dictup().to_tuplist().to_set()
         self._backup_tasks = None
         self._backup_maints = None
         self._backup_vtt2_between_tt = None
@@ -56,7 +55,6 @@ class Node(object):
         """
         chars = ['instance', 'resource', 'period', 'period_end', 'ret', 'rut', 'assignment', 'type']
         data = {v: getattr(node, v) for v in chars}
-        # data = json.loads(json.dumps(data))
         data = sd.SuperDict(data)
         for k, v in kwargs.items():
             data[k] = v
@@ -82,7 +80,6 @@ class Node(object):
 
     def __eq__(self, other):
         return self.jsondump == other.jsondump
-        # return not (self.data_set ^ other.data_set)
 
     def get_data(self):
         return sd.SuperDict({'ret': self.ret, 'rut': self.rut,
@@ -127,8 +124,7 @@ class Node(object):
             end = min(self.ret[m], self.dif_period_end(last))
             _range = range(int(start), int(end)+1)
             if _range:
-                opts_ret[m] = _range
-                opts_ret[m] = set(opts_ret[m])
+                opts_ret[m] = set(_range)
         return opts_ret
 
     def get_vtt2(self):
