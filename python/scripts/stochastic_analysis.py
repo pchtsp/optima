@@ -21,20 +21,17 @@ import pandas as pd
 # EXPORT THINGS
 ####################
 
-# rep.print_table_md(result_tab_summ)
-# result_tab.to_csv(path_graphs + 'table.csv', index=False)
-# rpyg.gantt_experiment(e+'/')
-
 
 def clean_remakes():
     path_remake = params.PATHS['results'] + 'dell_20190515_remakes'
     batch = ba.ZipBatch(path_remake)
     cases = batch.get_cases()
     lle = cases.clean(func= lambda v: v is None).keys_l()
-    lled = tl.TupList(lle).filter_list_f(lambda x: x[1]!='index.txt').\
-        apply(lambda x: os.path.join(path_remake, x[0], x[1]))
+    lled = tl.TupList(lle).vfilter(lambda x: x[1]!='index.txt').\
+        vapply(lambda x: os.path.join(path_remake, x[0], x[1]))
 
-    lled.apply(shutil.rmtree)
+    lled.vapply(shutil.rmtree)
+
 
 def write_index(status_df, remakes_path):
     not_optimal_status = [ol.LpSolutionIntegerFeasible, ol.LpSolutionNoSolutionFound]
@@ -130,12 +127,12 @@ def treat_table(result_tab):
                 'var_consum', 'cons_min_mean', 'pos_consum5', 'pos_consum9',
                 'spec_tasks', 'mean_consum', 'geomean_cons']:
         try:
-            labels = tl.TupList(['1/3', '2/3', '3/3']).apply(lambda v: '{}: {}'.format(col, v))
+            labels = tl.TupList(['1/3', '2/3', '3/3']).vapply(lambda v: '{}: {}'.format(col, v))
             result_tab[col+'_cut'] = \
                 pd.qcut(result_tab[col], q=3, duplicates='drop', labels=labels).\
                 astype(str)
         except ValueError:
-            labels = tl.TupList(['2/3', '3/3']).apply(lambda v: '{}: {}'.format(col, v))
+            labels = tl.TupList(['2/3', '3/3']).vapply(lambda v: '{}: {}'.format(col, v))
             result_tab[col+'_cut'] = \
                 pd.qcut(result_tab[col], q=3, duplicates='drop', labels=labels).\
                 astype(str)
@@ -181,7 +178,7 @@ def superquantiles(table, **kwargs):
         #      plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
     ]
     default = dict(method = 'superquantiles', **kwargs)
-    options = tl.TupList(options).apply(lambda v: {**default, **v})
+    options = tl.TupList(options).vapply(lambda v: {**default, **v})
 
     coefs_df = []
     for opt in options:
@@ -240,7 +237,7 @@ def neural_networks(table):
     ]
 
     default = dict(method = 'neural', plot_args=dict(facet='mean_consum_cut ~ geomean_cons_cut', x='init'))
-    options = tl.TupList(options).apply(lambda v: {**default, **v})
+    options = tl.TupList(options).vapply(lambda v: {**default, **v})
 
     coefs_df = []
     for opt in options:
@@ -301,7 +298,7 @@ def gradient_boosting_regression(table, **kwargs):
     ]
 
     default = dict(method = 'GBR', loss = "quantile", n_estimators = 1000, **kwargs)
-    options = tl.TupList(options).apply(lambda v: {**default, **v})
+    options = tl.TupList(options).vapply(lambda v: {**default, **v})
 
     coefs_df = []
     for opt in options:
@@ -320,6 +317,7 @@ def gradient_boosting_regression(table, **kwargs):
     real_coefs = coefs_to_dict(options, coefs_df, get_params=False)
     real_coefs.update(mean_std)
     return real_coefs
+
 
 def quantile_regressions(table, **kwargs):
     # sklearn.feature_selection.RFECV
@@ -360,6 +358,7 @@ def quantile_regressions(table, **kwargs):
         real_coefs['intercept'] = 0
     return real_coefs
 
+
 def coefs_to_dict(options, coefs, get_params=True):
     values = {}
     for opt, coef in zip(options, coefs):
@@ -373,6 +372,7 @@ def coefs_to_dict(options, coefs, get_params=True):
             values[name] = coef[0]
     return values
 
+
 def support_vector_regression(table):
     x_vars = ['mean_consum', 'mean_consum2', 'mean_consum3', 'init', 'var_consum', 'spec_tasks', 'geomean_cons']
 
@@ -382,12 +382,13 @@ def support_vector_regression(table):
                dict(y_var='mean_2maint')
                ]
     default = dict(method = 'SVR', bound = 'center')
-    options = tl.TupList(options).apply(lambda v: {**v, **default})
+    options = tl.TupList(options).vapply(lambda v: {**v, **default})
 
 
     coefs_df = []
     for opt in options:
         coefs_df += [models.test_regression(table, x_vars, **opt)]
+
 
 def get_batch(name=None, use_zip=None):
     if name is None:
@@ -401,6 +402,7 @@ def get_batch(name=None, use_zip=None):
         batch = ba.Batch(params.PATHS['results'] + name)
 
     return batch
+
 
 def get_table_semi_treated(batch):
     cases = batch.get_cases()

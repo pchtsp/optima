@@ -9,6 +9,8 @@ import package.params as params
 
 import solvers.heuristic_graph as hg
 
+import reports.compare_experiments as comp
+
 abs_path = params.PATHS['root'] +  'Graph2020/'
 
 def temp():
@@ -166,5 +168,11 @@ def compare_num_paths():
     #  '8': 17540,
     #  '9': 6204}
 
+
+def compare_experiments():
+    comp.get_df_comparison(['IT000125_20190729'])
+
+
 if __name__ == '__main__':
-    table()
+    # table()
+    compare_experiments()
