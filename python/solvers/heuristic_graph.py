@@ -441,7 +441,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
-            cutoff = rn.choice(range(min_cutoff, max_cutoff+1))
+            log.debug("min/ max cutoff: {} {}".format(min_cutoff, max_cutoff))
+            cutoff = max_cutoff + 1
         return dict(node1=node1, node2=dummy_node2, max_paths=num_max, cutoff=cutoff, mask=mask, **kwargs)
 
     def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
@@ -685,7 +686,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
     def get_subfleet_from_list(self, resources, options):
         size = self.get_subfleet_size(options)
         extra_needed = size - len(resources)
-        if extra_needed < 0:
+        if extra_needed <= 0:
             return rn.sample(resources, size)
         remaining = self.instance.get_resources().keys_tl().set_diff(resources).sorted()
         extra_quantity = min(extra_needed, len(remaining))

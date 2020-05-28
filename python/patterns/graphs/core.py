@@ -1,5 +1,8 @@
 import patterns.node as nd
 import random as rn
+import logging as log
+import itertools
+import numpy as np
 
 class DAG(object):
 
@@ -42,6 +45,18 @@ class DAG(object):
         pass
 
     @staticmethod
+    def iter_sample_fast2(iterable, samplesize, max_iterations=9999999):
+        """
+        :param iter iterable:
+        :param samplesize:
+        :return:
+        """
+        universe = list(itertools.islice(iterable, max_iterations))
+        if len(universe) > samplesize:
+            return np.random.choice(universe, samplesize, replace=False).tolist()
+        return universe
+
+    @staticmethod
     def iter_sample_fast(iterable, samplesize, max_iterations=9999999):
         """
 
@@ -59,12 +74,15 @@ class DAG(object):
         except StopIteration:
             return results
         rn.shuffle(results)  # Randomize their positions
+        # i = 0
         for i, v in enumerate(iterator, samplesize):
+            # log.debug("iteration: {}".format(i))
             r = rn.randint(0, i)
             if r < samplesize:
                 results[r] = v  # at a decreasing rate, replace random items
             if i >= max_iterations:
                 break
+
         return results
 
     def get_all_patterns(self):

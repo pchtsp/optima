@@ -8,6 +8,7 @@ import patterns.node as nd
 import random as rn
 import package.instance as inst
 import logging as log
+import itertools
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
@@ -108,10 +109,15 @@ class GraphTool(DAG):
 
     def filter_by_mask(self, mask, node2):
         vfilt = self.g.new_vp('bool', val=1)
-        predecessors = self.g.vertex(self.refs[node2]).in_neighbors()
+        index_node = self.refs[node2]
+        # we take all predecessors that do not pass the mask function:
+        predecessors = self.g.vertex(index_node).in_neighbors()
         _func = lambda n: mask(self.refs_inv[n])
         nodes = [int(n) for n in predecessors if not _func(n)]
         vfilt.a[nodes] = 0
+        # all nodes after node2 we take them away too:
+        take_out = self.period_end_vp.get_array() > self.period_end_vp[index_node]
+        vfilt.a[take_out] = 0
         return gr.GraphView(self.g, vfilt=vfilt)
 
     def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, mask=None, **kwargs):
@@ -123,6 +129,9 @@ class GraphTool(DAG):
         self.g.clear_edges()
         np.random.shuffle(edges)
         self.g.add_edge_list(edges)
+        self.g.shrink_to_fit()
+        self.g.reindex_edges()
+        self.set_weights()
 
         # we take a view if we have some nodes to take out
         if mask:
@@ -131,18 +140,17 @@ class GraphTool(DAG):
             graph = self.g
 
         # we take a sample of paths
+        log.debug("cutoff size: {}".format(cutoff))
         paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
-        sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
+        # log.debug("got the iterator, now proceding to sample")
+        sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 10)
+        # sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
+        log.debug("sample size: {}".format(len(sample)))
         if add_empty:
             gfilt = self.filter_by_tasks(node1, node2, g=graph)
-            paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
-            sample += self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
-        # after using it, we go back to the original index of edges
-        self.g.shrink_to_fit()
-        self.g.reindex_edges()
-
-        # TODO: not sure if this is necessary:
-        self.set_weights()
+            paths_iterator = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
+            # sample += self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
+            sample += self.iter_sample_fast(paths_iterator, max_paths, max_paths * 10)
 
         return tl.TupList(sample).vapply(lambda v: [refs_inv[vv] for vv in v])
         # node = node1
