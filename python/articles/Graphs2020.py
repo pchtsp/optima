@@ -169,10 +169,19 @@ def compare_num_paths():
     #  '9': 6204}
 
 
-def compare_experiments():
-    comp.get_df_comparison(['IT000125_20190729'])
+def compare_experiments(**kwargs):
+
+    def get_solstats(batch):
+        objFunc = batch.\
+            get_cases().\
+            clean(func=lambda v: v).\
+            vapply(hg.GraphOriented.get_objective_function).\
+            vapply(lambda v: dict(objective=v))
+        return batch.format_df(objFunc).drop('name', axis=1)
+
+    return comp.get_df_comparison(**kwargs, get_log=False, solstats_func=get_solstats, zip=True)
 
 
 if __name__ == '__main__':
     # table()
-    compare_experiments()
+    compare_experiments(exp_list=['prise_srv3_20200527_2'])

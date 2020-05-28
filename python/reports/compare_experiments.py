@@ -15,10 +15,12 @@ def get_sum_variances(case, types):
 
 
 def get_solstats(batch):
-    # TODO: add objective calculation
+    # we do not add objective function because it depends on the original class
+    # this should be done by injecting a solstats_func as argument
+    # this is just an example on what the function structure should have
     cases = batch.get_cases().clean(func=lambda v: v)
     types = cases.vapply(lambda v: v.instance.get_types())
-    variances = cases.apply(lambda k, v: {'variance': get_sum_variances(v, types[k])})
+    variances = cases.kvapply(lambda k, v: {'variance': get_sum_variances(v, types[k])})
     var_table = batch.format_df(variances).drop('name', axis=1)
     return var_table
 
@@ -28,7 +30,7 @@ def empty_logs(batch):
     return batch.format_df(col)
 
 
-def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, get_log=True):
+def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, get_log=True, solstats_func=None):
     """
     :param list exp_list: list of names of experiments
     :param list scenarios: optional list of scenarios to filter batches
@@ -48,7 +50,9 @@ def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, ge
         else:
             table = empty_logs(batch1)
         table_errors = batch1.get_errors_df().drop('name', axis=1)
-        sol_stats_table = get_solstats(batch1)
+        if not solstats_func:
+            solstats_func = get_solstats
+        sol_stats_table = solstats_func(batch1)
         table_n = \
             table.\
             merge(table_errors, on=['scenario', 'instance'], how='left').\

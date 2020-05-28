@@ -277,9 +277,9 @@ class ZipBatch(Batch):
                 vfilter(lambda f: f.count("/") == num_slashes)
         keys = \
             scenario_instances.\
-            apply(str.split, '/').\
-            apply(tuple).\
-            filter(keys_positions)
+            vapply(str.split, '/').\
+            vapply(tuple).\
+            take(keys_positions)
         result_dict = sd.SuperDict(zip(keys, scenario_instances))
         if self.scenarios:
             scenarios = set(self.scenarios)
