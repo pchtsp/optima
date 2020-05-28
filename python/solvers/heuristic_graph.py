@@ -112,28 +112,11 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return self.solution
 
     def get_patterns_from_window(self, change, options):
-        multiproc = options['multiprocess']
-        resources = change['resources']
         args = (change['start'], change['end'], options['num_max'], options.get('cutoff', 200))
-        if not multiproc or not options.get('multiproc_patterns', False):
-            patterns = \
-                sd.SuperDict().fill_with_default(change['resources']).\
-                kapply(self.get_pattern_options_from_window, *args)
-            return patterns.vfilter(lambda v: len(v) > 0)
-        results = sd.SuperDict()
-        _data = sd.SuperDict()
-        with multi.Pool(processes=multiproc) as pool:
-            data = {}
-            for r in resources:
-                data[r] = self.prepare_data_to_get_patterns(r, *args)
-                # we need to filter them to take out the ones that compromise the post-window periods
-                results[r] = pool.apply_async(self.get_graph_data(r).nodes_to_patterns2, kwds=data[r])
-            for r, result in results.items():
-                try:
-                   _data[r] = result.get(timeout=100)
-                except multi.TimeoutError:
-                    _data[r] = []
-        return _data.vfilter(lambda v: len(v) > 0)
+        patterns = \
+            sd.SuperDict().fill_with_default(change['resources']).\
+            kapply(self.get_pattern_options_from_window, *args)
+        return patterns.vfilter(lambda v: len(v) > 0)
 
     def solve(self, options):
         """
@@ -473,7 +456,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
+        # patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
+        patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
         return patterns
 
     def get_pattern_from_window(self, resource, date1, date2):

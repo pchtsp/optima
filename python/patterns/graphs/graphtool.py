@@ -56,7 +56,6 @@ class GraphTool(DAG):
         self.type_vp = self.g.new_vp('int')
         self.assgin_vp = self.g.new_vp('int')
         self.rut_vp = self.g.new_vp('int')
-        self.weights = self.g.new_ep('int')
         positions = self.instance.get_period_positions()
         self._equiv_task = {k: v +1 for v, k in enumerate(self.instance.get_tasks())}
         self._equiv_task[''] = 0
@@ -70,6 +69,10 @@ class GraphTool(DAG):
             self.rut_vp[v] = node.rut['M'] if node.rut else 0
 
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
+        self.set_weights()
+
+    def set_weights(self):
+        self.weights = self.g.new_ep('int')
         multiplier = 100
         durations = (self.period_end_vp.get_array() -
                      self.period_vp.get_array() + 1) * multiplier
@@ -114,18 +117,34 @@ class GraphTool(DAG):
     def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
+
+        # we shuffle the graph.
+        edges = self.g.get_edges()
+        self.g.clear_edges()
+        np.random.shuffle(edges)
+        self.g.add_edge_list(edges)
+
+        # we take a view if we have some nodes to take out
         if mask:
             graph = self.filter_by_mask(mask, node2)
         else:
             graph = self.g
+
+        # we take a sample of paths
         paths_iterator = gr.all_paths(graph, source=refs[node1], target=refs[node2], cutoff=cutoff)
         sample = self.iter_sample_fast(paths_iterator, max_paths, max_paths * 100)
-        sample2 = []
         if add_empty:
             gfilt = self.filter_by_tasks(node1, node2, g=graph)
             paths_iterator2 = gr.all_paths(gfilt, source=refs[node1], target=refs[node2])
-            sample2 = self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
-        return tl.TupList(sample + sample2).vapply(lambda v: [refs_inv[vv] for vv in v])
+            sample += self.iter_sample_fast(paths_iterator2, max_paths, max_paths * 100)
+        # after using it, we go back to the original index of edges
+        self.g.shrink_to_fit()
+        self.g.reindex_edges()
+
+        # TODO: not sure if this is necessary:
+        self.set_weights()
+
+        return tl.TupList(sample).vapply(lambda v: [refs_inv[vv] for vv in v])
         # node = node1
         # refs.keys_tl().\
         #     vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
