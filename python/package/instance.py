@@ -472,6 +472,9 @@ class Instance(object):
         return cluster_needs
 
     def get_cluster_constraints(self):
+        result = self.data['aux'].get('cluster_constraints')
+        if result:
+            return result
         min_percent = self.get_param('min_avail_percent')
         min_value = self.get_param('min_avail_value')
         hour_perc = self.get_param('min_hours_perc')
@@ -502,7 +505,8 @@ class Instance(object):
         limit = self.get_maintenances('max_used_time')['M']
         c_needs_hours = {(k, t): v * limit * hour_perc
                          for k, v in c_num_candidates.items() for t in self.get_periods()}
-        return sd.SuperDict.from_dict({'num': c_needs_num, 'hours': c_needs_hours})
+        result = self.data['aux']['cluster_constraints'] = sd.SuperDict.from_dict({'num': c_needs_num, 'hours': c_needs_hours})
+        return result
 
     def get_task_candidates(self, recalculate=True, task=None, resource=None):
 

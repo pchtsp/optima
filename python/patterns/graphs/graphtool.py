@@ -170,10 +170,16 @@ class GraphTool(DAG):
         # edges = self.get_edges_between_nodes(node1, node2)
 
         sample = tl.TupList()
+        weights = self.weights.copy()
+        arr = self.weights.get_array()
+        nodes_window = self.get_nodes_in_window(node1, node2)
+        edges_all = self.g.get_edges()
+        targets = edges_all[:, 1]
+        sources = edges_all[:, 0]
+        relevant_edge = nodes_window[sources] & nodes_window[targets]
+        num_edges = np.sum(relevant_edge)
         for i in range(max_paths):
-            weights = self.weights.copy()
-            arr = weights.get_array()
-            weights.a = np.floor(arr * (1 + np.random.random(self.g.num_edges())))
+            weights.a[relevant_edge] = np.floor(arr[relevant_edge] * (1 + np.random.random(num_edges)))
             patterns = gr.all_shortest_paths(graph, source=refs[node1], target=refs[node2], weights=weights, dag=True)
             _paths = list(patterns)
             # log.debug("number of patterns for resource {}: {}".format(node1.resource, len(_paths)))
@@ -242,17 +248,22 @@ class GraphTool(DAG):
         nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
         return [refs_inv[n] for n in nodes]
 
-    def get_weights(self, node1, node2, errors):
-        # get edges between node1 and node 2 only
+    def get_nodes_in_window(self, node1, node2):
         positions = self.instance.get_period_positions()
         first, last = self.instance.get_first_last_period()
         min_period = max(positions[node1.period], positions[first])
         max_period = min(positions[node2.period_end], positions[last])
-        nodes_window = \
+        return \
             (self.period_vp.get_array() >= min_period) & \
             (self.period_end_vp.get_array() <= max_period)
+
+    def get_weights(self, node1, node2, errors):
+        # get edges between node1 and node 2 only
+        nodes_window = self.get_nodes_in_window(node1, node2)
         edges_all = self.g.get_edges()
-        relevant_edge = nodes_window[edges_all[:, 0]] & nodes_window[edges_all[:, 1]]
+        targets = edges_all[:, 1]
+        sources = edges_all[:, 0]
+        relevant_edge = nodes_window[sources] & nodes_window[targets]
         weigths_frac = np.ones_like(self.weights.get_array(), dtype='float')
         hours_periods = errors.get('hours', sd.SuperDict())
         clust_cand = self.instance.get_cluster_candidates().vapply(set)
@@ -262,9 +273,9 @@ class GraphTool(DAG):
             to_tuplist().\
             to_dict(2, indices=[1]).\
             vapply(min)
-        weigths_frac = self.modify_weights_by_hours(weigths_frac, nodes_window, relevant_edge, clust_hours)
-        weigths_frac = self.modify_weights_by_resource(weigths_frac, nodes_window, relevant_edge, errors.get('resources'))
-        weigths_frac = self.modify_weights_by_capacity(weigths_frac, nodes_window, relevant_edge, errors.get('capacity'))
+        weigths_frac = self.modify_weights_by_hours(weigths_frac, nodes_window, relevant_edge, targets, clust_hours)
+        weigths_frac = self.modify_weights_by_resource(weigths_frac, nodes_window, relevant_edge, targets, errors.get('resources'))
+        weigths_frac = self.modify_weights_by_capacity(weigths_frac, nodes_window, relevant_edge, targets, errors.get('capacity'))
         weights = self.weights.copy()
         weights_arr = weights.get_array()
         weights.a[relevant_edge] = np.floor(weights_arr[relevant_edge] *
@@ -276,7 +287,7 @@ class GraphTool(DAG):
                                             )
         return weights
 
-    def modify_weights_by_capacity(self, weights, nodes_window, relevant_edge, capacity):
+    def modify_weights_by_capacity(self, weights, nodes_window, relevant_edge, targets, capacity):
         if not capacity:
             return weights
         # capacity negative is bad.
@@ -285,18 +296,17 @@ class GraphTool(DAG):
         arr_per_end = self.period_end_vp.get_array()
         arr_type = self.type_vp.get_array()
         arr_per = self.period_vp.get_array()
-        edges_all = self.g.get_edges()
         for _, period in capacity:
             p = positions[period]
             relevant_node = nodes_window \
                     & (arr_type == nd.MAINT_TYPE)\
                     & (arr_per <= p)\
                     & (arr_per_end >= p)
-            edges = relevant_edge & relevant_node[edges_all[:, 1]]
+            edges = relevant_edge & relevant_node[targets]
             weights[edges] = weights[edges] * 1.1
         return weights
 
-    def modify_weights_by_hours(self, weights, nodes_window, relevant_edge, hours_periods):
+    def modify_weights_by_hours(self, weights, nodes_window, relevant_edge, targets, hours_periods):
         if not hours_periods:
             return weights
         # negative hours are bad
@@ -315,13 +325,12 @@ class GraphTool(DAG):
         less_than_zero = final_rut<0
         weight_hours = np.ones_like(final_rut, dtype='float')
         weight_hours[less_than_zero] = final_rut[less_than_zero]**2
-        _max = max(weight_hours)
+        _max = np.max(weight_hours)
         weight_hours[less_than_zero] = weight_hours[less_than_zero] / _max + 1
-        targets = self.g.get_edges()[:, 1]
         weights[relevant_edge] = weights[relevant_edge] * weight_hours[targets[relevant_edge]]
         return weights
 
-    def modify_weights_by_resource(self, weights, nodes_window, relevant_edge, resources):
+    def modify_weights_by_resource(self, weights, nodes_window, relevant_edge, targets, resources):
         if not resources:
             return weights
         # positive resources are bad
@@ -332,7 +341,6 @@ class GraphTool(DAG):
         arr_per_end = self.period_end_vp.get_array()
         arr_assign = self.assgin_vp.get_array()
         arr_per = self.period_vp.get_array()
-        edges_all = self.g.get_edges()
 
         positions = self.instance.get_period_positions()
         tasks = self._equiv_task
@@ -341,7 +349,7 @@ class GraphTool(DAG):
             p = positions[period]
             relevant_node = \
                 nodes_window & (arr_assign == t) & (arr_per <= p) & (arr_per_end >= p)
-            edges = relevant_edge & relevant_node[edges_all[:, 1]]
+            edges = relevant_edge & relevant_node[targets]
             weights[edges] = weights[edges] / 1.1
         return weights
 

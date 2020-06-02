@@ -173,8 +173,7 @@ class Experiment(object):
             vfilter(lambda v: v[1] in periods)
 
         task_under_assigned = \
-            self.solution.get_task_num_resources().\
-            kfilter(lambda k: k[1] in periods).\
+            self.solution.get_task_num_resources(periods).\
             fill_with_default(task_period_list).\
             kvapply(lambda k, v: task_reqs[k[0]] - v)
 
@@ -500,32 +499,68 @@ class Experiment(object):
         return over_assigned
 
     def check_min_flight_hours(self, recalculate=True, deficit_only=True, periods=None, **params):
-        """
-        :param recalculate: if True, we recalculate rut
-        :param list periods: optional filter
-        :return: periods where the min flight hours is not guaranteed.
-        """
         if recalculate:
             ruts = self.set_remaining_usage_time(time='rut', maint='M')
         else:
             ruts = self.get_remainingtime(time='rut', maint='M')
+        all_periods = self.instance.get_periods().to_set()
         if periods is None:
-            periods = self.instance.get_periods().to_set()
+            periods = all_periods
         else:
-            periods = set(periods)
+            periods = set(periods) & all_periods
         cluster_data = self.instance.get_cluster_constraints()
-        min_hours = cluster_data['hours'].kfilter(lambda k: k[1] in periods)
-        res_clusters = self.instance.get_cluster_candidates().list_reverse()
-        cluster_hours2 = \
-            ruts.\
-            to_dictup().\
-            kfilter(lambda k: k[1] in periods).\
-            to_tuplist().to_dict(None).\
-            vapply(lambda v: res_clusters[v[0]]).\
-            to_tuplist().\
-            to_dict(indices=[3, 1], result_col=2).\
-            vapply(sum)
-        hours_deficit = min_hours.kvapply(lambda k, v: cluster_hours2[k] - v)
+        min_hours = cluster_data['hours']
+        clusters = self.instance.get_cluster_candidates().list_reverse()
+        ruts_dt = ruts.to_dictup()
+        data = [((c, p), h) for (r, p), h in ruts_dt.items()
+                for c in clusters[r] if p in periods]
+        keys, weights = zip(*data)
+        dict_keys = min_hours.keys_tl()
+        equiv = {k: pos for pos, k in enumerate(dict_keys)}
+        keys_int = np.array([equiv[k] for k in keys])
+        dict_values = np.bincount(keys_int, weights=weights)
+        hours_deficit2 = sd.SuperDict({k: v -  min_hours[k] for k, v in zip(dict_keys, dict_values)})
+        if deficit_only:
+             hours_deficit2 = hours_deficit2.vfilter(lambda x: x < 0)
+        return hours_deficit2
+
+    def check_min_flight_hours_seminew(self, recalculate=True, deficit_only=True, periods=None, **params):
+        if recalculate:
+            ruts = self.set_remaining_usage_time(time='rut', maint='M')
+        else:
+            ruts = self.get_remainingtime(time='rut', maint='M')
+        all_periods = self.instance.get_periods().to_set()
+        if periods is None:
+            periods = all_periods
+        else:
+            periods = set(periods) & all_periods
+        cluster_data = self.instance.get_cluster_constraints()
+        min_hours = cluster_data['hours']
+        resources = self.instance.get_resources().keys_tl().vapply(int).sorted()
+        clusters = \
+            self.instance.get_cluster_candidates(). \
+                vapply(lambda v: set(int(vv) for vv in v)). \
+                vapply(lambda v: [r in v for r in resources]). \
+                vapply(np.array)
+        positions = self.instance.get_period_positions()
+        ruts_dt = ruts.to_dictup()
+        res_arr, periods_arr = zip(*ruts_dt.keys())
+        rut_arr = ruts_dt.values_l()
+        res_arr = np.array(res_arr, dtype='int')
+        periods_arr = np.array([positions[p] for p in periods_arr])
+        rut_arr = np.array(rut_arr)
+
+        def deficit(c, p, candidates):
+            pos = positions[p]
+            mask = (candidates[res_arr]) & (periods_arr == pos)
+            return np.sum(rut_arr[mask]) - min_hours[c, p]
+
+        hours_deficit = \
+            sd.SuperDict({
+                (c, p): deficit(c, p, candidates)
+                for c, candidates in clusters.items()
+                for p in periods
+            })
         if deficit_only:
              hours_deficit = hours_deficit.vfilter(lambda x: x < 0)
         return hours_deficit

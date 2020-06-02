@@ -209,8 +209,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             solution = subproblem(change, sub_options)
             if solution is None:
                 continue
-            # kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
-            kwargs = dict(assign_missions=True)
+            kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
+            # kwargs = dict(assign_missions=True)
             objective, status, errors = self.analyze_solution(temperature, **kwargs)
             num_errors = errors.to_lendict().values_tl()
             num_errors = sum(num_errors)

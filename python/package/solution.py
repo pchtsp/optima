@@ -2,6 +2,7 @@
 
 import pytups.superdict as sd
 import pytups.tuplist as tl
+import numpy as np
 
 class Solution(object):
     """
@@ -46,7 +47,7 @@ class Solution(object):
         return sorted(resource_period)
 
     def get_tasks(self):
-        return sd.SuperDict.from_dict(self.data['task']).to_dictup()
+        return self.data['task'].to_dictup()
 
     def get_state_tuplist(self, resource=None):
         states = self.get_state(resource)
@@ -58,11 +59,34 @@ class Solution(object):
             data = data.filter(resource, check=False)
         return data.to_dictup()
 
-    def get_task_resources(self):
-        return self.get_tasks().to_tuplist().to_dict(result_col=0, indices=[2, 1], is_list=True)
+    def get_task_resources(self, periods=None):
+        tasks = self.get_tasks()
+        if periods:
+            periods = set(periods)
+            tasks = tasks.kfilter(lambda k: k[1] in periods)
+        return tasks.to_tuplist().to_dict(result_col=0, indices=[2, 1], is_list=True)
 
-    def get_task_num_resources(self):
-        return self.get_task_resources().vapply(len)
+    def get_task_num_resources(self, periods=None):
+        tasks = self.get_tasks()
+        if periods:
+            periods = set(periods)
+            tasks = tasks.kfilter(lambda k: k[1] in periods)
+        if not len(tasks):
+            return sd.SuperDict()
+        resource, period = zip(*tasks.keys())
+        task = tasks.values_l()
+        keys, values = np.unique(np.array(list(zip(task, period))), axis=0, return_counts=True)
+        result = sd.SuperDict({tuple(k): v for k, v in zip(keys, values)})
+        return result
+        # result.to_tuplist().to_set() ^ result2.to_tuplist().to_set()
+        # import unittest
+        # unittest.TestCase().assertDictEqual(result, result2)
+        # result2 = self.get_task_resources().vapply(len)
+        # assert result==result2
+
+    def get_task_num_resources_old(self, periods=None):
+        result2 = self.get_task_resources(periods).vapply(len)
+        return result2
 
     def get_state_tasks(self):
         statesMissions = self.get_state_tuplist() + self.get_tasks().to_tuplist()

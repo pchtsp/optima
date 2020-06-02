@@ -612,7 +612,7 @@ class GreedyByMission(test.Experiment):
                 # we were unlucky: we go back to the previous solution
                 status = 2
                 self.set_solution(self.previous_solution)
-                errs = self.check_solution(recalculate=False)
+                errs = self.prev_errs
                 log.debug('back to previous solution: {} (from {})'.
                           format(self.prev_objective, objective))
                 objective = self.prev_objective
@@ -628,6 +628,7 @@ class GreedyByMission(test.Experiment):
         if status in self.status_accept:
             self.previous_solution = self.copy_solution()
             self.prev_objective = objective
+            self.prev_errs = errs
         return objective, status, errs
 
     def initialise_solution_stats(self):
@@ -638,6 +639,7 @@ class GreedyByMission(test.Experiment):
         self.previous_solution = self.best_solution = self.solution.data
         errs = self.check_solution()
         error_cat = errs.to_lendict()
+        self.prev_errs = errs
         self.prev_objective = self.get_objective_function(error_cat)
         self.best_objective = self.prev_objective
 
