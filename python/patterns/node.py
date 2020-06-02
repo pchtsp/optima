@@ -492,7 +492,7 @@ class Node(object):
             neighbors = self.get_fixed_initial_nodes(fixed)
             cache_neighbors[self] = neighbors
             # we replace remaining_nodes, this losing the origin.
-            remaining_nodes = neighbors
+            remaining_nodes = list(neighbors)
 
         while len(remaining_nodes) and i < 10000000:
             i += 1

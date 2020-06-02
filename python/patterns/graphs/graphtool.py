@@ -174,8 +174,6 @@ class GraphTool(DAG):
             weights = self.weights.copy()
             arr = weights.get_array()
             weights.a = np.floor(arr * (1 + np.random.random(self.g.num_edges())))
-            # weights.a[edges] = np.floor(arr[edges] * (1 + 0.5 * np.random.random(np.sum(edges))))
-
             patterns = gr.all_shortest_paths(graph, source=refs[node1], target=refs[node2], weights=weights, dag=True)
             _paths = list(patterns)
             # log.debug("number of patterns for resource {}: {}".format(node1.resource, len(_paths)))
@@ -233,92 +231,120 @@ class GraphTool(DAG):
 
         weights = self.get_weights(node1, node2, errors)
 
-        source = graph.vertex(refs[node1])
+        # source = graph.vertex(refs[node1])
         # TODO: this is failing, sometimes?
-        # try:
-        #     source = graph.vertex(refs[node1])
-        # except ValueError:
-        #     return None
+        try:
+            source = graph.vertex(refs[node1])
+        except KeyError:
+            log.error("There was a problem finding a node: {}".format(node1))
+            return None
         target = graph.vertex(refs[node2])
         nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
         return [refs_inv[n] for n in nodes]
 
-    def get_errors_in_format(self, errors):
-        # hours
-        clust_hours = errors.get('hours', sd.SuperDict())
-        clust_periods = clust_hours.keys_tl().to_dict(1)
-        c_cand = \
-            self.instance.get_cluster_candidates().\
-                list_reverse().\
-                vapply(lambda v: [p for vv in v for p in clust_periods.get(vv, [])]).\
-                vapply(lambda v: sd.SuperDict(hours=v))
-
-        # resources
-        res = sd.SuperDict(resources=errors.get('resources', sd.SuperDict()).keys_tl())
-
-        # capacity
-        capacity = sd.SuperDict(capacity = errors.get('capacity', sd.SuperDict()).keys_tl().take(1))
-
-        data = c_cand.vapply(lambda v: v._update(res)._update(capacity))
-        return data
-
     def get_weights(self, node1, node2, errors):
-        errors = self.get_errors_in_format(errors).get(self.resource, {})
         # get edges between node1 and node 2 only
         positions = self.instance.get_period_positions()
+        first, last = self.instance.get_first_last_period()
+        min_period = max(positions[node1.period], positions[first])
+        max_period = min(positions[node2.period_end], positions[last])
         nodes_window = \
-            (self.period_vp.get_array() >= positions[node1.period]) & \
-            (self.period_end_vp.get_array() <= positions[node2.period_end])
-        # nodes = np.where(relevant_nodes)
+            (self.period_vp.get_array() >= min_period) & \
+            (self.period_end_vp.get_array() <= max_period)
         edges_all = self.g.get_edges()
-        # relevant_edge = np.in1d(edges_all[:, 0], nodes) & np.in1d(edges_all[:, 1], nodes)
         relevant_edge = nodes_window[edges_all[:, 0]] & nodes_window[edges_all[:, 1]]
+        weigths_frac = np.ones_like(self.weights.get_array(), dtype='float')
+        hours_periods = errors.get('hours', sd.SuperDict())
+        clust_cand = self.instance.get_cluster_candidates().vapply(set)
+        clust_hours = \
+            hours_periods.\
+            kfilter(lambda k: node1.resource in clust_cand[k[0]]).\
+            to_tuplist().\
+            to_dict(2, indices=[1]).\
+            vapply(min)
+        weigths_frac = self.modify_weights_by_hours(weigths_frac, nodes_window, relevant_edge, clust_hours)
+        weigths_frac = self.modify_weights_by_resource(weigths_frac, nodes_window, relevant_edge, errors.get('resources'))
+        weigths_frac = self.modify_weights_by_capacity(weigths_frac, nodes_window, relevant_edge, errors.get('capacity'))
         weights = self.weights.copy()
-        positions = self.instance.get_period_positions()
-        arr_per = self.period_vp.get_array()
-        hours_periods = errors.get('hours')
-        if hours_periods:
-            # hours => multiply by X to each edge, depending on lower rut
-            weights_arr = weights.get_array()
-            ruts = self.rut_vp.get_array()
-            _max = max(ruts)
-            max_period = positions[hours_periods[-1]]
-            weight_hours = (_max - ruts) / _max + 1
-            targets = self.g.get_edges()[:, 1]
-            relevant_node = nodes_window & (arr_per <= max_period)
-            edges = relevant_edge & relevant_node[edges_all[:, 1]]
-            weights.a[edges] = np.floor(weights_arr[edges] * weight_hours[targets[edges]])
-        resources = errors.get('resources')
-        if resources:
-            # resources => divide by X to each edge if mission is assigned
-            weights_arr = weights.get_array()
-            arr_per_end = self.period_end_vp.get_array()
-            arr_assign = self.assgin_vp.get_array()
-            for task, period in resources:
-                t = self._equiv_task[task]
-                p = positions[period]
-                relevant_node = \
-                    nodes_window & (arr_assign == t) & (arr_per <= p) & (arr_per_end >= p)
-                edges = relevant_edge & relevant_node[edges_all[:, 1]]
-                weights.a[edges] = np.floor(weights_arr[edges] / 1.1)
-        capacity = errors.get('capacity')
-        if capacity:
-            # capacity => multiply by X to each edge if maintenance has started? or it's going on
-            weights_arr = weights.get_array()
-            arr_per_end = self.period_end_vp.get_array()
-            arr_type = self.type_vp.get_array()
-            for period in capacity:
-                p = positions[period]
-                relevant_node = nodes_window \
-                        & (arr_type == nd.MAINT_TYPE)\
-                        & (arr_per <= p)\
-                        & (arr_per_end >= p)
-                edges = relevant_edge & relevant_node[edges_all[:, 1]]
-                weights.a[edges] = np.floor(weights_arr[edges] * 1.1)
         weights_arr = weights.get_array()
         weights.a[relevant_edge] = np.floor(weights_arr[relevant_edge] *
-                                            (-0.75 + 0.5* np.random.random(np.sum(relevant_edge))))
+                                            weigths_frac[relevant_edge] +
+                                            (
+                                                    weights_arr[relevant_edge] *
+                                                    0.5 * np.random.random(np.sum(relevant_edge))
+                                             )
+                                            )
         return weights
+
+    def modify_weights_by_capacity(self, weights, nodes_window, relevant_edge, capacity):
+        if not capacity:
+            return weights
+        # capacity negative is bad.
+        # capacity => multiply by X to each edge if maintenance has started? or it's going on
+        positions = self.instance.get_period_positions()
+        arr_per_end = self.period_end_vp.get_array()
+        arr_type = self.type_vp.get_array()
+        arr_per = self.period_vp.get_array()
+        edges_all = self.g.get_edges()
+        for _, period in capacity:
+            p = positions[period]
+            relevant_node = nodes_window \
+                    & (arr_type == nd.MAINT_TYPE)\
+                    & (arr_per <= p)\
+                    & (arr_per_end >= p)
+            edges = relevant_edge & relevant_node[edges_all[:, 1]]
+            weights[edges] = weights[edges] * 1.1
+        return weights
+
+    def modify_weights_by_hours(self, weights, nodes_window, relevant_edge, hours_periods):
+        if not hours_periods:
+            return weights
+        # negative hours are bad
+        # hours => multiply by X to each edge, depending on lower rut
+        positions = self.instance.get_period_positions()
+        pos, hour = zip(*((positions[k], v) for k, v in hours_periods.items()))
+        num_periods = self.instance.get_param('num_period')
+        old_ruts = np.zeros(num_periods)
+        old_ruts[np.array(pos)] = np.array(hour)
+        arr_per = self.period_vp.get_array()
+        # periods_pos = tl.TupList(periods).vapply(lambda v: positions[v])
+        old_rut_node = np.zeros_like(arr_per)
+        old_rut_node[nodes_window] = old_ruts[arr_per[nodes_window]]
+        ruts = self.rut_vp.get_array()
+        final_rut = old_rut_node + ruts
+        less_than_zero = final_rut<0
+        weight_hours = np.ones_like(final_rut, dtype='float')
+        weight_hours[less_than_zero] = final_rut[less_than_zero]**2
+        _max = max(weight_hours)
+        weight_hours[less_than_zero] = weight_hours[less_than_zero] / _max + 1
+        targets = self.g.get_edges()[:, 1]
+        weights[relevant_edge] = weights[relevant_edge] * weight_hours[targets[relevant_edge]]
+        return weights
+
+    def modify_weights_by_resource(self, weights, nodes_window, relevant_edge, resources):
+        if not resources:
+            return weights
+        # positive resources are bad
+        # resources => divide by X to each edge if mission is assigned
+        # TODO: filter tasks to candidate's task?
+        # task, period = zip(*((tasks[k], positions[v]) for k, v in resources.keys()))
+        # deficit = resources.values()
+        arr_per_end = self.period_end_vp.get_array()
+        arr_assign = self.assgin_vp.get_array()
+        arr_per = self.period_vp.get_array()
+        edges_all = self.g.get_edges()
+
+        positions = self.instance.get_period_positions()
+        tasks = self._equiv_task
+        for task, period in resources:
+            t = tasks[task]
+            p = positions[period]
+            relevant_node = \
+                nodes_window & (arr_assign == t) & (arr_per <= p) & (arr_per_end >= p)
+            edges = relevant_edge & relevant_node[edges_all[:, 1]]
+            weights[edges] = weights[edges] / 1.1
+        return weights
+
 
     def to_file(self, path):
         name = 'cache_info_{}'.format(self.resource)

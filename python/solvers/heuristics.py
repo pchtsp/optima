@@ -288,7 +288,7 @@ class GreedyByMission(test.Experiment):
         _usage = self.instance.data['maintenances'][maint]['capacity_usage']
         _type = self.instance.data['maintenances'][maint]['type']
         type_periods = self.check_sub_maintenance_capacity(
-            ref_compare=_usage, periods_to_check=periods_to_check
+            ref_compare=_usage, periods=periods_to_check
         )
         periods = []
         if len(type_periods):
@@ -608,7 +608,7 @@ class GreedyByMission(test.Experiment):
             # solution worse than previous
             status = 3
             if self.previous_solution and rn.random() > \
-                    math.exp((self.prev_objective - objective) / temperature / 50):
+                    math.exp((self.prev_objective - objective) / self.prev_objective / temperature * 50):
                 # we were unlucky: we go back to the previous solution
                 status = 2
                 self.set_solution(self.previous_solution)

@@ -94,20 +94,26 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             sd.SuperDict().\
             fill_with_default(change['resources']).\
             kapply(_func)
+        periods_to_check = self.instance.get_periods_range(change['start'], change['end'])
         _shift = self.instance.shift_period
         _range = self.instance.get_periods_range
         for k, v in res_pattern.items():
             start = _shift(v['node1'].period_end, 1)
             end = _shift(v['node2'].period, -1)
+            old_pattern = self.get_pattern_from_window(k, start, end)
             deleted_tasks = self.clean_assignments_window(k, start, end, 'task')
             deleted_maints = self.clean_assignments_window(k, start, end, 'state_m')
             self.update_ret_rut(k, start, end, deleted_maints)
             errors = self.check_solution(recalculate=False, assign_missions=True,
-                                         list_tests=['resources', 'hours', 'capacity'])
+                                         list_tests=['resources', 'hours', 'capacity'],
+                                         periods = periods_to_check)
             pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
             # TODO: not sure why I have to check, I should not have empty paths
             if pattern:
                 self.apply_pattern(pattern)
+            else:
+                log.debug('Undo pattern for resource {resources} between dates {start} and {end}'.format(**change))
+                self.apply_pattern(old_pattern)
 
         return self.solution
 
@@ -189,8 +195,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                      capacity=self.get_candidate_capacity
                      )
                 options_filtered = func_options.keys_tl().intersect(errors).sorted()
-                opt = rn.choice(options_filtered)
-                change = func_options[opt](errors, sub_options)
+                if options_filtered:
+                    opt = rn.choice(options_filtered)
+                    change = func_options[opt](errors, sub_options)
+                else:
+                    log.debug(errors)
+                    change = self.get_candidate_random(sub_options)
             if big_window:
                 change = self.get_candidate_all()
             if not change:
@@ -199,7 +209,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             solution = subproblem(change, sub_options)
             if solution is None:
                 continue
-            kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
+            # kwargs = dict(assign_missions=True, list_tests=['resources', 'hours', 'capacity'])
+            kwargs = dict(assign_missions=True)
             objective, status, errors = self.analyze_solution(temperature, **kwargs)
             num_errors = errors.to_lendict().values_tl()
             num_errors = sum(num_errors)
@@ -285,9 +296,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         if error_cat is None:
             error_cat = self.check_solution(list_tests=['resources', 'hours', 'capacity']).to_lendict()
-        weights = sd.SuperDict(resources=10000, hours=1000, capacity=10000)
+        weights = sd.SuperDict(resources=1000, hours=100, capacity=1000, available=1000)
         # TODO: there is an issue with elapsed being sometimes 0 in the last period
         a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
+        if a:
+            log.error("Problem with errors: {}".format(a))
+            error_cat = error_cat.filter(['resources', 'hours', 'capacity'], check=False)
         num_errors = sum((error_cat*weights).values())
 
         # we count the number of maintenances and their distance to the end
@@ -327,6 +341,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if next_maint is None:
             # if there is no maintenance later, we do not care about time
             max_ret = self.instance.get_maintenances('max_elapsed_time')[self.M]
+            # but we do need to assume one more period not to get 0 in the last period:
+            min_ret += 1
         else:
             # if there is a maintenance later, we cannot make them too close
             max_ret = min_ret + size
@@ -342,6 +358,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         start = _next(pattern[0].period_end)
         end = _prev(pattern[-1].period)
 
+        # these cleanings do not erase the fixed states
         deleted_tasks = self.clean_assignments_window(resource, start, end, 'task')
         deleted_maints = self.clean_assignments_window(resource, start, end, 'state_m')
 
@@ -371,6 +388,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         times = ['rut']
         if modified_mants:
             times.append('ret')
+            end = self.instance.get_param('end')
         for t in times:
             for m in self.instance.get_rt_maints(t):
                 self.set_remaining_time_in_window(resource, m, start, end, t)
@@ -457,8 +475,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        # patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
-        patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
+        patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
+        # patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
         return patterns
 
     def get_pattern_from_window(self, resource, date1, date2):
@@ -475,6 +493,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         duration = maint_data['duration_periods']
         horizon_end = self.instance.get_param('end')
         affected_maints = maint_data['affects']
+        fixed_periods = self.instance.get_fixed_periods(resource=resource).take(1).to_set()
         while _start <= end:
             # iterate over maintenance periods
             updated_periods = self.update_rt_until_next_maint(resource, _start, maint, rt)
@@ -486,6 +505,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if maint_start > end:
                 # we've reached the end, no more updating needed
                 break
+            # if the maintenance was a fixed (initial) maintenance:
+            # we will set the next initial at the end of the fixed periods
+            # and continue
+            if maint_start in fixed_periods:
+                _start = _shift(max(fixed_periods), 1)
+                continue
             # if the maintenance falls inside the period: update the maintenance values
             # and continue the while
             maint_end = min(self.instance.shift_period(maint_start, duration - 1), horizon_end)
@@ -684,6 +709,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return start, end
 
     def get_subfleet_from_list(self, resources, options):
+        resources = sorted(resources)
         size = self.get_subfleet_size(options)
         extra_needed = size - len(resources)
         if extra_needed <= 0:
@@ -722,7 +748,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         periods = self.instance.get_periods()
         start, end = self.get_window_from_dates(periods, options)
         # we choose a subset of resources
-        resources = self.instance.get_resources().keys_tl().sorted()
+        resources = self.instance.get_resources().keys_tl()
         res_to_change = self.get_subfleet_from_list(resources, options)
         return sd.SuperDict(resources=res_to_change, start=start, end=end)
 
@@ -736,7 +762,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
     def get_candidate_capacity(self, errors, options):
         cap_periods = errors['capacity'].keys_tl().take(1)
         start, end = self.get_window_from_dates(cap_periods, options)
-        resources = self.instance.get_resources().keys_tl().sorted()
+        resources = self.instance.get_resources().keys_tl()
         res_to_change = self.get_subfleet_from_list(resources, options)
         return sd.SuperDict(resources=res_to_change, start=start, end=end)
 
@@ -748,7 +774,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         _dist = self.instance.get_dist_periods
         periods_cluster = errors['hours'].keys_tl().to_dict(1).vapply(sorted)
         # we choose a cluster
-        opt_probs = periods_cluster.vapply(len).to_tuplist()
+        opt_probs = periods_cluster.vapply(len).to_tuplist().sorted()
         _cluts, _probs = zip(*opt_probs)
         cluster = rn.choices(_cluts, weights=_probs, k=1)[0]
         # we choose dates
@@ -839,7 +865,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         periods = l['periods_sub']
         old_info = l['infoOld_type']
         info = l['info_type']
-        rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods_to_check=periods)
+        rem_maint_capacity = self.check_sub_maintenance_capacity(ref_compare=None, periods=periods)
         type_m = self.instance.get_maintenances('type')
 
         prevMaints_usage = \

@@ -96,26 +96,26 @@ class Experiment(object):
         return sd.SuperDict({k: v for k, v in result.items() if v})
 
     # @profile
-    def check_sub_maintenance_capacity(self, ref_compare=0, periods_to_check=None, **param):
+    def check_sub_maintenance_capacity(self, ref_compare=0, deficit_only=True, periods=None, **param):
         """
 
         :param ref_compare: if None, we return all remaining capacity.
             If not we use it to filter which to return
-        :param periods_to_check: periods to check for capacity
+        :param periods: periods to check for capacity
         :param param:
         :return: (resource, period): remaining capacity
         """
         # we get the capacity per month
         inst = self.instance
-        rem = inst.get_capacity_calendar(periods_to_check)
+        rem = inst.get_capacity_calendar(periods)
         first, last = inst.get_param('start'), inst.get_param('end')
         maintenances = inst.get_maintenances()
         types = maintenances.get_property('type')
         usage = maintenances.get_property('capacity_usage')
         all_states_tuple = self.get_states()
-        if periods_to_check is not None:
-            periods_to_check = set(periods_to_check)
-            all_states_tuple = all_states_tuple.vfilter(lambda x: x[1] in periods_to_check)
+        if periods is not None:
+            periods = set(periods)
+            all_states_tuple = all_states_tuple.vfilter(lambda x: x[1] in periods)
         else:
             all_states_tuple = all_states_tuple.vfilter(lambda x: last >= x[1] >= first)
 
@@ -143,7 +143,7 @@ class Experiment(object):
             _type = types[maint]
             rem[_type, period] -= usage[maint]
 
-        if ref_compare is None:
+        if ref_compare is None or not deficit_only:
             return rem
         return rem.vfilter(lambda x: x < ref_compare)
 
