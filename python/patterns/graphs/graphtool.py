@@ -153,11 +153,6 @@ class GraphTool(DAG):
             sample += self.iter_sample_fast(paths_iterator, max_paths, max_paths * 10)
 
         return tl.TupList(sample).vapply(lambda v: [refs_inv[vv] for vv in v])
-        # node = node1
-        # refs.keys_tl().\
-        #     vfilter(lambda v: v.period==node.period and v.assignment==node.assignment).\
-        #     vapply(lambda v: (v.rut, v.ret, v.type))
-        # node.rut, node.ret, node.type
 
     def nodes_to_patterns2(self, node1, node2, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
@@ -178,10 +173,12 @@ class GraphTool(DAG):
         sources = edges_all[:, 0]
         relevant_edge = nodes_window[sources] & nodes_window[targets]
         num_edges = np.sum(relevant_edge)
+        source = graph.vertex(refs[node1])
+        target = graph.vertex(refs[node2])
         for i in range(max_paths):
             weights.a[relevant_edge] = np.floor(arr[relevant_edge] * (1 + np.random.random(num_edges)))
-            patterns = gr.all_shortest_paths(graph, source=refs[node1], target=refs[node2], weights=weights, dag=True)
-            _paths = list(patterns)
+            pattern, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
+            _paths = [pattern]
             # log.debug("number of patterns for resource {}: {}".format(node1.resource, len(_paths)))
             sample.extend(_paths)
         if add_empty:
@@ -282,7 +279,7 @@ class GraphTool(DAG):
                                             weigths_frac[relevant_edge] +
                                             (
                                                     weights_arr[relevant_edge] *
-                                                    0.5 * np.random.random(np.sum(relevant_edge))
+                                                    np.random.random(np.sum(relevant_edge))
                                              )
                                             )
         return weights

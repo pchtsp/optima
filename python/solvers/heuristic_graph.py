@@ -71,6 +71,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :return: a solution
         """
         patterns = self.get_patterns_from_window(change, options)
+        old_patterns = {r: self.get_pattern_from_window(r, change['start'], change['end'])
+                        for r in change['resources']}
+        patterns.kvapply(lambda k, v: v.append(old_patterns[k]))
         if not patterns:
             return None
         patterns =  self.solve_repair(patterns, options)
@@ -118,7 +121,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return self.solution
 
     def get_patterns_from_window(self, change, options):
-        args = (change['start'], change['end'], options['num_max'], options.get('cutoff', 200))
+        args = (change['start'], change['end'], options['num_max'], options.get('cutoff'))
         patterns = \
             sd.SuperDict().fill_with_default(change['resources']).\
             kapply(self.get_pattern_options_from_window, *args)
@@ -460,7 +463,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
             max_cutoff = max(min_cutoff, max_cutoff)
             log.debug("min/ max cutoff: {} {}".format(min_cutoff, max_cutoff))
-            cutoff = max_cutoff + 1
+            size = max_cutoff - min_cutoff
+            cutoff = rn.choice(range(max_cutoff-size//2, max_cutoff+1))
         return dict(node1=node1, node2=dummy_node2, max_paths=num_max, cutoff=cutoff, mask=mask, **kwargs)
 
     def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
@@ -475,14 +479,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         log.debug("resource {}".format(resource))
         data = self.prepare_data_to_get_patterns(resource, date1, date2, num_max, cutoff, **kwargs)
-        patterns = self.get_graph_data(resource).nodes_to_patterns2(**data)
-        # patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
+        patterns = self.get_graph_data(resource).nodes_to_patterns(**data)
+        if rn.random() > 0.1:
+            data['max_paths'] = 50
+            data['add_empty'] = not data.get('add_empty', True)
+            patterns += self.get_graph_data(resource).nodes_to_patterns2(**data)
         return patterns
 
-    def get_pattern_from_window(self, resource, date1, date2):
+    def get_pattern_from_window(self, resource, start, end):
         _range = self.instance.get_periods_range
         nodes = \
-            tl.TupList([self.date_to_state(resource, p) for p in _range(date1, date2)]).\
+            tl.TupList([self.date_to_state(resource, p) for p in _range(start, end)]).\
                 vapply(lambda v: nd.Node.from_state(self.instance, resource, state=v))
         return nodes.unique2().sorted(key=lambda k: k.period)
 
