@@ -106,6 +106,7 @@ class MaintenanceFirst(heur.GreedyByMission):
             if objective > self.best_objective and rn.random() < 0.01:
                 self.set_solution(self.best_solution)
                 objective = self.prev_objective = self.best_objective
+                self.previous_solution = self.copy_solution()
                 log.info('back to best solution: {}'.format(self.best_objective))
 
             if status in self.status_worse:

@@ -98,23 +98,29 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             # we do not really solve it, we only prepare everything
             # the model, the variables, etc.
             self.big_mip.solve(options_m)
+            options_m['mip_start'] = True
+            options_m['do_not_solve'] = False
 
         self.big_mip.set_solution(self.solution.data)
         self.big_mip.fill_initial_solution()
+        # self.big_mip.fix_variables(['start_T', 'start_M'])
+        # for v in self.big_mip.start_M.values():
+        #     v.bounds(0, 1)
+        # for v in self.big_mip.start_T.values():
+        #     v.bounds(0, 1)
+
         m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm')
         t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't')
         to_fix = m_to_fix + t_to_fix
         conts = m_constraints + t_constraints
+
         for v in to_fix:
             v.fixValue()
 
         for c in conts:
             self.big_mip.model += c
 
-        options_m['mip_start'] = True
-        options_m['do_not_solve'] = False
         config = conf.Config(options_m)
-
         result = config.solve_model(self.big_mip.model)
         # self.big_mip.model.writeLP(filename=options['path'] + 'formulation.lp')
         # self.callSolver(lp)
@@ -129,8 +135,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.big_mip.model.constraints.pop(c[1], None)
         # self.big_mip.start_T.vapply(pl.value).vfilter(lambda v: v > 0.5)
         # self.big_mip.start_M.vapply(pl.value).vfilter(lambda v: v > 0.5)
-        # dict2 = sd.SuperDict(self.big_mip.slack_vts).vapply(pl.value).vfilter(lambda v: v)
-        # self.check_solution().vapply(len)
+        # sd.SuperDict(self.big_mip.slack_vts).vapply(pl.value).vfilter(lambda v: v)
+        # sd.SuperDict(self.big_mip.slack_ts).vapply(pl.value).vfilter(lambda v: v)
+        # sd.SuperDict(self.big_mip.slack_kts_h).vapply(pl.value).vfilter(lambda v: v)
+        # self.check_solution()
         if result:
             self.solution = self.big_mip.get_solution()
             for r in change['resources']:
@@ -278,6 +286,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if objective > self.best_objective and rn.random() < 0.01:
                 self.set_solution(self.best_solution)
                 objective = self.prev_objective = self.best_objective
+                self.previous_solution = self.copy_solution()
                 log.info('back to best solution: {}'.format(self.best_objective))
 
             if status in self.status_worse:
@@ -396,15 +405,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             _period_to_look = _shift(next_maint, -1)
         ret_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'ret', maint=self.M)
         rut_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'rut', maint=self.M)
-        min_ret = ret - ret_cycle
+        # but we do need to assume one more period not to get 0 in the last period:
+        min_ret = ret - ret_cycle + 1
         if next_maint is None:
             # if there is no maintenance later, we do not care about time
             max_ret = self.instance.get_maintenances('max_elapsed_time')[self.M]
-            # but we do need to assume one more period not to get 0 in the last period:
-            min_ret += 1
         else:
             # if there is a maintenance later, we cannot make them too close
-            max_ret = min_ret + size
+            max_ret = min_ret + size - 1
         min_rut = rut - rut_cycle
         _func = lambda node: node.rut[self.M] >= min_rut and \
                              min_ret <= node.ret[self.M] <= max_ret

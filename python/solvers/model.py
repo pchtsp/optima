@@ -106,10 +106,14 @@ class Model(exp.Experiment):
 
         # slack variables:
         # we add some noise on periods to break symmetries.
-        price_slack_kts = {(k, t, s): (p_s[s]+1 - 0.001*p_t[t])*500 for k, t, s in l['kts']}
-        price_slack_ts = {(t, s): (p_s[s]+1 - 0.001*p_t[t])*30000 for t, s in l['ts']}
-        price_slack_kts_h = {(k, t, s): (p_s[s] + 2 - 0.001*p_t[t])**2 * 10 for k, t, s in l['kts']}
-        price_slack_vts = {(v, t, s): (p_s[s] + 1 - 0.001 * p_t[t])*10000 for v, t, s in l['vts']}
+        # price_slack_kts = {(k, t, s): (p_s[s]+1 - 0.001*p_t[t])*500 for k, t, s in l['kts']}
+        # price_slack_ts = {(t, s): (p_s[s]+1 - 0.001*p_t[t])*30000 for t, s in l['ts']}
+        # price_slack_kts_h = {(k, t, s): (p_s[s] + 2 - 0.001*p_t[t])**2 * 10 for k, t, s in l['kts']}
+        # price_slack_vts = {(v, t, s): (p_s[s] + 1 - 0.001 * p_t[t])*10000 for v, t, s in l['vts']}
+        price_slack_kts = {(k, t, s): 1000 for k, t, s in l['kts']}
+        price_slack_ts = {(t, s): 30000 for t, s in l['ts']}
+        price_slack_kts_h = {(k, t, s): 100 for k, t, s in l['kts']}
+        price_slack_vts = {(v, t, s): 20000 for v, t, s in l['vts']}
 
         slack_kts_h, slack_ts, slack_kts, slack_vts = {}, {}, {}, {}
         for tup in l['kts']:
@@ -678,8 +682,6 @@ class Model(exp.Experiment):
         min_elapsed_2M = {r: min_elapsed for r in resources}
         max_elapsed_2M = {r: max_elapsed for r in resources}
 
-        ret_init = self.instance.get_initial_state("elapsed", maint=self.M)
-        ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
         kt = sd.SuperDict(self.instance.get_cluster_constraints()['num']).keys_l()
 
         """
@@ -703,6 +705,16 @@ class Model(exp.Experiment):
         at_mission = tl.TupList((a, t) for (a, s, t) in at_mission_m_horizon)  # Fixed mission assignments.
         at_maint = self.instance.get_fixed_maintenances()  # Fixed maintenance assignments.
         at_free = tl.TupList((a, t) for (a, t) in at if (a, t) not in list(at_maint + at_mission))
+
+        # 2020-06-04: we need to add to "ret" the number of periods of the initial fixed maintenances
+        fixed_maints_per_res = at_maint.\
+            vfilter(lambda x: first_period <= x[1] <= last_period).\
+            to_dict(1).vapply(len)
+
+        ret_init = {k: v + fixed_maints_per_res.get(k, 0)
+                    for k, v in self.instance.get_initial_state("elapsed", maint=self.M).items()}
+        ret_init_adjusted = {k: v - max_elapsed + min_elapsed
+                             for k, v in ret_init.items()}
 
         # we update the possibilities of starting a maintenance
         # depending on the rule of minimal time between maintenance
