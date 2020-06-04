@@ -5,6 +5,12 @@ import solvers.heuristics as heur
 import solvers.model as mdl
 import solvers.config as conf
 import solvers.heuristics_maintfirst as heur_maint
+import solvers.model_fixing as mdl_f
+
+# # TODO: take this out:
+# import importlib
+# importlib.reload(mdl_f)
+# importlib.reload(mdl)
 
 import package.solution as sol
 import package.instance as inst
@@ -32,6 +38,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         heur.GreedyByMission.__init__(self, instance, solution)
         self.instance.data['aux']['graphs'] = sd.SuperDict()
         self.solution_store = tl.TupList()
+        self.big_mip = None
 
     def initialise_graphs(self, options):
         path_cache = options.get('cache_graph_path', '')
@@ -79,6 +86,57 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         patterns =  self.solve_repair(patterns, options)
         for p in patterns:
             self.apply_pattern(p)
+        return self.solution
+
+    def sub_problem_classic_mip(self, change, options):
+        options_m = dict(options)
+        if not self.big_mip:
+            self.big_mip = mdl.Model(self.instance)
+            options_m['calculate_domains'] = True
+            options_m['mip_start'] = False
+            options_m['do_not_solve'] = True
+            # we do not really solve it, we only prepare everything
+            # the model, the variables, etc.
+            self.big_mip.solve(options_m)
+
+        self.big_mip.set_solution(self.solution.data)
+        self.big_mip.fill_initial_solution()
+        m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm')
+        t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't')
+        to_fix = m_to_fix + t_to_fix
+        conts = m_constraints + t_constraints
+        for v in to_fix:
+            v.fixValue()
+
+        for c in conts:
+            self.big_mip.model += c
+
+        options_m['mip_start'] = True
+        options_m['do_not_solve'] = False
+        config = conf.Config(options_m)
+
+        result = config.solve_model(self.big_mip.model)
+        # self.big_mip.model.writeLP(filename=options['path'] + 'formulation.lp')
+        # self.callSolver(lp)
+        # self.buildSolverModel(lp)
+        # lp.solverModel.variables.add(obj=obj, lb=lb, ub=ub, types=ctype,
+        #                        names=colnames)
+
+        # unfix everything!
+        for v in to_fix:
+            v.bounds(0, 1)
+        for c in conts:
+            self.big_mip.model.constraints.pop(c[1], None)
+        # self.big_mip.start_T.vapply(pl.value).vfilter(lambda v: v > 0.5)
+        # self.big_mip.start_M.vapply(pl.value).vfilter(lambda v: v > 0.5)
+        # dict2 = sd.SuperDict(self.big_mip.slack_vts).vapply(pl.value).vfilter(lambda v: v)
+        # self.check_solution().vapply(len)
+        if result:
+            self.solution = self.big_mip.get_solution()
+            for r in change['resources']:
+                self.set_remaining_usage_time(time='rut', maint='M', resource=r)
+                self.set_remaining_usage_time(time='ret', maint='M', resource=r)
+
         return self.solution
 
     def sub_problem_shortest(self, change, options):
@@ -167,10 +225,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                             timeLimit=timeLimit_initial)
         options_fs = {**options_repair, **initial_opts}
         if self.solution is None or max_iters_initial:
-            first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
-            first_solve.get_objective_function = self.get_objective_function
-            first_solve.solve(options_fs)
-            self.set_solution(first_solve.best_solution)
+            ch = self.get_candidate_all()
+            self.sub_problem_shortest(ch, options_fs)
         elif max_patterns_initial:
             ch = self.get_candidate_all()
             patterns = self.get_patterns_from_window(ch, options_fs)
@@ -227,8 +283,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if status in self.status_worse:
                 temperature *= cooling
 
-            # self.get_objective_function()
-
             clock = time.time()
             time_now = clock - time_init
             if solution_store:
@@ -247,7 +301,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         pass
 
     def choose_subproblem(self, options):
-        sb_func = dict(mip=self.sub_problem_mip, short=self.sub_problem_shortest)
+        sb_func = dict(mip=self.sub_problem_mip,
+                       short=self.sub_problem_shortest,
+                       classic_mip=self.sub_problem_classic_mip)
         subproblem_choice = options.get('subproblem')
         if not subproblem_choice:
             return self.sub_problem_mip, options
@@ -289,7 +345,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # data.update(sink_source)
         # self.instance.data['aux']['graphs'] = data
 
-    def get_objective_function(self, error_cat=None):
+    def get_objective_function(self, errs=None):
         """
         Calculates the objective function for the current solution.
 
@@ -297,15 +353,15 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         :return: objective function
         :rtype: int
         """
-        if error_cat is None:
-            error_cat = self.check_solution(list_tests=['resources', 'hours', 'capacity']).to_lendict()
-        weights = sd.SuperDict(resources=1000, hours=100, capacity=1000, available=1000)
-        # TODO: there is an issue with elapsed being sometimes 0 in the last period
-        a = {'elapsed', 'usage', 'dist_maints'} & error_cat.keys()
+        if errs is None:
+            errs = self.check_solution(list_tests=['resources', 'hours', 'capacity'])
+        error_sum = errs.vapply(lambda v: sum(v.values())).vapply(abs)
+        weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000)
+        a = {'elapsed', 'usage', 'dist_maints'} & error_sum.keys()
         if a:
             log.error("Problem with errors: {}".format(a))
-            error_cat = error_cat.filter(['resources', 'hours', 'capacity'], check=False)
-        num_errors = sum((error_cat*weights).values())
+            error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
+        sum_errors = sum((error_sum*weights).values())
 
         # we count the number of maintenances and their distance to the end
         first, last = self.instance.get_first_last_period()
@@ -315,7 +371,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 take(1). \
                 vapply(_dist, last)
 
-        return num_errors * 1000 + sum(maintenances)
+        return sum_errors + sum(maintenances)
 
     def filter_node2(self, node2):
         """

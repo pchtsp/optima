@@ -19,7 +19,7 @@ class MaintenanceFirst(heur.GreedyByMission):
 
         pass
 
-    def get_objective_function(self, error_cat=None):
+    def get_objective_function(self, errs=None):
         """
         Calculates the objective function for the current solution.
 
@@ -27,8 +27,9 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return: objective function
         :rtype: int
         """
-        if error_cat is None:
-            error_cat = self.check_solution().to_lendict()
+        if errs is None:
+            errs = self.check_solution()
+        error_cat = errs.to_lendict()
         num_errors = sum(error_cat.values())
         #  we add to num_errors the number of non empty assignments.
         all_maints = self.solution.data['state_m']

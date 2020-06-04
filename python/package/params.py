@@ -85,28 +85,36 @@ OPTIONS = {
     # heuristic_graph params
     , 'multiproc_patterns': 0
     , 'multiproc_problems': False
-    , 'max_iters_initial': 0
     , 'max_patterns_initial': 50
+    , 'max_iters_initial': 1
     , 'timeLimit_initial': 60
     , 'big_window': 0
     , 'num_max': 20
     , 'timeLimit_cycle': 20
     , 'cache_graph_path': None
-    , 'cutoff': None
     , 'solution_store': False
     , 'subproblem': {
         'short': {
             'max_candidates': 1
-            , 'min_window_size': 50
-            , 'max_window_size': _periods
+            , 'min_window_size': 60
+            , 'max_window_size': 90
             , 'weight': 100
         }
         ,'mip': {
-            'min_candidates': 10*_tasks
-            , 'max_candidates': 15*_tasks
-            , 'min_window_size': 5
-            , 'max_window_size': 20
+            'min_candidates': 30
+            , 'max_candidates': 60
+            , 'min_window_size': 20
+            , 'max_window_size': 40
+            , 'weight': 0
+        }
+        ,'classic_mip': {
+            'min_candidates': 30
+            , 'max_candidates': 60
+            , 'min_window_size': 20
+            , 'max_window_size': 40
             , 'weight': 1
+            , 'solver': 'CPLEX_PY'
+            , 'timeLimit': 30
         }
     }
     # MIP params:

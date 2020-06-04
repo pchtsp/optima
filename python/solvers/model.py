@@ -30,6 +30,7 @@ class Model(exp.Experiment):
         self.slack_kts_h = {}
         self.slack_kts = {}
         self.slack_ts = {}
+        self.slack_vts = {}
         self.model = None
 
     def solve(self, options):
@@ -90,11 +91,13 @@ class Model(exp.Experiment):
         # we save all variables as part in the object.
         # binary:
         # mission assignment
-        self.start_T = start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1,
+        start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1,
                                                      cat=normally_integer)
+        self.start_T = start_T = sd.SuperDict(start_T)
         # maintenance cycle
-        self.start_M = start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1,
+        start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1,
                                                      cat=normally_integer)
+        self.start_M = start_M = sd.SuperDict(start_M)
 
         # numeric:
         # remaining flight hours per period
@@ -102,12 +105,13 @@ class Model(exp.Experiment):
         p_s = {s: p for p, s in enumerate(l['slots'])}
 
         # slack variables:
-        # we add some noice on periods to break symmetries.
-        price_slack_kts = {(k, t, s): (p_s[s]+1 - 0.001*p_t[t])*50 for k, t, s in l['kts']}
-        price_slack_ts = {(t, s): (p_s[s]+1 - 0.001*p_t[t])*1000 for t, s in l['ts']}
-        price_slack_kts_h = {(k, t, s): (p_s[s] + 2 - 0.001*p_t[t])**2 for k, t, s in l['kts']}
+        # we add some noise on periods to break symmetries.
+        price_slack_kts = {(k, t, s): (p_s[s]+1 - 0.001*p_t[t])*500 for k, t, s in l['kts']}
+        price_slack_ts = {(t, s): (p_s[s]+1 - 0.001*p_t[t])*30000 for t, s in l['ts']}
+        price_slack_kts_h = {(k, t, s): (p_s[s] + 2 - 0.001*p_t[t])**2 * 10 for k, t, s in l['kts']}
+        price_slack_vts = {(v, t, s): (p_s[s] + 1 - 0.001 * p_t[t])*10000 for v, t, s in l['vts']}
 
-        slack_kts_h, slack_ts, slack_kts = {}, {}, {}
+        slack_kts_h, slack_ts, slack_kts, slack_vts = {}, {}, {}, {}
         for tup in l['kts']:
             k, t, s = tup
             slack_kts[tup] = pl.LpVariable(name="slack_kts_{}".format(tup), lowBound=0,
@@ -120,10 +124,15 @@ class Model(exp.Experiment):
             t, s = tup
             slack_ts[tup] = pl.LpVariable(name="slack_ts_{}".format(tup), lowBound=0,
                                           upBound=ub['slack_ts'][s], cat=normally_continuous)
+        for tup in l['vts']:
+            k, t, s = tup
+            slack_vts[tup] = pl.LpVariable(name="slack_vts_{}".format(tup), lowBound=0,
+                                           upBound=ub['slack_vts'][s], cat=normally_continuous)
 
         self.slack_ts = slack_ts
         self.slack_kts_h = slack_kts_h
         self.slack_kts = slack_kts
+        self.slack_vts = slack_vts
 
         slack_vt = {tup: 0 for tup in l['vt']}
         slack_at = {tup: 0 for tup in l['at']}
@@ -152,9 +161,10 @@ class Model(exp.Experiment):
 
         objective = \
             pl.lpSum(price_assign[a, v] * task for (a, v, t, t2), task in start_T.items()) + \
-            + 10*pl.lpSum(price_slack_kts[_tup] * slack for _tup, slack in slack_kts.items()) \
-            + 10*pl.lpSum(price_slack_kts_h[_tup] * slack for _tup, slack in slack_kts_h.items()) \
-            + 10*pl.lpSum(price_slack_ts[_tup] * slack for _tup, slack in slack_ts.items()) \
+            + pl.lpSum(price_slack_kts[_tup] * slack for _tup, slack in slack_kts.items()) \
+            + pl.lpSum(price_slack_kts_h[_tup] * slack for _tup, slack in slack_kts_h.items()) \
+            + pl.lpSum(price_slack_ts[_tup] * slack for _tup, slack in slack_ts.items()) \
+            + pl.lpSum(price_slack_vts[_tup] * slack for _tup, slack in slack_vts.items()) \
             + pl.lpSum(start_M[_tup] * start_M_p[_tup] for _tup in l['att_maints'])\
             + 1000000 * pl.lpSum(slack_vt.values()) \
             + 1000 * pl.lpSum(slack_at.values())
@@ -185,7 +195,8 @@ class Model(exp.Experiment):
 
         # num resources:
         for (v, t), a_list in l['a_vt'].items():
-            model += pl.lpSum(start_T[a, v, t1, t2] for a in a_list for (t1, t2) in l['tt2_avt'][a, v, t]) \
+            model += pl.lpSum(start_T[a, v, t1, t2] for a in a_list for (t1, t2) in l['tt2_avt'][a, v, t]) + \
+                     pl.lpSum(slack_vts[v, t, s] for s in l['slots']) \
                      >= requirement[v] - slack_vt.get((v, t), 0)
 
         # at the beginning of the planning horizon, we may have fixed assignments of tasks.
@@ -487,6 +498,7 @@ class Model(exp.Experiment):
         ret_total = max_elapsed_time * num_resources
         rut_total = max_used_time * num_resources
         c_cand = self.instance.get_cluster_candidates()
+        v_num = max(self.instance.get_tasks('num_resource').values())
 
         ub = {
             'ret': math.floor(max_elapsed_time),
@@ -502,6 +514,10 @@ class Model(exp.Experiment):
                              for p, s in enumerate(l['slots'])
                              for k, cands in c_cand.items()}
         ub['slack_ts'] = {s: (p + 1) * 2 for p, s in enumerate(l['slots'])}
+        ub['slack_vts'] = {s: (p + 1) * 2 if s != 2 else v_num
+                           for p, s in enumerate(l['slots'])
+                           }
+
 
         return ub
 
@@ -825,6 +841,7 @@ class Model(exp.Experiment):
         k = tl.TupList(kt).take(0).unique2()
         kts = [(k, t, s) for k, t in kt for s in slots]
         ts = [(t, s) for t in periods for s in slots]
+        vts = [(v, t, s) for v, t in vt for s in slots]
 
         l_new = {
          'periods'          :  periods
@@ -862,6 +879,7 @@ class Model(exp.Experiment):
         , 'k'               : k
         , 'kts'             : kts
         , 'ts'              : ts
+        , 'vts'             : vts
         , 'at_maint'        : at_maint
         , 'att_cycles'      : att_cycles
         , 'cycles'          : cycles

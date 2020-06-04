@@ -597,7 +597,7 @@ class GreedyByMission(test.Experiment):
         errs = self.check_solution(recalculate=False, **kwargs)
         error_cat = errs.to_lendict()
         log.debug("errors: {}".format(error_cat))
-        objective = self.get_objective_function(error_cat)
+        objective = self.get_objective_function(errs)
 
         # status
         # 0: best,
@@ -638,9 +638,8 @@ class GreedyByMission(test.Experiment):
         """
         self.previous_solution = self.best_solution = self.solution.data
         errs = self.check_solution()
-        error_cat = errs.to_lendict()
         self.prev_errs = errs
-        self.prev_objective = self.get_objective_function(error_cat)
+        self.prev_objective = self.get_objective_function(errs)
         self.best_objective = self.prev_objective
 
     @staticmethod
