@@ -98,8 +98,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             # we do not really solve it, we only prepare everything
             # the model, the variables, etc.
             self.big_mip.solve(options_m)
-            options_m['mip_start'] = True
-            options_m['do_not_solve'] = False
 
         self.big_mip.set_solution(self.solution.data)
         self.big_mip.fill_initial_solution()
@@ -140,11 +138,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # sd.SuperDict(self.big_mip.slack_kts_h).vapply(pl.value).vfilter(lambda v: v)
         # self.check_solution()
         if result:
+            backup = self.copy_solution()
             self.solution = self.big_mip.get_solution()
             for r in change['resources']:
                 self.set_remaining_usage_time(time='rut', maint='M', resource=r)
                 self.set_remaining_usage_time(time='ret', maint='M', resource=r)
-
+            # The model does not fill ret and the rut may be slightly different (fractions)
+            # so, I need to
+            rest = self.instance.get_resources().keys() - set(change['resources'])
+            for r in rest:
+                for t in ['rut', 'ret']:
+                    self.solution.data['aux'][t]['M'][r] = backup['aux'][t]['M'][r]
         return self.solution
 
     def sub_problem_shortest(self, change, options):

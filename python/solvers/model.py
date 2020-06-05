@@ -351,10 +351,16 @@ class Model(exp.Experiment):
 
         first = self.instance.get_param('start')
         last = self.instance.get_param('end')
+        ub = self.get_variable_bounds()
 
         start_M = self.start_M
         start_T = self.start_T
         rut = self.rut
+        # slack_kts = self.slack_kts
+        slack_ts = self.slack_ts
+        slack_kts_h = self.slack_kts_h
+        slack_vts = self.slack_vts
+
 
         _next = self.instance.get_next_period
         _prev = self.instance.get_prev_period
@@ -415,6 +421,38 @@ class Model(exp.Experiment):
                 if (a, t) in rut:
                     rut[a, t].setInitialValue(v, check=False)
 
+        def fill_slack_variable(errors, variable, name):
+            # initialize
+            for k, v in variable.items():
+                v.setInitialValue(0, check=False)
+            # fill with errors
+            for k, v in errors.items():
+                remaining = abs(v)
+                for s in l['slots']:
+                    try:
+                        _max = ub[name][s]
+                    except KeyError:
+                        _max = ub[name][k[0], s]
+                    if isinstance(k, tuple):
+                        key = (*k, s)
+                    else:
+                        key = (k, s)
+                    if remaining <= _max:
+                        variable[key].setInitialValue(float(remaining), check=False)
+                        break
+                    variable[key].setInitialValue(float(_max), check=False)
+                    remaining -= _max
+
+        check = self.check_solution(list_tests=['hours', 'resources', 'capacity'])
+        if 'capacity' in check:
+            check['capacity'] = {k[1]: v for k, v in check['capacity'].items()}
+        slack_vars = dict(hours=(slack_kts_h, 'slack_kts_h'),
+                          resources=(slack_vts, 'slack_vts'),
+                          capacity=(slack_ts, 'slack_ts'))
+        for k, v in slack_vars.items():
+            fill_slack_variable(errors=check.get(k, {}),
+                                variable=v[0],
+                                name=v[1])
         return True
 
     def fix_variables(self, vars_names):
@@ -460,13 +498,13 @@ class Model(exp.Experiment):
         fixed_maints_horizon = l['at_maint'].vfilter(lambda x: first_period <= x[1] <= last_period)
         _state = {tup: {self.M: 1} for tup in fixed_maints_horizon}
         _state.update({(a, t2): {self.M: 1} for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
-
+        ruts = sd.SuperDict.from_dict(rut).vapply(pl.value).vapply(round)
         solution_data_pre = {
             'state_m': _state,
             'task': _task,
             'aux': {
                 'start': _start,
-                'rut': self.vars_to_dicts(rut),
+                'rut': sd.SuperDict(M=ruts),
                 'rem': {},
                 'slack_kts_h': self.vars_to_dicts(slack_kts_h),
                 'slack_kts': self.vars_to_dicts(slack_kts),
