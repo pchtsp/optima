@@ -92,12 +92,8 @@ class DAG(object):
         return \
             nodes_ady.keys_tl().\
             vfilter(lambda v: v.assignment is not None).\
-            vapply(lambda v: (v.period, v.period_end, v.assignment, v.type, v)).\
-            to_dict(result_col=4).list_reverse().vapply(lambda v: v[0]).\
-            vapply(lambda v: dict(instance=self.instance, resource=self.resource,
-                                  period=v[0], period_end=v[1], assignment=v[2],
-                                  rut=None, ret=None, type=v[3])).\
-                vapply(lambda v: [nd.Node(**v)])
+            to_dict(None).\
+            kvapply(lambda k, v: [nd.Node.from_node(node=k, rut=None, ret=None)])
 
     def to_file(self, path):
         pass

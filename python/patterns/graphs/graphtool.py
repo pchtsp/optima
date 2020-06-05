@@ -18,25 +18,33 @@ import itertools
 class GraphTool(DAG):
     # TODO: only create a graph per aircraft type to reuse some nodes??
 
-    def get_create_node(self, node):
-        try:
-            return self.refs[node]
-        except KeyError:
-            v = self.g.add_vertex()
-            self.refs[node] = int(v)
-            return v
+    # def get_create_node(self, node):
+    #     try:
+    #         return self.refs[node]
+    #     except KeyError:
+    #         v = self.g.add_vertex()
+    #         self.refs[node] = int(v)
+    #         return v
 
     def __init__(self, instance: inst.Instance, resource):
         super().__init__(instance, resource)
         nodes_ady = self.g
         self.g = gr.Graph()
-        self.refs = sd.SuperDict()
-        for n, n2_list in nodes_ady.items():
-            v1 = self.get_create_node(n)
-            for n2 in n2_list:
-                v2 = self.get_create_node(n2)
-                e = self.g.add_edge(v1, v2, add_missing=False)
+        edges = nodes_ady.to_tuplist()
+        nodes = (edges.take(0) + edges.take(1)).unique2()
+        vertices = self.g.add_vertex(len(nodes))
+        self.refs = {node: int(v) for node, v in zip(nodes, vertices)}
+        self.refs = sd.SuperDict(self.refs)
+        edges_list = edges.vapply(lambda v: (self.refs[v[0]], self.refs[v[1]]))
+        self.g.add_edge_list(edges_list)
         self.refs_inv = self.refs.reverse()
+
+        # for n, n2_list in nodes_ady.items():
+        #     v1 = self.get_create_node(n)
+        #     for n2 in n2_list:
+        #         v2 = self.get_create_node(n2)
+        #         e = self.g.add_edge(v1, v2, add_missing=False)
+
 
         # delete nodes with infinite distance to sink:
         self.g.set_reversed(is_reversed=True)
