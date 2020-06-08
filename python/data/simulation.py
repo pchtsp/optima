@@ -160,14 +160,14 @@ def generate_resource_capacites(data_input, res_types):
 
     d_tasks = data_input['tasks']
     # we initialize the capacities with the types of resources
-    res_capacities = sd.SuperDict({k: {v} for k, v in res_types.items()})
+    res_capacities = sd.SuperDict({k: {str(v)} for k, v in res_types.items()})
     # we want to add the special capacities to only some resources.
     # we do this by iterating over tasks and trying to complete the partially able resources.
     # We will start with the tasks that demand the most capacities
     task_content = sorted(d_tasks.items(), key=lambda x: - len(x[1]['capacities']))
     for _task, contents in task_content:
         _capacities = set(contents['capacities'])
-        _t_type = contents['type_resource']
+        _t_type = str(contents['type_resource'])
         _resources = contents['num_resource']
         # we filter resources that have the task's type
         _res_possible = res_capacities.clean(func=lambda x: _t_type in x)
@@ -286,7 +286,7 @@ def generate_tasks(data_input):
             t_end[task] = aux.get_prev_month(date)
             task += 1
 
-    t_capacites = {k: {v} for k, v in t_type.items()}
+    t_capacites = {k: {str(v)} for k, v in t_type.items()}
     optionals = list(st.ascii_uppercase)[::-1]
     for _task in t_capacites:
         if rn.random() < perc_add_capacity:

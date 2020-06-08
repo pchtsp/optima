@@ -17,6 +17,7 @@ import package.instance as inst
 
 import patterns.graphs as gg
 import patterns.node as nd
+import patterns.graphs.graphtool as gt
 
 import data.data_input as di
 
@@ -40,7 +41,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.solution_store = tl.TupList()
         self.big_mip = None
 
-    def initialise_graphs(self, options):
+    def initialise_graphs_old(self, options):
         path_cache = options.get('cache_graph_path', '')
         if path_cache and os.path.exists(path_cache):
             self.import_graph_data(path_cache)
@@ -67,6 +68,36 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.export_graph_data(path_cache)
         return
 
+    def initialise_graphs(self, options):
+        # TODO: fixed_stats PROBABLY do no harm. but I haven't checked that
+        multiproc = options['multiprocess']
+        res_meta_clusters = \
+            self.instance.get_resources('capacities'). \
+                vapply(sorted).vapply(tuple)
+        self.instance.data['aux']['res_mc'] = res_meta_clusters
+        meta_clusters = res_meta_clusters.vapply(lambda v: [v]).list_reverse()
+        if not multiproc:
+            for mc, resources in meta_clusters.items():
+                log.debug('Creating graph for mc: {}'.format(mc))
+                graph_data = gt.generate_graph_mcluster(self.instance, resources)
+                self.instance.data['aux']['graphs'][mc] = graph_data
+                # for k, v in graph_data.items():
+                #     self.instance.data['aux']['graphs'][k] = v
+            return
+        results = sd.SuperDict()
+        _data = sd.SuperDict()
+        with multi.Pool(processes=multiproc) as pool:
+            for mc, resources in meta_clusters.items():
+                _instance = inst.Instance.from_instance(self.instance)
+                results[mc] = pool.apply_async(gt.generate_graph_mcluster, [_instance, resources])
+            for mc, result in results.items():
+                _data[mc] = result.get(timeout=10000)
+            self.instance.data['aux']['graphs'] = _data
+        # for mc, resources in meta_clusters.items():
+        #     for r in resources:
+        #         self.instance.data['aux']['graphs'][r] = _data[mc][r]
+        return
+
     def sub_problem_mip(self, change, options):
         """
         always two or three phases:
@@ -84,8 +115,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if not patterns:
             return None
         patterns =  self.solve_repair(patterns, options)
-        for p in patterns:
-            self.apply_pattern(p)
+        for r, p in patterns.items():
+            self.apply_pattern(p, r)
         return self.solution
 
     def sub_problem_classic_mip(self, change, options):
@@ -183,10 +214,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
             # TODO: not sure why I have to check, I should not have empty paths
             if pattern:
-                self.apply_pattern(pattern)
+                self.apply_pattern(pattern, k)
             else:
                 log.debug('Undo pattern for resource {resources} between dates {start} and {end}'.format(**change))
-                self.apply_pattern(old_pattern)
+                self.apply_pattern(old_pattern, k)
 
         return self.solution
 
@@ -243,8 +274,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             ch = self.get_candidate_all()
             patterns = self.get_patterns_from_window(ch, options_fs)
             patterns = self.solve_repair(patterns, options_fs)
-            for p in patterns:
-                self.apply_pattern(p)
+            for res, p in patterns.items():
+                self.apply_pattern(p, res)
 
         # initialise solution status
         self.initialise_solution_stats()
@@ -326,7 +357,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return sb_func[choice], {**options, **subproblem_choice[choice]}
 
     def get_graph_data(self, resource):
-        return self.instance.data['aux']['graphs'][resource]
+        mc = self.instance.data['aux']['res_mc'][resource]
+        return self.instance.data['aux']['graphs'][mc]
 
     def export_graph_data(self, path):
         instance = self.instance
@@ -335,28 +367,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
     def import_graph_data(self, path):
         raise NotImplementedError("Needs to be adapted to graph from_file")
-        # instance = self.instance
-        # resources = self.instance.get_resources()
-        # source = resources.kapply(lambda k: nd.get_source_node(instance, k))
-        # sink = resources.kapply(lambda k: nd.get_sink_node(instance, k))
-        # sink_source = \
-        #     sd.SuperDict(source=source, sink=sink).\
-        #     to_dictup().\
-        #     to_tuplist().\
-        #     to_dict(result_col=2, indices=[1, 0], is_list=False).\
-        #     to_dictdict()
-        # data = \
-        #     resources.\
-        #     kapply(lambda k: cp.from_file(path=path, resource=k))
-        # format_node = lambda res, v: sd.SuperDict(v)._update(dict(instance=instance, resource=res))
-        # for res in resources:
-        #     keys = tl.TupList(data[res]['refs_inv']).take(0)
-        #     values = tl.TupList(data[res]['refs_inv']).take(1).vapply(lambda v: format_node(res, v)).vapply(lambda v: nd.Node(**v))
-        #     data[res]['refs_inv'] = sd.SuperDict(zip(keys, values))
-        #     data[res]['refs'] = sd.SuperDict(zip(values, keys))
-        #
-        # data.update(sink_source)
-        # self.instance.data['aux']['graphs'] = data
 
     def get_objective_function(self, errs=None):
         """
@@ -386,29 +396,29 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         return sum_errors + sum(maintenances)
 
-    def filter_node2(self, node2):
+    def filter_node2(self, node2, resource):
         """
 
         :param node2: node2 of candidate
         :return: a function that returns True if a node complies with node2 rut and ret constraints
         """
-        rut = self.get_remainingtime(node2.resource, node2.period_end, 'rut', maint=self.M)
+        rut = self.get_remainingtime(resource, node2.period_end, 'rut', maint=self.M)
         if rut is None:
             # it could be we are at the dummy node at the end.
             # here, we would not care about filtering
             return None
-        ret = self.get_remainingtime(node2.resource, node2.period_end, 'ret', maint=self.M)
+        ret = self.get_remainingtime(resource, node2.period_end, 'ret', maint=self.M)
         first, last = self.instance.get_first_last_period()
         _shift = self.instance.shift_period
         size = self.instance.get_maintenances('elapsed_time_size')[self.M]
-        next_maint = self.get_next_maintenance(node2.resource, _shift(node2.period_end, 1), {'M'})
+        next_maint = self.get_next_maintenance(resource, _shift(node2.period_end, 1), {'M'})
         if next_maint is None:
             _period_to_look = last
         else:
             # If there is a next maintenances, we filter patterns depending on the last rut
             _period_to_look = _shift(next_maint, -1)
-        ret_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'ret', maint=self.M)
-        rut_cycle = self.get_remainingtime(node2.resource, _period_to_look, 'rut', maint=self.M)
+        ret_cycle = self.get_remainingtime(resource, _period_to_look, 'ret', maint=self.M)
+        rut_cycle = self.get_remainingtime(resource, _period_to_look, 'rut', maint=self.M)
         # but we do need to assume one more period not to get 0 in the last period:
         min_ret = ret - ret_cycle + 1
         if next_maint is None:
@@ -422,8 +432,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                              min_ret <= node.ret[self.M] <= max_ret
         return _func
 
-    def apply_pattern(self, pattern):
-        resource = pattern[0].resource
+    def apply_pattern(self, pattern, resource):
         _next = self.instance.get_next_period
         _prev = self.instance.get_prev_period
         start = _next(pattern[0].period_end)
@@ -439,9 +448,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         added_tasks = tl.TupList()
         for node in pattern[1:-1]:
             if node.type == nd.TASK_TYPE:
-                added_tasks += self.apply_task(node)
+                added_tasks += self.apply_task(node, resource)
             elif node.type == nd.MAINT_TYPE:
-                added_maints += self.apply_maint(node)
+                added_maints += self.apply_maint(node, resource)
 
         # Update rut and ret.
         # for this we need to join all added and deleted things:
@@ -464,17 +473,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             for m in self.instance.get_rt_maints(t):
                 self.set_remaining_time_in_window(resource, m, start, end, t)
 
-    def apply_maint(self, node):
+    def apply_maint(self, node, resource):
         result = tl.TupList()
         for period in self.instance.get_periods_range(node.period, node.period_end):
-            self.solution.data.set_m('state_m', node.resource, period, node.assignment, value=1)
+            self.solution.data.set_m('state_m', resource, period, node.assignment, value=1)
             result.add(period, node.assignment)
         return result
 
-    def apply_task(self, node):
+    def apply_task(self, node, resource):
         result = tl.TupList()
         for period in self.instance.get_periods_range(node.period, node.period_end):
-            self.solution.data.set_m('task', node.resource, period, value=node.assignment)
+            self.solution.data.set_m('task', resource, period, value=node.assignment)
             result.add(period, node.assignment)
         return result
 
@@ -523,7 +532,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                                    state=self.date_to_state(resource, date1))
         node2_data = self.date_to_state(resource, date2)
         node2 = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
-        mask = self.filter_node2(node2)
+        mask = self.filter_node2(node2, resource)
         node2_data = {**node2_data, **sd.SuperDict(rut=None, ret=None)}
         dummy_node2  = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
         if cutoff is None:
@@ -744,16 +753,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         print('model solved correctly')
         # tl.TupList(model.variables()).to_dict(None).vapply(pl.value).vfilter(lambda v: v)
 
-        # TODO: we should return the mapping: resource => pattern or list of patterns
-        # TODO: we should plug and play the subproblem as another class
         return self.get_repaired_solution(l['combos'], model_vars['assign'])
 
     def get_repaired_solution(self, combos, assign):
+        """
+        returns a dictionary {resource: pattern}
+        :param combos:
+        :param assign:
+        :return:
+        """
         patterns = assign. \
             vapply(pl.value). \
             vfilter(lambda v: v). \
-            kapply(lambda k: combos[k]). \
-            values_tl()
+            kapply(lambda k: combos[k])
         return patterns
 
     def draw_graph(self, resource, **kwargs):

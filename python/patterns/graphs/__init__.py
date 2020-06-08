@@ -23,7 +23,10 @@ except ImportError:
 def graph_factory(instance, resource, options=None):
     if not options:
         options = {}
-    g = GraphTool(instance, resource)
+    if options.get('graph_DAG'):
+        g = DAG(instance, resource)
+    else:
+        g = GraphTool(instance, resource)
     if g.available():
         return g
     else:

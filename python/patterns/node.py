@@ -239,7 +239,7 @@ class Node(object):
 
         hard_last = self.instance.get_param('end')
         if self.period_end >= hard_last:
-            return [get_sink_node(self.instance, self.resource)]
+            return [get_sink_node(self.instance)]
         opts_tot = self.get_maint_options()
         adj_per_maints = self.get_adjacency_list_maints(opts_tot=opts_tot, only_next_period=only_next_period)
         mandatory_maint_period = self.get_last_possible_nonmaint_period(opts_tot=opts_tot)
@@ -247,8 +247,10 @@ class Node(object):
         if mandatory_maint_period == hard_last or self.dif_period_end(mandatory_maint_period) > 0:
             # if there is no mandatory maintenance: we can do nothing.
             extra_nodes.extend(self.get_adjancency_list_nothing())
-        return adj_per_maints + extra_nodes + \
-               self.get_adjacency_list_tasks(mandatory_maint_period, only_next_period=only_next_period)
+        adj_per_tasks = self.get_adjacency_list_tasks(mandatory_maint_period, only_next_period=only_next_period)
+        adj_per_maints.extend(extra_nodes)
+        adj_per_maints.extend(adj_per_tasks)
+        return adj_per_maints
 
     def get_adjancency_list_nothing(self):
         # distance = self.dif_period_1(self.period_end)
@@ -469,7 +471,7 @@ class Node(object):
                 return None
         return Node.from_node(self, period=period, assignment=assignment, rut=rut, ret=ret, period_end=period_end, type=type)
 
-    def walk_over_nodes(self):
+    def walk_over_nodes(self, cache_neighbors=None):
         """
 
         :param node: node from where we start the DFS
@@ -478,9 +480,13 @@ class Node(object):
 
         remaining_nodes = [self]
         # we store the neighbors of visited nodes, not to recalculate them
-        cache_neighbors = sd.SuperDict()
+        if not cache_neighbors:
+            cache_neighbors = sd.SuperDict()
+        # given that cache_neighbors could already exist,
+        #  we generate our own list of actual visited nodes
+        visited_nodes = set()
         i = 0
-        last_node = get_sink_node(self.instance, self.resource)
+        last_node = get_sink_node(self.instance)
         ct = self.instance.compare_tups
         fixed = \
             self.instance.\
@@ -491,12 +497,14 @@ class Node(object):
             # instead of starting from the initial node
             neighbors = self.get_fixed_initial_nodes(fixed)
             cache_neighbors[self] = neighbors
+            visited_nodes.add(self)
             # we replace remaining_nodes, this losing the origin.
             remaining_nodes = list(neighbors)
 
         while len(remaining_nodes) and i < 10000000:
             i += 1
             node = remaining_nodes.pop()
+            visited_nodes.add(node)
             # we need to make a copy of the path
             if node == last_node:
                 # if last_node reached, go back
@@ -507,10 +515,11 @@ class Node(object):
                 # I don't have any cache of the node.
                 # I'll get neighbors and do cache
                 cache_neighbors[node] = neighbors = node.get_adjacency_list(only_next_period=True)
+                # TODO: make a set
                 # since the node is new, we want to visit it's neighbors
                 remaining_nodes += neighbors
             # log.debug("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
-        return cache_neighbors
+        return cache_neighbors, visited_nodes
 
     def get_fixed_initial_nodes(self, fixed):
         _, assignment, start, end = fixed[0]
@@ -548,10 +557,10 @@ def get_source_node(instance, resource):
                 period_end=period, type=EMPTY_TYPE)
 
 
-def get_sink_node(instance, resource):
+def get_sink_node(instance):
     last = instance.get_param('end')
     last_next = instance.get_next_period(last)
-    defaults = dict(instance=instance, resource=resource)
+    defaults = dict(instance=instance, resource=None)
     return Node(period=last_next, assignment='', rut=None,
                 ret=None, period_end = last_next, type=EMPTY_TYPE, **defaults)
 

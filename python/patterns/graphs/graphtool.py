@@ -3,7 +3,7 @@ from pytups import superdict as sd, tuplist as tl
 import numpy as np
 import data.data_input as di
 import os
-from .core import DAG
+from .core import DAG, get_artificial_nodes
 import patterns.node as nd
 import random as rn
 import package.instance as inst
@@ -18,33 +18,27 @@ import itertools
 class GraphTool(DAG):
     # TODO: only create a graph per aircraft type to reuse some nodes??
 
-    # def get_create_node(self, node):
-    #     try:
-    #         return self.refs[node]
-    #     except KeyError:
-    #         v = self.g.add_vertex()
-    #         self.refs[node] = int(v)
-    #         return v
-
-    def __init__(self, instance: inst.Instance, resource):
-        super().__init__(instance, resource)
-        nodes_ady = self.g
+    def __init__(self, instance: inst.Instance, resource=None, nodes_ady=None, empty=False):
+        if nodes_ady is not None or empty:
+            self.instance = instance
+            self.sink = nd.get_sink_node(instance)
+        else:
+            if not resource:
+                raise ValueError('resource argument needs to be filled if no adjacency is given')
+            super().__init__(instance, resource)
+            nodes_ady = self.g
+        if empty:
+            return
         self.g = gr.Graph()
         edges = nodes_ady.to_tuplist()
         nodes = (edges.take(0) + edges.take(1)).unique2()
         vertices = self.g.add_vertex(len(nodes))
         self.refs = {node: int(v) for node, v in zip(nodes, vertices)}
         self.refs = sd.SuperDict(self.refs)
-        edges_list = edges.vapply(lambda v: (self.refs[v[0]], self.refs[v[1]]))
-        self.g.add_edge_list(edges_list)
         self.refs_inv = self.refs.reverse()
 
-        # for n, n2_list in nodes_ady.items():
-        #     v1 = self.get_create_node(n)
-        #     for n2 in n2_list:
-        #         v2 = self.get_create_node(n2)
-        #         e = self.g.add_edge(v1, v2, add_missing=False)
-
+        edges_list = edges.vapply(lambda v: (self.refs[v[0]], self.refs[v[1]]))
+        self.g.add_edge_list(edges_list)
 
         # delete nodes with infinite distance to sink:
         self.g.set_reversed(is_reversed=True)
@@ -58,6 +52,11 @@ class GraphTool(DAG):
         self.g.shrink_to_fit()
         self.g.reindex_edges()
 
+        # after the graph is generated, we initialize the constants:
+        self.initialize_graph()
+        self.set_weights()
+
+    def initialize_graph(self):
         # create dictionary to filter nodes that have no tasks
         self.vp_not_task = self.g.new_vp('bool', val=1)
         self.period_vp = self.g.new_vp('int')
@@ -76,9 +75,7 @@ class GraphTool(DAG):
             self.period_end_vp[v] = positions[node.period_end]
             self.assgin_vp[v] = self._equiv_task[node.assignment]
             self.rut_vp[v] = node.rut['M'] if node.rut else 0
-
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
-        self.set_weights()
 
     def set_weights(self):
         self.weights = self.g.new_ep('int')
@@ -109,8 +106,7 @@ class GraphTool(DAG):
         # Except the node1 and node2 and previous nodes to node2
         nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
         _temp_vp = self.vp_not_task.copy()
-        for v in nodes:
-            _temp_vp[v] = 1
+        _temp_vp.a[nodes] = 1
         if g is None:
             g = self.g
         return gr.GraphView(g, vfilt=_temp_vp)
@@ -360,11 +356,7 @@ class GraphTool(DAG):
 
 
     def to_file(self, path):
-        name = 'cache_info_{}'.format(self.resource)
-        graph_file = os.path.join(path, 'graph_{}_.gt'.format(self.resource))
-        _data = self.refs_inv.vapply(lambda v: v.get_data()).to_tuplist()
-        di.export_data(path, _data, name=name)
-        self.g.save(graph_file)
+        raise NotImplementedError("does not work now")
 
     @classmethod
     def from_file(cls, path, instance, resource):
@@ -475,3 +467,41 @@ class GraphTool(DAG):
         visual_style['canvas'] = (10, 10)
         # visual_style['node_opacity'] = 0.5
         nt.plot(network=(nodes, edges), **visual_style, filename=filename)
+
+    def create_view(self, nodes, g=None):
+        nodes = [self.refs[node] for node in nodes]
+        vfilt = self.g.new_vp('bool', val=0)
+        vfilt.a[nodes] = 1
+        if g is None:
+            g = self.g
+        return gr.GraphView(g, vfilt=vfilt)
+
+
+def generate_graph_mcluster(instance, resources):
+    nodes_ady = sd.SuperDict()
+    # nodes_visited = sd.SuperDict()
+    for r in resources:
+        source = nd.get_source_node(instance, r)
+        nodes_ady, visited = source.walk_over_nodes(nodes_ady)
+        # nodes_visited[r] = visited
+    nodes_artificial = get_artificial_nodes(nodes_ady)
+    # nodes_artificial_n = nodes_artificial.vapply(lambda v: v[0])
+    # # for each resource, we add their artificial nodes to visited
+    # for r in resources:
+    #     extra = set(nodes_artificial_n.filter(nodes_visited[r], check=False).values())
+    #     nodes_visited[r].union(extra)
+    nodes_ady.kvapply(lambda k, v: v.extend(nodes_artificial.get(k, [])))
+    graph = GraphTool(instance=instance, nodes_ady=nodes_ady)
+    return graph
+    # res_graph = sd.SuperDict()
+    # for r in resources:
+    #     view = graph.create_view(nodes_visited[r])
+    #     new_graph = GraphTool(instance=instance, empty=True)
+    #     new_graph.g = view
+    #     new_graph.refs = graph.refs
+    #     new_graph.refs_inv = graph.refs_inv
+    #     # after the graph is generated, we initialize the constants:
+    #     new_graph.initialize_graph()
+    #     new_graph.set_weights()
+    #     res_graph[r] = new_graph
+    # return res_graph
