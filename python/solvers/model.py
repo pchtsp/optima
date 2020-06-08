@@ -402,12 +402,15 @@ class Model(exp.Experiment):
         for tup in start_T:
             start_T[tup].setInitialValue(0)
 
-        for a, (t, t2) in maints.items():
-            if (a, t, t2) in start_M:
-                # we check this because of fixed maints
-                start_M[a, t, t2].setInitialValue(1)
-            else:
-                print('fail fixing maintenance in {}'.format((a, t, t2)))
+        try:
+            for a, (t, t2) in maints.items():
+                if (a, t, t2) in start_M:
+                    # we check this because of fixed maints
+                    start_M[a, t, t2].setInitialValue(1)
+                else:
+                    print('fail fixing maintenance in {}'.format((a, t, t2)))
+        except:
+            a = 1
 
         for (a, t, v, t2) in start_periods:
             if (a, v, t, t2) in start_T:
