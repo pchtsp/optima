@@ -12,7 +12,7 @@ class DAG(object):
         # We generate the graph by using "nodes" module
         # We represent the graph with an adjacency list
         source = nd.get_source_node(instance, resource)
-        nodes_ady, _ = source.walk_over_nodes(nodes_ady)
+        nodes_ady = source.walk_over_nodes(nodes_ady)
 
         # Here, there is some post-processing (more nodes) to use the graph better
         # 1. for each period, for each assignment,

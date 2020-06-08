@@ -30,7 +30,8 @@ class Node(object):
         """
         self.instance = instance
         self.ret = ret
-        self.rut = rut
+        self.rut = dict(M=round_down(rut['M'])) if rut else rut
+        # self.rut = rut
         self.assignment = assignment
         self.type = type
         self.period = period
@@ -484,7 +485,6 @@ class Node(object):
             cache_neighbors = sd.SuperDict()
         # given that cache_neighbors could already exist,
         #  we generate our own list of actual visited nodes
-        visited_nodes = set()
         i = 0
         last_node = get_sink_node(self.instance)
         ct = self.instance.compare_tups
@@ -497,14 +497,12 @@ class Node(object):
             # instead of starting from the initial node
             neighbors = self.get_fixed_initial_nodes(fixed)
             cache_neighbors[self] = neighbors
-            visited_nodes.add(self)
             # we replace remaining_nodes, this losing the origin.
             remaining_nodes = list(neighbors)
 
         while len(remaining_nodes) and i < 10000000:
             i += 1
             node = remaining_nodes.pop()
-            visited_nodes.add(node)
             # we need to make a copy of the path
             if node == last_node:
                 # if last_node reached, go back
@@ -519,7 +517,7 @@ class Node(object):
                 # since the node is new, we want to visit it's neighbors
                 remaining_nodes += neighbors
             # log.debug("iteration: {}, remaining: {}, stored: {}".format(i, len(remaining_nodes), len(cache_neighbors)))
-        return cache_neighbors, visited_nodes
+        return cache_neighbors
 
     def get_fixed_initial_nodes(self, fixed):
         _, assignment, start, end = fixed[0]
@@ -565,3 +563,8 @@ def get_sink_node(instance):
                 ret=None, period_end = last_next, type=EMPTY_TYPE, **defaults)
 
 
+def round_down(x):
+    try:
+        return int(math.floor(x / 10.0)) * 10
+    except TypeError:
+        return None

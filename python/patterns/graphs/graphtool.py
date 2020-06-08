@@ -55,6 +55,7 @@ class GraphTool(DAG):
         # after the graph is generated, we initialize the constants:
         self.initialize_graph()
         self.set_weights()
+        self.resource_nodes = sd.SuperDict()
 
     def initialize_graph(self):
         # create dictionary to filter nodes that have no tasks
@@ -64,6 +65,7 @@ class GraphTool(DAG):
         self.type_vp = self.g.new_vp('int')
         self.assgin_vp = self.g.new_vp('int')
         self.rut_vp = self.g.new_vp('int')
+        self.ret_vp = self.g.new_vp('int')
         positions = self.instance.get_period_positions()
         self._equiv_task = {k: v +1 for v, k in enumerate(self.instance.get_tasks())}
         self._equiv_task[''] = 0
@@ -75,6 +77,7 @@ class GraphTool(DAG):
             self.period_end_vp[v] = positions[node.period_end]
             self.assgin_vp[v] = self._equiv_task[node.assignment]
             self.rut_vp[v] = node.rut['M'] if node.rut else 0
+            self.ret_vp[v] = node.ret['M'] if node.ret else 0
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
 
     def set_weights(self):
@@ -111,8 +114,10 @@ class GraphTool(DAG):
             g = self.g
         return gr.GraphView(g, vfilt=_temp_vp)
 
-    def filter_by_mask(self, mask, node2):
-        vfilt = self.g.new_vp('bool', val=1)
+    def filter_by_mask(self, mask, node2, resource):
+        vfilt = self.g.new_vp('bool', val=0)
+        # only nodes for that resource:
+        vfilt.a[self.resource_nodes[resource]] = 1
         index_node = self.refs[node2]
         # we take all predecessors that do not pass the mask function:
         predecessors = self.g.vertex(index_node).in_neighbors()
@@ -124,7 +129,7 @@ class GraphTool(DAG):
         vfilt.a[take_out] = 0
         return gr.GraphView(self.g, vfilt=vfilt)
 
-    def nodes_to_patterns(self, node1, node2, cutoff=1000, max_paths=1000, add_empty=True, mask=None, **kwargs):
+    def nodes_to_patterns(self, node1, node2, resource, cutoff=1000, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
 
@@ -139,7 +144,7 @@ class GraphTool(DAG):
 
         # we take a view if we have some nodes to take out
         if mask:
-            graph = self.filter_by_mask(mask, node2)
+            graph = self.filter_by_mask(mask, node2, resource)
         else:
             graph = self.g
 
@@ -158,11 +163,11 @@ class GraphTool(DAG):
 
         return tl.TupList(sample).vapply(lambda v: [refs_inv[vv] for vv in v])
 
-    def nodes_to_patterns2(self, node1, node2, max_paths=1000, add_empty=True, mask=None, **kwargs):
+    def nodes_to_patterns2(self, node1, node2, resource, max_paths=1000, add_empty=True, mask=None, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
         if mask:
-            graph = self.filter_by_mask(mask, node2)
+            graph = self.filter_by_mask(mask, node2, resource)
         else:
             graph = self.g
         # get edges between node1 and node 2 only
@@ -171,7 +176,7 @@ class GraphTool(DAG):
         sample = tl.TupList()
         weights = self.weights.copy()
         arr = self.weights.get_array()
-        nodes_window = self.get_nodes_in_window(node1, node2)
+        nodes_window = self.get_nodes_in_window(node1, node2, resource)
         edges_all = self.g.get_edges()
         targets = edges_all[:, 1]
         sources = edges_all[:, 0]
@@ -228,15 +233,15 @@ class GraphTool(DAG):
             current = np.random.choice(a=list(neighbors), p=weights)
         return None
 
-    def nodes_to_pattern2(self, node1, node2, mask, errors, **kwargs):
+    def nodes_to_pattern2(self, node1, node2, resource, mask, errors, **kwargs):
         refs = self.refs
         refs_inv = self.refs_inv
         if mask:
-            graph = self.filter_by_mask(mask, node2)
+            graph = self.filter_by_mask(mask, node2, resource)
         else:
             graph = self.g
 
-        weights = self.get_weights(node1, node2, errors)
+        weights = self.get_weights(node1, node2, errors, resource)
 
         # source = graph.vertex(refs[node1])
         # TODO: this is failing, sometimes?
@@ -249,18 +254,19 @@ class GraphTool(DAG):
         nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
         return [refs_inv[n] for n in nodes]
 
-    def get_nodes_in_window(self, node1, node2):
+    def get_nodes_in_window(self, node1, node2, resource):
         positions = self.instance.get_period_positions()
         first, last = self.instance.get_first_last_period()
         min_period = max(positions[node1.period], positions[first])
         max_period = min(positions[node2.period_end], positions[last])
         return \
-            (self.period_vp.get_array() >= min_period) & \
+            (self.resource_nodes[resource] & \
+            self.period_vp.get_array() >= min_period) & \
             (self.period_end_vp.get_array() <= max_period)
 
-    def get_weights(self, node1, node2, errors):
+    def get_weights(self, node1, node2, errors, resource):
         # get edges between node1 and node 2 only
-        nodes_window = self.get_nodes_in_window(node1, node2)
+        nodes_window = self.get_nodes_in_window(node1, node2, resource)
         edges_all = self.g.get_edges()
         targets = edges_all[:, 1]
         sources = edges_all[:, 0]
@@ -479,29 +485,17 @@ class GraphTool(DAG):
 
 def generate_graph_mcluster(instance, resources):
     nodes_ady = sd.SuperDict()
-    # nodes_visited = sd.SuperDict()
+    res_nodes = sd.SuperDict()
     for r in resources:
         source = nd.get_source_node(instance, r)
-        nodes_ady, visited = source.walk_over_nodes(nodes_ady)
-        # nodes_visited[r] = visited
+        nodes_ady = source.walk_over_nodes(nodes_ady)
     nodes_artificial = get_artificial_nodes(nodes_ady)
-    # nodes_artificial_n = nodes_artificial.vapply(lambda v: v[0])
-    # # for each resource, we add their artificial nodes to visited
-    # for r in resources:
-    #     extra = set(nodes_artificial_n.filter(nodes_visited[r], check=False).values())
-    #     nodes_visited[r].union(extra)
     nodes_ady.kvapply(lambda k, v: v.extend(nodes_artificial.get(k, [])))
     graph = GraphTool(instance=instance, nodes_ady=nodes_ady)
+    num_period = instance.get_param('num_period')
+    for r in resources:
+        source = nd.get_source_node(instance, r)
+        shortest_path = gr.shortest_distance(g=graph.g, source=graph.refs[source], dag=True, max_dist=num_period+2)
+        res_nodes[r] = shortest_path.get_array() <= num_period
+    graph.resource_nodes = res_nodes
     return graph
-    # res_graph = sd.SuperDict()
-    # for r in resources:
-    #     view = graph.create_view(nodes_visited[r])
-    #     new_graph = GraphTool(instance=instance, empty=True)
-    #     new_graph.g = view
-    #     new_graph.refs = graph.refs
-    #     new_graph.refs_inv = graph.refs_inv
-    #     # after the graph is generated, we initialize the constants:
-    #     new_graph.initialize_graph()
-    #     new_graph.set_weights()
-    #     res_graph[r] = new_graph
-    # return res_graph

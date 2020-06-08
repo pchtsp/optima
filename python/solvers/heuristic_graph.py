@@ -7,11 +7,6 @@ import solvers.config as conf
 import solvers.heuristics_maintfirst as heur_maint
 import solvers.model_fixing as mdl_f
 
-# # TODO: take this out:
-# import importlib
-# importlib.reload(mdl_f)
-# importlib.reload(mdl)
-
 import package.solution as sol
 import package.instance as inst
 
@@ -81,18 +76,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 log.debug('Creating graph for mc: {}'.format(mc))
                 graph_data = gt.generate_graph_mcluster(self.instance, resources)
                 self.instance.data['aux']['graphs'][mc] = graph_data
-                # for k, v in graph_data.items():
-                #     self.instance.data['aux']['graphs'][k] = v
             return
         results = sd.SuperDict()
         _data = sd.SuperDict()
-        with multi.Pool(processes=multiproc) as pool:
+        num_workers = min(len(meta_clusters), multiproc)
+        with multi.Pool(processes=num_workers) as pool:
             for mc, resources in meta_clusters.items():
                 _instance = inst.Instance.from_instance(self.instance)
                 results[mc] = pool.apply_async(gt.generate_graph_mcluster, [_instance, resources])
             for mc, result in results.items():
                 _data[mc] = result.get(timeout=10000)
-            self.instance.data['aux']['graphs'] = _data
+        self.instance.data['aux']['graphs'] = _data
         # for mc, resources in meta_clusters.items():
         #     for r in resources:
         #         self.instance.data['aux']['graphs'][r] = _data[mc][r]
@@ -542,7 +536,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             log.debug("min/ max cutoff: {} {}".format(min_cutoff, max_cutoff))
             size = max_cutoff - min_cutoff
             cutoff = rn.choice(range(max_cutoff-size//2, max_cutoff+1))
-        return dict(node1=node1, node2=dummy_node2, max_paths=num_max, cutoff=cutoff, mask=mask, **kwargs)
+        return dict(node1=node1, node2=dummy_node2, max_paths=num_max, cutoff=cutoff, mask=mask, resource=resource,
+                    **kwargs)
 
     def get_pattern_options_from_window(self, resource, date1, date2, num_max=10000, cutoff=None, **kwargs):
         """
