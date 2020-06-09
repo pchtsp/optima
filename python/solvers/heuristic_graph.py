@@ -214,7 +214,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 self.apply_pattern(pattern, k)
             else:
                 log.debug('Undo pattern for resource {resource} between dates {start} and {end}'.
-                          format(resources=k, start=change['start'], end=change['end']))
+                          format(resource=k, start=change['start'], end=change['end']))
                 self.apply_pattern(old_pattern, k)
 
         return self.solution
