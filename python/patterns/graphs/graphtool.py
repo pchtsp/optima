@@ -246,10 +246,8 @@ class GraphTool(DAG):
 
         weights = self.get_weights(node1, node2, errors, resource)
 
-        # source = graph.vertex(refs[node1])
-        # TODO: this is failing, sometimes?
         def find_vertex(node):
-            while node.rut is None or node.rut['M'] > 0:
+            while node.rut is None or node.rut['M'] >= 0:
                 try:
                     return graph.vertex(refs[node])
                 except (KeyError, ValueError):
@@ -260,6 +258,7 @@ class GraphTool(DAG):
                     log.warning('had to correct node')
             return None
 
+        # TODO: this is failing, sometimes?
         source = find_vertex(node1)
         target = find_vertex(node2)
         if source is None or target is None:

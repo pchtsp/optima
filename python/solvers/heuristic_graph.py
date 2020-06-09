@@ -375,7 +375,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             errs = self.check_solution(list_tests=['resources', 'hours', 'capacity'])
         error_sum = errs.vapply(lambda v: sum(v.values())).vapply(abs)
         weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000)
-        a = {'elapsed', 'usage', 'dist_maints'} & error_sum.keys()
+        a = {'elapsed', 'usage', 'dist_maints', 'min_assign'} & error_sum.keys()
         if a:
             log.error("Problem with errors: {}".format(a))
             error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
