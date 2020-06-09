@@ -245,12 +245,19 @@ class GraphTool(DAG):
 
         # source = graph.vertex(refs[node1])
         # TODO: this is failing, sometimes?
-        try:
-            source = graph.vertex(refs[node1])
-        except KeyError:
-            log.error("There was a problem finding a node: {}".format(node1))
+        def find_vertex(node):
+            while node.rut is None or node.rut['M'] > 0:
+                try:
+                    return graph.vertex(refs[node])
+                except (KeyError, ValueError):
+                    node.rut['M'] -= 10
             return None
-        target = graph.vertex(refs[node2])
+
+        source = find_vertex(node1)
+        target = find_vertex(node2)
+        if source is None or target is None:
+            log.error("There was a problem finding node {} or node {}".format(node1, node2))
+            return None
         nodes, edges = gr.shortest_path(graph, source=source, target=target, weights=weights, dag=True)
         return [refs_inv[n] for n in nodes]
 
@@ -473,14 +480,6 @@ class GraphTool(DAG):
         visual_style['canvas'] = (10, 10)
         # visual_style['node_opacity'] = 0.5
         nt.plot(network=(nodes, edges), **visual_style, filename=filename)
-
-    def create_view(self, nodes, g=None):
-        nodes = [self.refs[node] for node in nodes]
-        vfilt = self.g.new_vp('bool', val=0)
-        vfilt.a[nodes] = 1
-        if g is None:
-            g = self.g
-        return gr.GraphView(g, vfilt=vfilt)
 
 
 def generate_graph_mcluster(instance, resources):
