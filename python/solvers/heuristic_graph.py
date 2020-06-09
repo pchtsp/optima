@@ -4,7 +4,6 @@ import pytups.tuplist as tl
 import solvers.heuristics as heur
 import solvers.model as mdl
 import solvers.config as conf
-import solvers.heuristics_maintfirst as heur_maint
 import solvers.model_fixing as mdl_f
 
 import package.solution as sol
@@ -162,18 +161,20 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # sd.SuperDict(self.big_mip.slack_ts).vapply(pl.value).vfilter(lambda v: v)
         # sd.SuperDict(self.big_mip.slack_kts_h).vapply(pl.value).vfilter(lambda v: v)
         # self.check_solution()
-        if result:
-            backup = self.copy_solution()
-            self.solution = self.big_mip.get_solution()
-            for r in change['resources']:
-                self.set_remaining_usage_time(time='rut', maint='M', resource=r)
-                self.set_remaining_usage_time(time='ret', maint='M', resource=r)
-            # The model does not fill ret and the rut may be slightly different (fractions)
-            # so, I need to
-            rest = self.instance.get_resources().keys() - set(change['resources'])
-            for r in rest:
-                for t in ['rut', 'ret']:
-                    self.solution.data['aux'][t]['M'][r] = backup['aux'][t]['M'][r]
+        if result != 1:
+            log.error("No solution was found in mip")
+            return self.solution
+        backup = self.copy_solution()
+        self.solution = self.big_mip.get_solution()
+        for r in change['resources']:
+            self.set_remaining_usage_time(time='rut', maint='M', resource=r)
+            self.set_remaining_usage_time(time='ret', maint='M', resource=r)
+        # The model does not fill ret and the rut may be slightly different (fractions)
+        # so, I need to
+        rest = self.instance.get_resources().keys() - set(change['resources'])
+        for r in rest:
+            for t in ['rut', 'ret']:
+                self.solution.data['aux'][t]['M'][r] = backup['aux'][t]['M'][r]
         return self.solution
 
     def sub_problem_shortest(self, change, options):
