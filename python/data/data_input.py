@@ -5,6 +5,7 @@ import copy
 import json
 import pickle
 import ujson
+import math
 
 
 def load_data(path, file_type=None):
@@ -71,3 +72,16 @@ class MyEncoder(json.JSONEncoder):
 
 def copy_dict(_dict):
     return ujson.loads(ujson.dumps(_dict))
+
+
+def round_down(x):
+    try:
+        return int(math.floor(x / 10.0)) * 10
+    except TypeError:
+        return None
+
+def round_up(x):
+    try:
+        return int(math.ceil(x / 10.0)) * 10
+    except TypeError:
+        return None
