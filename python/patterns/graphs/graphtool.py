@@ -9,6 +9,7 @@ import random as rn
 import package.instance as inst
 import logging as log
 import itertools
+import ujson as json
 
 # installing graph-tool and adding it to venv:
 # https://git.skewed.de/count0/graph-tool/wikis/installation-instructions
@@ -59,6 +60,7 @@ class GraphTool(DAG):
 
     def initialize_graph(self):
         # create dictionary to filter nodes that have no tasks
+        self.edges = self.g.get_edges()
         self.vp_not_task = self.g.new_vp('bool', val=1)
         self.period_vp = self.g.new_vp('int')
         self.period_end_vp = self.g.new_vp('int')
@@ -85,7 +87,7 @@ class GraphTool(DAG):
         multiplier = 100
         durations = (self.period_end_vp.get_array() -
                      self.period_vp.get_array() + 1) * multiplier
-        targets = self.g.get_edges()[:, 1]
+        targets = self.edges[:, 1]
         self.weights.a = durations[targets]
         edge_target_type = self.type_vp.get_array()[targets]
         default = 0.9 * multiplier
@@ -134,12 +136,13 @@ class GraphTool(DAG):
         refs_inv = self.refs_inv
 
         # we shuffle the graph.
-        edges = self.g.get_edges()
+        edges = self.edges
         self.g.clear_edges()
         np.random.shuffle(edges)
         self.g.add_edge_list(edges)
         self.g.shrink_to_fit()
         self.g.reindex_edges()
+        self.edges = self.g.get_edges()
         self.set_weights()
 
         # we take a view if we have some nodes to take out
@@ -177,7 +180,7 @@ class GraphTool(DAG):
         weights = self.weights.copy()
         arr = self.weights.get_array()
         nodes_window = self.get_nodes_in_window(node1, node2, resource)
-        edges_all = self.g.get_edges()
+        edges_all = self.edges
         targets = edges_all[:, 1]
         sources = edges_all[:, 0]
         relevant_edge = nodes_window[sources] & nodes_window[targets]
@@ -251,6 +254,10 @@ class GraphTool(DAG):
                     return graph.vertex(refs[node])
                 except (KeyError, ValueError):
                     node.rut['M'] -= 10
+                    data = node.get_data()
+                    node.jsondump = json.dumps(data, sort_keys=True)
+                    node.hash = hash(node.jsondump)
+                    log.warning('had to correct node')
             return None
 
         source = find_vertex(node1)
@@ -267,14 +274,14 @@ class GraphTool(DAG):
         min_period = max(positions[node1.period], positions[first])
         max_period = min(positions[node2.period_end], positions[last])
         return \
-            (self.resource_nodes[resource] & \
-            self.period_vp.get_array() >= min_period) & \
+            (self.resource_nodes[resource]) & \
+            (self.period_vp.get_array() >= min_period) & \
             (self.period_end_vp.get_array() <= max_period)
 
     def get_weights(self, node1, node2, errors, resource):
         # get edges between node1 and node 2 only
         nodes_window = self.get_nodes_in_window(node1, node2, resource)
-        edges_all = self.g.get_edges()
+        edges_all = self.edges
         targets = edges_all[:, 1]
         sources = edges_all[:, 0]
         relevant_edge = nodes_window[sources] & nodes_window[targets]
@@ -336,7 +343,7 @@ class GraphTool(DAG):
         old_rut_node[nodes_window] = old_ruts[arr_per[nodes_window]]
         ruts = self.rut_vp.get_array()
         final_rut = old_rut_node + ruts
-        less_than_zero = final_rut<0
+        less_than_zero = final_rut < 0
         weight_hours = np.ones_like(final_rut, dtype='float')
         weight_hours[less_than_zero] = final_rut[less_than_zero]**2
         _max = np.max(weight_hours)

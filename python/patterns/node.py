@@ -4,7 +4,7 @@ import pytups.superdict as sd
 import pytups.tuplist as tl
 import ujson as json
 import math
-import numpy as np
+import data.data_input as di
 
 
 MAINT_TYPE = 0
@@ -30,7 +30,7 @@ class Node(object):
         """
         self.instance = instance
         self.ret = ret
-        self.rut = dict(M=round_down(rut['M'])) if rut else rut
+        self.rut = dict(M=di.round_down(rut['M'])) if rut else rut
         # self.rut = rut
         self.assignment = assignment
         self.type = type
@@ -561,10 +561,3 @@ def get_sink_node(instance):
     defaults = dict(instance=instance, resource=None)
     return Node(period=last_next, assignment='', rut=None,
                 ret=None, period_end = last_next, type=EMPTY_TYPE, **defaults)
-
-
-def round_down(x):
-    try:
-        return int(math.floor(x / 10.0)) * 10
-    except TypeError:
-        return None
