@@ -71,6 +71,8 @@ class Node(object):
 
     @classmethod
     def from_state(cls, instance, resource, state):
+        if state['period'] < instance.get_param('start'):
+            return get_source_node(instance, resource)
         return Node(instance=instance, resource=resource, **state)
 
     def __repr__(self):
@@ -551,7 +553,7 @@ def get_source_node(instance, resource):
         maints.\
         kapply(lambda m: resources[resource]['initial'][m]['elapsed']).\
         clean(func=lambda v: v is not None)
-    return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment='',
+    return Node(instance=instance, resource=resource, period=period, ret=ret, rut=rut, assignment=resource,
                 period_end=period, type=EMPTY_TYPE)
 
 

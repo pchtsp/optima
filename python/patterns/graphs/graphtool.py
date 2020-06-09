@@ -77,7 +77,10 @@ class GraphTool(DAG):
             self.type_vp[v] = node.type
             self.period_vp[v] = positions[node.period]
             self.period_end_vp[v] = positions[node.period_end]
-            self.assgin_vp[v] = self._equiv_task[node.assignment]
+            if node.type == nd.EMPTY_TYPE:
+                self.assgin_vp[v] = 0
+            else:
+                self.assgin_vp[v] = self._equiv_task[node.assignment]
             self.rut_vp[v] = node.rut['M'] if node.rut else 0
             self.ret_vp[v] = node.ret['M'] if node.ret else 0
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0

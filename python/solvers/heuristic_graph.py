@@ -63,7 +63,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return
 
     def initialise_graphs(self, options):
-        # TODO: fixed_stats PROBABLY do no harm. but I haven't checked that
+        # fixed_stats PROBABLY do no harm. but I haven't checked that
+        # Well, I had to correct that, apparently.
+        # now each resource has its source node.
         multiproc = options['multiprocess']
         res_meta_clusters = \
             self.instance.get_resources('capacities'). \
@@ -113,8 +115,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         return self.solution
 
     def sub_problem_classic_mip(self, change, options):
-        options_m = dict(options)
         if not self.big_mip:
+            options_m = dict(options)
             self.big_mip = mdl.Model(self.instance)
             options_m['calculate_domains'] = True
             options_m['mip_start'] = False
@@ -142,7 +144,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         for c in conts:
             self.big_mip.model += c
 
-        config = conf.Config(options_m)
+        config = conf.Config(options)
         result = config.solve_model(self.big_mip.model)
         # self.big_mip.model.writeLP(filename=options['path'] + 'formulation.lp')
         # self.callSolver(lp)
@@ -211,7 +213,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if pattern:
                 self.apply_pattern(pattern, k)
             else:
-                log.debug('Undo pattern for resource {resources} between dates {start} and {end}'.format(**change))
+                log.debug('Undo pattern for resource {resource} between dates {start} and {end}'.
+                          format(resources=k, start=change['start'], end=change['end']))
                 self.apply_pattern(old_pattern, k)
 
         return self.solution
@@ -375,7 +378,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             errs = self.check_solution(list_tests=['resources', 'hours', 'capacity'])
         error_sum = errs.vapply(lambda v: sum(v.values())).vapply(abs)
         weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000)
-        a = {'elapsed', 'usage', 'dist_maints', 'min_assign'} & error_sum.keys()
+        a = {'elapsed', 'usage', 'dist_maints'} & error_sum.keys()
         if a:
             log.error("Problem with errors: {}".format(a))
             error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
