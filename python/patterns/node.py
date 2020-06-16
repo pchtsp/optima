@@ -30,7 +30,7 @@ class Node(object):
         """
         self.instance = instance
         self.ret = ret
-        self.rut = dict(M=di.round_down(rut['M'])) if rut else rut
+        self.rut = dict(M=di.round_down(rut['M'], 10)) if rut else rut
         # self.rut = rut
         self.assignment = assignment
         self.type = type

@@ -74,14 +74,14 @@ def copy_dict(_dict):
     return ujson.loads(ujson.dumps(_dict))
 
 
-def round_down(x):
+def round_down(x, num=10):
     try:
-        return int(math.floor(x / 10.0)) * 10
+        return int(math.floor(x / num)) * num
     except TypeError:
         return None
 
-def round_up(x):
+def round_up(x, num=10):
     try:
-        return int(math.ceil(x / 10.0)) * 10
+        return int(math.ceil(x / num)) * num
     except TypeError:
         return None
