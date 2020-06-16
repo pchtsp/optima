@@ -100,6 +100,7 @@ class GraphTool(DAG):
             rut_first = self.rut_first_vp[v]
             rut_end = self.rut_vp[v]
             size = self.duration_vp[v]
+            edges = self.g.get_in_edges(v, [self.g.edge_index])[:, 2]
             if size > 1:
                 for pos, p in enumerate(range(start, end+1)):
                     _rut = pos * (rut_end - rut_first)/(size - 1) + rut_first
@@ -108,7 +109,7 @@ class GraphTool(DAG):
                     # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
 
                     # option 2:
-                    edges = self.g.get_in_edges(v, [self.g.edge_index])[:,2]
+                    # edges = (above)
                     ruts = np.full_like(edges, _rut)
                     self.period_ruts[p].append(np.column_stack((edges, ruts)))
             else:
@@ -118,7 +119,6 @@ class GraphTool(DAG):
                 # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
 
                 # option 2:
-                edges = self.g.get_in_edges(v, [self.g.edge_index])[:, 2]
                 ruts = np.full_like(edges, _rut)
                 self.period_ruts[p].append(np.column_stack((edges, ruts)))
 
