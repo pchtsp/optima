@@ -349,8 +349,7 @@ class GraphTool(DAG):
             p = positions[period]
             relevant_node = nodes_window & (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
             edges = relevant_edge & relevant_node[targets]
-            weights_resource[edges] =+ 1
-
+            weights_resource[edges] += 1
         #  hours:
         #   add weight for negative rut.
         clusters = self.instance.get_cluster_candidates(resource=resource).list_reverse()[resource]
