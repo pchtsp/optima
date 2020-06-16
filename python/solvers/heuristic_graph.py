@@ -194,30 +194,23 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         res_pattern = \
             sd.SuperDict().\
             fill_with_default(change['resources']).\
-            kapply(_func)
+            kapply(_func).items_tl()
         periods_to_check = self.instance.get_periods_range(change['start'], change['end'])
         _shift = self.instance.shift_period
         _range = self.instance.get_periods_range
-        for k, v in res_pattern.items():
-            start = _shift(v['node1'].period_end, 1)
-            end = _shift(v['node2'].period, -1)
-            old_pattern = self.get_pattern_from_window(k, start, end)
-            deleted_tasks = self.clean_assignments_window(k, start, end, 'task')
-            deleted_maints = self.clean_assignments_window(k, start, end, 'state_m')
-            self.update_ret_rut(k, start, end, deleted_maints)
+        all_resources = set(self.instance.get_resources())
+        rn.shuffle(res_pattern)
+        for res, v in res_pattern:
             # ref_compare is for maintenances.
+            # we filter resources to not count this one in checks
             errors = self.check_solution(recalculate=False, assign_missions=True,
                                          list_tests=['resources', 'hours', 'capacity'],
-                                         periods = periods_to_check, ref_compare=1)
-            pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
+                                         periods = periods_to_check, ref_compare=1,
+                                         resources= all_resources - {res})
+            pattern = self.get_graph_data(res).nodes_to_pattern2(**v, errors=errors)
             # TODO: not sure why I have to check, I should not have empty paths
             if pattern:
-                self.apply_pattern(pattern, k)
-            else:
-                log.debug('Undo pattern for resource {resource} between dates {start} and {end}'.
-                          format(resource=k, start=change['start'], end=change['end']))
-                self.apply_pattern(old_pattern, k)
-
+                self.apply_pattern(pattern, res)
         return self.solution
 
     def get_patterns_from_window(self, change, options):

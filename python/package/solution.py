@@ -66,11 +66,14 @@ class Solution(object):
             tasks = tasks.kfilter(lambda k: k[1] in periods)
         return tasks.to_tuplist().to_dict(result_col=0, indices=[2, 1], is_list=True)
 
-    def get_task_num_resources(self, periods=None):
+    def get_task_num_resources(self, periods=None, resources=None):
         tasks = self.get_tasks()
         if periods:
             periods = set(periods)
             tasks = tasks.kfilter(lambda k: k[1] in periods)
+        if resources:
+            resources = set(resources)
+            tasks = tasks.kfilter(lambda k: k[0] in resources)
         if not len(tasks):
             return sd.SuperDict()
         resource, period = zip(*tasks.keys())

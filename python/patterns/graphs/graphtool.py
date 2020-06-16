@@ -52,13 +52,6 @@ class GraphTool(DAG):
         self.g.shrink_to_fit()
         self.g.reindex_edges()
 
-        # after the graph is generated, we initialize the constants:
-        self.initialize_graph()
-        self.set_weights()
-        self.resource_nodes = sd.SuperDict()
-
-    def initialize_graph(self):
-        # create dictionary to filter nodes that have no tasks
         self.edges = self.g.get_edges()
         self.vp_not_task = self.g.new_vp('bool', val=1)
         self.period_vp = self.g.new_vp('int')
@@ -70,10 +63,19 @@ class GraphTool(DAG):
         self.rut_vp = self.g.new_vp('int')
         self.ret_vp = self.g.new_vp('int')
         self.weights = self.g.new_ep('int')
-        positions = self.instance.get_period_positions()
         self._equiv_task = {k: v +1 for v, k in enumerate(self.instance.get_tasks())}
         self._equiv_task[''] = 0
         self._equiv_task['M'] = -1
+        num = self.instance.get_param('num_period')
+        self.period_ruts = sd.SuperDict({k: [] for k in range(-1, num+1)})
+        # after the graph is generated, we initialize the constants:
+        self.initialize_graph()
+        self.set_weights(self.weights)
+        self.resource_nodes = sd.SuperDict()
+
+    def initialize_graph(self):
+        # create dictionary to filter nodes that have no tasks
+        positions = self.instance.get_period_positions()
         consum = self.instance.get_tasks('consumption')
         for v in self.g.vertices():
             node = self.refs_inv[v]
@@ -92,34 +94,53 @@ class GraphTool(DAG):
             # it a task, we need to calculate the average rut
             # else: it's the last period
             if node.type == nd.TASK_TYPE:
-                # after the first node:
                 self.rut_first_vp[v] = self.rut_vp[v] + (self.duration_vp[v] - 1)*consum[node.assignment]
-                # to get the average, we need to:
-                # (first + rut)/2
-                # to get each:
-                # pos * (last - first)/(duration - 1) + first
             else:
                 self.rut_first_vp[v] = self.rut_vp[v]
-        # TODO: more efficient:
-        # self.duration_vp = self.period_end_vp.get_array() - self.period_vp.get_array() + 1
+            rut_first = self.rut_first_vp[v]
+            rut_end = self.rut_vp[v]
+            size = self.duration_vp[v]
+            if size > 1:
+                for pos, p in enumerate(range(start, end+1)):
+                    _rut = pos * (rut_end - rut_first)/(size - 1) + rut_first
+
+                    # option1:
+                    # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
+
+                    # option 2:
+                    edges = self.g.get_in_edges(v, [self.g.edge_index])[:,2]
+                    ruts = np.full_like(edges, _rut)
+                    self.period_ruts[p].append(np.column_stack((edges, ruts)))
+            else:
+                _rut = rut_end
+                p = start
+                # option1:
+                # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
+
+                # option 2:
+                edges = self.g.get_in_edges(v, [self.g.edge_index])[:, 2]
+                ruts = np.full_like(edges, _rut)
+                self.period_ruts[p].append(np.column_stack((edges, ruts)))
+
+        self.period_ruts = self.period_ruts.vapply(np.concatenate)
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
 
-    def set_weights(self):
+    def set_weights(self, weigths_ep):
 
         targets = self.edges[:, 1]
         # assign small default weights with rut (and durations)
-        # sum_rut = (self.rut_first_vp.get_array() + self.rut_vp.get_array())/2 * \
-        #           self.duration_vp.get_array() * 0.01
-        # self.weights.a = -np.floor(sum_rut[targets])
+        sum_rut = (self.rut_first_vp.get_array() + self.rut_vp.get_array())/2 * \
+                  self.duration_vp.get_array() * 0.01
+        weigths_ep.a = -np.floor(sum_rut[targets])
 
         # give weight to maintenances:
         edge_target_type = self.type_vp.get_array()[targets]
         positions = self.instance.get_period_positions()
         last = positions[self.instance.get_param('end')] + 1
         maint_edge = edge_target_type == nd.MAINT_TYPE
-        maint_weight = (last - self.period_vp.get_array()[targets]) + \
-                       (last - self.period_end_vp.get_array()[targets])
-        self.weights.a[maint_edge] += maint_weight[maint_edge]
+        maint_weight = (last - self.period_vp.get_array()[targets[maint_edge]]) + \
+                       (last - self.period_end_vp.get_array()[targets[maint_edge]])
+        weigths_ep.a[maint_edge] += maint_weight
 
     def shortest_path(self, node1=None, node2=None, **kwargs):
         target, source = None, None
@@ -166,7 +187,7 @@ class GraphTool(DAG):
         self.g.shrink_to_fit()
         self.g.reindex_edges()
         self.edges = self.g.get_edges()
-        self.set_weights()
+        self.set_weights(self.weights)
 
         # we take a view if we have some nodes to take out
         if mask:
@@ -300,6 +321,7 @@ class GraphTool(DAG):
             (self.period_vp.get_array() >= min_period) & \
             (self.period_end_vp.get_array() <= max_period)
 
+    # @profile
     def get_weights(self, node1, node2, errors, resource):
         nodes_window = self.get_nodes_in_window(node1, node2, resource)
         edges_all = self.edges
@@ -333,33 +355,30 @@ class GraphTool(DAG):
         #   add weight for negative rut.
         clusters = self.instance.get_cluster_candidates(resource=resource).list_reverse()[resource]
         clusters = set(clusters)
-        durations = self.duration_vp.get_array()
         hours_periods = \
             errors.get('hours', sd.SuperDict()).\
-            kfilter(lambda k: k[0] in clusters).\
-            to_tuplist().to_dict([1, 2])
+            kfilter(lambda k: k[0] in clusters)
 
         weights_hours = np.zeros_like(w_array)
-        for k, _period_hours in hours_periods.items():
-            pos, hour = zip(*((positions[k], v) for k, v in _period_hours))
-            num_periods = self.instance.get_param('num_period')
-            old_ruts = np.zeros(num_periods)
-            old_ruts[np.array(pos)] = np.array(hour)
-            arr_per = self.period_vp.get_array()
-            old_rut_node = np.zeros_like(arr_per)
-            nodes_window_no_source_sink = nodes_window & (arr_per > 0) & (arr_per < num_periods)
-            old_rut_node[nodes_window_no_source_sink] = old_ruts[arr_per[nodes_window_no_source_sink]]
+        arr_per = self.period_vp.get_array()
+        for (k, period), v in hours_periods.items():
+            refs = self.period_ruts[positions[period]][:,0]
+            ruts = self.period_ruts[positions[period]][:,1]
+            final_rut = ruts + v
+            negative = final_rut < 0
 
-            # TODO: I need to sum the rut overall periods and not only the first one
-            # TODO: do something with average rut
-            #  for now, we just use the average (approximation)
-            ruts = self.rut_vp.get_array()
-            ruts_init = self.rut_first_vp.get_array()
-            ruts_avg = (ruts + ruts_init)/2
+            # option 2:
+            edges = refs
+            extra_hours = np.zeros_like(edges)
+            extra_hours[negative] = -final_rut[negative]
+            weights_hours[edges] += extra_hours
 
-            final_rut = (old_rut_node + ruts_avg) * -durations
-            final_rut[final_rut < 0] = 0
-            weights_hours[relevant_edge] += final_rut[targets[relevant_edge]].astype(int)
+            # option 1:
+            # nodes_arr = refs
+            # extra_hours = np.zeros_like(arr_per)
+            # extra_hours[nodes_arr[negative]] = -final_rut[negative]
+            # weights_hours[relevant_edge] += extra_hours[targets[relevant_edge]]
+
 
         # maintenances!
         #   add weight for extra maintenance over limit.
@@ -380,15 +399,14 @@ class GraphTool(DAG):
 
         # summarize
         # TODO: pass these weights from somewhere
-        weights = self.weights.copy()
+        weights = self.g.new_ep('int')
+        self.set_weights(weights)
         weights_arr = weights.get_array()
         weights.a[relevant_edge] += weights_arr[relevant_edge] + \
                                    weights_resource[relevant_edge] * 20000 + \
                                    weights_hours[relevant_edge] * 100 + \
                                    weights_maints[relevant_edge] * 30000
         return weights
-
-        pass
 
     def get_weights_old(self, node1, node2, errors, resource):
         # get edges between node1 and node 2 only

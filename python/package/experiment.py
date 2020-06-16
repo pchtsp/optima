@@ -96,12 +96,13 @@ class Experiment(object):
         return sd.SuperDict({k: v for k, v in result.items() if v})
 
     # @profile
-    def check_sub_maintenance_capacity(self, ref_compare=0, deficit_only=True, periods=None, **param):
+    def check_sub_maintenance_capacity(self, ref_compare=0, deficit_only=True, periods=None, resources=None, **param):
         """
 
         :param ref_compare: if None, we return all remaining capacity.
             If not we use it to filter which to return
         :param periods: periods to check for capacity
+        :param resources: optional filter for resources to count
         :param param:
         :return: (resource, period): remaining capacity
         """
@@ -118,26 +119,14 @@ class Experiment(object):
             all_states_tuple = all_states_tuple.vfilter(lambda x: x[1] in periods)
         else:
             all_states_tuple = all_states_tuple.vfilter(lambda x: last >= x[1] >= first)
+        if resources is not None:
+            resources = set(resources)
+            all_states_tuple = all_states_tuple.vfilter(lambda v: v[0] in resources)
 
         if not len(all_states_tuple):
             if ref_compare is None:
                 return rem
             return []
-
-        # TODO: finish this
-        # all_states_tuple_np = np.asarray(all_states_tuple)
-        # a = all_states_tuple_np[:, 2]
-        # periods_np = all_states_tuple_np[:, 1]
-        # types_np = np.zeros_like(a)
-        # usage_np = np.zeros(len(a))
-        # for k, v in types.items():
-        #     types_np[a == k] = v
-        # for k, v in usage.items():
-        #     usage_np[a == k] = v
-        # for _type in all_types:
-        #     _values, _groups = self.sum_by_group(usage_np[types_np==_type],
-        #                                          periods_np[types_np==_type])
-        #
 
         for res, period, maint in all_states_tuple:
             _type = types[maint]
@@ -160,7 +149,7 @@ class Experiment(object):
         values[1:] = values[1:] - values[:-1]
         return values, groups
 
-    def check_task_num_resources(self, deficit_only=True, assign_missions=True, periods=None, **params):
+    def check_task_num_resources(self, deficit_only=True, assign_missions=True, periods=None, resources=None, **params):
         if not assign_missions:
             return sd.SuperDict()
         if periods is None:
@@ -173,7 +162,7 @@ class Experiment(object):
             vfilter(lambda v: v[1] in periods)
 
         task_under_assigned = \
-            self.solution.get_task_num_resources(periods).\
+            self.solution.get_task_num_resources(periods, resources).\
             fill_with_default(task_period_list).\
             kvapply(lambda k, v: task_reqs[k[0]] - v)
 
@@ -498,11 +487,22 @@ class Experiment(object):
             over_assigned = over_assigned.vfilter(lambda x: x < 0)
         return over_assigned
 
-    def check_min_flight_hours(self, recalculate=True, deficit_only=True, periods=None, **params):
+    def check_min_flight_hours(self, recalculate=True, deficit_only=True, periods=None, resources=None, **params):
+        """
+
+        :param recalculate: recalculate ruts (not use cache)
+        :param deficit_only: return all, not only failed checks
+        :param periods: optional filter for periods to check
+        :param resources: optional filter for resources to count
+        :param params: for compatibility
+        :return:
+        """
         if recalculate:
             ruts = self.set_remaining_usage_time(time='rut', maint='M')
         else:
             ruts = self.get_remainingtime(time='rut', maint='M')
+        if resources is not None:
+            ruts = ruts.filter(resources)
         all_periods = self.instance.get_periods().to_set()
         if periods is None:
             periods = all_periods

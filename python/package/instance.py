@@ -533,10 +533,10 @@ class Instance(object):
 
         return t_candidates
 
-    def get_cluster_candidates(self):
+    def get_cluster_candidates(self, resource=None):
         # Since clusters are strict, their candidates are the same as the tasks.
         c_candidates = sd.SuperDict()
-        t_candidates = self.get_task_candidates()
+        t_candidates = self.get_task_candidates(resource=resource)
         cluster = self.get_clusters()
         for k, v in t_candidates.items():
             c_candidates[cluster[k]] = v
