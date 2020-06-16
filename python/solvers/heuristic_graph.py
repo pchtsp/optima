@@ -205,9 +205,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             deleted_tasks = self.clean_assignments_window(k, start, end, 'task')
             deleted_maints = self.clean_assignments_window(k, start, end, 'state_m')
             self.update_ret_rut(k, start, end, deleted_maints)
+            # ref_compare is for maintenances.
             errors = self.check_solution(recalculate=False, assign_missions=True,
                                          list_tests=['resources', 'hours', 'capacity'],
-                                         periods = periods_to_check)
+                                         periods = periods_to_check, ref_compare=1)
             pattern = self.get_graph_data(k).nodes_to_pattern2(**v, errors=errors)
             # TODO: not sure why I have to check, I should not have empty paths
             if pattern:
@@ -257,7 +258,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.initialise_seed(options)
         log.info("Initialise graphs")
         self.initialise_graphs(options)
-
         # 1. get an initial solution.
         log.info("Initial solution.")
         initial_opts = dict(max_iters=max_iters_initial,
@@ -389,9 +389,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         _dist = self.instance.get_dist_periods
         maintenances = \
             self.get_maintenance_periods(). \
-                take(1). \
-                vapply(_dist, last)
-
+            vapply(lambda v: _dist(v[1], last) + _dist(v[2], last))
         return sum_errors + sum(maintenances)
 
     def filter_node2(self, node2, resource):
