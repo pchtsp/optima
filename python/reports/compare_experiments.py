@@ -30,7 +30,7 @@ def empty_logs(batch):
     return batch.format_df(col)
 
 
-def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, get_log=True, solstats_func=None):
+def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, get_log=True, solstats_func=None, solver=None):
     """
     :param list exp_list: list of names of experiments
     :param list scenarios: optional list of scenarios to filter batches
@@ -46,7 +46,10 @@ def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, ge
         else:
             batch1 = ba.Batch(path=params.PATHS['results'] + experiment, scenarios=scenarios)
         if get_log:
-            table = batch1.get_log_df(get_progress=get_progress)
+            _solver = None
+            if solver:
+                _solver = solver.get(experiment)
+            table = batch1.get_log_df(get_progress=get_progress, solver=_solver)
         else:
             table = empty_logs(batch1)
         table_errors = batch1.get_errors_df().drop('name', axis=1)

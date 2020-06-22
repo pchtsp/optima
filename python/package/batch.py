@@ -11,6 +11,7 @@ import os
 import zipfile
 import pandas as pd
 import shutil
+import re
 
 
 class Batch(object):
@@ -77,16 +78,24 @@ class Batch(object):
 
     def get_solver(self):
         opt_info = self.get_options()
+        available_solvers = ['CPLEX', 'GUROBI', 'CBC']
+        default = 'CPLEX'
         try:
             el = list(opt_info.keys())[0]
             engine = opt_info[el]['solver']
-            if '.' in engine:
-                engine, solver = engine.split('.')
-            else:
-                solver = engine
         except:
-            solver = 'CPLEX'
-        return solver
+            return default
+        if '.' in engine:
+            engine, solver = engine.split('.')
+        else:
+            solver = engine
+        if solver in available_solvers:
+            return solver
+        # one last try
+        for s in available_solvers:
+            if re.search(s, solver):
+                return s
+        return default
 
     def get_logs(self, get_progress=False):
         if self.logs is not None:
@@ -153,9 +162,12 @@ class Batch(object):
         table = self.format_df(log_info)
 
         for name in ['matrix', 'presolve', 'matrix_post']:
-            aux_table = table[name].apply(pd.Series)
-            aux_table.columns = [name + '_' + c for c in aux_table.columns]
-            table = pd.concat([table, aux_table], axis=1)
+            try:
+                aux_table = table[name].apply(pd.Series)
+                aux_table.columns = [name + '_' + c for c in aux_table.columns]
+                table = pd.concat([table, aux_table], axis=1)
+            except:
+                pass
 
         return table
 
@@ -300,12 +312,13 @@ class ZipBatch(Batch):
         self.cases = self.get_instances_paths().vapply(load_data)
         return self.cases
 
-    def get_logs(self, get_progress=False):
+    def get_logs(self, get_progress=False, solver=None):
         if self.logs is not None:
             return self.logs
 
         zipobj = zipfile.ZipFile(self.path)
-        solver = self.get_solver()
+        if not solver:
+            solver = self.get_solver()
 
         def _read_zip(x):
             try:
@@ -313,13 +326,20 @@ class ZipBatch(Batch):
             except:
                 return 0
 
+        if solver == 'HEUR':
+            func_to_get_log = get_info_heur
+            filename = '/output.log'
+        else:
+            func_to_get_log = ol.get_info_solver
+            filename = '/results.log'
+
         self.logs = \
             self.get_instances_paths(). \
-            vapply(lambda v: v + '/results.log').\
+            vapply(lambda v: v + filename).\
             vapply(_read_zip). \
             clean(). \
             vapply(lambda x: str(x, 'utf-8')). \
-            vapply(lambda v: ol.get_info_solver(v, solver, get_progress=get_progress, content=True))
+            vapply(lambda v: func_to_get_log(v, solver, get_progress=get_progress, content=True))
         return self.logs
 
     def get_json(self, name):
@@ -354,6 +374,62 @@ class ZipBatch(Batch):
             alldirs.update(self.parent_dirs(fn))
         return alldirs
 
+
+class LogHeuristic(ol.LogFile):
+
+    def __init__(self, path, **options):
+        super().__init__(path, **options)
+        self.progress_filter = '.*INFO:time=.*'
+        self.progress_names = ['Date', 'Time', 'ItpNode', 'Temperature', 'Objective', 'BestInteger', 'Errors']
+        self.name = 'HEUR'
+
+    def process_line(self, line):
+        keys = ['t', 'it', 'temp', 'curr', 'best', 'err']
+        args = {k: self.numberSearch for k in keys}
+        info_re = 'time={t}, iteration={it}, temperaure={temp}, current={curr}, best={best}, errors={err}'.format(**args)
+        str_look = r'(\d\d\d\d-\d\d-\d\d\ \d\d:\d\d:\d\d,\d\d\d) INFO:{}'.format(info_re)
+        find = re.search(str_look, line)
+        if not find:
+            return None
+        return find.groups()
+
+    def get_log_info(self):
+        if self.options.get('get_progress', True):
+            progress = self.get_progress()
+        else:
+            progress = pd.DataFrame()
+        first_solution = time = best_solution = None
+        if len(progress):
+            last_line = progress.iloc[-1]
+            first_line = progress.iloc[0]
+            best_solution = float(last_line.BestInteger)
+            time = float(last_line.Time)
+            first_solution = float(first_line.Objective)
+
+        return {
+            'version': 1,
+            'solver': self.name,
+            'status': 1,
+            'best_bound': -1,
+            'best_solution': best_solution,
+            'gap': -1,
+            'time': time,
+            'matrix_post': dict(),
+            'matrix': dict(),
+            'cut_info': dict(),
+            'rootTime': -1,
+            'presolve': -1,
+            'first_relaxed': -1,
+            'progress': progress,
+            'first_solution': first_solution,
+            'status_code': 1,
+            'sol_code': 1,
+            'nodes': -1
+        }
+
+def get_info_heur(path, solver, **options):
+    log_obj = LogHeuristic(path, **options)
+    return log_obj.get_log_info()
 
 if __name__ == '__main__':
     import package.params as params

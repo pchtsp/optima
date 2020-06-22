@@ -1,10 +1,8 @@
-import reports.reports as rep
+from articles import MOSIM2018 as rep
 import os
-import package.experiment as exp
 import pandas as pd
 import numpy as np
 import package.params as pm
-import pytups.superdict as sd
 import dfply as dp
 from dfply import X
 import reports.rpy_graphs as rg

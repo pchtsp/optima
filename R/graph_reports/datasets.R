@@ -2,13 +2,14 @@ library(reticulate)
 source('nps_reports/functions.R')
 
 get_python_module <- function(rel_path, name){
-    use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
+    path_to_python_dir = '/home/pchtsp/Documents/projects/OPTIMA/python/'
+    use_virtualenv('%svenv/' %>% sprintf(path_to_python_dir), required = TRUE)
     # use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
     # c:\Anaconda3\envs\cvenv\Scripts\pip.exe install -r requirements
     py_discover_config()
     sysp = import('sys')
     opt_path = ''
-    python_path <- '%s/%s../python/' %>% sprintf(getwd(), opt_path)
+    python_path <- path_to_python_dir
     sysp$path <- c(python_path, sysp$path)
     scripts_path = paste0(python_path, rel_path)
     compare_sto <- import_from_path(name, path=scripts_path)
@@ -17,7 +18,7 @@ get_python_module <- function(rel_path, name){
 
 get_compare_sto <- function() get_python_module('articles', 'Graphs2020')
 
-get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, get_progress=FALSE, zip=TRUE){
+get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NULL, ...){
     compare_sto <- get_compare_sto()
     if (exp_names %>% is.null){
         # This assumes the dataset_list has only two datasets!
@@ -29,7 +30,10 @@ get_generic_compare <- function(dataset_list, scenario_filter=NULL, exp_names=NU
         # so it has to have length 2
         scenario_filter <- c(scenario_filter, 'WORKAROUND')
     }
-    df_original <- compare_sto$compare_experiments(exp_list=dataset_list)
+    # df_original <- compare_sto$compare_experiments(exp_list=dataset_list)
+    df_original <- compare_sto$compare_experiments(exp_list=dataset_list, 
+                                                 scenarios=scenario_filter, 
+                                                 ...)
     dataset_names <- dataset_list %>% lapply(function(x) x)
     df_original %<>% 
         mutate(dataset=dataset_names[experiment+1] %>% unlist,

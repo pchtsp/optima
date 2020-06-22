@@ -7,8 +7,7 @@ import orloge as log
 import numpy as np
 import data.dates as aux
 import package.experiment as exp
-import reports.reports as rep
-
+from articles import MOSIM2018 as rep
 
 path_root = PATHS['root']
 path_abs = PATHS['experiments']
@@ -76,10 +75,9 @@ def progress_graph():
     ################################################
     # Progress
     ################################################
-    # TODO: correct this to new logging library
     path = path_abs + '201801131817/results.log'
-    result_log = log.LogFile(path)
-    table = result_log.get_progress_cplex()
+    result_log = log.get_info_solver('CPLEX', path)
+    table = result_log['progress']
     table.rename(columns={'ItCnt': 'it', 'Objective': 'relax', 'BestInteger': 'obj'},
                  inplace=True)
     table = table[table.it.str.match(r'\s*\d')][['it', 'relax', 'obj']]

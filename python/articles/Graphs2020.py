@@ -169,7 +169,7 @@ def compare_num_paths():
     #  '9': 6204}
 
 
-def compare_experiments(**kwargs):
+def compare_experiments(exp_list, get_progress=False, **kwargs):
 
     def get_solstats(batch):
         objFunc = batch.\
@@ -179,9 +179,26 @@ def compare_experiments(**kwargs):
             vapply(lambda v: dict(objective=v))
         return batch.format_df(objFunc).drop('name', axis=1)
 
-    return comp.get_df_comparison(**kwargs, get_log=False, solstats_func=get_solstats, zip=True)
+    result = comp.get_df_comparison(exp_list, get_log=True, solstats_func=get_solstats, zip=True,
+                                    get_progress=get_progress, **kwargs)
+    if not get_progress:
+        return result
+
+    def expand_df(index):
+        row = result.iloc[[index]]
+        progress = row.iloc[0].progress.reset_index()[['Time', 'BestInteger']]
+        rows = row.loc[row.index.repeat(len(progress))]
+        rows = rows.drop('progress', axis=1).reset_index()
+        return pd.concat([rows, progress], axis=1)
+
+    tables = [expand_df(i) for i in range(len(result)) if len(result.iloc[i].progress)]
+    return pd.concat(tables, axis=0, join='inner')
 
 
 if __name__ == '__main__':
     # table()
-    compare_experiments(exp_list=['prise_srv3_20200527_2'])
+    t2 = compare_experiments(exp_list=['prise_srv3_20200605_good', 'prise_srv3_20200603_2'],
+                             solver=dict(prise_srv3_20200605_good='HEUR'), get_progress=True)
+    # t = compare_experiments(exp_list=['prise_srv3_20200603_2'], get_progress=True)
+    # [t.iloc[x].progress.tail(10) for x in range(len(t))]
+    # [t2.iloc[x].progress.tail(10) for x in range(len(t2))]
