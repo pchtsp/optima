@@ -145,15 +145,19 @@ class GraphTool(DAG):
     def shortest_path(self, node1=None, node2=None, **kwargs):
         target, source = None, None
         if node1 is not None:
-            source = self.refs[node1]
+            source = find_vertex(self.g, self.refs, node1)
+            if source is None:
+                log.error("There was a problem finding node {}".format(node1))
+                return None
         if node2 is not None:
-            target = self.refs[node2]
+            target = find_vertex(self.g, self.refs, node2)
         return gr.shortest_distance(self.g, source=source, target=target, dag=True, **kwargs)
 
     def filter_by_tasks(self, node1, node2, g=None):
         # returns a graph without task assignments.
         # Except the node1 and node2 and previous nodes to node2
-        nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
+        nodes = [self.refs[node1], self.refs[node2]] + \
+                [int(v) for v in self.g.vertex(self.refs[node2]).in_neighbors()]
         _temp_vp = self.vp_not_task.copy()
         _temp_vp.a[nodes] = 1
         if g is None:
@@ -290,21 +294,9 @@ class GraphTool(DAG):
 
         weights = self.get_weights(node1, node2, errors, resource)
 
-        def find_vertex(node):
-            while node.rut is None or node.rut['M'] >= 0:
-                try:
-                    return graph.vertex(refs[node])
-                except (KeyError, ValueError):
-                    node.rut['M'] -= 10
-                    data = node.get_data()
-                    node.jsondump = json.dumps(data, sort_keys=True)
-                    node.hash = hash(node.jsondump)
-                    log.warning('had to correct node')
-            return None
-
         # TODO: this is failing, sometimes?
-        source = find_vertex(node1)
-        target = find_vertex(node2)
+        source = find_vertex(graph, refs, node1)
+        target = find_vertex(graph, refs, node2)
         if source is None or target is None:
             log.error("There was a problem finding node {} or node {}".format(node1, node2))
             return None
@@ -634,3 +626,16 @@ def generate_graph_mcluster(instance, resources):
         res_nodes[r] = shortest_path.get_array() <= num_period
     graph.resource_nodes = res_nodes
     return graph
+
+
+def find_vertex(graph, refs, node):
+    while node.rut is None or node.rut['M'] >= 0:
+        try:
+            return graph.vertex(refs[node])
+        except (KeyError, ValueError):
+            node.rut['M'] -= 10
+            data = node.get_data()
+            node.jsondump = json.dumps(data, sort_keys=True)
+            node.hash = hash(node.jsondump)
+            log.warning('had to correct node')
+    return None

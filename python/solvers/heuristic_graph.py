@@ -88,9 +88,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             for mc, result in results.items():
                 _data[mc] = result.get(timeout=10000)
         self.instance.data['aux']['graphs'] = _data
-        # for mc, resources in meta_clusters.items():
-        #     for r in resources:
-        #         self.instance.data['aux']['graphs'][r] = _data[mc][r]
         return
 
     def sub_problem_mip(self, change, options):
@@ -138,9 +135,11 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         to_fix = m_to_fix + t_to_fix
         conts = m_constraints + t_constraints
 
+        # TODO: use model.solverModel
+        # fix variables
         for v in to_fix:
             v.fixValue()
-
+        # add constraints
         for c in conts:
             self.big_mip.model += c
 
@@ -152,6 +151,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # lp.solverModel.variables.add(obj=obj, lb=lb, ub=ub, types=ctype,
         #                        names=colnames)
 
+        # TODO: use model.solverModel
         # unfix everything!
         for v in to_fix:
             v.bounds(0, 1)
@@ -251,6 +251,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.initialise_seed(options)
         log.info("Initialise graphs")
         self.initialise_graphs(options)
+        all_graphs = self.instance.data['aux']['graphs']
+        values = all_graphs.values()
+        keys = self.instance.data['aux']['graphs'].keys()
+        vertices = [v.g.num_vertices() for v in values]
+        edges = [v.g.num_edges() for v in values]
+        log.debug("(V, G) in graphs: {}".format(list(zip(keys, vertices, edges))))
         # 1. get an initial solution.
         log.info("Initial solution.")
         initial_opts = dict(max_iters=max_iters_initial,
@@ -525,8 +531,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         node2_data = {**node2_data, **sd.SuperDict(rut=None, ret=None)}
         dummy_node2  = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
         if cutoff is None:
-            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
+            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
+            if min_cutoff is None:
+                min_cutoff = max_cutoff
             max_cutoff = max(min_cutoff, max_cutoff)
             log.debug("min/ max cutoff: {} {}".format(min_cutoff, max_cutoff))
             size = max_cutoff - min_cutoff
@@ -756,7 +764,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             vapply(pl.value). \
             vfilter(lambda v: v). \
             kapply(lambda k: combos[k])
-        return patterns
+        return {k[0]: v for k, v in patterns.items()}
 
     def draw_graph(self, resource, **kwargs):
         self.get_graph_data(resource).draw(**kwargs)
