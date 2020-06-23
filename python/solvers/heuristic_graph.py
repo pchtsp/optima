@@ -166,17 +166,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if result != 1:
             log.error("No solution was found in mip")
             return self.solution
-        backup = self.copy_solution()
-        self.solution = self.big_mip.get_solution()
-        for r in change['resources']:
-            self.set_remaining_usage_time(time='rut', maint='M', resource=r)
-            self.set_remaining_usage_time(time='ret', maint='M', resource=r)
-        # The model does not fill ret and the rut may be slightly different (fractions)
-        # so, I need to
-        rest = self.instance.get_resources().keys() - set(change['resources'])
-        for r in rest:
-            for t in ['rut', 'ret']:
-                self.solution.data['aux'][t]['M'][r] = backup['aux'][t]['M'][r]
+        self.solution = self.big_mip.get_solution(get_aux_info=False)
+
+        # Because we're only fixing what is already assigned, we are letting
+        # additional assignments happen in other aircraft and periods outside the
+        # window. This means we need to update ALL aircraft or problems appear:
+        self.set_remaining_usage_time(time='rut', maint='M')
+        self.set_remaining_usage_time(time='ret', maint='M')
+
         return self.solution
 
     def sub_problem_shortest(self, change, options):

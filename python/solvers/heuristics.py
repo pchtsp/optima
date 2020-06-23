@@ -592,7 +592,6 @@ class GreedyByMission(test.Experiment):
         :rtype: tuple
         """
         # This commented function validates if I'm updating correctly rut and ret.
-        # self.check_consistency()
         # errors = self.get_inconsistency()
         errs = self.check_solution(recalculate=False, **kwargs)
         error_cat = errs.to_lendict()

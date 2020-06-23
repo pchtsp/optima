@@ -806,7 +806,7 @@ class Experiment(object):
         :rtype: :py:class:`pytups.SuperDict`
         """
         data = self.solution.data
-        data_copy = ujson.loads(ujson.dumps(data))
+        data_copy = di.copy_dict(data)
         if exclude_aux:
             data_copy.pop('aux', None)
         return sd.SuperDict.from_dict(data_copy)
@@ -819,7 +819,7 @@ class Experiment(object):
         :return: True
         :rtype: bool
         """
-        data = ujson.loads(ujson.dumps(data))
+        data = di.copy_dict(data)
         self.solution.data = sd.SuperDict.from_dict(data)
         return True
 

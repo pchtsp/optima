@@ -22,11 +22,14 @@ def big_mip_fix_variables(change, variable, t1, t2, index, name):
     all_var_id = all_variables.to_dict(indices=index, result_col=[t1, t2])
     start, end = change['start'], change['end']
 
+    # these are the variables I am fixing. Only assignments
     force_outside = \
         variable. \
             kfilter(lambda k: (k[t2] < start or k[t1] > end)
                               or (k[t1] < start and k[t2] > end)
                     ).values_tl() + var_with_value.kfilter(lambda k: k[0] not in resources).values_tl()
+
+    # these are the constraints I am adding. Only on assignments
 
     active_start_outside = \
         var_value_filt. \
@@ -50,10 +53,6 @@ def big_mip_fix_variables(change, variable, t1, t2, index, name):
 
     # this ones we do not fix:
     # tasks_inside = variable_with_value.vfilter(lambda k: (start <= k[t1]) and (k[t2] <= end))
-
-    # # fixing!
-    # for k in force_outside:
-    #     variable[k].fixValue()
 
     # new constraints:
     def _to_constraint(k, tt, i):
