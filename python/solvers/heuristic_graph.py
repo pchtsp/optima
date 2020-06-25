@@ -111,16 +111,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.apply_pattern(p, r)
         return self.solution
 
+    def initialise_classic_mip(self, options):
+        options_m = dict(options)
+        self.big_mip = mdl.Model(self.instance)
+        options_m['calculate_domains'] = True
+        options_m['mip_start'] = False
+        options_m['do_not_solve'] = True
+        # we do not really solve it, we only prepare everything
+        # the model, the variables, etc.
+        self.big_mip.solve(options_m)
+
     def sub_problem_classic_mip(self, change, options):
         if not self.big_mip:
-            options_m = dict(options)
-            self.big_mip = mdl.Model(self.instance)
-            options_m['calculate_domains'] = True
-            options_m['mip_start'] = False
-            options_m['do_not_solve'] = True
-            # we do not really solve it, we only prepare everything
-            # the model, the variables, etc.
-            self.big_mip.solve(options_m)
+            self.initialise_classic_mip(options)
 
         self.big_mip.set_solution(self.solution.data)
         self.big_mip.fill_initial_solution()
@@ -248,6 +251,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.initialise_seed(options)
         log.info("Initialise graphs")
         self.initialise_graphs(options)
+        log.info("Initialise big mip")
+        self.initialise_classic_mip(options)
+
         all_graphs = self.instance.data['aux']['graphs']
         values = all_graphs.values()
         keys = self.instance.data['aux']['graphs'].keys()
