@@ -35,33 +35,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.solution_store = tl.TupList()
         self.big_mip = None
 
-    def initialise_graphs_old(self, options):
-        path_cache = options.get('cache_graph_path', '')
-        if path_cache and os.path.exists(path_cache):
-            self.import_graph_data(path_cache)
-            return
-        multiproc = options['multiprocess']
-        resources = self.instance.get_resources()
-        if not multiproc:
-            for r in resources:
-                log.debug('Creating graph for resource: {}'.format(r))
-                graph_data = gg.graph_factory(instance=self.instance, resource=r, options=options)
-                self.instance.data['aux']['graphs'][r] = graph_data
-            return
-        results = sd.SuperDict()
-        _data = sd.SuperDict()
-        with multi.Pool(processes=multiproc) as pool:
-            for r in resources:
-                _instance = inst.Instance.from_instance(self.instance)
-                results[r] = pool.apply_async(gg.graph_factory, [_instance, r, options])
-            for r, result in results.items():
-                _data[r] = result.get(timeout=10000)
-        self.instance.data['aux']['graphs'] = _data
-        if path_cache:
-            os.mkdir(path_cache)
-            self.export_graph_data(path_cache)
-        return
-
     def initialise_graphs(self, options):
         # fixed_stats PROBABLY do no harm. but I haven't checked that
         # Well, I had to correct that, apparently.
@@ -243,9 +216,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         max_patterns_initial = options.get('max_patterns_initial', 0)
         timeLimit_initial = options.get('timeLimit_initial', options_repair['timeLimit'])
 
-        # set clock!
-        time_init = time.time()
-
         # initialise logging, seed
         self.set_log_config(options)
         self.initialise_seed(options)
@@ -253,6 +223,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.initialise_graphs(options)
         log.info("Initialise big mip")
         self.initialise_classic_mip(options)
+
+        # set clock!
+        time_init = time.time()
 
         all_graphs = self.instance.data['aux']['graphs']
         values = all_graphs.values()
@@ -1079,22 +1052,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         varList_grouped = self.get_constraints_hours_df_step2(
             assign_pd, consumption_pd, info.to_list(), res_clusters_pd
         )
-        # cache = varList_grouped.to_dict()
-        # cache = sd.SuperDict(cache).to_tuplist().to_set()
-        #
-        # _path = '/home/pchtsp/Downloads/cache/'
-        # assign_pd.to_csv(_path + 'assign_pd.csv', index=False)
-        # consumption_pd.to_csv(_path + 'consumption_pd.csv', index=False)
-        # res_clusters_pd.to_csv(_path + 'res_clusters_pd.csv', index=False)
-        # info.to_csv(_path + 'info.csv')
-        # t_min_hour_slack_pd.to_csv(_path + 't_min_hour_slack.csv', header=True)
-        # _slack_s_kt_h_pd.apply(pd.Series).stack().apply(lambda v: v[0]).to_csv(_path + 'slack_s_kt_h.csv', header=True)
 
-        # result = varList_grouped.to_dict()
-        # result = sd.SuperDict(result).to_tuplist().to_set()
-        # dif = result ^ cache
-
-        # #
         log.debug("constraints: clusters hours 3")
 
         final_table = pd.concat([varList_grouped, t_min_hour_slack_pd, _slack_s_kt_h_pd], axis=1, join='inner')
