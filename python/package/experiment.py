@@ -8,7 +8,7 @@ import package.instance as inst
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
-import ujson
+import random as rn
 
 
 class Experiment(object):
@@ -857,6 +857,14 @@ class Experiment(object):
                 to_dict(result_col=0, indices=[1, 2]). \
                 to_lendict().kvapply(lambda k, v: (m_usage[k[1]]*v, m_type[k[1]])).\
                 to_tuplist().to_dict(result_col=2, indices=[0, 3]).vapply(sum)
+
+    def initialise_seed(self, options):
+        seed = options.get('solve_seed')
+        if not seed:
+            seed = rn.random()*10000
+            options['solve_seed'] = seed
+        rn.seed(int(seed))
+        np.random.seed(int(seed))
 
 if __name__ == "__main__":
     pass

@@ -38,14 +38,6 @@ class GreedyByMission(test.Experiment):
 
         return
 
-    def initialise_seed(self, options):
-        seed = options.get('seed')
-        if not seed:
-            seed = rn.random()*10000
-            options['seed'] = seed
-        rn.seed(int(seed))
-        np.random.seed(int(seed))
-
     @staticmethod
     def set_log_config(options):
         """

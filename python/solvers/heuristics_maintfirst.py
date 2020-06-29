@@ -724,7 +724,7 @@ if __name__ == "__main__":
     experiments = []
     seeds = [rn.random()*1000 for i in range(5)]
     for s in seeds:
-        options['seed'] = s
+        options['solve_seed'] = s
         instance = inst.Instance(model_data)
         heur_obj = MaintenanceFirst(instance)
         solution = heur_obj.solve(options)

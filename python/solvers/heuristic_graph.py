@@ -167,7 +167,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         res_pattern = \
             sd.SuperDict().\
             fill_with_default(change['resources']).\
-            kapply(_func).items_tl()
+            kapply(_func).items_tl().sorted()
         periods_to_check = self.instance.get_periods_range(change['start'], change['end'])
         _shift = self.instance.shift_period
         _range = self.instance.get_periods_range
@@ -232,7 +232,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         keys = self.instance.data['aux']['graphs'].keys()
         vertices = [v.g.num_vertices() for v in values]
         edges = [v.g.num_edges() for v in values]
-        log.debug("(V, G) in graphs: {}".format(list(zip(keys, vertices, edges))))
+        log.info("(V, G) in graphs: {}".format(list(zip(keys, vertices, edges))))
         # 1. get an initial solution.
         log.info("Initial solution.")
         initial_opts = dict(max_iters=max_iters_initial,
@@ -241,8 +241,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                             timeLimit=timeLimit_initial)
         options_fs = {**options_repair, **initial_opts}
         if self.solution is None or max_iters_initial:
+            _init_sol_pool = tl.TupList()
+            _initial_solution = self.copy_solution()
             ch = self.get_candidate_all()
-            self.sub_problem_shortest(ch, options_fs)
+            for i in range(max_iters_initial):
+                self.sub_problem_shortest(ch, options_fs)
+                _obj = self.get_objective_function()
+                _sol = self.copy_solution(False)
+                _init_sol_pool.add(_obj, _sol)
+                self.set_solution(_initial_solution)
+            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
+            self.set_solution(best_sol)
         elif max_patterns_initial:
             ch = self.get_candidate_all()
             patterns = self.get_patterns_from_window(ch, options_fs)

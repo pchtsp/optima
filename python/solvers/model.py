@@ -35,11 +35,7 @@ class Model(exp.Experiment):
 
     def solve(self, options):
 
-        seed = options.get('seed')
-        if not seed:
-            seed = math.ceil(rn.random() * 100000)
-            options['seed'] = seed
-        rn.seed(seed)
+        self.initialise_seed(options)
 
         l = self.domains
         if not self.domains or options.get('calculate_domains', True):
