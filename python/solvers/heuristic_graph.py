@@ -200,6 +200,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         max_iters_initial = options.get('max_iters_initial', 10)
         max_patterns_initial = options.get('max_patterns_initial', 0)
         timeLimit_initial = options.get('timeLimit_initial', options_initial['timeLimit'])
+        multi_start = options.get('multi_start', 1)
 
         initial_opts = dict(max_iters=max_iters_initial,
                             assign_missions=True,
@@ -212,7 +213,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             _init_sol_pool = tl.TupList()
             _initial_solution = self.copy_solution()
             ch = self.get_candidate_all()
-            for i in range(max_iters_initial):
+            for i in range(multi_start):
                 self.sub_problem_shortest(ch, options_fs)
                 _obj = self.get_objective_function()
                 _sol = self.copy_solution()
@@ -231,7 +232,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             _initial_solution = self.copy_solution()
             first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
             first_solve.get_objective_function = self.get_objective_function
-            for i in range(max_iters_initial):
+            for i in range(multi_start):
                 options_fs['solve_seed'] = rn.random() * 10000
                 first_solve.solve(options_fs)
                 first_solve.solution.data = first_solve.best_solution
