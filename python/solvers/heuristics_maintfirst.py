@@ -92,7 +92,7 @@ class MaintenanceFirst(heur.GreedyByMission):
                 self.over_assign_missions()
 
             # check quality of solution, store best.
-            objective, status, errors = self.analyze_solution(temperature, assign_missions)
+            objective, status, errors = self.analyze_solution(temperature, assign_missions=assign_missions)
             num_errors = errors.to_lendict().values_tl()
             num_errors = sum(num_errors)
 
@@ -153,7 +153,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         if not len(candidates):
             return []
         # we add a random resource.
-        resources = list(self.instance.data['resources'].keys())
+        resources = self.instance.data['resources'].keys_tl().sorted()
         candidates.extend([(c, None) for c in rn.choices(resources, k=1)])
         # we only select a few (or 1) resource to change
         candidates_filter = rn.choices(candidates, k=min(k, len(candidates)))
@@ -173,8 +173,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         clust_hours = errors.get('hours', sd.SuperDict())
         if not len(clust_hours):
             return []
-        clust_hours = clust_hours.to_tuplist().to_start_finish(self.instance.compare_tups)
-        c_cand = self.instance.get_cluster_candidates()
+        clust_hours = clust_hours.to_tuplist().to_start_finish(self.instance.compare_tups).sorted()
+        c_cand = self.instance.get_cluster_candidates().vapply(sorted)
         return [(rn.choice(c_cand[c]), d) for c, d, q, d in clust_hours]
 
     def get_candidates_tasks(self, errors):
@@ -182,8 +182,8 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return: a list of candidates [(aircraft, period), (aircraft2, period2)] to free
         :rtype: tl.TupList
         """
-        tasks_probs = errors.get('resources', sd.SuperDict()).to_tuplist()
-        t_cand = self.instance.get_task_candidates()
+        tasks_probs = errors.get('resources', sd.SuperDict()).to_tuplist().sorted()
+        t_cand = self.instance.get_task_candidates().vapply(sorted)
         candidates_to_change = [(rn.choice(t_cand[t]), d) for (t, d, n) in tasks_probs]
         return candidates_to_change
 
@@ -709,7 +709,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         :return: None
         """
         rem_resources = self.check_task_num_resources().to_dictdict()
-        tasks = rem_resources.keys_l()
+        tasks = rem_resources.keys_tl().sorted()
         rn.shuffle(tasks)
         for task in tasks:
             self.fill_mission(task, assign_maints=False, max_iters=5, rem_resources=rem_resources)
