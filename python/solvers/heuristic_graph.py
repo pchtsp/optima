@@ -265,6 +265,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         # initialise logging, seed
         self.set_log_config(options)
+        log.info("Setting solver seed: {}".format(options.get('solve_seed')))
         self.initialise_seed(options)
         log.info("Initialise graphs")
         self.initialise_graphs(options)
