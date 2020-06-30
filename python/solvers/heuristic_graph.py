@@ -5,6 +5,7 @@ import solvers.heuristics as heur
 import solvers.model as mdl
 import solvers.config as conf
 import solvers.model_fixing as mdl_f
+import solvers.heuristics_maintfirst as heur_maint
 
 import package.solution as sol
 import package.instance as inst
@@ -24,6 +25,7 @@ import multiprocessing as multi
 import pandas as pd
 import os
 import numpy as np
+
 
 class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': 'gg.DAG'}}}
@@ -193,6 +195,54 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             kapply(self.get_pattern_options_from_window, *args)
         return patterns.vfilter(lambda v: len(v) > 0)
 
+    def get_initial_solution(self, options):
+        options_initial = di.copy_dict(options)
+        max_iters_initial = options.get('max_iters_initial', 10)
+        max_patterns_initial = options.get('max_patterns_initial', 0)
+        timeLimit_initial = options.get('timeLimit_initial', options_initial['timeLimit'])
+
+        initial_opts = dict(max_iters=max_iters_initial,
+                            assign_missions=True,
+                            num_max=max_patterns_initial,
+                            timeLimit=timeLimit_initial)
+        options_fs = {**options_initial, **initial_opts}
+
+        method = options.get('initial_solution', 'short')
+        if method=='short':
+            _init_sol_pool = tl.TupList()
+            _initial_solution = self.copy_solution()
+            ch = self.get_candidate_all()
+            for i in range(max_iters_initial):
+                self.sub_problem_shortest(ch, options_fs)
+                _obj = self.get_objective_function()
+                _sol = self.copy_solution()
+                _init_sol_pool.add(_obj, _sol)
+                self.set_solution(_initial_solution)
+            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
+            self.set_solution(best_sol)
+        elif method=='patterns':
+            ch = self.get_candidate_all()
+            patterns = self.get_patterns_from_window(ch, options_fs)
+            patterns = self.solve_repair(patterns, options_fs)
+            for res, p in patterns.items():
+                self.apply_pattern(p, res)
+        elif method=='MaintFirst':
+            _init_sol_pool = tl.TupList()
+            _initial_solution = self.copy_solution()
+            first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
+            first_solve.get_objective_function = self.get_objective_function
+            for i in range(max_iters_initial):
+                options_fs['solve_seed'] = rn.random() * 10000
+                first_solve.solve(options_fs)
+                first_solve.solution.data = first_solve.best_solution
+                _obj = first_solve.get_objective_function()
+                _sol = first_solve.copy_solution()
+                _init_sol_pool.add(_obj, _sol)
+                self.set_solution(_initial_solution)
+            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
+            self.set_solution(best_sol)
+            return
+
     def solve(self, options):
         """
          Solves an instance using the metaheuristic.
@@ -211,10 +261,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         options_repair = di.copy_dict(options)
         options_repair = sd.SuperDict(options_repair)
         options_repair['timeLimit'] = options.get('timeLimit_cycle', 10)
-
-        max_iters_initial = options.get('max_iters_initial', 10)
-        max_patterns_initial = options.get('max_patterns_initial', 0)
-        timeLimit_initial = options.get('timeLimit_initial', options_repair['timeLimit'])
 
         # initialise logging, seed
         self.set_log_config(options)
@@ -235,29 +281,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         log.info("(V, G) in graphs: {}".format(list(zip(keys, vertices, edges))))
         # 1. get an initial solution.
         log.info("Initial solution.")
-        initial_opts = dict(max_iters=max_iters_initial,
-                            assign_missions=True,
-                            num_max=max_patterns_initial,
-                            timeLimit=timeLimit_initial)
-        options_fs = {**options_repair, **initial_opts}
-        if self.solution is None or max_iters_initial:
-            _init_sol_pool = tl.TupList()
-            _initial_solution = self.copy_solution()
-            ch = self.get_candidate_all()
-            for i in range(max_iters_initial):
-                self.sub_problem_shortest(ch, options_fs)
-                _obj = self.get_objective_function()
-                _sol = self.copy_solution(False)
-                _init_sol_pool.add(_obj, _sol)
-                self.set_solution(_initial_solution)
-            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
-            self.set_solution(best_sol)
-        elif max_patterns_initial:
-            ch = self.get_candidate_all()
-            patterns = self.get_patterns_from_window(ch, options_fs)
-            patterns = self.solve_repair(patterns, options_fs)
-            for res, p in patterns.items():
-                self.apply_pattern(p, res)
+        self.get_initial_solution(options_repair)
 
         # initialise solution status
         self.initialise_solution_stats()
@@ -361,11 +385,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if errs is None:
             errs = self.check_solution(list_tests=['resources', 'hours', 'capacity'])
         error_sum = errs.vapply(lambda v: sum(v.values())).vapply(abs)
-        weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000)
-        a = {'elapsed', 'usage', 'dist_maints'} & error_sum.keys()
+        weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000,
+                               elapsed=20000, usage=20000, dist_maints=20000, min_assign=10000,
+                               # elapsed=0, usage=0, dist_maints=0, min_assign=0,
+                               )
+        a = {'elapsed', 'usage', 'dist_maints', 'min_assign'} & error_sum.keys()
         if a:
             log.error("Problem with errors: {}".format(a))
-            error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
+            # error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
         sum_errors = sum((error_sum*weights).values())
 
         # we count the number of maintenances and their distance to the end
