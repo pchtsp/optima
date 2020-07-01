@@ -632,6 +632,7 @@ class GreedyByMission(test.Experiment):
         self.prev_errs = errs
         self.prev_objective = self.get_objective_function(errs)
         self.best_objective = self.prev_objective
+        return errs
 
     @staticmethod
     def iterate_periods_until(period, condition_to_return, stop_condition, move_period):

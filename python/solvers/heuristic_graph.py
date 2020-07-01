@@ -242,6 +242,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
                 self.set_solution(_initial_solution)
             best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
             self.set_solution(best_sol)
+        elif method == 'mip':
+            ch = self.get_candidate_all()
+            self.sub_problem_classic_mip(ch, options_fs)
             return
 
     def solve(self, options):
@@ -286,11 +289,18 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.get_initial_solution(options_repair)
 
         # initialise solution status
-        self.initialise_solution_stats()
+        errors = self.initialise_solution_stats()
+        time_now = time.time() - time_init
+        num_errors = errors.to_lendict().values_tl()
+        num_errors = sum(num_errors)
+
+        log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
+                 format(round(time_now), 0, round(temperature, 4), self.best_objective,
+                        self.best_objective, num_errors))
 
         # 2. repair solution
         log.info("Solving phase.")
-        i = 0
+        i = 1
         errors = sd.SuperDict()
         while i < max_iters:
 
@@ -335,8 +345,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if status in self.status_worse:
                 temperature *= cooling
 
-            clock = time.time()
-            time_now = clock - time_init
+            time_now = time.time() - time_init
             if solution_store:
                 self.solution_store.append(self.copy_solution(exclude_aux=True))
 
