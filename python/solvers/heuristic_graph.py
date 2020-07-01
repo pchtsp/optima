@@ -42,6 +42,8 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # Well, I had to correct that, apparently.
         # now each resource has its source node.
         multiproc = options['multiprocess']
+        if not options.get('multiprocess_graph', True):
+            multiproc = 0
         res_meta_clusters = \
             self.instance.get_resources('capacities'). \
                 vapply(sorted).vapply(tuple)
