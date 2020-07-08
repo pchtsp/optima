@@ -310,10 +310,20 @@ def dataset4():
     return model_data
 
 def dataset5():
+    # 20 periods, 30 resources
     return DataSet.from_directory('cases/202003121542')
 
 def dataset6():
+    # "num_period": 30,"num_resources": 60,
     return DataSet.from_directory('cases/202003231502')
+
+def dataset7():
+    # "num_period": 20,"num_resources": 10,
+    return DataSet.from_directory('cases/202007081453')
+
+def dataset8():
+    # "num_period": 20,"num_resources": 5,
+    return DataSet.from_directory('cases/202007081453_2')
 
 def get_file_path(abs_path):
     from .data_input import load_data

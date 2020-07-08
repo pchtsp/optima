@@ -1,0 +1,300 @@
+{
+    "maint_types": {
+        "1": {
+            "capacity": {}
+        }
+    },
+    "maintenances": {
+        "M": {
+            "affects": [
+                "M"
+            ],
+            "capacity": 1,
+            "capacity_usage": 1,
+            "depends_on": [
+                "M"
+            ],
+            "duration_periods": 2,
+            "elapsed_time_size": 15,
+            "max_elapsed_time": 15,
+            "max_used_time": 300,
+            "type": "1",
+            "used_time_size": 300
+        }
+    },
+    "parameters": {
+        "default_type2_capacity": 66,
+        "elapsed_time_size": 15,
+        "end": "2019-08",
+        "initial_unbalance": [
+            -3,
+            3
+        ],
+        "maint_capacity": 1,
+        "maint_duration": 2,
+        "maint_weight": 1,
+        "maintenances": {
+            "M": {
+                "affects": [],
+                "capacity_usage": 1,
+                "depends_on": [],
+                "duration_periods": 4,
+                "elapsed_time_size": 3,
+                "max_elapsed_time": 60,
+                "max_used_time": 1000,
+                "priority": 0,
+                "type": "1",
+                "used_time_size": 1000
+            },
+            "VG": {
+                "affects": [],
+                "capacity_usage": 3,
+                "depends_on": [
+                    "M"
+                ],
+                "duration_periods": 1,
+                "elapsed_time_size": 3,
+                "max_elapsed_time": 8,
+                "max_used_time": null,
+                "priority": 10,
+                "type": "2",
+                "used_time_size": null
+            },
+            "VI": {
+                "affects": [],
+                "capacity_usage": 6,
+                "depends_on": [
+                    "M"
+                ],
+                "duration_periods": 1,
+                "elapsed_time_size": 3,
+                "max_elapsed_time": 17,
+                "max_used_time": null,
+                "priority": 5,
+                "type": "2",
+                "used_time_size": null
+            },
+            "VS": {
+                "affects": [],
+                "capacity_usage": 4,
+                "depends_on": [
+                    "M"
+                ],
+                "duration_periods": 1,
+                "elapsed_time_size": null,
+                "max_elapsed_time": null,
+                "max_used_time": 600,
+                "priority": 2,
+                "type": "2",
+                "used_time_size": 200
+            }
+        },
+        "max_elapsed_time": 15,
+        "max_elapsed_time_2M": null,
+        "max_used_time": 300,
+        "min_avail_percent": 0.1,
+        "min_avail_value": 1,
+        "min_hours_perc": 0.5,
+        "min_usage_period": 0,
+        "num_parallel_tasks": 1,
+        "num_period": 20,
+        "num_resources": 5,
+        "perc_add_capacity": 0.1,
+        "perc_capacity": 0.15,
+        "perc_in_maint": 0.07,
+        "seed": 8001,
+        "start": "2018-01",
+        "t_duration": [
+            3,
+            4
+        ],
+        "t_min_assign": [
+            2,
+            3
+        ],
+        "t_num_resource": [
+            1,
+            3
+        ],
+        "t_required_hours": [
+            10,
+            30,
+            40
+        ],
+        "unavail_weight": 1
+    },
+    "resources": {
+        "0": {
+            "capacities": [
+                "0"
+            ],
+            "code": "",
+            "initial": {
+                "M": {
+                    "elapsed": 7,
+                    "used": 120
+                }
+            },
+            "initial_elapsed": 7,
+            "initial_used": 120,
+            "min_usage_period": {
+                "default": 0
+            },
+            "states": {},
+            "type": 0
+        },
+        "1": {
+            "capacities": [
+                "0"
+            ],
+            "code": "",
+            "initial": {
+                "M": {
+                    "elapsed": 13,
+                    "used": 220
+                }
+            },
+            "initial_elapsed": 13,
+            "initial_used": 220,
+            "min_usage_period": {
+                "default": 0
+            },
+            "states": {},
+            "type": 0
+        },
+        "2": {
+            "capacities": [
+                "0"
+            ],
+            "code": "",
+            "initial": {
+                "M": {
+                    "elapsed": 7,
+                    "used": 140
+                }
+            },
+            "initial_elapsed": 7,
+            "initial_used": 140,
+            "min_usage_period": {
+                "default": 0
+            },
+            "states": {},
+            "type": 0
+        },
+        "3": {
+            "capacities": [
+                "0",
+                "A"
+            ],
+            "code": "",
+            "initial": {
+                "M": {
+                    "elapsed": 8,
+                    "used": 140
+                }
+            },
+            "initial_elapsed": 8,
+            "initial_used": 140,
+            "min_usage_period": {
+                "default": 0
+            },
+            "states": {},
+            "type": 0
+        },
+        "4": {
+            "capacities": [
+                "0",
+                "A"
+            ],
+            "code": "",
+            "initial": {
+                "M": {
+                    "elapsed": 6,
+                    "used": 160
+                }
+            },
+            "initial_elapsed": 6,
+            "initial_used": 160,
+            "min_usage_period": {
+                "default": 0
+            },
+            "states": {},
+            "type": 0
+        }
+    },
+    "tasks": {
+        "0": {
+            "capacities": [
+                "0",
+                "A"
+            ],
+            "consumption": 24,
+            "end": "2018-04",
+            "matricule": "",
+            "min_assign": 2,
+            "num_resource": 1,
+            "start": "2018-01",
+            "type_resource": 0
+        },
+        "1": {
+            "capacities": [
+                "0"
+            ],
+            "consumption": 34,
+            "end": "2018-07",
+            "matricule": "",
+            "min_assign": 2,
+            "num_resource": 3,
+            "start": "2018-05",
+            "type_resource": 0
+        },
+        "2": {
+            "capacities": [
+                "0"
+            ],
+            "consumption": 18,
+            "end": "2018-11",
+            "matricule": "",
+            "min_assign": 3,
+            "num_resource": 3,
+            "start": "2018-08",
+            "type_resource": 0
+        },
+        "3": {
+            "capacities": [
+                "0"
+            ],
+            "consumption": 30,
+            "end": "2019-03",
+            "matricule": "",
+            "min_assign": 3,
+            "num_resource": 3,
+            "start": "2018-12",
+            "type_resource": 0
+        },
+        "4": {
+            "capacities": [
+                "0"
+            ],
+            "consumption": 35,
+            "end": "2019-06",
+            "matricule": "",
+            "min_assign": 2,
+            "num_resource": 3,
+            "start": "2019-04",
+            "type_resource": 0
+        },
+        "5": {
+            "capacities": [
+                "0"
+            ],
+            "consumption": 25,
+            "end": "2019-08",
+            "matricule": "",
+            "min_assign": 2,
+            "num_resource": 1,
+            "start": "2019-07",
+            "type_resource": 0
+        }
+    }
+}
