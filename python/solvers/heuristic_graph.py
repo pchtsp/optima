@@ -109,9 +109,9 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         #     v.bounds(0, 1)
         # for v in self.big_mip.start_T.values():
         #     v.bounds(0, 1)
-
-        m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm')
-        t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't')
+        _shift = self.instance.shift_period
+        m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm', _shift)
+        t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't', _shift)
         to_fix = m_to_fix + t_to_fix
         conts = m_constraints + t_constraints
 

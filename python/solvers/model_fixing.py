@@ -1,7 +1,7 @@
 import pulp as pl
 import pytups.superdict as sd
 
-def big_mip_fix_variables(change, variable, t1, t2, index, name):
+def big_mip_fix_variables(change, variable, t1, t2, index, name, _shift):
     # variable= self.big_mip.start_T or self.big_mip.start_M
     # t1 = 2 or 1
     # t2 = 3 or 2
@@ -30,29 +30,30 @@ def big_mip_fix_variables(change, variable, t1, t2, index, name):
                     ).values_tl() + var_with_value.kfilter(lambda k: k[0] not in resources).values_tl()
 
     # these are the constraints I am adding. Only on assignments
-
+    # each aircraft has at most one assignment in each boundary, by design.
     active_start_outside = \
         var_value_filt. \
             vfilter(lambda k: k[t1] < start and (start <= k[t2] <= end)). \
-            to_dict(result_col=t1, indices=index).vapply(set)
+            to_dict(result_col=t1, indices=index, is_list=False)
 
+    # I should let the variable end:
+    # on the last period before the boundary (shift, -1)
     force_start_outside = \
         {k: all_var_id[k].\
-            vfilter(lambda tt: tt[0] in periods and start <= tt[1] <= end)
-         for k, periods in active_start_outside.items()}
+            vfilter(lambda tt: tt[0] == period and _shift(start, -1) <= tt[1] <= end)
+         for k, period in active_start_outside.items()}
 
     active_end_outside = \
         var_value_filt. \
             vfilter(lambda k: k[t2] > end and (start <= k[t1] <= end)). \
-            to_dict(result_col=t2, indices=index).vapply(set)
+            to_dict(result_col=t2, indices=index, is_list=False)
 
+    # I should let the variable start:
+    #  on the first period after the boundary (shift, +1)
     force_end_outside = \
         {k: all_var_id[k].\
-            vfilter(lambda tt: tt[1] in periods and start <= tt[0] <= end)
-         for k, periods in active_end_outside.items()}
-
-    # this ones we do not fix:
-    # tasks_inside = variable_with_value.vfilter(lambda k: (start <= k[t1]) and (k[t2] <= end))
+            vfilter(lambda tt: tt[1] == period and start <= tt[0] <= _shift(end, 1))
+         for k, period in active_end_outside.items()}
 
     # new constraints:
     def _to_constraint(k, tt, i):
