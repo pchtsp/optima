@@ -35,6 +35,11 @@ class Experiment(object):
         solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
 
+    def to_dir(self, path, format='json', prefix='data_'):
+        di.export_data(path, self.instance.data, name=prefix + "in", file_type=format, exclude_aux=True)
+        di.export_data(path, self.solution.data, name=prefix + "out", file_type=format, exclude_aux=True)
+        return
+
     @classmethod
     def from_zipfile(cls, zipobj, path, format='json', prefix="data_"):
         # files = [os.path.join(path, prefix + f + "." + format) for f in ['in', 'out']]
