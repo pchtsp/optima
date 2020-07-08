@@ -58,7 +58,7 @@ summary_to_wider <- function(summary_table, column='objective'){
         arrange(scenario, instance)
 }
 
-formated_kable <- function(data){
+formated_kable <- function(data, escape=TRUE){
     data_n <- 
         data %>% 
         group_by(scenario) %>% 
@@ -73,7 +73,7 @@ formated_kable <- function(data){
         data_n %>% 
         select(-repeated) %>% 
         select(scenario, instance, everything()) %>% 
-        kable(format = 'latex', booktabs = TRUE, linesep='')
+        kable(format = 'latex', booktabs = TRUE, linesep='', escape = escape)
     
     for(l in lines){
         data_nn <- kableExtra::row_spec(data_nn, l, hline_after = T )
@@ -140,7 +140,7 @@ compare_initial <- function(exps, exp_names, solver=solver, scenario_filter=scen
 
 compare_large <- function(){
     exps <- c( 'serv_cluster1_20200623', 'serv_cluster1_20200615')
-    exp_names <- c('short+mip', 'cplex')
+    exp_names <- c('short+mip', 'largeMip')
     scenario_filter <- c(6, 7, 8) %>% paste0('numparalleltasks_', .)
     progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200623='HEUR'), scenario_filter=scenario_filter)
     progress_n <- progress %>% filter(Time>120)
@@ -152,7 +152,7 @@ compare_large <- function(){
     
     path <- '%slarge_datasets_compare.tex' %>% sprintf(path_export_tab)
     data <- get_summary_table(exps, exp_names, scenario_filter=scenario_filter)
-    data_nn <- data %>% mutate(`dif (%)`= ((`short+mip`-cplex)/cplex*100) %>% round(2)) %>% formated_kable
+    data_nn <- data %>% mutate(`dif (%)`= ((`short+mip`-largeMip)/largeMip*100) %>% round(2)) %>% formated_kable
     data_nn %>% write_file(path)
     
 }
@@ -192,7 +192,7 @@ compare_initial_solution <- function(){
 
 compare_normal <- function(){
     exps <- c('serv_cluster1_20200610', 'serv_cluster1_20200623')
-    exp_names <- c('cplex', 'short+mip')
+    exp_names <- c('largeMip', 'short+mip')
     scenario_filter <- c(3, 4, 5) %>% paste0('numparalleltasks_', .)
     progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200623='HEUR'), scenario_filter=scenario_filter)
     progress_n <- progress %>% filter(Time>60)
@@ -206,25 +206,35 @@ compare_normal <- function(){
     data_summary <- get_summary_table(exps, exp_names, wider=FALSE, scenario_filter=scenario_filter)
     data <- summary_to_wider(data_summary)
     data <- summary_to_wider(data_summary, column='gap')
-    data_nn <- data %>% mutate(`dif (%)`= ((`short+mip`-cplex)/cplex*100) %>% round(2)) %>% formated_kable
+    data_nn <- data %>% mutate(`dif (%)`= ((`short+mip`-largeMip)/largeMip*100) %>% round(2)) %>% formated_kable
     data_nn %>% write_file(path)
 }
 
 compare_200aircraft <- function(){
-    exps <- c('serv_cluster1_20200625', 'serv_cluster1_20200625_3')
+    exps <- c('serv_cluster1_20200625', 'serv_cluster1_20200702')
     exp_names <- c('cplex', 'graph_cplex')
     data_nn <- get_summary_table(exps, exp_names, wider=FALSE)
     gaps <- summary_to_wider(data_nn, column='gap')
     path <- '%sgaps200.tex' %>% sprintf(path_export_tab)
-    gaps %>% rename(`short+mip  (\%)`=graph_cplex, `largeMip (\%)`=cplex) %>% 
-        kable(format = 'latex', booktabs = TRUE, linesep='', escape = FALSE) %>% write_file(path)
+    gaps %>% rename(`short+mip (\\%)`=graph_cplex, `largeMip (\\%)`=cplex) %>%
+        formated_kable(escape=FALSE) %>% write_file(path)
     summary_to_wider(data_nn, column='objective')
+    errors <- summary_to_wider(data_nn, column='errors')
 
     
-    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200625_3='HEUR', serv_cluster1_20200625_2='HEUR'))
-    progress_n <- progress %>% filter(Time>100)
-    draw_progress(progress_n %>% filter(scenario==195), log_scale_y = TRUE)
-}
+    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200625_3='HEUR', 
+                                                          serv_cluster1_20200701_2='HEUR',
+                                                          serv_cluster1_20200702='HEUR'))
+    path <- '%sprogress255.png' %>% sprintf(path_export_img)
+    y_lab <- 'Best solution found'
+    equiv <- data.frame(experiment=exp_names, experiment2=c('largeMip', 'short+mip'))
+    progress %>% filter(Time>100) %>% filter(scenario==255) %>% 
+        inner_join(equiv) %>% mutate(experiment=experiment2) %>% 
+        draw_progress(log_scale_y = TRUE, count_preprocess = FALSE) + 
+            ylab(y_lab) + theme_minimal() +  labs(color = "Method") + theme(text = element_text(size=element_text_size)) +
+            ggsave(path)
+    
+    }
 
 to_list_value <- function(vector, value){
     lapply(sapply(vector, function(z) value), function(z) z)
@@ -232,7 +242,7 @@ to_list_value <- function(vector, value){
 compare_neighbors <- function(){
     
     exps <- c('serv_cluster1_20200630_1', 'serv_cluster1_20200630_2', 'serv_cluster1_20200630_3')
-    exp_names <- c('short', 'mip', 'shortmip')
+    exp_names <- c('short', 'mip', 'short+mip')
     progress <- get_generic_compare(exps, exp_names = exp_names, get_progress=TRUE, 
                                     solver=to_list_value(exps, 'HEUR'))
     
@@ -269,12 +279,33 @@ compare_neighbors <- function(){
         draw_progress(log_scale_y = TRUE) + facet_grid(rows=vars(row), scales="free_y", cols=vars(scenario))
     
     # export the table:
-    base_table <- 
+    all_points <- 
         before_local_minim %>% 
         arrange(experiment, scenario, instance, Time) %>% 
         group_by(experiment, scenario, instance) %>% 
         mutate(Iterations = n()) %>% 
-        slice(n()) %>% select(Time, BestInteger, Iterations) %>% 
+        slice(n()) %>% select(Time, BestInteger, Iterations)
+    
+    # facetd boxpots ?
+    path <- '%scompare_neighbors_boxplot_objective.png' %>% sprintf(path_export_img) 
+    all_points %>% ungroup %>% 
+        mutate(instance=as.factor(instance)) %>% 
+        ggplot(aes(x=instance, y=BestInteger, color=experiment)) + 
+        geom_jitter() + labs(color = "Method") + theme_minimal() +  ggsave(path)
+        # facet_grid(cols=vars(instance), scales="free") + ggsave(path)
+    
+    path <- '%scompare_neighbors_boxplot_time.png' %>% sprintf(path_export_img) 
+    all_points %>% ungroup %>% 
+        mutate(instance=as.factor(instance)) %>% 
+        ggplot(aes(x=instance, y=Time, color=experiment)) + 
+        geom_jitter() + labs(color = "Method") + theme_minimal() + ggsave(path)
+    # ggplot(all_points, aes(x=experiment, y=Time)) + 
+    #     geom_boxplot() +
+    #     facet_grid(cols=vars(instance), scales="free") + ggsave(path)
+    
+
+    base_table <- 
+        all_points %>% 
         group_by(experiment, instance) %>% 
         summarise_at(vars(Time, BestInteger), list(min=min, max=max)) %>% 
         mutate(Time= sprintf("%s-%s", Time_min, Time_max),

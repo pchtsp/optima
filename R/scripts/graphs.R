@@ -89,16 +89,19 @@ timevis_from_states(states, max_resources=NULL, width='100%')
 # pdf graph ---------------------------------------------------------------
 exp_directory = PATHS['results'] %>% paste0('hp_20181104/base/201811061411/')
 states <- get_states(exp_directory)
+states <- get_states(exp_directory, style_config = list(period_num=TRUE))
 resources <- states %>% distinct(group) %>% sample_n(10)
 states <- states %>% inner_join(resources) %>% mutate_at(vars(group), as.numeric) %>% arrange(group)
 dir_out <- '/home/pchtsp/Documents/projects/COR2019/gantts/'
 
 # -----------graph solution
-text <- states_to_pgfgantt(states, y_unit = 0.5, date_format = 'isodate-yearmonth')
-write(text, file=dir_out %>% paste0('gantt_example.tex'))
+text <- states_to_pdfgantt(states, y_unit = 0.5, date_format = 'isodate-yearmonth')
+text <- states_to_pdfgantt(states, y_unit = 1, date_format = 'isodate-yearmonth')
+text <- states_to_pdfgantt(states, y_unit = 1, date_format = 'simple')
+write(text, file=dir_out %>% paste0('gantt_5aircraft.tex'))
 
 
-# -----------other options...
+    # -----------other options...
 data <- tasks_gantt_data()
 data %>% states_to_pdfgantt(x_unit=1, y_unit=0.6) %>% write(file=dir_out %>% paste0('gantt.tex'))
 
