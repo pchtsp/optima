@@ -4,7 +4,6 @@ import patterns.graphs as gg
 
 import data.test_data as test_d
 import package.instance as inst
-import network2tikz as nt
 import package.params as params
 
 import solvers.heuristic_graph as hg
@@ -43,6 +42,7 @@ def draw():
     graph.draw(edge_label=edge_label, node_label=node_label, tikz=True, filename=path)
 
 def draw2():
+    import network2tikz as nt
     nt.plot()
     pass
 

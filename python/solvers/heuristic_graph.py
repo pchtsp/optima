@@ -11,7 +11,11 @@ import package.instance as inst
 
 import patterns.graphs as gg
 import patterns.node as nd
-import patterns.graphs.graphtool as gt
+
+try:
+    import patterns.graphs.graphtool as gt
+except ImportError:
+    gt = None
 
 import data.data_input as di
 
