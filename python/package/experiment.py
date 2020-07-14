@@ -8,7 +8,7 @@ import package.instance as inst
 import pytups.tuplist as tl
 import pytups.superdict as sd
 import os
-import ujson
+import random as rn
 
 
 class Experiment(object):
@@ -34,6 +34,11 @@ class Experiment(object):
         instance = di.load_data(files[0])
         solution = di.load_data(files[1])
         return cls(inst.Instance(instance), sol.Solution(solution))
+
+    def to_dir(self, path, format='json', prefix='data_'):
+        di.export_data(path, self.instance.data, name=prefix + "in", file_type=format, exclude_aux=True)
+        di.export_data(path, self.solution.data, name=prefix + "out", file_type=format, exclude_aux=True)
+        return
 
     @classmethod
     def from_zipfile(cls, zipobj, path, format='json', prefix="data_"):
@@ -806,7 +811,7 @@ class Experiment(object):
         :rtype: :py:class:`pytups.SuperDict`
         """
         data = self.solution.data
-        data_copy = ujson.loads(ujson.dumps(data))
+        data_copy = di.copy_dict(data)
         if exclude_aux:
             data_copy.pop('aux', None)
         return sd.SuperDict.from_dict(data_copy)
@@ -819,7 +824,7 @@ class Experiment(object):
         :return: True
         :rtype: bool
         """
-        data = ujson.loads(ujson.dumps(data))
+        data = di.copy_dict(data)
         self.solution.data = sd.SuperDict.from_dict(data)
         return True
 
@@ -857,6 +862,14 @@ class Experiment(object):
                 to_dict(result_col=0, indices=[1, 2]). \
                 to_lendict().kvapply(lambda k, v: (m_usage[k[1]]*v, m_type[k[1]])).\
                 to_tuplist().to_dict(result_col=2, indices=[0, 3]).vapply(sum)
+
+    def initialise_seed(self, options):
+        seed = options.get('solve_seed')
+        if not seed:
+            seed = rn.random()*10000
+            options['solve_seed'] = seed
+        rn.seed(int(seed))
+        np.random.seed(int(seed))
 
 if __name__ == "__main__":
     pass

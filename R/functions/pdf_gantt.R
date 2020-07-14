@@ -6,8 +6,9 @@ library(magrittr)
 library(stringr)
 
 states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isodate'){
+  # date_format can also be "simple", "isodate", "isodate-yearmonth"
     t_start <- data$start %>% min()
-    t_end <- data$end %>% max()
+    t_end <- data$end %>% max() -1
     y_string <- ''
     x_string <- ''
     if (x_unit %>% is.null){
@@ -18,18 +19,26 @@ states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isod
     if (y_unit %>% is.null %>% not){
       y_string <- sprintf('\ny unit chart=%scm,', y_unit) 
     }
+    if (date_format=='simple'){
+      time_slot_unit <- ''
+      title_calendar <- '\\gantttitlelist{1,...,%s}{1}' %>% sprintf(t_end)
+    } else {
+      time_slot_unit <- ',\\ntime slot unit=month'
+      title_calendar <- '\\gantttitlecalendar{year}'
+    }
     
     header <- "\\newcommand\\Dganttbar[5]{
-      \\ganttbar[#5]{#1}{#3}{#4}\\ganttbar[inline,bar label font=\\tiny\\color{white}\\bfseries, #5]{#2}{#3}{#4}
+      \\ganttbar[#5]{#1}{#3}{#4}\\ganttbar[inline, bar label font=\\color{white}, #5]{#2}{#3}{#4}
     }
     \\begin{ganttchart}[
     %s%s
     hgrid,
     vgrid,
-    time slot format=%s,
-    time slot unit=month
+    time slot format=%s%s
     ]{%s}{%s}
-    \\gantttitlecalendar{year} \\\\" %>% sprintf(x_string, y_string, date_format, t_start, t_end)
+    \\ganttset{bar height=0.7}
+    \\ganttset{bar top shift=0.15}
+    %s \\\\" %>% sprintf(x_string, y_string, date_format, time_slot_unit, t_start, t_end, title_calendar)
     
     colors <- 
         data %>% 
@@ -39,11 +48,21 @@ states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isod
     pre_head <- sprintf('\\definecolor{%s}{HTML}{%s}', colors$key, colors$color2) %>% paste0(collapse = '\n')
     footer <- '\\end{ganttchart}'
     
+    month_to_ymd <- function(x) x %>% paste0("-01") %>% ymd
+    
+    if (date_format=="simple"){
+      data %<>% 
+        mutate(end_m1 = end %>% subtract(1))
+    } else {
+      data %<>% 
+        mutate(end_m1 = end %>% month_to_ymd %>% subtract(months(1)) %>% format('%Y-%m'))
+    }
+
     body <- 
         data %>% 
         inner_join(colors) %>% 
-        mutate(style_l = sprintf("bar/.append style={fill=%s}", key),
-               line = sprintf('\\Dganttbar{%s}{%s}{%s}{%s}{%s}', group, content, start, end, style_l)
+        mutate(style_l = sprintf("bar/.append style={fill=%s,draw=none}", key, key),
+               line = sprintf('\\Dganttbar{%s}{%s}{%s}{%s}{%s}', group, content, start, end_m1, style_l)
         ) %>% 
         group_by(group) %>% 
         summarise(line = paste0(line, collapse = '\n')) %>% 

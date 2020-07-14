@@ -35,11 +35,7 @@ class Model(exp.Experiment):
 
     def solve(self, options):
 
-        seed = options.get('seed')
-        if not seed:
-            seed = math.ceil(rn.random() * 100000)
-            options['seed'] = seed
-        rn.seed(seed)
+        self.initialise_seed(options)
 
         l = self.domains
         if not self.domains or options.get('calculate_domains', True):
@@ -466,7 +462,7 @@ class Model(exp.Experiment):
             for var in _vars.values():
                 var.fixValue()
 
-    def get_solution(self):
+    def get_solution(self, get_aux_info=True):
 
         l = self.domains
         if not len(l):
@@ -489,23 +485,18 @@ class Model(exp.Experiment):
                 _task[a, t] = v
 
         # we store the start of maintenances and tasks in the same place
-        _start = self.vars_to_tups(start_T).\
-            take([0, 1, 2]).\
-            to_dict(result_col=1, is_list=False)
         _start_M_aux = self.vars_to_tups(start_M)
         starts1_M = _start_M_aux.take([0, 1]).unique2()
         starts2_M = _start_M_aux.vfilter(lambda x: x[2] != last_period).take([0, 2]).unique2()
         _start_M = {k: self.M for k in starts1_M + starts2_M}
-        _start.update(_start_M)
-
-        fixed_maints_horizon = l['at_maint'].vfilter(lambda x: first_period <= x[1] <= last_period)
-        _state = {tup: {self.M: 1} for tup in fixed_maints_horizon}
-        _state.update({(a, t2): {self.M: 1} for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
-        ruts = sd.SuperDict.from_dict(rut).vapply(pl.value).vapply(round)
-        solution_data_pre = {
-            'state_m': _state,
-            'task': _task,
-            'aux': {
+        aux_dict = {}
+        if get_aux_info:
+            _start = self.vars_to_tups(start_T).\
+                take([0, 1, 2]).\
+                to_dict(result_col=1, is_list=False)
+            _start.update(_start_M)
+            ruts = sd.SuperDict.from_dict(rut).vapply(pl.value).vapply(round)
+            aux_dict = {
                 'start': _start,
                 'rut': sd.SuperDict(M=ruts),
                 'rem': {},
@@ -513,6 +504,14 @@ class Model(exp.Experiment):
                 'slack_kts': self.vars_to_dicts(slack_kts),
                 'slack_ts': self.vars_to_dicts(slack_ts)
             }
+
+        fixed_maints_horizon = l['at_maint'].vfilter(lambda x: first_period <= x[1] <= last_period)
+        _state = {tup: {self.M: 1} for tup in fixed_maints_horizon}
+        _state.update({(a, t2): {self.M: 1} for (a, t) in _start_M for t2 in l['t2_at1'][(a, t)]})
+        solution_data_pre = {
+            'state_m': _state,
+            'task': _task,
+            'aux': aux_dict
         }
         solution_data_pre = sd.SuperDict.from_dict(solution_data_pre)
 

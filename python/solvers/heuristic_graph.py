@@ -5,6 +5,7 @@ import solvers.heuristics as heur
 import solvers.model as mdl
 import solvers.config as conf
 import solvers.model_fixing as mdl_f
+import solvers.heuristics_maintfirst as heur_maint
 
 import package.solution as sol
 import package.instance as inst
@@ -29,6 +30,7 @@ import pandas as pd
 import os
 import numpy as np
 
+
 class GraphOriented(heur.GreedyByMission, mdl.Model):
     {'aux': {'graphs': {'RESOURCE': 'gg.DAG'}}}
 
@@ -39,38 +41,13 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         self.solution_store = tl.TupList()
         self.big_mip = None
 
-    def initialise_graphs_old(self, options):
-        path_cache = options.get('cache_graph_path', '')
-        if path_cache and os.path.exists(path_cache):
-            self.import_graph_data(path_cache)
-            return
-        multiproc = options['multiprocess']
-        resources = self.instance.get_resources()
-        if not multiproc:
-            for r in resources:
-                log.debug('Creating graph for resource: {}'.format(r))
-                graph_data = gg.graph_factory(instance=self.instance, resource=r, options=options)
-                self.instance.data['aux']['graphs'][r] = graph_data
-            return
-        results = sd.SuperDict()
-        _data = sd.SuperDict()
-        with multi.Pool(processes=multiproc) as pool:
-            for r in resources:
-                _instance = inst.Instance.from_instance(self.instance)
-                results[r] = pool.apply_async(gg.graph_factory, [_instance, r, options])
-            for r, result in results.items():
-                _data[r] = result.get(timeout=10000)
-        self.instance.data['aux']['graphs'] = _data
-        if path_cache:
-            os.mkdir(path_cache)
-            self.export_graph_data(path_cache)
-        return
-
     def initialise_graphs(self, options):
         # fixed_stats PROBABLY do no harm. but I haven't checked that
         # Well, I had to correct that, apparently.
         # now each resource has its source node.
         multiproc = options['multiprocess']
+        if not options.get('multiprocess_graph', True):
+            multiproc = 0
         res_meta_clusters = \
             self.instance.get_resources('capacities'). \
                 vapply(sorted).vapply(tuple)
@@ -92,9 +69,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             for mc, result in results.items():
                 _data[mc] = result.get(timeout=10000)
         self.instance.data['aux']['graphs'] = _data
-        # for mc, resources in meta_clusters.items():
-        #     for r in resources:
-        #         self.instance.data['aux']['graphs'][r] = _data[mc][r]
         return
 
     def sub_problem_mip(self, change, options):
@@ -118,16 +92,19 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             self.apply_pattern(p, r)
         return self.solution
 
+    def initialise_classic_mip(self, options):
+        options_m = dict(options)
+        self.big_mip = mdl.Model(self.instance)
+        options_m['calculate_domains'] = True
+        options_m['mip_start'] = False
+        options_m['do_not_solve'] = True
+        # we do not really solve it, we only prepare everything
+        # the model, the variables, etc.
+        self.big_mip.solve(options_m)
+
     def sub_problem_classic_mip(self, change, options):
         if not self.big_mip:
-            options_m = dict(options)
-            self.big_mip = mdl.Model(self.instance)
-            options_m['calculate_domains'] = True
-            options_m['mip_start'] = False
-            options_m['do_not_solve'] = True
-            # we do not really solve it, we only prepare everything
-            # the model, the variables, etc.
-            self.big_mip.solve(options_m)
+            self.initialise_classic_mip(options)
 
         self.big_mip.set_solution(self.solution.data)
         self.big_mip.fill_initial_solution()
@@ -136,15 +113,17 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         #     v.bounds(0, 1)
         # for v in self.big_mip.start_T.values():
         #     v.bounds(0, 1)
-
-        m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm')
-        t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't')
+        _shift = self.instance.shift_period
+        m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm', _shift)
+        t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't', _shift)
         to_fix = m_to_fix + t_to_fix
         conts = m_constraints + t_constraints
 
+        # TODO: use model.solverModel
+        # fix variables
         for v in to_fix:
             v.fixValue()
-
+        # add constraints
         for c in conts:
             self.big_mip.model += c
 
@@ -156,6 +135,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         # lp.solverModel.variables.add(obj=obj, lb=lb, ub=ub, types=ctype,
         #                        names=colnames)
 
+        # TODO: use model.solverModel
         # unfix everything!
         for v in to_fix:
             v.bounds(0, 1)
@@ -170,17 +150,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if result != 1:
             log.error("No solution was found in mip")
             return self.solution
-        backup = self.copy_solution()
-        self.solution = self.big_mip.get_solution()
-        for r in change['resources']:
-            self.set_remaining_usage_time(time='rut', maint='M', resource=r)
-            self.set_remaining_usage_time(time='ret', maint='M', resource=r)
-        # The model does not fill ret and the rut may be slightly different (fractions)
-        # so, I need to
-        rest = self.instance.get_resources().keys() - set(change['resources'])
-        for r in rest:
-            for t in ['rut', 'ret']:
-                self.solution.data['aux'][t]['M'][r] = backup['aux'][t]['M'][r]
+        self.solution = self.big_mip.get_solution(get_aux_info=False)
+
+        # Because we're only fixing what is already assigned, we are letting
+        # additional assignments happen in other aircraft and periods outside the
+        # window. This means we need to update ALL aircraft or problems appear:
+        self.set_remaining_usage_time(time='rut', maint='M')
+        self.set_remaining_usage_time(time='ret', maint='M')
+
         return self.solution
 
     def sub_problem_shortest(self, change, options):
@@ -198,7 +175,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         res_pattern = \
             sd.SuperDict().\
             fill_with_default(change['resources']).\
-            kapply(_func).items_tl()
+            kapply(_func).items_tl().sorted()
         periods_to_check = self.instance.get_periods_range(change['start'], change['end'])
         _shift = self.instance.shift_period
         _range = self.instance.get_periods_range
@@ -224,6 +201,58 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             kapply(self.get_pattern_options_from_window, *args)
         return patterns.vfilter(lambda v: len(v) > 0)
 
+    def get_initial_solution(self, options):
+        options_initial = di.copy_dict(options)
+        max_iters_initial = options.get('max_iters_initial', 10)
+        max_patterns_initial = options.get('max_patterns_initial', 0)
+        timeLimit_initial = options.get('timeLimit_initial', options_initial['timeLimit'])
+        multi_start = options.get('multi_start', 1)
+
+        initial_opts = dict(max_iters=max_iters_initial,
+                            assign_missions=True,
+                            num_max=max_patterns_initial,
+                            timeLimit=timeLimit_initial)
+        options_fs = {**options_initial, **initial_opts}
+
+        method = options.get('initial_solution', 'short')
+        if method=='short':
+            _init_sol_pool = tl.TupList()
+            _initial_solution = self.copy_solution()
+            ch = self.get_candidate_all()
+            for i in range(multi_start):
+                self.sub_problem_shortest(ch, options_fs)
+                _obj = self.get_objective_function()
+                _sol = self.copy_solution()
+                _init_sol_pool.add(_obj, _sol)
+                self.set_solution(_initial_solution)
+            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
+            self.set_solution(best_sol)
+        elif method=='patterns':
+            ch = self.get_candidate_all()
+            patterns = self.get_patterns_from_window(ch, options_fs)
+            patterns = self.solve_repair(patterns, options_fs)
+            for res, p in patterns.items():
+                self.apply_pattern(p, res)
+        elif method=='MaintFirst':
+            _init_sol_pool = tl.TupList()
+            _initial_solution = self.copy_solution()
+            first_solve = heur_maint.MaintenanceFirst(self.instance, self.solution)
+            first_solve.get_objective_function = self.get_objective_function
+            for i in range(multi_start):
+                options_fs['solve_seed'] = rn.random() * 10000
+                first_solve.solve(options_fs)
+                first_solve.solution.data = first_solve.best_solution
+                _obj = first_solve.get_objective_function()
+                _sol = first_solve.copy_solution()
+                _init_sol_pool.add(_obj, _sol)
+                self.set_solution(_initial_solution)
+            best_obj, best_sol = min(_init_sol_pool, key=lambda x: x[0])
+            self.set_solution(best_sol)
+        elif method == 'mip':
+            ch = self.get_candidate_all()
+            self.sub_problem_classic_mip(ch, options_fs)
+            return
+
     def solve(self, options):
         """
          Solves an instance using the metaheuristic.
@@ -243,41 +272,41 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         options_repair = sd.SuperDict(options_repair)
         options_repair['timeLimit'] = options.get('timeLimit_cycle', 10)
 
-        max_iters_initial = options.get('max_iters_initial', 10)
-        max_patterns_initial = options.get('max_patterns_initial', 0)
-        timeLimit_initial = options.get('timeLimit_initial', options_repair['timeLimit'])
+        # initialise logging, seed
+        self.set_log_config(options)
+        log.info("Setting solver seed: {}".format(options.get('solve_seed')))
+        self.initialise_seed(options)
+        log.info("Initialise graphs")
+        self.initialise_graphs(options)
+        log.info("Initialise big mip")
+        self.initialise_classic_mip(options)
 
         # set clock!
         time_init = time.time()
 
-        # initialise logging, seed
-        self.set_log_config(options)
-        self.initialise_seed(options)
-        log.info("Initialise graphs")
-        self.initialise_graphs(options)
+        all_graphs = self.instance.data['aux']['graphs']
+        values = all_graphs.values()
+        keys = self.instance.data['aux']['graphs'].keys()
+        vertices = [v.g.num_vertices() for v in values]
+        edges = [v.g.num_edges() for v in values]
+        log.info("(V, G) in graphs: {}".format(list(zip(keys, vertices, edges))))
         # 1. get an initial solution.
         log.info("Initial solution.")
-        initial_opts = dict(max_iters=max_iters_initial,
-                            assign_missions=True,
-                            num_max=max_patterns_initial,
-                            timeLimit=timeLimit_initial)
-        options_fs = {**options_repair, **initial_opts}
-        if self.solution is None or max_iters_initial:
-            ch = self.get_candidate_all()
-            self.sub_problem_shortest(ch, options_fs)
-        elif max_patterns_initial:
-            ch = self.get_candidate_all()
-            patterns = self.get_patterns_from_window(ch, options_fs)
-            patterns = self.solve_repair(patterns, options_fs)
-            for res, p in patterns.items():
-                self.apply_pattern(p, res)
+        self.get_initial_solution(options_repair)
 
         # initialise solution status
-        self.initialise_solution_stats()
+        errors = self.initialise_solution_stats()
+        time_now = time.time() - time_init
+        num_errors = errors.to_lendict().values_tl()
+        num_errors = sum(num_errors)
+
+        log.info("time={}, iteration={}, temperaure={}, current={}, best={}, errors={}".
+                 format(round(time_now), 0, round(temperature, 4), self.best_objective,
+                        self.best_objective, num_errors))
 
         # 2. repair solution
         log.info("Solving phase.")
-        i = 0
+        i = 1
         errors = sd.SuperDict()
         while i < max_iters:
 
@@ -322,8 +351,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             if status in self.status_worse:
                 temperature *= cooling
 
-            clock = time.time()
-            time_now = clock - time_init
+            time_now = time.time() - time_init
             if solution_store:
                 self.solution_store.append(self.copy_solution(exclude_aux=True))
 
@@ -374,11 +402,14 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         if errs is None:
             errs = self.check_solution(list_tests=['resources', 'hours', 'capacity'])
         error_sum = errs.vapply(lambda v: sum(v.values())).vapply(abs)
-        weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000)
-        a = {'elapsed', 'usage', 'dist_maints'} & error_sum.keys()
+        weights = sd.SuperDict(resources=20000, hours=100, capacity=30000, available=1000,
+                               elapsed=20000, usage=20000, dist_maints=20000, min_assign=10000, maint_size=10000,
+                               # elapsed=0, usage=0, dist_maints=0, min_assign=0,
+                               )
+        a = {'elapsed', 'usage', 'dist_maints', 'min_assign'} & error_sum.keys()
         if a:
             log.error("Problem with errors: {}".format(a))
-            error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
+            # error_sum = error_sum.filter(['resources', 'hours', 'capacity'], check=False)
         sum_errors = sum((error_sum*weights).values())
 
         # we count the number of maintenances and their distance to the end
@@ -529,8 +560,10 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         node2_data = {**node2_data, **sd.SuperDict(rut=None, ret=None)}
         dummy_node2  = nd.Node.from_state(self.instance, resource=resource, state=node2_data)
         if cutoff is None:
-            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
             max_cutoff = self.instance.get_dist_periods(date1, date2) + 1
+            min_cutoff = self.get_graph_data(resource).shortest_path(node1=node1, node2=dummy_node2)
+            if min_cutoff is None:
+                min_cutoff = max_cutoff
             max_cutoff = max(min_cutoff, max_cutoff)
             log.debug("min/ max cutoff: {} {}".format(min_cutoff, max_cutoff))
             size = max_cutoff - min_cutoff
@@ -760,7 +793,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
             vapply(pl.value). \
             vfilter(lambda v: v). \
             kapply(lambda k: combos[k])
-        return patterns
+        return {k[0]: v for k, v in patterns.items()}
 
     def draw_graph(self, resource, **kwargs):
         self.get_graph_data(resource).draw(**kwargs)
@@ -1072,22 +1105,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         varList_grouped = self.get_constraints_hours_df_step2(
             assign_pd, consumption_pd, info.to_list(), res_clusters_pd
         )
-        # cache = varList_grouped.to_dict()
-        # cache = sd.SuperDict(cache).to_tuplist().to_set()
-        #
-        # _path = '/home/pchtsp/Downloads/cache/'
-        # assign_pd.to_csv(_path + 'assign_pd.csv', index=False)
-        # consumption_pd.to_csv(_path + 'consumption_pd.csv', index=False)
-        # res_clusters_pd.to_csv(_path + 'res_clusters_pd.csv', index=False)
-        # info.to_csv(_path + 'info.csv')
-        # t_min_hour_slack_pd.to_csv(_path + 't_min_hour_slack.csv', header=True)
-        # _slack_s_kt_h_pd.apply(pd.Series).stack().apply(lambda v: v[0]).to_csv(_path + 'slack_s_kt_h.csv', header=True)
 
-        # result = varList_grouped.to_dict()
-        # result = sd.SuperDict(result).to_tuplist().to_set()
-        # dif = result ^ cache
-
-        # #
         log.debug("constraints: clusters hours 3")
 
         final_table = pd.concat([varList_grouped, t_min_hour_slack_pd, _slack_s_kt_h_pd], axis=1, join='inner')

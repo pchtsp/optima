@@ -72,10 +72,13 @@ class GraphTool(DAG):
         self.initialize_graph()
         self.set_weights(self.weights)
         self.resource_nodes = sd.SuperDict()
+        self.edges_rtp = sd.SuperDict()
+        self.edges_rp = sd.SuperDict()
 
     def initialize_graph(self):
         # create dictionary to filter nodes that have no tasks
         positions = self.instance.get_period_positions()
+        tasks = self._equiv_task
         consum = self.instance.get_tasks('consumption')
         for v in self.g.vertices():
             node = self.refs_inv[v]
@@ -88,42 +91,68 @@ class GraphTool(DAG):
             if node.type == nd.EMPTY_TYPE:
                 self.assgin_vp[v] = 0
             else:
-                self.assgin_vp[v] = self._equiv_task[node.assignment]
+                self.assgin_vp[v] = tasks[node.assignment]
             self.rut_vp[v] = node.rut['M'] if node.rut else 0
             self.ret_vp[v] = node.ret['M'] if node.ret else 0
-            # it a task, we need to calculate the average rut
-            # else: it's the last period
+            # it a task, we need to calculate the rut in the first node
             if node.type == nd.TASK_TYPE:
                 self.rut_first_vp[v] = self.rut_vp[v] + (self.duration_vp[v] - 1)*consum[node.assignment]
             else:
                 self.rut_first_vp[v] = self.rut_vp[v]
-            rut_first = self.rut_first_vp[v]
-            rut_end = self.rut_vp[v]
-            size = self.duration_vp[v]
-            edges = self.g.get_in_edges(v, [self.g.edge_index])[:, 2]
-            if size > 1:
-                for pos, p in enumerate(range(start, end+1)):
-                    _rut = pos * (rut_end - rut_first)/(size - 1) + rut_first
-
-                    # option1:
-                    # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
-
-                    # option 2:
-                    # edges = (above)
-                    ruts = np.full_like(edges, _rut)
-                    self.period_ruts[p].append(np.column_stack((edges, ruts)))
-            else:
-                _rut = rut_end
-                p = start
-                # option1:
-                # self.period_ruts[p].append(np.column_stack((int(v), int(_rut))))
-
-                # option 2:
-                ruts = np.full_like(edges, _rut)
-                self.period_ruts[p].append(np.column_stack((edges, ruts)))
+            self.set_period_ruts(v)
 
         self.period_ruts = self.period_ruts.vapply(np.concatenate)
         self.vp_not_task.a[self.type_vp.get_array() == nd.TASK_TYPE] = 0
+
+    def set_period_ruts(self, v):
+        rut_first = self.rut_first_vp[v]
+        rut_end = self.rut_vp[v]
+        size = self.duration_vp[v]
+        start = self.period_vp[v]
+        end = self.period_end_vp[v]
+        # we get the edges that lead to the node. their indices
+        edges = self.g.get_in_edges(v, [self.g.edge_index])[:, 2]
+        if size > 1:
+            # if the node has more than one period
+            # we calculate the rut of each period.
+            # and then we add all the in edges with the ruts they represent
+            for pos, p in enumerate(range(start, end + 1)):
+                # this is the rut for the period p of node v
+                _rut = pos * (rut_end - rut_first) / (size - 1) + rut_first
+                # this is the same rut multiplied len(edges) times
+                ruts = np.full_like(edges, _rut)
+                # we join both lists into a 2d matrix and append it to the
+                # period p
+                self.period_ruts[p].append(np.column_stack((edges, ruts)))
+        else:
+            _rut = rut_end
+            p = start
+            ruts = np.full_like(edges, _rut)
+            self.period_ruts[p].append(np.column_stack((edges, ruts)))
+        return
+
+    def set_edges_rtp(self):
+        # self.resource_nodes needs to be set!! this is after initialization.
+        positions = self.instance.get_period_positions()
+        tasks = self._equiv_task
+        arr_per_end = self.period_end_vp.get_array()
+        arr_assign = self.assgin_vp.get_array()
+        arr_per = self.period_vp.get_array()
+        targets = self.edges[:, 1]
+        resource_tasks = self.instance.get_task_candidates().list_reverse()
+        task_periods = self.instance.get_task_period_list(in_dict=True)
+        for res, nodes in self.resource_nodes.items():
+            _targets = nodes[targets]
+            for task in resource_tasks[res]:
+                for period in task_periods[task]:
+                    t = tasks[task]
+                    p = positions[period]
+                    relevant_node = (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
+                    self.edges_rtp[res, task, period] = np.where(relevant_node[targets] & _targets)
+            for period in self.instance.get_periods():
+                p = positions[period]
+                relevant_node = (arr_per <= p) & (arr_per_end >= p)
+                self.edges_rp[res, period] = np.where(relevant_node[targets] & _targets)
 
     def set_weights(self, weigths_ep):
 
@@ -145,15 +174,19 @@ class GraphTool(DAG):
     def shortest_path(self, node1=None, node2=None, **kwargs):
         target, source = None, None
         if node1 is not None:
-            source = self.refs[node1]
+            source = find_vertex(self.g, self.refs, node1)
+            if source is None:
+                log.error("There was a problem finding node {}".format(node1))
+                return None
         if node2 is not None:
-            target = self.refs[node2]
+            target = find_vertex(self.g, self.refs, node2)
         return gr.shortest_distance(self.g, source=source, target=target, dag=True, **kwargs)
 
     def filter_by_tasks(self, node1, node2, g=None):
         # returns a graph without task assignments.
         # Except the node1 and node2 and previous nodes to node2
-        nodes = [self.refs[node1], self.refs[node2]] + list(self.g.vertex(self.refs[node2]).in_neighbors())
+        nodes = [self.refs[node1], self.refs[node2]] + \
+                [int(v) for v in self.g.vertex(self.refs[node2]).in_neighbors()]
         _temp_vp = self.vp_not_task.copy()
         _temp_vp.a[nodes] = 1
         if g is None:
@@ -290,21 +323,9 @@ class GraphTool(DAG):
 
         weights = self.get_weights(node1, node2, errors, resource)
 
-        def find_vertex(node):
-            while node.rut is None or node.rut['M'] >= 0:
-                try:
-                    return graph.vertex(refs[node])
-                except (KeyError, ValueError):
-                    node.rut['M'] -= 10
-                    data = node.get_data()
-                    node.jsondump = json.dumps(data, sort_keys=True)
-                    node.hash = hash(node.jsondump)
-                    log.warning('had to correct node')
-            return None
-
         # TODO: this is failing, sometimes?
-        source = find_vertex(node1)
-        target = find_vertex(node2)
+        source = find_vertex(graph, refs, node1)
+        target = find_vertex(graph, refs, node2)
         if source is None or target is None:
             log.error("There was a problem finding node {} or node {}".format(node1, node2))
             return None
@@ -339,16 +360,21 @@ class GraphTool(DAG):
         resources = errors.get('resources', sd.SuperDict()).\
             keys_tl().vfilter(lambda v: v[0] in tasks_for_resource)
         weights_resource = np.zeros_like(w_array)
-        arr_per_end = self.period_end_vp.get_array()
-        arr_assign = self.assgin_vp.get_array()
-        arr_per = self.period_vp.get_array()
-        positions = self.instance.get_period_positions()
-        tasks = self._equiv_task
+        # arr_per_end = self.period_end_vp.get_array()
+        # arr_assign = self.assgin_vp.get_array()
+        # arr_per = self.period_vp.get_array()
+        # tasks = self._equiv_task
         for task, period in resources:
-            t = tasks[task]
-            p = positions[period]
-            relevant_node = nodes_window & (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
-            edges = relevant_edge & relevant_node[targets]
+            # t = tasks[task]
+            # p = positions[period]
+            # relevant_node = nodes_window & (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
+            # edges = relevant_edge & relevant_node[targets]
+            if (resource, task, period) in self.edges_rtp:
+                # if the resource is a candidate: we filter per task
+                edges = self.edges_rtp[resource, task, period]
+            else:
+                # if the resource is not a candidate: we do not filter per task
+                edges = self.edges_rp[resource, period]
             weights_resource[edges] += 1
         #  hours:
         #   add weight for negative rut.
@@ -358,25 +384,17 @@ class GraphTool(DAG):
             errors.get('hours', sd.SuperDict()).\
             kfilter(lambda k: k[0] in clusters)
 
+        positions = self.instance.get_period_positions()
         weights_hours = np.zeros_like(w_array)
-        arr_per = self.period_vp.get_array()
         for (k, period), v in hours_periods.items():
             refs = self.period_ruts[positions[period]][:,0]
             ruts = self.period_ruts[positions[period]][:,1]
             final_rut = ruts + v
             negative = final_rut < 0
-
-            # option 2:
             edges = refs
             extra_hours = np.zeros_like(edges)
             extra_hours[negative] = -final_rut[negative]
             weights_hours[edges] += extra_hours
-
-            # option 1:
-            # nodes_arr = refs
-            # extra_hours = np.zeros_like(arr_per)
-            # extra_hours[nodes_arr[negative]] = -final_rut[negative]
-            # weights_hours[relevant_edge] += extra_hours[targets[relevant_edge]]
 
 
         # maintenances!
@@ -633,4 +651,18 @@ def generate_graph_mcluster(instance, resources):
         shortest_path = gr.shortest_distance(g=graph.g, source=graph.refs[source], dag=True, max_dist=num_period+2)
         res_nodes[r] = shortest_path.get_array() <= num_period
     graph.resource_nodes = res_nodes
+    graph.set_edges_rtp()
     return graph
+
+
+def find_vertex(graph, refs, node):
+    while node.rut is None or node.rut['M'] >= 0:
+        try:
+            return graph.vertex(refs[node])
+        except (KeyError, ValueError):
+            node.rut['M'] -= 10
+            data = node.get_data()
+            node.jsondump = json.dumps(data, sort_keys=True)
+            node.hash = hash(node.jsondump)
+            log.warning('had to correct node')
+    return None

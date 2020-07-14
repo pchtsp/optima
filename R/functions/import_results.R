@@ -19,13 +19,16 @@ library(RColorBrewer)
 library(htmlwidgets)
 library(jsonlite)
 
+month_to_ymd <- function(x) x %>% paste0("-01") %>% ymd
+
 collapse_states <- function(table){
     
     # we complete missing months
     months <- table$month
     resources <- table %>% extract2('resource')
     min_date <- months %>% min %>% paste0('-01') %>% as.Date()
-    max_date <- months %>% max %>% paste0('-01') %>% as.Date()
+    # I add one because the end month needs to be one more than the real end month
+    max_date <- months %>% max %>% paste0('-01') %>% as.Date() %>% add(months(1))
     total_rows <- 
         seq(from= min_date, to=max_date, "months") %>% 
         as.character() %>% 
@@ -42,8 +45,9 @@ collapse_states <- function(table){
                first_row= row_number()==1,
                change = temp != prev_temp) %>% 
         filter(first_row | change) %>% 
-        mutate(post_month = month %>% lead %>% paste0("-01") %>% ymd() %>% add(0) %>% format("%Y-%m"),
+        mutate(post_month = month %>% lead %>% month_to_ymd %>% add(0) %>% format("%Y-%m"),
                post_month = post_month %>% if_else(is.na(.), max_date %>% ymd() %>% format("%Y-%m"), .)) %>% 
+        mutate(duration = interval(month_to_ymd(month), month_to_ymd(post_month)) %/% months(1)) %>% 
         select(-temp, -prev_temp, -first_row, -change) %>% 
         ungroup() %>% filter(state != "")
 }
@@ -198,7 +202,6 @@ get_states <- function(exp_directory, style_config=list()){
         tasks <- data.table(resource=as.character(), month=as.character(), state=as.character())
     }
 
-    
     # def_style_config = list(font_size='15px')
     font_size = style_config$font_size
     if (font_size %>% is.null){
@@ -213,17 +216,6 @@ get_states <- function(exp_directory, style_config=list()){
             filter(is.na(ind) %>% not) %>% 
             select(month, state)
     }
-
-    # solution %>% 
-    #     extract2('state_m') %>% 
-    #     lapply(treat_maint) %>% 
-    #     bind_rows(.id = "resource") %>% 
-    #     filter(state %>% is.na %>% not) %>% 
-    #     group_by(resource, month) %>% 
-    #     summarise(state = paste0(state, collapse = '+')) %>% 
-    #     mutate(num = n()) %>% 
-    #     filter(num > 1) %>% 
-    #     arrange(resource, month)
 
     states <- 
         solution %>% 
@@ -247,7 +239,17 @@ get_states <- function(exp_directory, style_config=list()){
         left_join(maints_tab %>%  distinct(state) %>% mutate(maint=TRUE)) %>% 
         rename(start= month, end= post_month, group= resource) %>% 
         mutate(maint= maint %>% is.na %>% not,
-               content = if_else(maint, state, sprintf('%sh', hours)))
+               content = if_else(maint, state, sprintf('%sh', hours*duration)))
+    
+    if (style_config$period_num %>% is.null %>% not){
+        first <- 
+            states %>% distinct(start) %>% 
+            unlist %>% min %>% month_to_ymd
+        
+        states %<>% mutate(start = (interval(first, month_to_ymd(start)) %/% months(1))+1,
+                          end = (interval(first, month_to_ymd(end)) %/% months(1))+1
+                          )
+    }
     states
 }
 

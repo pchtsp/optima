@@ -38,14 +38,6 @@ class GreedyByMission(test.Experiment):
 
         return
 
-    def initialise_seed(self, options):
-        seed = options.get('seed')
-        if not seed:
-            seed = rn.random()*10000
-            options['seed'] = seed
-        rn.seed(int(seed))
-        np.random.seed(int(seed))
-
     @staticmethod
     def set_log_config(options):
         """
@@ -592,7 +584,6 @@ class GreedyByMission(test.Experiment):
         :rtype: tuple
         """
         # This commented function validates if I'm updating correctly rut and ret.
-        # self.check_consistency()
         # errors = self.get_inconsistency()
         errs = self.check_solution(recalculate=False, **kwargs)
         error_cat = errs.to_lendict()
@@ -641,6 +632,7 @@ class GreedyByMission(test.Experiment):
         self.prev_errs = errs
         self.prev_objective = self.get_objective_function(errs)
         self.best_objective = self.prev_objective
+        return errs
 
     @staticmethod
     def iterate_periods_until(period, condition_to_return, stop_condition, move_period):
