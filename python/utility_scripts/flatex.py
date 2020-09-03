@@ -43,7 +43,7 @@ def expand_file(base_file, current_path, include_bbl, noline):
     with all the inputs replaced with the contents of the referenced file.
     """
     output_lines = []
-    f = open(base_file, "r")
+    f = open(base_file, "r", encoding="utf8")
     for line in f:
         if is_input(line):
             new_base_file = combine_path(current_path, get_input(line))
@@ -65,7 +65,7 @@ def bbl_file(base_file):
     Return content of associated .bbl file
     """
     bbl_path = os.path.abspath(os.path.splitext(base_file)[0]) + '.bbl'
-    return open(bbl_path).readlines()
+    return open(bbl_path, encoding="utf8").readlines()
 
 
 @click.command()
@@ -80,7 +80,7 @@ def main(base_file, output_file, include_bbl = False, noline = False):
     text actually contained in X. See associated README.md for details.
     """
     current_path = os.path.split(base_file)[0]
-    g = open(output_file, "w")
+    g = open(output_file, "w", encoding="utf8")
     g.write(''.join(expand_file(base_file, current_path, include_bbl, noline)))
     g.close()
     return None
