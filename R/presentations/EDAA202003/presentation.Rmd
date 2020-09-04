@@ -3,7 +3,7 @@ title: "Predicting solutions for the Military Flight and Maintenance Planning pr
 author: |
     | Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin
     | \tiny (franco.peschiera@isae-supaero.fr)
-date: "March, 2020"
+date: "September, 2020"
 output:
   xaringan::moon_reader:
     css: ["footer-header.css", "default"]
@@ -59,7 +59,7 @@ EDAA Journée doctorants 2020</span></div>
 ### Structure of talk
 
 1. Problem.
-1. Context.
+2. State of the art.
 1. Solving techniques.
 2. Machine Learning.
 2. Experiments.
@@ -88,9 +88,9 @@ knitr::include_graphics('calendar3.png')
 
 * Mirage 2000 fleet.
 * A single workshop to do the maintenance operations.
-* Type D (big maintenances): 
-  * every 5 years and 
-  * take 4-6 months.
+* Check type D (overhaul maintenances): 
+  * every 5 years or 1000 flight hours and 
+  * takes 4-6 months.
 * Fleets of 15-60 aircraft.
 * Planning horizons of 90 periods (= 7.5 years).
 
@@ -106,27 +106,13 @@ knitr::include_graphics('Mirage_2000C.jpg')
 
 ---
 
-### Predictive maintenance
-
-.center[
-**Predicting *when* aircraft will need a maintenance**.
-]
---
-
-* This is not what we do.
-* We make maintenance plans for the whole fleet, taking into account maintenance needs.
-* So, we use this data to make better maintenance plans.
-* Nevertheless, we will predict *something* during this presentation.
-
----
-
 ### Problem
 
 * A series of $j \in \mathcal{J}$ pre-scheduled missions are planned along a horizon divided into $t \in \mathcal{T}$ periods.
 * Each mission requires a certain **number** $R_{j}$ of aircraft $i \in \mathcal{I}$ which it employs for $H_j$ **hours** in each period.
 * The heterogeneous fleet requires recurrent preventive maintenance operations (**checks**).
 * A check takes exactly $M^d$ periods and cannot be interrupted. There is a limited **capacity** for maintenances at each period.
-* The objective is to **minimize the total number of checks** while **maximizing the status of the fleet** at the end of the horizon.
+* The objective is to **minimize the total number of checks** while **maximizing the status of the fleet** at the each period of the horizon.
 
 --
 
@@ -147,7 +133,8 @@ knitr::include_graphics('Mirage_2000C.jpg')
 
 ### "Classical" solving techniques
 
-good model + good solver = solution.
+$a_{ijt_1t_2}$: mission $j$ is assigned to aircraft $i$ between $t_1$ and $t_2$.  
+$m_{it_1t_2}$: aircraft $i$ starts a check in $t_1$ and another check in $t_2$.
 
 \begin{align}
   & \text{Max}\;
@@ -162,9 +149,7 @@ good model + good solver = solution.
     & & i \in \mathcal{I}, p \in \mathcal{P}, c \in \mathcal{C}_p \\
 \end{align}
 
-
 ---
-
 
 ### Forecasting + Optimization
 
@@ -187,35 +172,8 @@ good model + good solver = solution.
 
 ---
 
-
-### Distance between maintenances
-
-
-```{r, echo=FALSE, out.width='100%', warning=FALSE}
-knitr::include_graphics('calendar3.png')
-
-```
-
-.pull-left[
-* The distance between maintenance has a maximum of $E^{M}$ periods.
-* Depending on the instance, the optimal distance can be shorter.
-* This distance conditions the total number of patterns to create.
-
-
-]
-
-.pull-right[
-```{r, echo=FALSE, out.width='70%'}
-imgs = c('hist_mean_dist_complete_IT000125_20190716.png')
-knitr::include_graphics(imgs)
-```
-]
-
----
-
 ### Prediction model
 
-.pull-left[
 * **Technique**: *Quantile regressions* to estimate upper and lower bounds.
 * **Training**: 5000 small instances.
 * **Input features**: 
@@ -225,16 +183,12 @@ knitr::include_graphics(imgs)
   * demand of special missions, 
   * number of period where flight demand is cut in two.
 * **Output features**: mean distance between maintenances.
-]
 
 --
 
-.pull-right[
-```{r, echo=FALSE, out.width='100%'}
-imgs = c('QuantReg_mean_consum_upper_mean_dist_complete_IT000125_20190716.png')
-knitr::include_graphics(imgs)
+```{r, echo=FALSE, out.width='100%', warning=FALSE}
+knitr::include_graphics('calendar3.png')
 ```
-]
 
 ---
 
@@ -291,7 +245,6 @@ knitr::include_graphics(imgs)
 ]
 
 ---
-
 
 ## Further steps
 
