@@ -1,10 +1,11 @@
 import utility_scripts.flatex as fl
 import os
-import pytups as pt
 
-directory = r'/home/pchtsp/Documents/projects/NPS2019/'
+directory = r'/home/pchtsp/Documents/projects/Graph2020/'
+directory = r'/home/pchtsp/Documents/projects/phd_thesis/'
 main_file = 'article.tex'
-manuscript_file = 'manuscript.tex'
+main_file = 'phdthesis.tex'
+manuscript_file = 'manuscript_new.tex'
 base_file = os.path.join(directory, main_file)
 output_file = os.path.join(directory, manuscript_file)
 
@@ -20,8 +21,10 @@ edit_file(base_file, output_file)
 
 
 # compare latex:
-# latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align)[\w\d*@]*" manuscript_old.tex manuscript_new.tex > tmpdiff.tex
+# latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align|figure|table)[\w\d*@]*" manuscript_old.tex manuscript_new.tex > tmpdiff.tex
+# latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align)[\w\d*@]*" manuscript.tex manuscript_new.tex > tmpdiff.tex
+# latexdiff manuscript_old.tex manuscript_new.tex > tmpdiff.tex
 # (replace quotes apparently and some equation).
-# \"([ \_\\\*\w\{]+)\"
+# \"([ \_\\\*\w\{\+\/-]+)\"
 # ``\1''
 # ^\\\\
