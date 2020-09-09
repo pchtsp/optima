@@ -73,7 +73,7 @@ class GraphTool(DAG):
         self.set_weights(self.weights)
         self.resource_nodes = sd.SuperDict()
         self.edges_rtp = sd.SuperDict()
-        self.edges_rp = sd.SuperDict()
+        # self.edges_rp = sd.SuperDict()
 
     def initialize_graph(self):
         # create dictionary to filter nodes that have no tasks
@@ -149,27 +149,26 @@ class GraphTool(DAG):
                     p = positions[period]
                     relevant_node = (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
                     self.edges_rtp[res, task, period] = np.where(relevant_node[targets] & _targets)
-            for period in self.instance.get_periods():
-                p = positions[period]
-                relevant_node = (arr_per <= p) & (arr_per_end >= p)
-                self.edges_rp[res, period] = np.where(relevant_node[targets] & _targets)
+            # for period in self.instance.get_periods():
+            #     p = positions[period]
+            #     relevant_node = (arr_per <= p) & (arr_per_end >= p)
+            #     self.edges_rp[res, period] = np.where(relevant_node[targets] & _targets)
 
-    def set_weights(self, weigths_ep):
+    def set_weights(self, weights_ep):
 
         targets = self.edges[:, 1]
         # assign small default weights with rut (and durations)
         sum_rut = (self.rut_first_vp.get_array() + self.rut_vp.get_array())/2 * \
                   self.duration_vp.get_array() * 0.01
-        weigths_ep.a = -np.floor(sum_rut[targets])
+        weights_ep.a = -np.floor(sum_rut[targets])
 
         # give weight to maintenances:
         edge_target_type = self.type_vp.get_array()[targets]
         positions = self.instance.get_period_positions()
         last = positions[self.instance.get_param('end')] + 1
         maint_edge = edge_target_type == nd.MAINT_TYPE
-        maint_weight = (last - self.period_vp.get_array()[targets[maint_edge]]) + \
-                       (last - self.period_end_vp.get_array()[targets[maint_edge]])
-        weigths_ep.a[maint_edge] += maint_weight
+        maint_weight = (last - self.period_vp.get_array()[targets[maint_edge]])
+        weights_ep.a[maint_edge] += maint_weight
 
     def shortest_path(self, node1=None, node2=None, **kwargs):
         target, source = None, None
@@ -354,28 +353,23 @@ class GraphTool(DAG):
         # resources:
         #   for periods where there are missing resources:
         #   penalize the nodes that do not assign a mission.
-        # TODO: errors could be prefiltered for a given resource (hours and resource)
-        #  then I would not need this filter
-        tasks_for_resource = self.instance.get_task_candidates(resource=resource)
+        tasks_for_resource = self.instance.get_task_candidates(resource=resource).vfilter(lambda v: v)
         resources = errors.get('resources', sd.SuperDict()).\
             keys_tl().vfilter(lambda v: v[0] in tasks_for_resource)
         weights_resource = np.zeros_like(w_array)
-        # arr_per_end = self.period_end_vp.get_array()
-        # arr_assign = self.assgin_vp.get_array()
-        # arr_per = self.period_vp.get_array()
-        # tasks = self._equiv_task
+        # for each "error" with resources
         for task, period in resources:
-            # t = tasks[task]
-            # p = positions[period]
-            # relevant_node = nodes_window & (arr_per <= p) & (arr_per_end >= p) & (arr_assign != t)
-            # edges = relevant_edge & relevant_node[targets]
-            if (resource, task, period) in self.edges_rtp:
-                # if the resource is a candidate: we filter per task
-                edges = self.edges_rtp[resource, task, period]
-            else:
-                # if the resource is not a candidate: we do not filter per task
-                edges = self.edges_rp[resource, period]
-            weights_resource[edges] += 1
+            if not (resource, task, period) in self.edges_rtp:
+                # we should never reach this place if we filter correctly
+                pass
+            # we get the edges for that resources that
+            # do not have that task assigned to the resource in that period
+            _edges = self.edges_rtp[resource, task, period]
+            # else:
+            #     # TODO: we should not be allowed to reach this place
+            #     #  if we're filtering the tasks for the resource.
+            #     edges = self.edges_rp[resource, period]
+            weights_resource[_edges] += 1
         #  hours:
         #   add weight for negative rut.
         clusters = self.instance.get_cluster_candidates(resource=resource).list_reverse()[resource]
@@ -387,14 +381,13 @@ class GraphTool(DAG):
         positions = self.instance.get_period_positions()
         weights_hours = np.zeros_like(w_array)
         for (k, period), v in hours_periods.items():
-            refs = self.period_ruts[positions[period]][:,0]
+            _edges = self.period_ruts[positions[period]][:,0]
             ruts = self.period_ruts[positions[period]][:,1]
             final_rut = ruts + v
             negative = final_rut < 0
-            edges = refs
-            extra_hours = np.zeros_like(edges)
+            extra_hours = np.zeros_like(_edges)
             extra_hours[negative] = -final_rut[negative]
-            weights_hours[edges] += extra_hours
+            weights_hours[_edges] += extra_hours
 
 
         # maintenances!
@@ -411,8 +404,8 @@ class GraphTool(DAG):
                     & (arr_type == nd.MAINT_TYPE)\
                     & (arr_per <= p)\
                     & (arr_per_end >= p)
-            edges = relevant_edge & relevant_node[targets]
-            weights_maints[edges] += 1
+            _edges = relevant_edge & relevant_node[targets]
+            weights_maints[_edges] += 1
 
         # summarize
         # TODO: pass these weights from somewhere
