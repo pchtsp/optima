@@ -1,0 +1,309 @@
+---
+title: "Predicting solutions for the Military Flight and Maintenance Planning problem"
+author: |
+    | Franco Peschiera, Alain Haït, Olga Battaïa, Nicolas Dupin
+    | \tiny (franco.peschiera@isae-supaero.fr)
+date: "March, 2020"
+output:
+  xaringan::moon_reader:
+    css: ["footer-header.css", "default"]
+    self_contained: false
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      countIncrementalSlides: false
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+  slidy_presentation:
+    css: ./../../../css/baobab_slidy.css
+    incremental: yes
+    footer: "ISAE-SUPAERO, Université de Toulouse, France"
+    toc: true
+  beamer_presentation:
+    theme: "Berlin"
+    toc: true
+    slide_level: 2
+    incremental: yes
+    fig_height: 4
+    includes:
+        in_header: header.tex
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, echo=FALSE, warning=FALSE}
+library(RefManageR)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+
+BibOptions(check.entries = FALSE,
+           bib.style = "authoryear",
+           cite.style = "alphabetic",
+           style = "markdown",
+           hyperlink = FALSE,
+           dashed = FALSE)
+myBib <- ReadBib("./MFMP.bib", check = FALSE)
+
+```
+
+layout: true
+  
+<div class="my-header"></div>
+
+<div class="my-footer"><span>ISAE-SUPAERO, Université de Toulouse, France    
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+EDAA Journée doctorants 2020</span></div> 
+
+---
+
+### Structure of talk
+
+1. Problem.
+1. Context.
+1. Solving techniques.
+2. Machine Learning.
+2. Experiments.
+3. Conclusions.
+
+---
+
+### Problem (informally)
+
+Assign both **missions** and **maintenance operations** to a fleet of aircraft in order to maximize availability and minimize costs. **Missions** have fixed start and end times and have particular needs in terms of aircraft and flight hours. **Maintenance operations** have specific rules that govern their frequency and capacity.
+
+--
+
+.center[
+```{r, echo=FALSE, out.width='100%', warning=FALSE}
+knitr::include_graphics('calendar3.png')
+
+```
+]
+
+---
+
+### Military aircraft maintenance
+
+.pull-left[
+
+* Mirage 2000 fleet.
+* A single workshop to do the maintenance operations.
+* Type D (big maintenances): 
+  * every 5 years and 
+  * take 4-6 months.
+* Fleets of 15-60 aircraft.
+* Planning horizons of 90 periods (= 7.5 years).
+
+]
+
+.pull-right[
+```{r, echo=FALSE, out.width='100%', warning=FALSE}
+knitr::include_graphics('Mirage_2000C.jpg')
+```
+  
+*French Mirage 2000C. Public Domain*
+]
+
+---
+
+### Predictive maintenance
+
+.center[
+**Predicting *when* aircraft will need a maintenance**.
+]
+--
+
+* This is not what we do.
+* We make maintenance plans for the whole fleet, taking into account maintenance needs.
+* So, we use this data to make better maintenance plans.
+* Nevertheless, we will predict *something* during this presentation.
+
+---
+
+### Problem
+
+* A series of $j \in \mathcal{J}$ pre-scheduled missions are planned along a horizon divided into $t \in \mathcal{T}$ periods.
+* Each mission requires a certain **number** $R_{j}$ of aircraft $i \in \mathcal{I}$ which it employs for $H_j$ **hours** in each period.
+* The heterogeneous fleet requires recurrent preventive maintenance operations (**checks**).
+* A check takes exactly $M^d$ periods and cannot be interrupted. There is a limited **capacity** for maintenances at each period.
+* The objective is to **minimize the total number of checks** while **maximizing the status of the fleet** at the end of the horizon.
+
+--
+
+**Other**: soft constraints on the state of the fleet at each period, initial conditions, default consumption, reduce variance of frequency of checks.
+
+---
+
+### State of the art
+
+* FMP: Flight and Maintenance Planning problem.
+* In `r Citep(myBib, "Cho2011")`, US Army aircraft were assigned daily operations over a year to aircraft in order to minimize the maximum number of maintenances.
+* In `r Citep(myBib, "Kozanidis2008")`, Greek aircraft had monthly assignments of maintenances and flight hours in order to maximize the availability and final state of squadrons.
+* In `r Citep(myBib, "Verhoeff2015")`, monthly assignments were done and several objectives were taken into account: availability, serviceability and final state.
+* In `r Citep(myBib, "Seif2018")`, a generalization for different types of maintenances and capacities was done.
+* In `r Citep(myBib, "Peschiera2019")`, the problem was proved NP-Complete.
+
+---
+
+### "Classical" solving techniques
+
+good model + good solver = solution.
+
+\begin{align}
+  & \text{Max}\;
+  \sum_{i \in \mathcal{I}, p \in \mathcal{P}} m_{ip} \times W_p \\
+  & \sum_{i \in \mathcal{I}, p \in \mathcal{P}_{t}} m_{ip} \leq C^{max} 
+          & t \in \mathcal{T} \label{eq:capacity1}\\
+  & \sum_{i \in \mathcal{I}_j, (t_1, t_2) \in \mathcal{T}_{jt}} a_{ijt_1t_2} \geq R_j
+          & j \in \mathcal{J}, t \in \mathcal{TJ}_j  \label{eq:missionres}\\
+  & \sum_{p \in \mathcal{P}_{t}} m_{ip} + \sum_{j \in \mathcal{J}_t \cap \mathcal{J}_i} \sum_{(t_1, t_2) \in \mathcal{T}_{jt}} a_{ijt_1t_2} \leq 1 
+          & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state}\\
+  & \sum_{(j, t, t') \in \mathcal{J}\mathcal{T}\mathcal{T}_{ic}} a_{ijtt'} H^\prime_{jtt'} + U^{\prime}_{tc} \leq H^M + M (1 - m_{ip}) & \notag \\
+    & & i \in \mathcal{I}, p \in \mathcal{P}, c \in \mathcal{C}_p \\
+\end{align}
+
+
+---
+
+
+### Forecasting + Optimization
+
+**We want to**:
+
+1. Train a statistical model to predict characteristics of good (optimal?) solutions for any given instance.
+2. Use this information to limit the solution space and make it easier to find those potentially good solutions.
+
+--
+
+**Benefits**:
+
+1. **Performance**: a smaller problem is easier to solve.
+2. **User feedback**: direct feedback about the solution without needing to solve any model.
+3. **More stable solutions**: Every aircraft flies an amount that is closest to the mean of the fleet.
+
+--
+
+**The better we're able to predict those characteristics for the whole fleet, the less optimality we will lose**
+
+---
+
+
+### Distance between maintenances
+
+
+```{r, echo=FALSE, out.width='100%', warning=FALSE}
+knitr::include_graphics('calendar3.png')
+
+```
+
+.pull-left[
+* The distance between maintenance has a maximum of $E^{M}$ periods.
+* Depending on the instance, the optimal distance can be shorter.
+* This distance conditions the total number of patterns to create.
+
+
+]
+
+.pull-right[
+```{r, echo=FALSE, out.width='70%'}
+imgs = c('hist_mean_dist_complete_IT000125_20190716.png')
+knitr::include_graphics(imgs)
+```
+]
+
+---
+
+### Prediction model
+
+.pull-left[
+* **Technique**: *Quantile regressions* to estimate upper and lower bounds.
+* **Training**: 5000 small instances.
+* **Input features**: 
+  * mean flight demand per period,
+  * total remaining flight hours at start (init), 
+  * variance of flight demand, 
+  * demand of special missions, 
+  * number of period where flight demand is cut in two.
+* **Output features**: mean distance between maintenances.
+]
+
+--
+
+.pull-right[
+```{r, echo=FALSE, out.width='100%'}
+imgs = c('QuantReg_mean_consum_upper_mean_dist_complete_IT000125_20190716.png')
+knitr::include_graphics(imgs)
+```
+]
+
+---
+
+### Experiments
+
+* Number of instances: medium (1000), large (1000) and very large (1000).
+* Time limit at 3600 seconds.
+* We seeded instance generation for better comparison.
+* CPLEX running 1 thread.
+
+--
+
+Largest instances have 60 aircraft, 90 periods, ~30 missions (4 active missions at any given time).
+
+1. Create forecasting model based in 5000 small instances.
+2. Use forecasting model to predict bounds on distance between maintenances: $\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$.
+3. Implement the pseudo-cut:
+
+\begin{align}
+    & m_{ip} = 0 & p_{t'} - p_t < \hat{\mu}_{t'-t}^{lb} - tol \label{eq:dist_lb} \\
+    & m_{ip} = 0  &  p_{t'} - p_t > \hat{\mu}_{t'-t}^{ub} + tol \label{eq:dist_ub}
+\end{align}
+
+4. Recycling.
+
+---
+
+### How good is it (performance)
+
+Faster solutions, more solutions.
+
+--
+
+.center[
+```{r, echo=FALSE, out.width='80%'}
+imgs = c('time_performance_ordered_2tasks.png')
+knitr::include_graphics(imgs)
+```
+]
+
+
+---
+
+### How good is it (optimality)
+
+For instances were an optimal solution was found (optimum degradation):
+* 95% of instances had less than 4% gap with real optimal.
+
+.center[
+```{r, echo=FALSE, out.width='80%'}
+imgs = c('quality_degradation_2tasks.png')
+knitr::include_graphics(imgs)
+```
+]
+
+---
+
+
+## Further steps
+
+* **Better predictions** with better features, or predicting several characteristics of optimal solutions.
+* **Predict a distribution** and sample patterns from the distribution instead of predicting patterns.
+* **Warm-start Column Generation** with a selected subset of potentially good patterns.
+* **Automatize prediction** so it can be easily integrated in other problems.
+
+---
+
+# References
+
+```{r refs, echo=FALSE, results="asis"}
+PrintBibliography(myBib)
+```
