@@ -524,7 +524,7 @@ class MaintenanceFirst(heur.GreedyByMission):
         """
         Iterates over all aircraft and assigns maintenances `maint` when missing.
 
-        :param maint: maintenance to assign checks
+        :param str maint: maintenance to assign checks
         :return: None
         """
         inst = self.instance
