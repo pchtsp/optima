@@ -50,6 +50,7 @@ class Model(exp.Experiment):
                 fill_with_default(keys=l['periods'])
         maint_info = self.instance.get_maintenances()[self.M]
         maint_capacity = maint_info['capacity']
+        # TODO: this uses the old data structure:
         min_usage = self.instance.get_param('min_usage_period')
         duration = maint_info['duration_periods']
         cluster_data = self.instance.get_cluster_constraints()
@@ -527,7 +528,6 @@ class Model(exp.Experiment):
         if not len(l):
             raise ValueError('No domains are generated: aborting.')
 
-        param_data = self.instance.get_param()
         task_data = self.instance.get_tasks()
 
         # maximal bounds on continuous variables:
@@ -690,12 +690,12 @@ class Model(exp.Experiment):
         l = sd.SuperDict()
 
         states = [self.M]
-        param_data = self.instance.get_param()
+        start = self.instance.get_param('start')
 
         # periods
         first_period, last_period = self.instance.get_start_end()
         periods = self.instance.get_periods_range(first_period, last_period)
-        period_0 = self.instance.get_prev_period(param_data['start'])
+        period_0 = self.instance.get_prev_period(start)
         periods_0 = [period_0] + periods
         p_pos = {periods[pos]: pos for pos in range(len(periods))}
         previous = {period: periods_0[p_pos[period]] for period in periods}
@@ -951,11 +951,10 @@ class Model(exp.Experiment):
 
         min_elapsed_2M_cut, max_elapsed_2M_cut = self.get_min_max_2M(options)
         percent_add = reduce_2M_window.get('percent_add', 0)
-        param_data = self.instance.get_param()
-        # TODO: assume 'M'
-        duration = param_data['maint_duration']
-        max_elapsed = param_data['max_elapsed_time'] + duration
-        min_elapsed = max_elapsed - param_data['elapsed_time_size']
+        maint_data = self.instance.get_maintenances()[self.M]
+        duration = maint_data['duration_periods']
+        max_elapsed = maint_data['max_elapsed_time'] + duration
+        min_elapsed = max_elapsed - maint_data['elapsed_time_size']
         ret_init = self.instance.get_initial_state("elapsed")
         ret_init_adjusted = {k: v - max_elapsed + min_elapsed for k, v in ret_init.items()}
 
@@ -1011,9 +1010,9 @@ class Model(exp.Experiment):
         U_min = self.instance.get_param('min_usage_period')
         RftInit = self.instance.get_resources('initial_used')
 
-        # TODO: M is assumed
-        M = self.instance.get_param('maint_duration')
-        maxH = self.instance.get_param('max_used_time')
+        maint_data = self.instance.get_maintenances()[self.M]
+        M = maint_data['duration_periods']
+        maxH = maint_data['max_used_time']
         _shift = self.instance.shift_period
         _prev = self.instance.get_prev_period
 

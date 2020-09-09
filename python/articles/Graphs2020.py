@@ -197,8 +197,12 @@ def compare_experiments(exp_list, get_progress=False, **kwargs):
 
 if __name__ == '__main__':
     # table()
-    t2 = compare_experiments(exp_list=['prise_srv3_20200605_good', 'prise_srv3_20200603_2'],
-                             solver=dict(prise_srv3_20200605_good='HEUR'), get_progress=True)
+    # t2 = compare_experiments(exp_list=['serv_cluster1_20200701', 'serv_cluster1_20200617_2'],
+    #                          solver=dict(serv_cluster1_20200623='HEUR'), get_progress=True,
+    #                          scenarios=["numparalleltasks_3", "numparalleltasks_4", "numparalleltasks_5"])
+    t2 = compare_experiments(exp_list=['serv_cluster1_20200701'], get_progress=False,
+                             solver=dict(serv_cluster1_20200701='HEUR'))
+
     # t = compare_experiments(exp_list=['prise_srv3_20200603_2'], get_progress=True)
     # [t.iloc[x].progress.tail(10) for x in range(len(t))]
     # [t2.iloc[x].progress.tail(10) for x in range(len(t2))]

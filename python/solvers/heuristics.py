@@ -194,11 +194,11 @@ class GreedyByMission(test.Experiment):
         """
         Tries to find the soonest maintenance in the planning horizon
         for a given resource.
-        :param resource: resource to find maintenance
-        :param maint_need: date when the resource needs the maintenance
+        :param str resource: resource to find maintenance
+        :param str maint_need: date when the resource needs the maintenance
         :param max_period: date when the resource can no longer start the maintenance
         :param which_maint: three techniques to choose the position of the maintenance
-        :param maint: maintenance to schedule
+        :param str maint: maintenance to schedule
         :return:
         """
         # a = self.get_status(resource)
@@ -291,10 +291,10 @@ class GreedyByMission(test.Experiment):
     def get_maintenance_candidates(self, resource, min_period, max_period, maint):
         """
         Obtaines candidate periods to start a maintenance.
-        :param resource:
+        :param str resource:
         :param min_period:
         :param max_period:
-        :param maint:
+        :param str maint:
         :return:
         """
         inst = self.instance
@@ -344,9 +344,9 @@ class GreedyByMission(test.Experiment):
     def assign_maintenance(self, resource, maint, maint_start):
         """
         Assigns a given maintenance to a resources at a specific time
-        :param resource: resource to assign check
-        :param maint: maintenance to assign check
-        :param maint_start: the start period for the check
+        :param str resource: resource to assign check
+        :param str maint: maintenance to assign check
+        :param str maint_start: the start period for the check
         :return: True
         """
         horizon_end = self.instance.get_param('end')
@@ -388,7 +388,7 @@ class GreedyByMission(test.Experiment):
     def get_blocked_periods_resource(self, resource):
         """
         All periods where the resource is being used to a task or a maintenance
-        :param resource:
+        :param str resource:
         :return: list of periods
         """
         dtype_date = 'U7'
@@ -406,8 +406,8 @@ class GreedyByMission(test.Experiment):
     def get_free_starts(self, resource, periods):
         """
         Gets a start-stop list of free periods for a resource.
-        :param resource: resource to look for
-        :param periods: list of periods to look for
+        :param str resource: resource to look for
+        :param list periods: list of periods to look for
         :return:
         """
         candidate_periods = \
@@ -440,9 +440,9 @@ class GreedyByMission(test.Experiment):
     def del_maint(self, resource, period, maint=None):
         """
         removes a maintenance assign in a resource and a period
-        :param resource:
-        :param period:
-        :param maint: maint to delete. if None: delete all
+        :param str resource:
+        :param str period:
+        :param str maint: maint to delete. if None: delete all
         :return:
         """
         try:
@@ -468,9 +468,9 @@ class GreedyByMission(test.Experiment):
 
     def set_state_and_clean(self, resource, maint, periods):
         """
-        :param resource: resource to update
-        :param maint: maintenance name to update
-        :param periods: periods to update (list)
+        :param str resource: resource to update
+        :param str maint: maintenance name to update
+        :param list periods: periods to update (list)
         :return: True
         """
         maint_data = self.instance.data['maintenances'][maint]
@@ -488,7 +488,7 @@ class GreedyByMission(test.Experiment):
     def get_next_maintenance(self, resource, min_start, maints=None):
         """
         Looks for the immediate next maintenance start
-        :param resource: resource to look
+        :param str resource: resource to look
         :param min_start: date to start looking
         :param set maints: maintenances to look for
         :return:
@@ -501,10 +501,10 @@ class GreedyByMission(test.Experiment):
 
     def get_next_assignment(self, resource, period_start, _filter=None, category=None, search_future=True):
         """
-        :param resource:
-        :param period_start:
+        :param str resource:
+        :param str period_start:
         :param _filter:
-        :param category:
+        :param str category:
         :param search_future:
         :return:
         """
@@ -548,6 +548,16 @@ class GreedyByMission(test.Experiment):
         return value
 
     def get_limit_of_assignment(self, resource, period, category, get_last=False):
+        """
+        Obtains the first (or last) period of a consecutive assignment of task or maintenance
+        If it reaches the end of the planning period, the limit of the planning period is returned
+
+        :param str resource: resources of assignment
+        :param str period: period of assignment
+        :param str category: 'task' or 'state_m'
+        :param bool get_last: if True get the last period, if not, get the first period
+        :return: period in the limit
+        """
         assignment = self.solution.get_period_state(resource, period, cat=category)
         if get_last:
             ref = self.instance.get_param('end')

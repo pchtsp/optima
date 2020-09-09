@@ -1,9 +1,11 @@
 import utility_scripts.flatex as fl
 import os
 
-directory = r'/home/pchtsp/Documents/projects/NPS2019/'
+directory = r'/home/pchtsp/Documents/projects/Graph2020/'
+directory = r'/home/pchtsp/Documents/projects/phd_thesis/'
 main_file = 'article.tex'
-manuscript_file = 'manuscript.tex'
+main_file = 'phdthesis.tex'
+manuscript_file = 'manuscript_new.tex'
 base_file = os.path.join(directory, main_file)
 output_file = os.path.join(directory, manuscript_file)
 

@@ -65,7 +65,7 @@ def get_df_comparison(exp_list, scenarios=None, get_progress=False, zip=True, ge
         raw_results_dict[name] = table_n
 
     return \
-        pd.concat(raw_results_dict).\
+        pd.concat(raw_results_dict, sort=False).\
         reset_index().\
         drop(['level_1'], axis=1).\
         rename(columns=dict(level_0='experiment')).\
