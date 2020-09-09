@@ -139,9 +139,9 @@ $m_{ip}$: aircraft $i$ has a maintenance pattern $p$.
 
 We:
 
-1. Train a statistical model to predict certain characteristics of good (optimal?) solutions for 5000 simulated instances.
-2. Use this information to *predict* the characteristics of good solutions on a new instance ($\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$).
-3. Apply the prediction to *guide* de solution of said instance.
+1. Train a statistical model to predict certain characteristics of good (optimal?) solutions for 5000 simulated scenario.
+2. Use this information to *predict* the characteristics of good solutions on a new scenario: $\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$.
+3. Apply the prediction to *guide* de solution of said scenario.
 
 --
 
