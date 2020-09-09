@@ -62,7 +62,7 @@ EDAA Journée doctorants 2020</span></div>
 2. State of the art.
 1. Solving techniques.
 2. Machine Learning.
-2. Experiments.
+2. Results.
 3. Conclusions.
 
 ---
@@ -192,30 +192,6 @@ knitr::include_graphics('calendar3.png')
 
 ---
 
-### Experiments
-
-* Number of instances: medium (1000), large (1000) and very large (1000).
-* Time limit at 3600 seconds.
-* We seeded instance generation for better comparison.
-* CPLEX running 1 thread.
-
---
-
-Largest instances have 60 aircraft, 90 periods, ~30 missions (4 active missions at any given time).
-
-1. Create forecasting model based in 5000 small instances.
-2. Use forecasting model to predict bounds on distance between maintenances: $\hat{\mu}_{t'-t}^{lb}$,  $\hat{\mu}_{t'-t}^{ub}$.
-3. Implement the pseudo-cut:
-
-\begin{align}
-    & m_{ip} = 0 & p_{t'} - p_t < \hat{\mu}_{t'-t}^{lb} - tol \label{eq:dist_lb} \\
-    & m_{ip} = 0  &  p_{t'} - p_t > \hat{\mu}_{t'-t}^{ub} + tol \label{eq:dist_ub}
-\end{align}
-
-4. Recycling.
-
----
-
 ### How good is it (performance)
 
 Faster solutions, more solutions.
@@ -252,6 +228,30 @@ knitr::include_graphics(imgs)
 * **Predict a distribution** and sample patterns from the distribution instead of predicting patterns.
 * **Warm-start Column Generation** with a selected subset of potentially good patterns.
 * **Automatize prediction** so it can be easily integrated in other problems.
+
+---
+
+## Communications and publications
+
+Conferences:
+
+* **ROADEF2018**: Maintenance planning on French military aircraft operations.
+* **MOSIM2018**: Bi-objective MIP formulation for the optimization of maintenance planning on French military aircraft operations.
+* **CLAIO2018**: A novel MIP formulation for the optimization problem of maintenance planning of military aircraft.
+* **AFIS2018**: Planning aircraft maintenances for the French Airforce.
+* **ROADEF2020**: An alternative MIP formulation for the Military Flight and Maintenance Planning problem.
+
+Journals:
+
+* **OR Spectrum** (published): A novel solution approach with ML-based pseudo-cuts for the Flight and Maintenance Planning problem.
+* **Annals of Operations Research** (submitted): Long term planning of military aircraft flight and maintenance operations
+* **European Journal of Operations Research** (to be submitted): Novel Graph-based matheuristic to solve the Flight and Maintenance Planning problem
+
+Partnerships:
+
+* **Dasault Aviation**: desktop software OPTIMA built, tested, deployed and validated by users.
+
+*Estimated thesis defense: Novembre 2020.*
 
 ---
 
