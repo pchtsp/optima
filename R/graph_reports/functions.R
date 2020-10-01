@@ -6,6 +6,10 @@ nullToNA <- function(x) {
 }
 
 get_summary_table <- function(exps, exp_names, wider=TRUE, ...){
+    #' This is just a wrapper over get_generic_compare
+    #' that cleans and treats the table.
+    #' and adds the bounds as a column
+
     data <- get_generic_compare(exps, exp_names = exp_names, ...)
     data_nn <- 
         data %>% 
@@ -68,7 +72,11 @@ formated_kable <- function(data, escape=TRUE){
 # progress ----------------------------------------------------------------
 
 get_progress <- function(exps, exp_names, solver, scenario_filter=NULL){
-    progress <- get_generic_compare(exps, exp_names = exp_names, get_progress=TRUE, solver=solver, scenario_filter=scenario_filter)
+    #' This function gets the progress
+    #' and then cleans the table, selecting only relevant columns
+    #'
+    progress <- get_generic_compare(exps, exp_names = exp_names, get_progress=TRUE, 
+                                    solver=solver, scenario_filter=scenario_filter)
     
     progress %>% 
         mutate(scenario = scenario %>% str_extract('\\d+') %>% as.integer %>% multiply_by(15)) %>% 

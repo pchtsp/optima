@@ -15,29 +15,60 @@ element_text_size <- 10
 
 # exports -----------------------------------------------------------------
 
+get_mip_vnd_bb_table <- function(summary, progress, apply_dif=TRUE){
+    if (apply_dif){
+        difs <-
+            progress %>%
+            group_by(experiment, scenario, instance) %>%
+            arrange(Time) %>%
+            slice(n()) %>%
+            select(experiment, scenario, instance, last=BestInteger) %>%
+            inner_join(summary) %>%
+            mutate(dif = last-objective) %>%
+            select(instance, experiment, scenario, dif)
+    } else {
+        difs <- summary %>% distinct(instance, experiment, scenario) %>% mutate(dif=0)
+    }
+
+    # 
+    bounds <-
+        summary %>% distinct(instance, scenario, best_bound) %>%
+        inner_join(difs %>% ungroup %>% filter(experiment=='MIP') %>% select(-experiment)) %>%
+        mutate(best_bound=best_bound+dif) %>% select(-dif)
+    
+    summary %>% 
+        summary_to_wider(column='objective') %>%
+        inner_join(bounds) %>% 
+        mutate(best_bound = round(best_bound)) %>% 
+        mutate(`$\\frac{VND-MIP}{VND}$ (\\%)`= ((`VND`-MIP)/VND*100) %>% round(2)) %>%
+        mutate(`$\\frac{VND-BB}{VND}$ (\\%)`= ((`VND`-best_bound)/VND*100) %>% round(2)) %>% 
+        rename(BB=best_bound)
+}
+
 compare_large <- function(){
     exps <- c( 'serv_cluster1_20200623', 'serv_cluster1_20200615')
     exp_names <- c('VND', 'MIP')
     scenario_filter <- c(6, 7, 8) %>% paste0('numparalleltasks_', .)
-    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200623='HEUR'), scenario_filter=scenario_filter)
-    progress_n <- progress %>% filter(Time>120)
-    path <- '%slarge_datasets_progress_120.png' %>% sprintf(path_export_img)
-    y_lab <- 'Best solution found'
-    draw_progress(progress_n %>% filter(scenario==120), log_scale_y = TRUE, count_preprocess = FALSE) + 
-        ylab(y_lab) + theme_minimal() + theme(text = element_text(size=15)) +
-        ggsave(path)
+    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200623='HEUR', serv_cluster1_20200928='HEUR'), scenario_filter=scenario_filter)
     
     path <- '%slarge_datasets_compare.tex' %>% sprintf(path_export_tab)
-    data <- get_summary_table(exps, exp_names, scenario_filter=scenario_filter)
-    data_nn <- data %>% mutate(`dif (%)`= ((`VND`-MIP)/MIP*100) %>% round(2)) %>% formated_kable
-    data_nn %>% write_file(path)
+    data <- get_summary_table(exps, exp_names, scenario_filter=scenario_filter, wider=FALSE)
+    # 
+    # we have to make some legal black magic to be sure that the objectives 
+    # in the progress are being measured corretly in all cases.
+    table_large <- get_mip_vnd_bb_table(data, progress)
+     table_large %>% 
+        formated_kable(escape = FALSE) %>% write_file(path)
+    # data_graph %>% head
+    # data_nn <- data %>% mutate(`dif (%)`= ((`VND`-MIP)/MIP*100) %>% round(2)) %>% formated_kable
+    # data_nn %>% write_file(path)
     
 }
 
 compare_initial_solution <- function(){
     # exps <- c('serv_cluster1_20200701', 'serv_cluster1_20200701')
     # exp_names <- c('initial', 'NONE')
-    exps <- c('serv_cluster1_20200701', 'port_peschiera_202000715')
+    exps <- c('serv_cluster1_20200701', 'port_peschiera_20200715')
     exp_names <- c('initial', 'bounds')
 
     data <- get_generic_compare(exps, exp_names = exp_names, solver=list(serv_cluster1_20200701='HEUR'))
@@ -95,32 +126,54 @@ compare_normal <- function(){
 
 compare_200aircraft <- function(){
     exps <- c('serv_cluster1_20200625', 'serv_cluster1_20200702')
-    exp_names <- c('cplex', 'graph_cplex')
-    data_nn <- get_summary_table(exps, exp_names, wider=FALSE)
-    gaps <- 
-        data_nn %>% 
-        mutate(gap=(objective-best_bound)/objective*100,
-               gap = gap %>% round(2)) %>% 
-        summary_to_wider(column='gap')
+    exp_names <- c('MIP', 'VND')
+    data_200 <- get_summary_table(exps, exp_names, wider=FALSE)
+    progress_200 <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200702='HEUR'))
+    table_large <- get_mip_vnd_bb_table(data_200, progress_200, apply_dif = FALSE)
     path <- '%sgaps200.tex' %>% sprintf(path_export_tab)
-    gaps %>% rename(`VND (\\%)`=graph_cplex, `MIP (\\%)`=cplex) %>%
-        formated_kable(escape=FALSE) %>% write_file(path)
-    gaps %>% ungroup %>% summarise_at(vars(graph_cplex, cplex), mean)
-    summary_to_wider(data_nn, column='objective')
-    errors <- summary_to_wider(data_nn, column='errors')
-
+    table_large %>% formated_kable(escape = FALSE) %>% write_file(path)
+    table_large[[7]] %>% mean()
+    # gaps <- 
+    #     data_200 %>% 
+    #     mutate(gap=(objective-best_bound)/objective*100,
+    #            gap = gap %>% round(2)) %>% 
+    #     summary_to_wider(column='gap')
+    # 
     
-    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200625_3='HEUR', 
-                                                          serv_cluster1_20200701_2='HEUR',
-                                                          serv_cluster1_20200702='HEUR'))
+    # path <- '%sgaps200.tex' %>% sprintf(path_export_tab)
+    # gaps %>% rename(`VND (\\%)`=VND, `MIP (\\%)`=MIP) %>%
+    #     formated_kable(escape=FALSE) %>% write_file(path)
+    # 
+    # gaps %>% ungroup %>% summarise_at(vars(VND, MIP), mean)
+    # summary_to_wider(data_200, column='objective')
+    # errors <- summary_to_wider(data_200, column='errors')
+
+    # progress graph
     path <- '%sprogress255.png' %>% sprintf(path_export_img)
-    equiv <- data.frame(experiment=exp_names, experiment2=c('MIP', 'VND'))
     progress %>% filter(Time>100) %>% filter(scenario==255) %>% 
-        inner_join(equiv) %>% mutate(experiment=experiment2) %>% 
+        mutate(experiment=experiment2) %>% 
         draw_progress(log_scale_y = TRUE) + 
             ylab('Objective value') + theme_minimal() + theme(text = element_text(size=15)) +
             ggsave(path)
     
+    # progress graph with gaps with respect to best bound
+    bounds <- data_200 %>% distinct(instance, scenario, best_bound)
+
+    data_graph <- 
+        progress %>% 
+        inner_join(bounds) %>% 
+        mutate(BestInteger = (BestInteger-best_bound)/BestInteger*100)
+       
+    path <- '%sprogress_gaps_very_large.png' %>% sprintf(path_export_img)
+    data_graph %>% 
+        mutate(instance= as.factor(instance)) %>% 
+        ggplot(aes(x=Time, y=BestInteger, colour=instance, linetype=experiment)) + 
+        geom_step(size=1.5) + 
+        facet_grid(rows='scenario', scales="free_y") +
+        labs(linetype = "Method", color = "Instance") + 
+        ylab("Percentage gap") + theme_minimal() +
+        theme(text = element_text(size=23)) +
+        ggsave(path, width = 16, height = 9)
     }
 
 compare_neighbors <- function(){
@@ -197,12 +250,12 @@ compare_neighbors <- function(){
     }
     path <- '%scompare_neighbors_boxplot_objective.png' %>% sprintf(path_export_img) 
     boxplot_neighbors(all_points, 'BestInteger', path) + scale_y_log10() + 
-        ylab("Objective value (normalized)") + 
+        ylab("Objective value (normalized)") + xlab('Instance') +
         ggsave(path)
 
     path <- '%scompare_neighbors_boxplot_time.png' %>% sprintf(path_export_img) 
     boxplot_neighbors(all_points, 'Time', path) + 
-        ylab("Time (seconds)") + 
+        ylab("Time (seconds)") + xlab('Instance') +
         ggsave(path)
 
     # base_table <- 
@@ -232,6 +285,51 @@ compare_neighbors <- function(){
 
 }
 
+compare_not_so_large_3600 <- function(){
+    exps <- c('serv_cluster1_20200926', 'serv_cluster1_20200926_2')
+    exp_names <- c('MIP', 'VND')
+    # scenario = 60
+    progress <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200926_2='HEUR')) %>% mutate(scenario=60)
+    
+    last <- progress %>% 
+        group_by(experiment, scenario, instance) %>% 
+        arrange(Time) %>% 
+        slice(n()) %>% 
+        select(experiment, scenario, last=BestInteger)
+    
+    data_nn <- get_summary_table(exps, exp_names, wider=FALSE) %>% mutate(scenario=60)
+    
+    # we have to make some legal black magic to be sure that the objectives 
+    # in the progress are being measured corretly in all cases.
+    difs <- data_nn %>% inner_join(last) %>% mutate(dif = last-objective) %>% 
+        select(instance, experiment, scenario, dif)
+    
+    bounds <- 
+        data_nn %>% distinct(instance, scenario, best_bound) %>% 
+        inner_join(difs %>% filter(experiment=='MIP') %>% select(-experiment)) %>% 
+        mutate(best_bound=best_bound-dif) %>% select(-dif)
+    
+    data_graph <- 
+        progress %>% inner_join(bounds) %>% inner_join(difs) %>% 
+        mutate(BestInteger = (BestInteger-dif-best_bound)/(BestInteger-dif)*100)
+    
+        path <- '%sprogress_gaps_not_very_large.png' %>% sprintf(path_export_img)
+    data_graph %>% 
+        mutate(instance= as.factor(instance)) %>% 
+        ggplot(aes(x=Time/60, y=BestInteger, group=experiment)) + 
+        geom_step(aes(colour=experiment, linetype=experiment), size=1.5) + 
+        facet_grid(cols=vars(instance)) +
+        labs(color = "Method", linetype="Method") + 
+        ylab("Percentage gap") + theme_minimal() +
+        xlab("Time (minutes)") +
+        theme(text = element_text(size=23)) +
+        theme(
+            legend.position = "bottom",
+              legend.box = "vertical") +
+        scale_x_continuous(breaks=scales::pretty_breaks(n = 2)) +
+        ggsave(path, width = 16, height = 9)
+}
+
 # data wrangling ----------------------------------------------------------
 
 if (FALSE){
@@ -239,6 +337,7 @@ if (FALSE){
     compare_large()
     compare_neighbors()
     compare_initial_solution()
+    compare_not_so_large_3600()
 
     exps <- c('prise_srv3_20200528', 'port_peschiera_20200529', 
               'prise_srv3_20200602', 'prise_srv3_20200603_good', 'prise_srv3_20200603_2', 'prise_srv3_20200604', 
