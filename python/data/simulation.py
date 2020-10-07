@@ -1,8 +1,5 @@
 # /usr/bin/python3
 
-# This simulation complies to the format returned in the function
-# get_model_data in the file data_dga.py
-
 import data.dates as aux
 import random as rn
 import math

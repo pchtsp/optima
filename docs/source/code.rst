@@ -55,3 +55,13 @@ A subclass of Heuristic that implements a simulated annealing algorithm to obtai
 
 .. automodule:: solvers.heuristics_maintfirst
    :members:
+
+MIP model
+=========================
+
+A subclass of Experiment that implements a MIP model to solve the mission assignments.
+
+:py:class:`ModelMissions`
+
+.. automodule:: solvers.model_dassault
+   :members:

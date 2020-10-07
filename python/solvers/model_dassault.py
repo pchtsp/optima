@@ -1,4 +1,3 @@
-import math
 import pulp as pl
 import solvers.config as conf
 import package.experiment as exp
@@ -17,6 +16,11 @@ class ModelMissions(exp.Experiment):
         self.model = None
 
     def solve(self, options):
+        """
+        Solves a mip model given a FMP with fixed maintenances
+        :param options:
+        :return:
+        """
 
         resources = self.instance.get_resources()
         candidates = self.instance.get_task_candidates()
@@ -75,7 +79,7 @@ class ModelMissions(exp.Experiment):
             to_dict(None).\
             vapply(lambda v: get_rut(v[0], prev(v[-1])))
 
-
+        # VARIABLES
         self.task = \
             pl.LpVariable.dicts(name="task",
                                 indexs=res_task,
@@ -113,7 +117,7 @@ class ModelMissions(exp.Experiment):
         res_nb_mission = \
             task_period_rest.\
             vfilter(lambda v: len(v) > 1).\
-            apply(lambda k, v: pl.lpSum(self.task[k[1], _v] for _v in v)).\
+            kvapply(lambda k, v: pl.lpSum(self.task[k[1], _v] for _v in v)).\
                 to_tuplist().take([1, 0, 2]).to_dict(2, is_list=False)
         for v in res_nb_mission.values():
             self.model += v <= 1
@@ -126,9 +130,9 @@ class ModelMissions(exp.Experiment):
             self.model += v == task_num_resource[k]
 
         # number of missions per resource
-        task_per_task = res_task.to_dict(1).apply(lambda k, v: pl.lpSum(self.task[k, _v] for _v in v))
+        task_per_resource = res_task.to_dict(1).apply(lambda k, v: pl.lpSum(self.task[k, _v] for _v in v))
         excess = self.num_missions_range.to_tuplist().take([0, 2]).to_dict(1).vapply(pl.lpSum)
-        for r, v in task_per_task.items():
+        for r, v in task_per_resource.items():
             self.model += v == excess[r]
 
         # the sum of flight hours that are assigned need to fall in
@@ -208,6 +212,10 @@ class ModelMissions(exp.Experiment):
         return self.solution
 
     def get_solution(self):
+        """
+        Reads the MIP variables contents after solving and generates a solution
+        :return: formatted solution
+        """
 
         _range_f = self.instance.get_periods_range
         assignments = self.task.vfilter(pl.value).keys_tl()
@@ -231,6 +239,14 @@ class ModelMissions(exp.Experiment):
         return sol.Solution(sol_data)
 
     def edit_default_hours_cycle(self, maint, check, task_solution, new_default_hours):
+        """
+
+        :param maint: M or VS
+        :param check: {'M'} or {'M', 'VS'}
+        :param task_solution: assignments of missions
+        :param new_default_hours: modified hours dictionary to update
+        :return: new_default_hours
+        """
 
         # we add in aux some information
         # to discount the number of flight hours depending on the mission

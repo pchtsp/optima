@@ -1,0 +1,122 @@
+\chapter{Mission assignment model}
+
+The model assigns discrete missions to aircraft while complying with previously scheduled checks and assigned flight hours to each aircraft.
+
+Missions are already scheduled and consist on a demand for a certain number of aircraft and a number of total flight hours for the whole duration of the mission. Mission assignments cannot be interrupted, i.e., an aircraft is assigned to the whole duration of the mission.
+
+To simplify the notation, overhaul checks (VX) will called M-checks. A M-cycle for an aircraft is defined by the periods between the end of a M-check and the start of the next M-check. Security checks will be called VS-checks. A VS-cycle consists of the periods between the end of an VS-check or M-check and the start of the next VS-check or M-check.
+
+Flight hours from missions need to comply with the M-cycles and VS-cycles, as well as with the previously assigned flight hours. There exist hard limits and soft limits on this compliance.
+
+In order to balance the number of mission assignments among aircraft on the fleet, an increasing cost per unit is applied for each additional mission assigned to the same aircraft.
+
+The maintenance capacity in a given period is reduced proportionally to the number of aircraft that leave for a mission with respect to the size of the fleet. This reduced capacity should not exceed the demand for maintenance from the aircraft that stay on base (i.e., that do not go in mission).
+
+
+\section{Input data}
+
+The main sets.
+
+  \begin{tabular}{p{15mm}p{120mm}}
+    $i \in \mathcal{I}$     &  aircraft.    \\
+    $t \in \mathcal{T}$     &  time periods included in the planning horizon. We use $t=0$ for starting conditions and $t=T$ for the last period. \\
+    $j \in \mathcal{J}$     &  missions. \\
+    $s \in \mathcal{S}$     &  intervals por deviations.
+  \end{tabular}
+
+Auxiliary sets.
+
+  \begin{tabular}{p{15mm}p{120mm}}
+    $t \in \mathcal{T}_j$        &  time periods $t \in \mathcal{T}$ when mission $j$ is active. \\
+    $j \in \mathcal{J}_i$        &  missions $j \in \mathcal{J}$ where aircraft $i$ is suitable. \\
+    $j \in \mathcal{J}_t$        &  missions $j \in \mathcal{J}$ that are active in period $t$. \\
+    $(t, t') \in \mathcal{L}^{M}_{i}$         & $(t \in \mathcal{T}, t' \in \mathcal{T})$ such that aircraft $i$ starts a M-cycle at the beginning of period $t$ and finishes it at the end of period $t'$. \\
+    $j \in \mathcal{J}_{itt'}$         & missions $j \in \mathcal{J}_i$ that start after the beginning of period $t$ and finish before the end of period $t'$.\\
+    $(t, t') \in \mathcal{L}^{VS}_{i}$         & $(t \in \mathcal{T}, t' \in \mathcal{T})$ such that aircraft $i$ starts a VS-cycle at the beginning of period $t$ and finishes it at the end of period $t'$.\\
+  \end{tabular}
+
+  Parameters.
+
+  \begin{tabular}{p{15mm}p{100mm}p{20mm}}
+    $H_j$             & total flight hours required per aircraft for mission $j$. & [hours] \\
+    $R_j$             & number of aircraft required per period for mission $j$. & [aircraft] \\
+    $C^{max}$         & maximum number of simultaneous aircraft checks. & [aircraft] \\
+    $H^{M}$         & maximum number of flight hours between two consecutive M-checks for each aircraft. & [hours] \\
+    $H^{VS}$         & maximum number of flight hours between two consecutive VS-checks for each aircraft. & [hours] \\
+    $H^{rem}_{itt'}$ & remaining flight hours for aircraft $i$ at the end of the M-cycle that starts in $t$ and ends in $t'$.& [hours] \\
+    $C^{rem}_{t}$ & net remaining capacity during period $t$ after discounting aircraft that go in mission.& [hours] \\
+    $C^{u}_{it}$ & maintenance capacity used by aircraft $i$ in period $t$. & [days] \\
+  \end{tabular}
+
+
+\section{Variables}
+
+    The following binary decision variables prescribe the assignment of missions and checks to aircraft.
+
+    \begin{tabular}{p{8mm}p{127mm}}
+      $a_{ij}$ & has value one if aircraft $i$ is assigned to mission $j$, zero otherwise.
+    \end{tabular}
+
+    The following continuous auxiliary variables help balance the different objectives.
+
+    \begin{tabular}{p{8mm}p{127mm}}
+      $e^{H}_{itt'}$  & Deviation of cycle flight hours for aircraft $i$ during M-cycle $(t, t') \in \mathcal{L}_i$. \\
+      $e^{J}_{is}$ & Deviation in number of missions assigned to aircraft $i$ in interval $s$. \\
+      $e^{C}_{t}$ & Deviation in maintenance capacity at end of $t$. \\
+    \end{tabular}
+
+\section{Objective function and constraints}
+    
+  The objective function (\ref{eq:objective1}) expresses the total deviation from all goals on flight hours per cycle, fleet balance and maintenance capacity.
+
+  \begin{align}
+    & \text{Min}\; 
+    \sum_{\substack{
+            i \in \mathcal{I}, \\ (t, t') \in \mathcal{L}_i
+            }
+        } e^{H}_{itt'}
+    + 100 \sum_{\substack{
+            i \in \mathcal{I}, \\ s \in \mathcal{S}
+            } 
+        } PJ_s \times e^{J}_{is}
+    + 1000 \sum_{t \in \mathcal{T}} 
+    e^{C}_{t} 
+    \label{eq:objective1}
+  \end{align}
+
+  \begin{align}
+    % only one active mission assignment per aircraft.
+    & \sum_{\substack{j \in \\ \mathcal{J}_t \cap \mathcal{J}_i}} 
+    a_{ij} \leq 1 
+            & t \in \mathcal{T}, i \in \mathcal{I} \label{eq:state} \\ 
+    % number of resources per mission
+    & \sum_{i \in \mathcal{I}_j} a_{ij} = R_j
+            & j \in \mathcal{J}  \label{eq:missionres}\\
+    % number of missions per resource
+    & \sum_{i \in \mathcal{J}_i} a_{ij} = \sum_{s \in \mathcal{S}} e^{J}_{is}
+            & i \in \mathcal{I}  \label{eq:num_missions}\\
+    % max number of flight hours. hard limit. (M)
+    & \sum_{j \in \mathcal{J}_{itt'}} a_{ij} H_j \leq H^{M}
+            & i \in \mathcal{I}, (t, t') \in \mathcal{L}^M_{i} \label{eq:maxHoursH}\\
+    % max number of flight hours. hard limit. (VS)
+    & \sum_{j \in \mathcal{J}_{itt'}} a_{ij} H_j \leq H^{VS}
+            & i \in \mathcal{I}, (t, t') \in \mathcal{L}^{VS}_{i} \label{eq:maxHoursVS}\\
+    % max number of flight hours. soft limit
+    % 
+    & e^{H}_{itt'} \geq \sum_{j \in \mathcal{J}_{itt'}} a_{ij} H_j - H^{rem}_{itt'} 
+            & i \in \mathcal{I}, (t, t') \in \mathcal{L}^M_{i} \label{eq:extraHours}\\
+    % finally, we create the constraint guaranteeing capacity.
+    &\sum_{i \in \mathcal{I}} [C^{u}_{it} \times (1 - \sum_{\substack{j \in \\ \mathcal{J}_t \cap \mathcal{J}_i}} a_{ij})] 
+    - e^{C}_{t} \leq C^{rem}_{t}
+            & t \in \mathcal{T} \label{eq:capacity1}
+  \end{align}
+
+  Constraints (\ref{eq:state}) limit the number of simultaneous missions that an aircraft can be assigned to 1. Constraints (\ref{eq:missionres}) guarantee that all missions are covered with the required aircraft. Constraints (\ref{eq:num_missions}) tie the total number of missions for each aircraft to penalize it in the objective function.
+
+  Constraints (\ref{eq:maxHoursH}, \ref{eq:maxHoursVS}) set the absolute maximum number of flight hours in M-cycles and VS-cycles, respectively.
+
+  Constraints (\ref{eq:extraHours}) limit the number of additional hours each aircraft can fly during each M-cycle. This constraint is elastic.
+
+  Constraints (\ref{eq:capacity1}) guarantee that the remaining capacity is enough for the scheduled checks of the aircraft that are not currently assigned to a mission.
+
+  Constraints (\ref{eq:capacity1}) limit the number of unpenalized simultaneous checks. Constraints (\ref{eq:missionres}) enforce aircraft mission requirements. Constraints (\ref{eq:state}) restrict each aircraft to at most one assignment each period.

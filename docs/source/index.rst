@@ -5,7 +5,11 @@ OPTIMA: technical documentation
    :maxdepth: 2
    :caption: Contents:
 
+   install
+   heuristic
+   model
    code
+
 
 Indices and tables
 ==================

@@ -1,0 +1,84 @@
+\chapter{Simulated Annealing heuristic}
+
+  The heuristic consists in a Simulated Annealing heuristic detailed in Algorithm \ref{algo:heuristic}. The stop criteria are three: (a) a time limit, (b) getting a solution with 0 errors or (c) an iteration limit. Given the structure of the constraints and the design of the algorithm, the heuristic does not guarantee a feasible solution to the problem.
+
+  The first iteration $c=1$ generates an initial solution by first scheduling random mandatory checks (see Line \ref{algo:maint}) and, then, randomly assigning missions as needed (see Line \ref{algo:miss}). Both functions are explained in detail in Algorithms \ref{algo:AssignChecks} and \ref{algo:AssignMissions}, respectively. At each subsequent iteration $c \geq 2$, the solution is first perturbed by removing or moving maintenances and mission assignments (see Lines \ref{algo:cand} and \ref{algo:rel}), in order to randomly re-schedule checks and then re-assign missions.
+
+  Each candidate selected for releasing in Line \ref{algo:cand} consists on a couple (aircraft, period). These candidates are selected based on the location of errors in the incumbent solution. The perturbations in Line \ref{algo:rel} consist in releasing a slice of the $\mathcal{I} \times \mathcal{T}$ matrix of mission assignments and checks schedules. This slice can be a whole row, i.e., free all assignments and checks for aircraft $i$; a group of columns, i.e., free all assignments and checks for all aircraft between periods $t$ and $t^\prime$; or a combination of the two, i.e., free assignments and checks for subset of aircraft between periods $t$ and $t^\prime$. The type of release is randomly generated.
+
+  After each cycle, the solution is compared with the previous one (see line \ref{algo:accept}) and is accepted depending on the difference in quality, a decreasing temperature and a random factor. The greater the temperature, the greater the probability to accept a new solution that has more errors than the incumbent.
+
+  \begin{algorithm}
+    \DontPrintSemicolon
+    \SetKwData{bestsol}{$x^*$}\SetKwData{besterr}{$err^*$}
+    \SetKwData{newsol}{$x^{\prime}$}\SetKwData{newerr}{$err^{\prime}$}
+    \SetKwData{incumbsol}{$x$}\SetKwData{incumberr}{$err$}
+    \KwData{\\\incumbsol: incumbent solution, $err$ its errors. \\\newsol: new candidate solution. \\\bestsol: best solution found.\\$T$: temperature.\\$C$: maximum iterations.\\$R$: cooldown rate.}
+    \BlankLine
+    \Begin{
+      $\incumbsol \leftarrow InitializeEmptySolution()$\;
+      $\incumberr \leftarrow \besterr \leftarrow GetErrors(\incumbsol)$\;
+      $\newsol \leftarrow \incumbsol$\;
+      \For{$c \leftarrow 1$ \KwTo $C$}{
+        $\newsol \leftarrow AssignChecks(\newsol)$\label{algo:maint}\;
+        $\newsol \leftarrow AssignMissions(\newsol)$\label{algo:miss}\;
+        $\newerr \leftarrow GetErrors(\newsol)$\;
+        \If{$AcceptanceFunc(\incumberr, \newerr, T)$}{\label{algo:accept}
+          $\incumbsol, \incumberr \longleftarrow \newsol, \newerr$\;
+          \If{$\sum \newerr < \sum \besterr$}{
+            $\bestsol, \besterr \longleftarrow \newsol, \newerr$\;
+          }
+        }
+        $T \leftarrow R \times T$\;
+        \lIf{$|\besterr| = 0$}{break}
+        $C \leftarrow GetCandidatesReassign(\incumberr)$\label{algo:cand}\;
+        $\newsol \leftarrow PartialRelease(\incumbsol, C)$\label{algo:rel}\;
+      }
+    }
+    \caption{maintFirst}\label{algo:heuristic}
+  \end{algorithm}
+
+  \begin{algorithm}\
+    \DontPrintSemicolon
+    \SetKwData{sol}{$x$}
+    \KwData{\\\sol: the current solution}
+    \BlankLine
+    \Begin{
+      \For{$i \in \mathcal{I}$}{
+        $needs \leftarrow GetMaintenanceNeeds(\sol, i)$\;
+        $\mathcal{T}^{c} \leftarrow GetMaintenanceCandidates(\sol, i, needs)$\;
+        \If{$|\mathcal{T}^{c}| > 0$}{
+          $t \leftarrow choice(\mathcal{T}^{c})$\;
+          $SetMaintenance(\sol, i, t)$;
+        }
+      }
+    }
+    \caption{AssignChecks()}\label{algo:AssignChecks}
+  \end{algorithm}
+
+  \begin{algorithm}\
+    \DontPrintSemicolon
+    \SetKwData{sol}{$x$}
+    \KwData{\\\sol: the current solution}
+    \BlankLine
+    \Begin{
+      \For{$j \in shuffle(\mathcal{J})$}{
+        $needs \leftarrow CheckMissionNeeds(\sol, j)$\;
+        $\mathcal{I}^{c} \leftarrow GetMissionCandidates(j)$\;
+        \While{$|\mathcal{I}^{c}| > 0 \land |needs| > 0$}{
+          $i \leftarrow choice(\mathcal{I}^{c})$\;
+          $\mathcal{T}^{c} \leftarrow GetCandidatePeriods(needs, i)$\;
+          \If{$|\mathcal{T}^{c}| = 0$}{
+            $\mathcal{I}^{c}.pop(i)$\;
+          }
+          \For{$t \in shuffle(\mathcal{T}^{c})$}{
+            $success \leftarrow SetMissionAssignment(\sol, i, t, j)$\;
+            \If{$success$}{
+              $needs[t] \leftarrow needs[t] - 1$
+            } 
+          }
+        }
+      }
+    }
+    \caption{AssignMissions()}\label{algo:AssignMissions}
+  \end{algorithm}
