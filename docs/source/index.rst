@@ -6,6 +6,7 @@ OPTIMA: technical documentation
    :caption: Contents:
 
    install
+   gui
    heuristic
    model
    code
