@@ -179,11 +179,15 @@ def import_input_template(path):
     :return: the data needed to create an instance
     """
 
-    sheets = ['maintenances', 'etats_initiaux', 'avions', 'params',
-              'heures_vol', 'maint_capacite', 'missions']
+    sheets = {'maintenances', 'etats_initiaux', 'avions', 'params',
+              'heures_vol', 'maint_capacite', 'missions'}
 
     xl = pd.ExcelFile(path)
-    present_sheets = set(sheets) & set(xl.sheet_names)
+    file_sheets = set(xl.sheet_names)
+    missing_sheets = sheets - file_sheets
+    present_sheets = sheets & file_sheets
+    if len(missing_sheets):
+        print('The following sheets were not found: {}'.format(missing_sheets))
 
     tables = {sh: xl.parse(sh) for sh in present_sheets}
     data = dict(
@@ -373,13 +377,15 @@ def get_capacity_usage(experiment):
 
 def import_output_template(path):
 
-    sheets = ['sol_maints', 'sol_missions']
-    # xl = pd.ExcelFile(path)
-    # missing = set(sheets) - set(xl.sheet_names)
-    # if len(missing):
-    #     raise KeyError('The following sheets were not found: {}'.format(missing))
+    sheets = {'sol_maints', 'sol_missions', 'sol_default'}
+    xl = pd.ExcelFile(path)
+    file_sheets = set(xl.sheet_names)
+    missing_sheets = sheets - file_sheets
+    present_sheets = sheets & file_sheets
+    if len(missing_sheets):
+        print('The following sheets were not found: {}'.format(missing_sheets))
 
-    tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in sheets}
+    tables = {sh: pd.read_excel(path, sheet_name=sh) for sh in present_sheets}
     equiv = get_equiv_names()
     columns = ['resource', 'period', 'maint']
     tables['sol_maints'].avion = tables['sol_maints'].avion.astype(str)
@@ -395,21 +401,25 @@ def import_output_template(path):
         sd.SuperDict(states_table['value'].to_dict()).\
         to_dictdict()
 
-    # states_table_n =\
-    #     states_table.\
-    #         reset_index().\
-    #         set_index(["resource", 'period'])
-    #
-    # states_table_n['maint'].to_dict()
-
-    task = tables['sol_missions'].rename(columns=equiv).\
-        set_index(['resource', 'period'])['task'].\
-        to_dict()
+    task = {}
+    if 'sol_missions' in tables:
+        task = tables['sol_missions'].rename(columns=equiv).\
+            set_index(['resource', 'period'])['task'].\
+            to_dict()
     task = sd.SuperDict.from_dict(task).to_dictdict()
+
+    new_defaults = {}
+    if 'sol_default' in tables:
+        new_defaults =\
+            tables['sol_default'].rename(columns=equiv).\
+            set_index(['resource', 'period'])['number']. \
+            to_dict()
+    new_defaults = sd.SuperDict.from_dict(new_defaults).to_dictdict()
 
     data = sd.SuperDict(
         state_m = states_m
         , task = task
+        , new_default = new_defaults
     )
     return data
 

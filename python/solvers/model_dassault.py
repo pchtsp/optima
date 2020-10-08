@@ -67,6 +67,8 @@ class ModelMissions(exp.Experiment):
         # We delete the tasks, because we need
         # to calculate previous ruts
         self.solution.data['task'] = sd.SuperDict()
+        # so they remain coherent, we also clean the new_defaults
+        self.solution.data['new_default'] = sd.SuperDict()
 
         prev = self.instance.get_prev_period
         rut = self.set_remaining_usage_time_all('rut')
