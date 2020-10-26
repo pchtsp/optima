@@ -150,8 +150,7 @@ compare_200aircraft <- function(){
 
     # progress graph
     path <- '%sprogress255.png' %>% sprintf(path_export_img)
-    progress %>% filter(Time>100) %>% filter(scenario==255) %>% 
-        mutate(experiment=experiment2) %>% 
+    progress_200 %>% filter(Time>100) %>% filter(scenario==255) %>% 
         draw_progress(log_scale_y = TRUE) + 
             ylab('Objective value') + theme_minimal() + theme(text = element_text(size=15)) +
             ggsave(path)
@@ -160,7 +159,7 @@ compare_200aircraft <- function(){
     bounds <- data_200 %>% distinct(instance, scenario, best_bound)
 
     data_graph <- 
-        progress %>% 
+        progress_200 %>% 
         inner_join(bounds) %>% 
         mutate(BestInteger = (BestInteger-best_bound)/BestInteger*100)
        
@@ -170,6 +169,17 @@ compare_200aircraft <- function(){
         ggplot(aes(x=Time, y=BestInteger, colour=instance, linetype=experiment)) + 
         geom_step(size=1.5) + 
         facet_grid(rows='scenario', scales="free_y") +
+        labs(linetype = "Method", color = "Instance") + 
+        ylab("Percentage gap") + theme_minimal() +
+        theme(text = element_text(size=23)) +
+        ggsave(path, width = 16, height = 9)
+    
+    path <- '%sprogress_gaps_very_large_255.png' %>% sprintf(path_export_img)
+    data_graph %>% filter(scenario==255) %>% 
+        mutate(instance= as.factor(instance)) %>% 
+        ggplot(aes(x=Time, y=BestInteger, colour=instance, linetype=experiment)) + 
+        geom_step(size=1.5) + 
+        # facet_grid(rows='scenario', scales="free_y") +
         labs(linetype = "Method", color = "Instance") + 
         ylab("Percentage gap") + theme_minimal() +
         theme(text = element_text(size=23)) +
