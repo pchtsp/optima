@@ -75,6 +75,39 @@ states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isod
     
 }
 
+states_expanded <- function(data){
+  data %>% 
+    mutate(end=start + duration-1) %>% 
+    # Need to operate by row, so group by row number
+    group_by(group,r=row_number()) %>% 
+    # Create nested list column containing the sequence for each pair of Start, End values
+    mutate(custom = list(start:end)) %>% 
+    # Remove the row-number column, which is no longer needed
+    ungroup %>% select(-r) %>% 
+    # Unnest the list column to get the desired "long" data frame
+    unnest(cols=c(custom)) %>% 
+    arrange(group, start) %>%
+    mutate(content=if_else(state=='M', '-1', state) %>% as.numeric,
+           content=if_else(content>=0, content+1, content) %>% as.character,
+           end=custom+1) %>% 
+    group_by(group, start) %>% 
+    mutate(end_lag=lag(end)) %>% 
+    ungroup %>% 
+    mutate(start=if_else(end_lag %>% is.na, start, end_lag)) %>% 
+    # select(group, start, end, end_lag) %>% head
+    select(-custom, -end_lag)
+}
+
+states_zeros <- function(data_expanded){
+  start <- min(data_expanded$start)
+  end <- max(data_expanded$end)
+  combo <- CJ(group=data_expanded %>% distinct(group) %>% use_series(group),
+              start = start:end)
+  combo %>% anti_join(data_expanded) %>% 
+    mutate(end = start + 1,
+           color = 'none', content = '0')
+}
+
 if (FALSE){
     # example taken from thesis_gantt.R
     start_month <- as.Date('2017-10-01')

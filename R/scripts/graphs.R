@@ -89,6 +89,8 @@ timevis_from_states(states, max_resources=NULL, width='100%')
 # pdf graph ---------------------------------------------------------------
 exp_directory = PATHS['results'] %>% paste0('hp_20181104/base/201811061411/')
 states <- get_states(exp_directory)
+
+# when we pass period_num we convert periods to integers:
 states <- get_states(exp_directory, style_config = list(period_num=TRUE))
 resources <- states %>% distinct(group) %>% sample_n(10)
 states <- states %>% inner_join(resources) %>% mutate_at(vars(group), as.numeric) %>% arrange(group)
@@ -99,6 +101,15 @@ text <- states_to_pdfgantt(states, y_unit = 0.5, date_format = 'isodate-yearmont
 text <- states_to_pdfgantt(states, y_unit = 1, date_format = 'isodate-yearmonth')
 text <- states_to_pdfgantt(states, y_unit = 1, date_format = 'simple')
 write(text, file=dir_out %>% paste0('gantt_5aircraft.tex'))
+
+# we expand the states to bring something close to a matrix:
+expanded <- states %>% states_expanded
+expanded %>% 
+    states_to_pdfgantt(y_unit=1, date_format='simple') %>% 
+    write(file=dir_out %>% paste0('gantt_5aircraft_exp.tex'))
+expanded %>% states_zeros %>%
+    states_to_pdfgantt(y_unit=1, date_format='simple') %>% 
+    write(file=dir_out %>% paste0('gantt_5aircraft_exp_0.tex'))
 
 
     # -----------other options...

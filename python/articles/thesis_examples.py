@@ -2,10 +2,13 @@ import data.simulation as sim
 import package.params as params
 import package.instance as inst
 import solvers.model as model
+# path:
+# python/data/cases/202007081453_2
 
 options = params.OPTIONS
 num_tasks = 1
 options['num_period'] = 20
+options['simulation']['seed'] = 8001
 options['simulation']['num_period'] = 20
 options['simulation']['maint_duration'] = 2
 options['simulation']['max_used_time'] = 300
