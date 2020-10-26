@@ -1,5 +1,4 @@
 import os, sys
-import resource
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import data.data_input as di
@@ -171,8 +170,13 @@ def udpdate_case_read_options(options, path):
     return options
 
 def memory_limit(percentage=0.5):
-    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-    resource.setrlimit(resource.RLIMIT_AS, (int(get_memory() * 1024 * percentage), hard))
+    # this only works in UNIX apparently
+    try:
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+        resource.setrlimit(resource.RLIMIT_AS, (int(get_memory() * 1024 * percentage), hard))
+    except:
+        return
 
 def get_memory():
     with open('/proc/meminfo', 'r') as mem:

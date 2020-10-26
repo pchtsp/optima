@@ -477,6 +477,9 @@ class Experiment(object):
         else:
             periods = set(periods)
         res_clusters = self.instance.get_cluster_candidates().list_reverse()
+        if not res_clusters:
+            # this happens if there are no missions.
+            return {}
         cluster_data = self.instance.get_cluster_constraints()
         max_candidates = cluster_data['num'].kfilter(lambda k: k[1] in periods)
         num_maintenances = \
@@ -516,6 +519,9 @@ class Experiment(object):
         cluster_data = self.instance.get_cluster_constraints()
         min_hours = cluster_data['hours']
         clusters = self.instance.get_cluster_candidates().list_reverse()
+        if not clusters:
+            # this happens if there are no missions.
+            return {}
         ruts_dt = ruts.to_dictup()
         data = [((c, p), h) for (r, p), h in ruts_dt.items()
                 for c in clusters[r] if p in periods]
