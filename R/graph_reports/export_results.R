@@ -29,7 +29,7 @@ get_mip_vnd_bb_table <- function(summary, progress, apply_dif=TRUE){
     } else {
         difs <- summary %>% distinct(instance, experiment, scenario) %>% mutate(dif=0)
     }
-
+    
     # 
     bounds <-
         summary %>% distinct(instance, scenario, best_bound) %>%
@@ -57,7 +57,7 @@ compare_large <- function(){
     # we have to make some legal black magic to be sure that the objectives 
     # in the progress are being measured corretly in all cases.
     table_large <- get_mip_vnd_bb_table(data, progress)
-     table_large %>% 
+    table_large %>% 
         formated_kable(escape = FALSE) %>% write_file(path)
     # data_graph %>% head
     # data_nn <- data %>% mutate(`dif (%)`= ((`VND`-MIP)/MIP*100) %>% round(2)) %>% formated_kable
@@ -70,7 +70,7 @@ compare_initial_solution <- function(){
     # exp_names <- c('initial', 'NONE')
     exps <- c('serv_cluster1_20200701', 'port_peschiera_20200715')
     exp_names <- c('initial', 'bounds')
-
+    
     data <- get_generic_compare(exps, exp_names = exp_names, solver=list(serv_cluster1_20200701='HEUR'))
     bbound <- data %>% filter(experiment=='bounds') %>% select(instance, best_solution) %>% mutate_at(vars(best_solution), unlist)
     data_n <- 
@@ -89,10 +89,10 @@ compare_initial_solution <- function(){
         mutate(gap = (objective-best_solution)/best_solution*100,
                gap = round(gap)) %>% 
         pivot_wider(id_cols = instance, 
-                names_from = scenario, 
-                values_from = gap) %>% 
+                    names_from = scenario, 
+                    values_from = gap) %>% 
         arrange(instance)
-        
+    
     path <- '%sinitial_solution_compare.tex' %>% sprintf(path_export_tab)
     data_n %>% 
         rename(`maintFirst (\\%)`=maintFirst, `RH (\\%)`=mip, `SPA (\\%)`=short) %>% 
@@ -147,22 +147,22 @@ compare_200aircraft <- function(){
     # gaps %>% ungroup %>% summarise_at(vars(VND, MIP), mean)
     # summary_to_wider(data_200, column='objective')
     # errors <- summary_to_wider(data_200, column='errors')
-
+    
     # progress graph
     path <- '%sprogress255.png' %>% sprintf(path_export_img)
     progress_200 %>% filter(Time>100) %>% filter(scenario==255) %>% 
         draw_progress(log_scale_y = TRUE) + 
-            ylab('Objective value') + theme_minimal() + theme(text = element_text(size=15)) +
-            ggsave(path)
+        ylab('Objective value') + theme_minimal() + theme(text = element_text(size=15)) +
+        ggsave(path)
     
     # progress graph with gaps with respect to best bound
     bounds <- data_200 %>% distinct(instance, scenario, best_bound)
-
+    
     data_graph <- 
         progress_200 %>% 
         inner_join(bounds) %>% 
         mutate(BestInteger = (BestInteger-best_bound)/BestInteger*100)
-       
+    
     path <- '%sprogress_gaps_very_large.png' %>% sprintf(path_export_img)
     data_graph %>% 
         mutate(instance= as.factor(instance)) %>% 
@@ -184,7 +184,7 @@ compare_200aircraft <- function(){
         ylab("Percentage gap") + theme_minimal() +
         theme(text = element_text(size=23)) +
         ggsave(path, width = 16, height = 9)
-    }
+}
 
 compare_neighbors <- function(){
     

@@ -82,20 +82,6 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     # path <- '%squality_performance_%s_%s.png' %>% sprintf(path_export_img, exp_list[1], exp_list[2])
     # qplot(filtered_q_perf$dif_perc, xlab='Relative gap (in %) among integer solutions.', binwidth=0.3) +
     #     theme(text = element_text(size=20)) + theme_minimal() + ggsave(path)
-    
-    # time performance
-    graph_performance <- function(data, path){
-        ggplot(data=data, aes(x=percentage, y=time)) + 
-            # theme_minimal() +
-            # geom_line(aes(linetype=experiment, color=experiment)) + 
-            geom_point(aes(color=experiment, shape=experiment), size=0.7) + xlab('Instance percentage') +
-            ylab('Time to solve instance') + 
-            scale_colour_brewer(palette='Spectral') +
-            theme(text = element_text(size=element_text_size)) + 
-            guides(color = guide_legend(override.aes = list(size=legend_size))) +
-            labs(shape='Experiment', color='Experiment') +
-            ggsave(path)    
-    }
 
     data <- get_time_perf_integer_reorder(get_stoch_a2r_data)
     path <- '%stime_performance_ordered_2tasks.png' %>% sprintf(path_export_img)
@@ -125,33 +111,6 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
     # we will pre-filter instances where base, old and base_determ return correct results.
     clean_instances <- raw_df_progress %>% filter_all_exps %>% distinct(instance)
     transitions <- get_stoch_a2r_data %>% inner_join(clean_instances) %>% get_transitions_stats
-    graph_parent <- function(data, path){
-        max_num <- 50
-        data %>% 
-            # mutate(label1 = ifelse(num >= max_num, as.character(num), NA)) %>% 
-            # mutate(label2 = ifelse(num < max_num, as.character(num), NA)) %>% 
-            to_lodes_form(axes=3:4, id='alluvium') %>% 
-            ggplot(aes(x=x, stratum=stratum, alluvium=alluvium, y=num, fill=stratum, 
-                       label = num)) +
-            scale_x_discrete(expand = c(.1, .1)) +
-            # scale_x_discrete(expand = c(.4, 0)) +
-            geom_flow() +
-            geom_stratum(alpha = .5) +
-            geom_text(stat = "stratum", size=3) +
-            theme_minimal() +
-            # theme(legend.title = "Status") +
-            theme(text = element_text(size=element_text_size)) +
-            labs(fill='Status') +
-            scale_fill_brewer(palette='Spectral') +
-            xlab('Experiment') + ylab('Number of instances') +
-            guides(color = guide_legend(override.aes = list(size=legend_size))) +
-            # ggrepel::geom_text_repel(
-            #     aes(label = label2),
-            #     stat = "stratum", size = 4, direction = "y", nudge_x = -0.5
-            # ) +
-            # ggfittext::geom_fit_text(stat = "stratum", width = 1, min.size = 2) +
-            ggsave(path)
-    }
         
     path <- '%stransitions_base_2tasks.png' %>% sprintf(path_export_img)
     transitions %>% 
@@ -326,7 +285,52 @@ make_optimisation_summary <- function(data_summary){
 }
 
 
+# auxiliary ---------------------------------------------------------------
+
+# time performance
+graph_performance <- function(data, path){
+    ggplot(data=data, aes(x=percentage, y=time)) + 
+        # theme_minimal() +
+        # geom_line(aes(linetype=experiment, color=experiment)) + 
+        geom_point(aes(color=experiment, shape=experiment), size=0.7) + xlab('Instance percentage') +
+        ylab('Time to solve instance') + 
+        scale_colour_brewer(palette='Spectral') +
+        theme(text = element_text(size=element_text_size)) + 
+        guides(color = guide_legend(override.aes = list(size=legend_size))) +
+        labs(shape='Experiment', color='Experiment') +
+        ggsave(path)    
+}
+
+graph_parent <- function(data, path){
+    max_num <- 50
+    data %>% 
+        # mutate(label1 = ifelse(num >= max_num, as.character(num), NA)) %>% 
+        # mutate(label2 = ifelse(num < max_num, as.character(num), NA)) %>% 
+        to_lodes_form(axes=3:4, id='alluvium') %>% 
+        ggplot(aes(x=x, stratum=stratum, alluvium=alluvium, y=num, fill=stratum, 
+                   label = num)) +
+        scale_x_discrete(expand = c(.1, .1)) +
+        # scale_x_discrete(expand = c(.4, 0)) +
+        geom_flow() +
+        geom_stratum(alpha = .5) +
+        geom_text(stat = "stratum", size=3) +
+        theme_minimal() +
+        # theme(legend.title = "Status") +
+        theme(text = element_text(size=element_text_size)) +
+        labs(fill='Status') +
+        scale_fill_brewer(palette='Spectral') +
+        xlab('Experiment') + ylab('Number of instances') +
+        guides(color = guide_legend(override.aes = list(size=legend_size))) +
+        # ggrepel::geom_text_repel(
+        #     aes(label = label2),
+        #     stat = "stratum", size = 4, direction = "y", nudge_x = -0.5
+        # ) +
+        # ggfittext::geom_fit_text(stat = "stratum", width = 1, min.size = 2) +
+        ggsave(path)
+}
+
 # run all -----------------------------------------------------------------
+
 
 
 if (FALSE){

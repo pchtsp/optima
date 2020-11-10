@@ -8,6 +8,7 @@ from dfply import X
 import reports.rpy_graphs as rg
 import strings.names as na
 import orloge as ol
+import pytups.superdict as sd
 
 path = '/home/pchtsp/Documents/projects/COR2019/'
 
@@ -277,17 +278,43 @@ def statistics_relaxations(experiment, write=True):
             f.write(latex)
     return table_nnn
 
+def remake_boxplots():
+    experiment = 'clust1_20190322'
+    path_exps = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/{}/'.format(experiment)
+    scenarios = ['base', 'numparalleltasks_2', 'numparalleltasks_3', 'numparalleltasks_4',
+                 'numperiod_120', 'numperiod_140']
+    table = rep.get_simulation_results(experiment='', scenarios=scenarios, path_exps=path_exps)
+    equiv = \
+        sd.SuperDict(numparalleltasks_2 = 30, numparalleltasks_3 = 45, numparalleltasks_4 = 60).\
+            vapply(lambda v: "$| I |={}$".format(v))
+    table.case = table.scenario.map(equiv).fillna(table.case)
+    table.drop(['matrix'], axis=1, inplace=True)
+    # we edit the table to reflect new column names
+    boxplot_times(table, experiment)
+    boxplot_gaps(table, experiment)
+
+    # experiment = 'IT000125_20190917'
+    # path_exps = '/home/pchtsp/Documents/projects/optima_results/{}.zip'.format(experiment)
+    # scenarios = ['base', 'numparalleltasks_2', 'numparalleltasks_3', 'numparalleltasks_4']
+    # table = rep.get_simulation_results(experiment='', scenarios=scenarios, path_exps=path_exps, zip=True)
+    # str_tup = 'gap_abs', 'Absolute gap', '_absgaps'
+    # boxplot_var(table, experiment, str_tup)
+    # np.percentile(table.gap_abs[~np.isnan(table.gap_abs)], 50)
+    # boxplot_gaps(table, experiment)
+
+
 
 if __name__ == "__main__":
+    remake_boxplots()
     ####################
     # Scenario analysis
     ####################
-    experiments = ["clust1_20181121"]
-    experiments = ['clust_params2_cplex', 'clust_params1_cplex']
-    for experiment in experiments:
-        # statistics_experiment(experiment)
-        statistics_relaxations(experiment)
-    cuts_relaxation_comparison()
+    # experiments = ["clust1_20181121"]
+    # experiments = ['clust_params2_cplex', 'clust_params1_cplex']
+    # for experiment in experiments:
+    #     # statistics_experiment(experiment)
+    #     statistics_relaxations(experiment)
+    # cuts_relaxation_comparison()
 
 
     ####################
@@ -304,12 +331,3 @@ if __name__ == "__main__":
         # with open(file_path, 'w') as f:
         #     f.write(latex)
 #
-# def scrap1():
-#     table.sol_code
-#     table.status_code
-#     table >> dp.select(X.status, X.gap_out)
-#     table >> \
-#         dp.filter_by(X.scenario=='minusageperiod_20') >> \
-#         dp.select(X.instance, X.gap_out, X.inf, X.objective, X.no_int) >>\
-#         dp.arrange(X.gap_out)
-#     table.columns

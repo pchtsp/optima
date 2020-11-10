@@ -1,0 +1,72 @@
+source('nps_reports/functions.R')
+source('graph_reports/datasets.R')
+source('graph_reports/functions.R')
+source('graph_reports/export_results.R')
+
+path_export_img <- '../../phd_defense/images/'
+
+if (FALSE){
+
+# 255 aircraft ------------------------------------------------------------
+
+    
+    exps <- c('serv_cluster1_20200625', 'serv_cluster1_20200702')
+    exp_names <- c('MIP', 'VND')
+    progress_200 <- get_progress(exps, exp_names, solver=list(serv_cluster1_20200702='HEUR'))
+    
+    # progress graph with gaps with respect to best bound
+    data_200 <- get_summary_table(exps, exp_names, wider=FALSE)
+    bounds <- data_200 %>% distinct(instance, scenario, best_bound)
+    
+    data_graph <- 
+        progress_200 %>% 
+        filter(scenario==255) %>% 
+        inner_join(bounds) %>% 
+        mutate(BestInteger = (BestInteger-best_bound)/BestInteger*100)
+        
+    path <- '%sprogress_gaps_very_large_255.png' %>% sprintf(path_export_img)
+    data_graph %>% distinct(instance) %>% mutate(instance2=1:n()) %>% inner_join(data_graph) %>% mutate(instance=instance2) %>% 
+        mutate(instance= as.factor(instance)) %>% 
+        ggplot(aes(x=Time, y=BestInteger, colour=instance, linetype=experiment)) + 
+        geom_step(size=1.5) + 
+        # facet_grid(rows='scenario', scales="free_y") +
+        labs(linetype = "Method", color = "Instance") + 
+        ylab("Percentage gap") + theme_minimal() +
+        xlab('Time (seconds)') +
+        theme(text = element_text(size=23)) +
+        ggsave(path, width = 16, height = 9)
+    
+
+# neighbors ---------------------------------------------------------------
+
+    exps <- c('serv_cluster1_20200630_1', 'serv_cluster1_20200630_2', 'serv_cluster1_20200630_3')
+    exp_names <- c('SPA', 'RH', 'VND')
+    progress <- get_generic_compare(exps, exp_names = exp_names, get_progress=TRUE, 
+                                    solver=to_list_value(exps, 'HEUR'))
+    
+    progress_n <- 
+        progress %>% 
+        mutate(BestInteger=as.numeric(BestInteger),
+               Time = as.numeric(Time)) %>% 
+        filter(!is.null(BestInteger))
+    
+    path <- '%scompare_neighbors.png' %>% sprintf(path_export_img)
+    progress_nn <- 
+        progress_n %>% 
+        filter(instance==81) %>% 
+        mutate(col = scenario %>% str_extract('\\d+'))
+    
+    progress_nn %>% 
+        ggplot(aes(x=Time, y=BestInteger, group=experiment)) + 
+        geom_line(aes(linetype=experiment, color=experiment)) +
+        scale_y_log10() +
+        facet_grid(cols=vars(col)) +
+        theme_minimal() +  labs(color = "Method", linetype="Method") + 
+        theme(text = element_text(size=element_text_size)) +
+        theme(legend.position = "bottom",
+              legend.box = "vertical",
+              strip.text = element_blank()) +
+        ylab("Objective value") +
+        xlab("Time (seconds)") +
+        ggsave(path)
+}

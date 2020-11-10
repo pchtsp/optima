@@ -104,12 +104,9 @@ write(text, file=dir_out %>% paste0('gantt_5aircraft.tex'))
 
 # we expand the states to bring something close to a matrix:
 expanded <- states %>% states_expanded
-expanded %>% 
+expanded %>% bind_rows(states_zeros(expanded)) %>% 
     states_to_pdfgantt(y_unit=1, date_format='simple') %>% 
     write(file=dir_out %>% paste0('gantt_5aircraft_exp.tex'))
-expanded %>% states_zeros %>%
-    states_to_pdfgantt(y_unit=1, date_format='simple') %>% 
-    write(file=dir_out %>% paste0('gantt_5aircraft_exp_0.tex'))
 
 
     # -----------other options...

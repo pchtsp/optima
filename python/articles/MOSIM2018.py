@@ -60,7 +60,6 @@ def task_table():
 def get_results_table(path_abs, exp_list=None, **kwargs):
     batch = ba.Batch(path_abs, no_scenario=True)
     exps = batch.list_experiments(exp_list=exp_list, **kwargs)
-    # exps = exp.list_experiments(path_abs, exp_list=exp_list, **kwargs)
     table = pd.DataFrame.from_dict(exps, orient="index")
 
     if exp_list is not None:
@@ -372,7 +371,7 @@ def multiobjective_table():
         f.write(latex)
 
 
-def get_simulation_results(experiment, cols_rename=None):
+def get_simulation_results(experiment, cols_rename=None, path_exps=None, scenarios=None, zip=False):
 
     if cols_rename is None:
         cols_rename = {
@@ -381,18 +380,26 @@ def get_simulation_results(experiment, cols_rename=None):
             'sol_code': 'sol_code', 'status_code': 'status_code',
             'matrix_post': 'matrix'
         }
-    path_exps = path_results + experiment
-    exps = {p: os.path.join(path_exps, p) + '/' for p in os.listdir(path_exps)}
-
-    results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
-    # table.columns
-    table = \
-        pd.concat(results_list) >> \
-        dp.select(list(cols_rename.keys()))
-
-    table = \
-        table.rename(columns=cols_rename).reset_index() >> \
-        dp.rename(scenario=X.level_0, instance=X.level_1)
+    if path_exps is None:
+        path_exps = path_results + experiment
+    if zip:
+        batch = ba.ZipBatch(path_exps, scenarios=scenarios)
+    else:
+        batch = ba.Batch(path_exps, scenarios=scenarios)
+    vars_to_extract = cols_rename.keys()
+    vars_to_extract -= {'status'}
+    vars_to_extract |= {'scenario', 'name'}
+    table = batch.get_status_df(vars_extract=vars_to_extract)
+    table['instance'] = table.name
+    table.rename(columns=cols_rename, inplace=True)
+    # exps = batch.list_experiments()
+    # table = pd.DataFrame.from_dict(exps, orient="index")
+    #
+    # results_list = {k: get_results_table(v, get_exp_info=False) for k, v in exps.items()}
+    # # table.columns
+    # table = \
+    #     pd.concat(results_list) >> \
+    #     dp.select(list(cols_rename.keys()))
 
     # here we join the sub columns from the matrix
     if 'matrix' in table.columns:
@@ -404,21 +411,16 @@ def get_simulation_results(experiment, cols_rename=None):
     scenarios = table >> dp.distinct(X.scenario) >> dp.select(X.scenario)
     scenarios = scenarios.reset_index(drop=True) >> dp.mutate(code = X.index)
 
-    @dp.make_symbolic
-    def replace_3600(series):
-        return np.where(series>=3600, 3600, series)
-
     table_n = \
-        table >> \
-           dp.left_join(names_df, on="scenario") >> \
-           dp.left_join(scenarios, on='scenario')\
+        table.merge(names_df, on="scenario", how='left').\
+        merge(scenarios, on='scenario', how='left')
 
     if 'sol_code' in table_n.columns:
-        table_n = table_n >> dp.mutate(no_int=X.sol_code == 0,
-                                       inf=X.sol_code == -1)
+        table_n['no_int'] = table_n.sol_code == 0
+        table_n['inf'] = table_n.sol_code == -1
 
     if 'time_out' in table_n.columns:
-        table_n = table_n >> dp.mutate(time_out=replace_3600(X.time_out))
+        table_n.loc[table_n.time_out >= 3600, 'time_out'] = 3600
 
     return table_n
 
