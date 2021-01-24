@@ -14,12 +14,12 @@ path = '/home/pchtsp/Documents/projects/COR2019/'
 
 
 def boxplot_times(table, experiment):
-    str_tup = 'time_out', 'Solving time', '_times'
+    str_tup = 'time_out', 'Solving time (seconds)', '_times'
     boxplot_var(table, experiment, str_tup)
 
 
 def boxplot_gaps(table, experiment):
-    str_tup = 'gap_out', 'Relative gap', '_gaps'
+    str_tup = 'gap_out', 'Relative gap (%)', '_gaps'
     boxplot_var(table, experiment, str_tup)
 
 
@@ -54,7 +54,7 @@ def boxplot_var(table, experiment, str_tup):
         dp.ungroup() >> dp.arrange(X.filt)
     # force float to avoid errors
     table_n[col] = table_n[col].astype('float')
-    plot = rg.boxplot(table_n, x='case', y=col, xlab='Scenario', ylab=ylab)
+    plot = rg.boxplot(table_n, x='case', y=col, xlab='Configuration', ylab=ylab)
     aspect_ratio = 2
     plot.save(os.path.join(path, 'img', experiment + path_ext + '.png'),
               height=7, width=7 * aspect_ratio)
@@ -289,6 +289,8 @@ def remake_boxplots():
             vapply(lambda v: "$| I |={}$".format(v))
     table.case = table.scenario.map(equiv).fillna(table.case)
     table.drop(['matrix'], axis=1, inplace=True)
+    table.groupby(['scenario', 'sol_code']).sol_code.count()
+    table[table.scenario=='numperiod_140']
     # we edit the table to reflect new column names
     boxplot_times(table, experiment)
     boxplot_gaps(table, experiment)

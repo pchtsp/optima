@@ -59,12 +59,12 @@ def make_gantt_from_experiment(experiment=None, path='', name='solution.html'):
     options = dict(show_colorbar=True, group_tasks=True, showgrid_x=True, title="Maintenance planning",
                    bar_width=0.5, width=2000, height=1000)
     fig = ff.create_gantt(gantt_data, colors=colors, index_col='Resource', **options)
-    for i in range(len(gantt_data)):
-        task = gantt_data[i]['Resource']
-        st = gantt_data[i]['Start']
-        res = gantt_data[i]['Task']
-        text = '{}<br>{}<br>{}'.format(res, st, task)
-        fig["data"][i].update(text=text, hoverinfo="text")
+    # for i in range(len(gantt_data)):
+    #     task = gantt_data[i]['Resource']
+    #     st = gantt_data[i]['Start']
+    #     res = gantt_data[i]['Task']
+    #     text = '{}<br>{}<br>{}'.format(res, st, task)
+    #     fig["data"][i].update(text=text, hoverinfo="text")
     fig['layout'].update(autosize=True, margin=dict(l=150))
     pt.offline.plot(fig, filename=filename, show_link=False, config=dict(responsive=True))
 

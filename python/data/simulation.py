@@ -195,7 +195,7 @@ def generate_initial_status(d_param, res_in_maint, res_task_init):
     # We fill the states according to the initial values already calculated:
     # with a little random unbalance (initial_unbalance)
 
-    # if resources is doing a mission, we need to give it a little more hours
+    # if a resource is doing a mission, we need to give it a little more hours
     init_elapsed = {r: 3 if not len(res_task_init[r]) else max_elapsed_time//2 for r in resources}
     initial_elapsed = {r: rn.randrange(init_elapsed[r], max_elapsed_time) for r in resources}
 

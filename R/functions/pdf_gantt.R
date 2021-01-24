@@ -8,7 +8,11 @@ library(stringr)
 states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isodate'){
   # date_format can also be "simple", "isodate", "isodate-yearmonth"
     t_start <- data$start %>% min()
-    t_end <- data$end %>% max() -1
+    if (date_format=='isodate-yearmonth'){
+      t_end <- data$end %>% max() %>% ym() %>% subtract(dmonths(1)) %>% format("%Y-%m")
+    } else {
+      t_end <- data$end %>% max() -1  
+    }
     y_string <- ''
     x_string <- ''
     if (x_unit %>% is.null){
@@ -23,7 +27,7 @@ states_to_pdfgantt <- function(data, x_unit=NULL, y_unit=NULL, date_format='isod
       time_slot_unit <- ''
       title_calendar <- '\\gantttitlelist{1,...,%s}{1}' %>% sprintf(t_end)
     } else {
-      time_slot_unit <- ',\\ntime slot unit=month'
+      time_slot_unit <- ',\ntime slot unit=month'
       title_calendar <- '\\gantttitlecalendar{year}'
     }
     

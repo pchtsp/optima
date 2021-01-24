@@ -166,6 +166,8 @@ def get_maint_types(tables):
 
     equiv = get_equiv_names()
     maint_type_tab = tables['maint_capacite'].rename(columns=equiv)
+    maint_type_tab = maint_type_tab[maint_type_tab.type != 'nan']
+    maint_type_tab = maint_type_tab[~maint_type_tab.type.isna()]
     maint_type_tab.type = maint_type_tab.type.astype(str)
     maint_type = maint_type_tab.set_index(['type', 'period']).to_dict(orient='index')
     maint_type = sd.SuperDict.from_dict(maint_type).to_dictdict()
@@ -189,7 +191,13 @@ def import_input_template(path):
     if len(missing_sheets):
         print('The following sheets were not found: {}'.format(missing_sheets))
 
-    tables = {sh: xl.parse(sh) for sh in present_sheets}
+    def read_table(sheet):
+        table = xl.parse(sheet)
+        return table[~table.iloc[:,0].isna()]
+        # table = table[]
+        # maint_type_tab = maint_type_tab[maint_type_tab.type != 'nan']
+
+    tables = {sh: read_table(sh) for sh in present_sheets}
     data = dict(
         parameters = get_parameters(tables)
         , tasks = get_tasks(tables)

@@ -107,6 +107,10 @@ get_quality_degr_2 <- function(raw_df){
     raw_df %>% get_all_optimal %>% compare_objectives_perc('best_solution')
 }
 
+get_dif_times_optimal <- function(raw_df){
+    raw_df %>% get_all_optimal %>% group_by(experiment) %>% summarise(time=mean(time))
+}
+
 get_quality_perf <- function(raw_df){
     raw_df %>% get_quality_perf_2 %>% filter(experiment=='cuts')
 }

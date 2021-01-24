@@ -85,11 +85,11 @@ make_optimisation_results <- function(df_fixed, raw_df_progress, get_stoch_a2r_d
 
     data <- get_time_perf_integer_reorder(get_stoch_a2r_data)
     path <- '%stime_performance_ordered_2tasks.png' %>% sprintf(path_export_img)
-    graph_performance(data, path)
+    graph_performance(data) + ggsave(path)
     
     data <- get_time_perf_integer_reorder(df_fixed)
     path <- '%stime_performance_ordered_fixLP.png' %>% sprintf(path_export_img)
-    graph_performance(data, path)
+    graph_performance(data) + ggsave(path)
 
     # infeasible and soft constraints
     infeasible_stats <- get_infeasible_stats(get_stoch_a2r_data)
@@ -288,17 +288,17 @@ make_optimisation_summary <- function(data_summary){
 # auxiliary ---------------------------------------------------------------
 
 # time performance
-graph_performance <- function(data, path){
+graph_performance <- function(data){
     ggplot(data=data, aes(x=percentage, y=time)) + 
         # theme_minimal() +
         # geom_line(aes(linetype=experiment, color=experiment)) + 
-        geom_point(aes(color=experiment, shape=experiment), size=0.7) + xlab('Instance percentage') +
+        geom_point(aes(color=experiment, shape=experiment), size=0.7) + 
+        xlab('Instance percentage') +
         ylab('Time to solve instance') + 
         scale_colour_brewer(palette='Spectral') +
         theme(text = element_text(size=element_text_size)) + 
         guides(color = guide_legend(override.aes = list(size=legend_size))) +
-        labs(shape='Experiment', color='Experiment') +
-        ggsave(path)    
+        labs(shape='Experiment', color='Experiment')
 }
 
 graph_parent <- function(data, path){

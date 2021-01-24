@@ -53,7 +53,7 @@ class Batch(object):
 
     def get_instances_paths(self):
         scenarios = self.scenarios
-        if scenarios:
+        if not scenarios:
             scenarios = os.listdir(self.path)
         scenario_paths = {s: os.path.join(self.path, s) for s in scenarios}
         if self.no_scenario:
@@ -171,10 +171,11 @@ class Batch(object):
 
         return table
 
-    def get_status_df(self):
+    def get_status_df(self, vars_extract=None):
         table = self.get_log_df()
-        vars_extract = ['scenario', 'name', 'sol_code', 'status_code',
-                        'time', 'gap', 'best_bound', 'best_solution']
+        if vars_extract is None:
+            vars_extract = ['scenario', 'name', 'sol_code', 'status_code',
+                            'time', 'gap', 'best_bound', 'best_solution']
 
         master = \
             pd.DataFrame({'sol_code': [ol.LpSolutionIntegerFeasible, ol.LpSolutionOptimal,

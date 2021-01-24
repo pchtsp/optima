@@ -196,7 +196,7 @@ compare_neighbors <- function(){
     progress_n <- 
         progress %>% 
         mutate(BestInteger=as.numeric(BestInteger),
-                                 Time = as.numeric(Time)) %>% 
+               Time = as.numeric(Time)) %>% 
         filter(!is.null(BestInteger))
     
     path <- '%scompare_neighbors.png' %>% sprintf(path_export_img)
@@ -208,7 +208,7 @@ compare_neighbors <- function(){
     # labeller_ <- progress_nn$col %>% unique() %>% sapply(function(x) "") %>% labeller(col=.)
     progress_nn %>% 
         ggplot(aes(x=Time, y=BestInteger, group=experiment)) + 
-        geom_line(aes(linetype=experiment, color=experiment)) +
+        geom_line(aes(linetype=experiment, color=experiment), size=1) +
         scale_y_log10() +
         facet_grid(cols=vars(col)) +
         theme_minimal() +  labs(color = "Method", linetype="Method") + 
@@ -217,7 +217,9 @@ compare_neighbors <- function(){
               legend.box = "vertical",
               strip.text = element_blank()) +
         ylab("Objective value") +
-        ggsave(path)
+        theme(text = element_text(size=23)) +
+        ggsave(path, width = 16, height = 9)
+    
     
     stopTime <- 
         progress_n %>% 
@@ -249,50 +251,25 @@ compare_neighbors <- function(){
         select(experiment, scenario, instance, Time, BestInteger, Iterations)
     
     # facetd boxpots ?
-    boxplot_neighbors <- function(data, y_column, path){
+    boxplot_neighbors <- function(data, y_column){
         data %>% 
             mutate(instance=as.factor(instance)) %>% 
-            ggplot(aes(x=instance, y=data[[y_column]], group=experiment)) + 
-            geom_jitter(aes(color=experiment, shape=experiment), width=0.4, height=0, size=2) + 
+            ggplot(aes(y=data[[y_column]], x=experiment)) + 
+            geom_boxplot(size=1) +
             theme_minimal() +
-            theme(text = element_text(size=10)) + 
-            labs(color = "Method", shape="Method")
+            theme(text = element_text(size=10))
     }
     path <- '%scompare_neighbors_boxplot_objective.png' %>% sprintf(path_export_img) 
-    boxplot_neighbors(all_points, 'BestInteger', path) + scale_y_log10() + 
+    boxplot_neighbors(all_points, 'BestInteger') + scale_y_log10() + 
         ylab("Objective value (normalized)") + xlab('Instance') +
-        ggsave(path)
-
+        theme(text = element_text(size=35)) +
+        ggsave(path, width = 16, height = 9)
+    
     path <- '%scompare_neighbors_boxplot_time.png' %>% sprintf(path_export_img) 
-    boxplot_neighbors(all_points, 'Time', path) + 
+    boxplot_neighbors(all_points, 'Time') + 
         ylab("Time (seconds)") + xlab('Instance') +
-        ggsave(path)
-
-    # base_table <- 
-    #     all_points %>% 
-    #     group_by(experiment, instance) %>% 
-    #     summarise_at(vars(Time, BestInteger), list(min=min, max=max)) %>% 
-    #     mutate(Time= sprintf("%s-%s", Time_min, Time_max),
-    #            BestInteger= sprintf("%s-%s", BestInteger_min, BestInteger_max))
-    # 
-    # # time comparison
-    # path <- '%scompare_neighbors_time.tex' %>% sprintf(path_export_tab)
-    # base_table %>% 
-    #     select(experiment, instance, Time) %>% 
-    #     pivot_wider(id_cols=instance, names_from=experiment, values_from=Time) %>% 
-    #     rename(`$t_{RH}$`=RH, `$t_{SPA}$`=SPA, `$t_{both}$`=VND) %>% 
-    #     kable(format = 'latex', booktabs = TRUE, linesep='', escape = FALSE) %>%
-    #     write_file(path)
-    # 
-    # # quality comparison
-    # path <- '%scompare_neighbors_obj.tex' %>% sprintf(path_export_tab)
-    # base_table %>% 
-    #     select(experiment, instance, BestInteger) %>% 
-    #     pivot_wider(id_cols=instance, names_from=experiment, values_from=BestInteger) %>% 
-    #     rename(`$obj_{RH}$`=RH, `$obj_{SPA}$`=SPA, `$obj_{both}$`=VND) %>% 
-    #     kable(format = 'latex', booktabs = TRUE, linesep='', escape = FALSE) %>%
-    #     write_file(path)
-
+        theme(text = element_text(size=35)) +
+        ggsave(path, width = 16, height = 9)
 }
 
 compare_not_so_large_3600 <- function(){
@@ -323,7 +300,7 @@ compare_not_so_large_3600 <- function(){
         progress %>% inner_join(bounds) %>% inner_join(difs) %>% 
         mutate(BestInteger = (BestInteger-dif-best_bound)/(BestInteger-dif)*100)
     
-        path <- '%sprogress_gaps_not_very_large.png' %>% sprintf(path_export_img)
+    path <- '%sprogress_gaps_not_very_large.png' %>% sprintf(path_export_img)
     data_graph %>% 
         mutate(instance= as.factor(instance)) %>% 
         ggplot(aes(x=Time/60, y=BestInteger, group=experiment)) + 
@@ -335,7 +312,7 @@ compare_not_so_large_3600 <- function(){
         theme(text = element_text(size=23)) +
         theme(
             legend.position = "bottom",
-              legend.box = "vertical") +
+            legend.box = "vertical") +
         scale_x_continuous(breaks=scales::pretty_breaks(n = 2)) +
         ggsave(path, width = 16, height = 9)
 }
@@ -348,7 +325,7 @@ if (FALSE){
     compare_neighbors()
     compare_initial_solution()
     compare_not_so_large_3600()
-
+    
     exps <- c('prise_srv3_20200528', 'port_peschiera_20200529', 
               'prise_srv3_20200602', 'prise_srv3_20200603_good', 'prise_srv3_20200603_2', 'prise_srv3_20200604', 
               'prise_srv3_20200604_2', 'prise_srv3_20200605_good')
