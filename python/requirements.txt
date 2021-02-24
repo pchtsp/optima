@@ -13,3 +13,4 @@ PySide2
 pyinstaller
 openpyxl
 Qt.py
+click

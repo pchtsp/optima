@@ -207,6 +207,7 @@ def check_template_data():
     import package.instance as inst
     import package.solution as sol
     import data.data_input as di
+    import reports.gantt as gantt
 
     _dir = PATHS['data'] + r'template/dassault20190821_3/'
     path_in = _dir + r'template_in.xlsx'
@@ -217,6 +218,7 @@ def check_template_data():
     sol_data = td.import_output_template(path_sol)
     solution = sol.Solution(sol_data)
     experiment = heur.MaintenanceFirst(instance, solution)
+    gantt.make_gantt_from_experiment(experiment=experiment)
     errors_old = di.load_data(path_err)
     errors = experiment.check_solution().to_dictdict().to_dictup()
 
@@ -347,6 +349,7 @@ def export_import_pulp():
 
 
 if __name__ == '__main__':
+    check_template_data()
     # load()
     # check_rem_calculation('201904181142')
     # test_rexecute()
