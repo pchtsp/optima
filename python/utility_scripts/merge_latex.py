@@ -2,10 +2,10 @@ import utility_scripts.flatex as fl
 import os
 
 directory = r'/home/pchtsp/Documents/projects/Graph2020/'
-directory = r'/home/pchtsp/Documents/projects/phd_thesis/'
+directory = r'/home/pchtsp/Documents/projects/COR2019/'
 main_file = 'article.tex'
-main_file = 'phdthesis.tex'
-manuscript_file = 'manuscript_new.tex'
+# main_file = 'phdthesis.tex'
+manuscript_file = 'zzzmanuscript_new.tex'
 base_file = os.path.join(directory, main_file)
 output_file = os.path.join(directory, manuscript_file)
 
@@ -32,3 +32,5 @@ edit_file(base_file, output_file)
 # replace
 # ^\\\\
 #
+# if everything's good just this line should work:
+# latexdiff zzzmanuscript_old.tex zzzmanuscript_new.tex > tmpdiff.tex && pdflatex tmpdiff.tex

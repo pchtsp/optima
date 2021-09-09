@@ -49,8 +49,8 @@ class GreedyByMission(test.Experiment):
         if options.get('debug', False):
             level = log.DEBUG
         logFile = os.path.join(options.get('path'), 'output.log')
-        logFormat = '%(asctime)s %(levelname)s:%(message)s'
         open(logFile, 'w').close()
+        logFormat = '%(asctime)s %(levelname)s:%(message)s'
         formatter = log.Formatter(logFormat)
 
         # to file:

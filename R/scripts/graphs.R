@@ -1,11 +1,12 @@
-source('functions/params.R')
 source('functions/import_results.R')
+source('functions/params.R')
 source('functions/status_resources.R')
 source('functions/gantt_tasks.R')
 source('functions/pdf_gantt.R')
 
 # main functions ----------------------------------------------------------
 exp_directory <- 'C:/Users/pchtsp/Documents/borrar/dell_20190515_all/base/201905151456_2/'
+exp_directory <- '/home/pchtsp/Documents/projects/OPTIMA/data/template/Lot5 (3000s)/'
 exp_directory = PATHS[['experiments']] %>% paste0('201801131817/')
 # PATHS[['experiments']] %>% paste0('201802061201/')
 exp_directory = PATHS[['experiments']] %>% paste0('../hp_20181104/base/201811061411/')
@@ -46,7 +47,7 @@ m_period <-
     extract2('post_month') %>% 
     paste0("-01") %>% 
     as.POSIXct()
- 
+
 x_limits <- m_period %m+% c(months(30-6), months(60-6))
 
 rut <- get_ret(exp_directory, res)
@@ -93,7 +94,8 @@ states <- get_states(exp_directory)
 # when we pass period_num we convert periods to integers:
 states <- get_states(exp_directory, style_config = list(period_num=TRUE))
 resources <- states %>% distinct(group) %>% sample_n(10)
-states <- states %>% inner_join(resources) %>% mutate_at(vars(group), as.numeric) %>% arrange(group)
+# states <- states %>% inner_join(resources) %>% mutate_at(vars(group), as.numeric) %>% arrange(group)
+states <- states %>% inner_join(resources)  %>% arrange(group)
 dir_out <- '/home/pchtsp/Documents/projects/COR2019/gantts/'
 
 # -----------graph solution
@@ -109,7 +111,7 @@ expanded %>% bind_rows(states_zeros(expanded)) %>%
     write(file=dir_out %>% paste0('gantt_5aircraft_exp.tex'))
 
 
-    # -----------other options...
+# -----------other options...
 data <- tasks_gantt_data()
 data %>% states_to_pdfgantt(x_unit=1, y_unit=0.6) %>% write(file=dir_out %>% paste0('gantt.tex'))
 

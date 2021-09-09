@@ -10,13 +10,14 @@ filename = os.path.realpath(__file__)
 directory = os.path.dirname(filename)
 path_project = os.path.join(directory, '..', '..') + '/'
 path_root = os.path.join(path_project, '..') + '/'
-path_results = os.path.join(path_root, 'optima_results/')
+# path_results = os.path.join(path_root, 'optima_results/')
+path_results = os.path.join(path_root, 'optima_results_old/')
 
 
 PATHS = {
     'root': path_root
     ,'results': path_results
-    ,'experiments': path_results + "experiments/"
+    ,'experiments': '/home/pchtsp/Documents/projects/optima_results_old/experiments/'
     ,'img': path_project + "img/"
     ,'latex': path_project + "latex/"
     ,'data': path_project + "data/"
@@ -47,12 +48,11 @@ temp_path = \
         dt.datetime.now().strftime("%Y%m%d%H%M")
     ) + '/'
 
-_periods = 50
+_periods = 90
 _tasks = 1
-
 OPTIONS = {
-    'timeLimit': 600  # seconds
-    , 'solver': "HEUR_Graph.CPLEX_PY"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
+    'timeLimit': 60  # seconds
+    , 'solver': "CPLEX_PY"  # HEUR, CPO, CHOCO, CPLEX, GUROBI, CBC, HEUR_mf, HEUR_mf.CPLEX,
     # FixLP.CPLEX, FlexFixLP.CPLEX, ModelANOR.CPLEX, HEUR_Graph.CPLEX_PY
     , 'black_list': ['O8', 'O10', 'O6']  # only used to read from DGA Excel.
     , 'white_list': []  # only used to read from DGA Excel.
@@ -68,15 +68,15 @@ OPTIONS = {
     , 'input_template_path': temp_path + 'template_in.xlsx'
     , 'output_template_path': temp_path + 'template_out.xlsx'
     , 'exclude_aux': True
-    , 'multiprocess': None
-    , 'seed': 42
+    , 'multiprocess': 7
+    , 'solve_seed': 42
     # heuristic params:
     , 'num_change': [0.8, 0.1, 0.1]
-    , 'temperature': 0.5
+    , 'temperature': 1
     , 'prob_free_aircraft': 0.1
     , 'prob_free_periods': 0.5
     , 'cooling': 0.999
-    , 'debug': False
+    , 'debug': True
     , 'max_iters': 99999999
     , 'prob_delete_maint': 0.5
     , 'log_output': ['file', 'console']
@@ -85,20 +85,24 @@ OPTIONS = {
     # heuristic_graph params
     , 'multiproc_patterns': 0
     , 'multiproc_problems': False
-    , 'max_patterns_initial': 50
-    , 'max_iters_initial': 1
-    , 'timeLimit_initial': 60
+    , 'multiprocess_graph': 1
+    , 'initial_solution': 'short'  # ['MaintFirst', 'short', 'patterns', 'mip']
+    , 'multi_start': 1
+    , 'max_iters_initial': 99999
+    , 'max_patterns_initial': 1
+    , 'timeLimit_initial': 10
     , 'big_window': 0
-    , 'num_max': 20
+    , 'num_max': 200
     , 'timeLimit_cycle': 20
     , 'cache_graph_path': None
     , 'solution_store': False
     , 'subproblem': {
         'short': {
-            'max_candidates': 1
-            , 'min_window_size': 60
-            , 'max_window_size': 90
-            , 'weight': 100
+            'min_candidates': 1
+            ,'max_candidates': 1
+            , 'min_window_size': 95
+            , 'max_window_size': 95
+            , 'weight': 30
         }
         ,'mip': {
             'min_candidates': 30
@@ -108,19 +112,21 @@ OPTIONS = {
             , 'weight': 0
         }
         ,'classic_mip': {
-            'min_candidates': 30
-            , 'max_candidates': 60
-            , 'min_window_size': 20
+            'min_candidates': 10
+            , 'max_candidates': 10
+            , 'min_window_size': 40
             , 'max_window_size': 40
             , 'weight': 1
             , 'solver': 'CPLEX_PY'
+            , 'mip_start': True
             , 'timeLimit': 30
+            , 'gap': 0.02
         }
     }
     # MIP params:
     , 'noise_assignment': True
     , 'gap': 0
-    , 'gap_abs': 40
+    , 'gap_abs': 10
     , 'memory': None
     , 'slack_vars': "No"  # ['No', 'Yes', 3, 6]
     , 'integer': False  # force all vars to integer
@@ -143,9 +149,8 @@ OPTIONS = {
         'cuts': ['maints']
     }, 'reduce_2M_window': {
         'active': 0,
-        'window_size': 10,
-        'percent_add': 0,
-        'tolerance_mean': {'min': 5, 'max': -5}
+        'percent_add': 0.2,
+        'tolerance_mean': {'min': 0, 'max': 0}
     }, 'DetermCuts': 0
     # simulation params:
     , 'simulation': {
@@ -155,13 +160,13 @@ OPTIONS = {
         , 'max_used_time': 1000
         , 'max_elapsed_time': 60  # max time without maintenance
         , 'max_elapsed_time_2M': None
-        , 'elapsed_time_size': 10  # size of window to do next maintenance
+        , 'elapsed_time_size': 15  # size of window to do next maintenance
         , 'min_usage_period': 0 # minimum consumption per period
         , 'perc_capacity': 0.15
         , 'min_avail_percent': 0.1  # min percentage of available aircraft per type
         , 'min_avail_value': 1  # min num of available aircraft per type
         , 'min_hours_perc': 0.5  # min percentage of maximum possible hours of fleet type
-        , 'seed': 47
+        , 'seed': 8002
         # The following are fixed options, not arguments for the scenario:
         , 't_min_assign': [2, 3, 6]  # minimum assignment time for tasks
         , 'initial_unbalance': (-3, 3)
@@ -226,3 +231,4 @@ OPTIONS = {
     }
 
 }
+
