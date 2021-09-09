@@ -22,7 +22,8 @@ edit_file(base_file, output_file)
 
 # compare latex:
 # latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align|figure|table)[\w\d*@]*" manuscript_old.tex manuscript_new.tex > tmpdiff.tex
-# latexdiff manuscript_old.tex manuscript_new.tex > tmpdiff.tex
+# latexdiff --config="PICTUREENV=(?:picture|DIFnomarkup|align|figure|table)[\w\d*@]*" zzzzzzmanuscript_old.tex zzzzzzmanuscript_new.tex > tmpdiff.tex
+# pdflatex tmpdiff.tex
 # (replace quotes apparently and some equation).
 # replace
 # \"([ \_\\\*\w\{]+)\"

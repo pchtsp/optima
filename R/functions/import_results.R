@@ -138,7 +138,7 @@ months_in_range <- function(dates){
         data.table(Mois=.)
 }
 
-get_states <- function(exp_directory, style_config=list()){
+get_states <- function(exp_directory, style_config=list(), state_m='state_m'){
     # browser()
     solution_path = exp_directory %>% paste0('data_out.json')
     input_path = exp_directory %>% paste0('data_in.json')
@@ -210,16 +210,25 @@ get_states <- function(exp_directory, style_config=list()){
 
     # get maintenance assignments
     treat_maint <- function(res){
-        res %>% 
-            bind_rows(.id = "month") %>% 
-            gather(-month, key = 'state', value = 'ind') %>% 
-            filter(is.na(ind) %>% not) %>% 
-            select(month, state)
+        if (state_m=='state'){
+            # deprecation function
+            res %>% 
+                bind_rows(.id = "month") %>% 
+                gather(key = 'month', value = 'state')
+            
+        } else {
+            # normal procedure
+            res %>% 
+                bind_rows(.id = "month") %>% 
+                gather(-month, key = 'state', value = 'ind') %>% 
+                filter(is.na(ind) %>% not) %>% 
+                select(month, state)
+        }
     }
 
     states <- 
         solution %>% 
-        extract2('state_m') %>% 
+        extract2(state_m) %>% 
         lapply(treat_maint) %>% 
         bind_rows(.id = "resource") %>% 
         filter(state %>% is.na %>% not) %>%
@@ -275,9 +284,9 @@ timevis_from_states <- function(states, max_resources=NULL, ...){
     timevis(states, groups= groups, options= config, ...)
 }
 
-print_solution <- function(exp_directory, max_resources=NULL, ...){
+print_solution <- function(exp_directory, max_resources=NULL, state_m='state_m', ...){
 
-    states <- get_states(exp_directory)
+    states <- get_states(exp_directory, state_m=state_m)
     
     timevis_from_states(states, max_resources=max_resources, ...)
 }

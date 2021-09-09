@@ -13,3 +13,6 @@ PySide2
 pyinstaller
 openpyxl
 Qt.py
+statsmodels
+click
+

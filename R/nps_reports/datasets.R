@@ -1,8 +1,11 @@
 library(reticulate)
 source('nps_reports/functions.R')
 
-get_python_module <- function(rel_path, name){
-    use_virtualenv('~/Documents/projects/OPTIMA/python/venv/', required = TRUE)
+get_python_module <- function(rel_path, name, path_to_python=NULL){
+    if (path_to_python %>% is.null){
+        path_to_python <- '~/Documents/projects/optima/python/venv/'
+    }
+    use_virtualenv(path_to_python, required = TRUE)
     # use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
     # c:\Anaconda3\envs\cvenv\Scripts\pip.exe install -r requirements
     py_discover_config()

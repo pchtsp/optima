@@ -97,7 +97,7 @@ class Batch(object):
                 return s
         return default
 
-    def get_logs(self, get_progress=False):
+    def get_logs(self, get_progress=False, solver=None):
         if self.logs is not None:
             return self.logs
 

@@ -159,14 +159,16 @@ def get_preprocessing(table):
 
 ############################ TEST:
 
-def statistics_experiment(experiment):
+def statistics_experiment(experiment, scenarios=None):
     # experiment = "clust1_20181121"
     # experiment = 'clust1_20181128'
-    table = rep.get_simulation_results(experiment)
-    boxplot_times(table, experiment)
-    boxplot_gaps(table, experiment)
-    # bars_no_int(table, experiment)
-    # bars_inf(table, experiment)
+    table = rep.get_simulation_results(experiment, scenarios=scenarios)
+    equiv = \
+        sd.SuperDict(numparalleltasks_2 = 30, numparalleltasks_3 = 45, numparalleltasks_4 = 60).\
+            vapply(lambda v: "$|I|={}$".format(v))
+    table.case = table.scenario.map(equiv).fillna(table.case)
+    # boxplot_times(table, experiment)
+    # boxplot_gaps(table, experiment)
     summary_to_latex(table, experiment)
 
 def cut_comparison():
@@ -228,14 +230,14 @@ def cuts_relaxation_comparison():
     boxplot_gaps(table_n, experiment)
 
 
-def statistics_relaxations(experiment, write=True):
+def statistics_relaxations(experiment, write=True, scenarios=None):
     # experiment = "clust1_20181121"
     cols_rename = {
         'index': 'id', 'best_solution': 'best_solution',
         'best_bound': 'bound', 'sol_code': 'sol_code', 'status_code': 'status_code',
         'nodes': 'nodes', 'first_relaxed': 'first_relaxed', 'cut_info': 'cut_info'
     }
-    table = rep.get_simulation_results(experiment, cols_rename)
+    table = rep.get_simulation_results(experiment, cols_rename, scenarios=scenarios)
     table_cuts = table.cut_info.apply(pd.Series)
     table_cuts.columns = ['cuts_' + str(i) for i in table_cuts.columns]
     table_n =\

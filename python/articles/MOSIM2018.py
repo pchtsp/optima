@@ -461,7 +461,7 @@ def summary_to_latex(experiment, table, path):
     eqs.update({'no-int': 'no_int', 'non-zero': 'non_0', 'case': 'scenario'})
     t4 = table  >> \
          dp.ungroup() >>\
-         dp.arrange(X.t_avg, X.g_avg) >>\
+         dp.arrange(X.scenario) >>\
          dp.select(X.case, X.t_min, X.t_avg,
                    # X.t_max,
                    X.non_0,
