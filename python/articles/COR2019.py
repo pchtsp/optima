@@ -10,7 +10,7 @@ import strings.names as na
 import orloge as ol
 import pytups.superdict as sd
 
-path = '/home/pchtsp/Documents/projects/COR2019/'
+path = '/home/pchtsp/Documents/projects/research/COR2019/'
 
 
 def boxplot_times(table, experiment):
@@ -282,13 +282,16 @@ def statistics_relaxations(experiment, write=True, scenarios=None):
 
 def remake_boxplots():
     experiment = 'clust1_20190322'
-    path_exps = '/home/pchtsp/Documents/projects/OPTIMA_documents/results/{}/'.format(experiment)
+    path_exps = '/home/pchtsp/f_gdrive/Nextcloud/OPTIMA_documents/results/{}/'.format(experiment)
     scenarios = ['base', 'numparalleltasks_2', 'numparalleltasks_3', 'numparalleltasks_4',
-                 'numperiod_120', 'numperiod_140']
+                 'numperiod_120', 'numperiod_140', 'pricerutend_1']
+    scenarios = ['base',  'minusageperiod_20',  'maxelapsedtime_80', 'maxusedtime_1200', 'minhoursperc_0.7',
+     'minhoursperc_0.3',  'minusageperiod_15', 'maxusedtime_800', 'elapsedtimesize_40',
+     'elapsedtimesize_20', 'perccapacity_0.2', 'minusageperiod_5', 'maxelapsedtime_40']
     table = rep.get_simulation_results(experiment='', scenarios=scenarios, path_exps=path_exps)
     equiv = \
         sd.SuperDict(numparalleltasks_2 = 30, numparalleltasks_3 = 45, numparalleltasks_4 = 60).\
-            vapply(lambda v: "$| I |={}$".format(v))
+            vapply(lambda v: "$|I|={}$".format(v))
     table.case = table.scenario.map(equiv).fillna(table.case)
     table.drop(['matrix'], axis=1, inplace=True)
     table.groupby(['scenario', 'sol_code']).sol_code.count()
@@ -309,15 +312,24 @@ def remake_boxplots():
 
 
 if __name__ == "__main__":
-    remake_boxplots()
+    # remake_boxplots()
     ####################
     # Scenario analysis
     ####################
-    # experiments = ["clust1_20181121"]
-    # experiments = ['clust_params2_cplex', 'clust_params1_cplex']
-    # for experiment in experiments:
-    #     # statistics_experiment(experiment)
-    #     statistics_relaxations(experiment)
+    # import os
+    remake_boxplots()
+    exit()
+    rep.path_results = '/home/pchtsp/f_gdrive/Nextcloud/OPTIMA_documents/results/'
+    experiment = 'clust1_20190322'
+    scenarios_groups = [['base',  'minusageperiod_20',  'maxelapsedtime_80', 'maxusedtime_1200', 'minhoursperc_0.7',
+     'minhoursperc_0.3',  'minusageperiod_15', 'maxusedtime_800', 'elapsedtimesize_40',
+     'elapsedtimesize_20', 'perccapacity_0.2', 'minusageperiod_5', 'maxelapsedtime_40'],
+    ['base', 'numparalleltasks_2',  'numparalleltasks_3', 'numparalleltasks_4', 'numperiod_120',
+     'numperiod_140','pricerutend_1']]
+    statistics_experiment(experiment, scenarios=scenarios_groups[0])
+    # for scenarios in scenarios_groups:
+        # statistics_experiment(experiment, scenarios=scenarios)
+        # statistics_relaxations(experiment, scenarios=scenarios)
     # cuts_relaxation_comparison()
 
 

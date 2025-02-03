@@ -108,11 +108,6 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         self.big_mip.set_solution(self.solution.data)
         self.big_mip.fill_initial_solution()
-        # self.big_mip.fix_variables(['start_T', 'start_M'])
-        # for v in self.big_mip.start_M.values():
-        #     v.bounds(0, 1)
-        # for v in self.big_mip.start_T.values():
-        #     v.bounds(0, 1)
         _shift = self.instance.shift_period
         m_to_fix, m_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_M, 1, 2, [0], 'm', _shift)
         t_to_fix, t_constraints = mdl_f.big_mip_fix_variables(change, self.big_mip.start_T, 2, 3, [0, 1], 't', _shift)
@@ -129,24 +124,12 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
 
         config = conf.Config(options)
         result = config.solve_model(self.big_mip.model)
-        # self.big_mip.model.writeLP(filename=options['path'] + 'formulation.lp')
-        # self.callSolver(lp)
-        # self.buildSolverModel(lp)
-        # lp.solverModel.variables.add(obj=obj, lb=lb, ub=ub, types=ctype,
-        #                        names=colnames)
 
-        # TODO: use model.solverModel
         # unfix everything!
         for v in to_fix:
             v.bounds(0, 1)
         for c in conts:
             self.big_mip.model.constraints.pop(c[1], None)
-        # self.big_mip.start_T.vapply(pl.value).vfilter(lambda v: v > 0.5)
-        # self.big_mip.start_M.vapply(pl.value).vfilter(lambda v: v > 0.5)
-        # sd.SuperDict(self.big_mip.slack_vts).vapply(pl.value).vfilter(lambda v: v)
-        # sd.SuperDict(self.big_mip.slack_ts).vapply(pl.value).vfilter(lambda v: v)
-        # sd.SuperDict(self.big_mip.slack_kts_h).vapply(pl.value).vfilter(lambda v: v)
-        # self.check_solution()
         if result != 1:
             log.error("No solution was found in mip")
             return self.solution
@@ -428,6 +411,7 @@ class GraphOriented(heur.GreedyByMission, mdl.Model):
         """
         rut = self.get_remainingtime(resource, node2.period_end, 'rut', maint=self.M)
         if rut is None:
+            # it could be we are at the dummy node at the end.
             # it could be we are at the dummy node at the end.
             # here, we would not care about filtering
             return None

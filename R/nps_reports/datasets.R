@@ -3,7 +3,7 @@ source('nps_reports/functions.R')
 
 get_python_module <- function(rel_path, name, path_to_python=NULL){
     if (path_to_python %>% is.null){
-        path_to_python <- '~/Documents/projects/optima/python/venv/'
+        path_to_python <- '~/Documents/projects/research/optima/python/venv/'
     }
     use_virtualenv(path_to_python, required = TRUE)
     # use_condaenv('cvenv', conda='c:/Anaconda3/Scripts/conda.exe', required=TRUE)
@@ -13,7 +13,9 @@ get_python_module <- function(rel_path, name, path_to_python=NULL){
     opt_path = ''
     python_path <- '%s/%s../python/' %>% sprintf(getwd(), opt_path)
     sysp$path <- c(python_path, sysp$path)
+    print(sysp$path)
     scripts_path = paste0(python_path, rel_path)
+    print(scripts_path)
     compare_sto <- import_from_path(name, path=scripts_path)
     compare_sto
 }
