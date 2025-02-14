@@ -98,9 +98,9 @@ class Config(object):
         if self.solver == "GUROBI":
             solver = pl.GUROBI_CMD(options=self.config_gurobi(), keepFiles=self.keepfiles)
         if self.solver == "CPLEX":
-            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=self.keepfiles, mip_start=self.mip_start)
+            solver = pl.CPLEX_CMD(options=self.config_cplex(), keepFiles=self.keepfiles, warmStart=self.mip_start)
         if self.solver == "CPLEX_PY":
-            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path, msg=1, mip_start=self.mip_start)
+            solver = pl.CPLEX_PY(timeLimit=self.timeLimit, epgap=self.gap, logfilename=self.log_path, msg=1, warmStart=self.mip_start)
         if self.solver == "CHOCO":
             solver = pl.PULP_CHOCO_CMD(options=self.config_choco(), keepFiles=self.keepfiles, msg=0)
         if self.solver == "MIPCL":
@@ -117,10 +117,10 @@ class Config(object):
         if self.solver == "CBC":
             if self.solver_path:
                 solver = pl.COIN_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
-                                     mip_start=self.mip_start, path=self.solver_path)
+                                     warmStart=self.mip_start, path=self.solver_path)
             else:
                 solver = pl.PULP_CBC_CMD(options=self.config_cbc(), msg=True, keepFiles=self.keepfiles,
-                                         mip_start=self.mip_start)
+                                         warmStart=self.mip_start)
                 # workaround to use temmp files in CBC.
                 solver.tmpDir = os.environ.get("TEMP", solver.tmpDir)
             with tempfile.TemporaryFile() as tmp_output:

@@ -1,5 +1,5 @@
 import sys
-from PySide2 import QtWidgets, QtCore, QtGui
+from PySide6 import QtWidgets, QtCore, QtGui
 
 import os
 import logging
@@ -391,7 +391,8 @@ if __name__ == "__main__":
     # Migration to pyside2:
     # https://www.learnpyqt.com/blog/pyqt5-vs-pyside2/
     # pyside2-uic desktop_app/gui.ui -o desktop_app/gui.py
-    MainWindow_EXCEC({})
+    from package.params import OPTIONS
+    MainWindow_EXCEC(OPTIONS)
 
 
 

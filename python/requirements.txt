@@ -8,11 +8,11 @@ plotly
 matplotlib
 arrow
 tabulate
-sklearn
-PySide2
+PySide6
+scikit-learn
 pyinstaller
 openpyxl
 Qt.py
 statsmodels
 click
-
+numpy<2

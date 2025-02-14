@@ -88,17 +88,17 @@ class Model(exp.Experiment):
         # we save all variables as part in the object.
         # binary:
         # mission assignment
-        start_T = pl.LpVariable.dicts(name="start_T", indexs=l['avtt2'], lowBound=0, upBound=1,
+        start_T = pl.LpVariable.dicts(name="start_T", indices=l['avtt2'], lowBound=0, upBound=1,
                                                      cat=normally_integer)
         self.start_T = start_T = sd.SuperDict(start_T)
         # maintenance cycle
-        start_M = pl.LpVariable.dicts(name="start_M", indexs=l['att_maints'], lowBound=0, upBound=1,
+        start_M = pl.LpVariable.dicts(name="start_M", indices=l['att_maints'], lowBound=0, upBound=1,
                                                      cat=normally_integer)
         self.start_M = start_M = sd.SuperDict(start_M)
 
         # numeric:
         # remaining flight hours per period
-        self.rut = rut = pl.LpVariable.dicts(name="rut", indexs=l['at0'], lowBound=0, upBound=ub['rut'], cat=normally_continuous)
+        self.rut = rut = pl.LpVariable.dicts(name="rut", indices=l['at0'], lowBound=0, upBound=ub['rut'], cat=normally_continuous)
         p_s = {s: p for p, s in enumerate(l['slots'])}
 
         # slack variables:
@@ -140,14 +140,14 @@ class Model(exp.Experiment):
 
         slack_p = options.get('slack_vars')
         if slack_p == 'Yes':
-            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=l['vt'], cat=normally_continuous)
-            slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indexs=l['at'], cat=normally_continuous)
+            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indices=l['vt'], cat=normally_continuous)
+            slack_at = pl.LpVariable.dicts(name="slack_at", lowBound=0, indices=l['at'], cat=normally_continuous)
         elif slack_p is int:
             # first X months only
             first_months = self.instance.get_next_periods(first_period, slack_p)
             _vt = [(v, t) for v, t in l['vt'] if t in first_months]
             _kt = [(k, t) for k, t in l['kt'] if t in first_months]
-            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indexs=_vt, cat=normally_continuous)
+            slack_vt = pl.LpVariable.dicts(name="slack_vt", lowBound=0, indices=_vt, cat=normally_continuous)
 
         if options.get('mip_start') and self.solution is not None:
             self.fill_initial_solution()
