@@ -84,24 +84,24 @@ class ModelMissions(exp.Experiment):
         # VARIABLES
         self.task = \
             pl.LpVariable.dicts(name="task",
-                                indexs=res_task,
+                                indices=res_task,
                                 lowBound=0, upBound=1,
                                 cat=pl.LpInteger)
         self.task = sd.SuperDict.from_dict(self.task)
-        self.reduction = pl.LpVariable.dicts('reduction', indexs=rem_rut_cycle, lowBound=0)
+        self.reduction = pl.LpVariable.dicts('reduction', indices=rem_rut_cycle, lowBound=0)
         self.reduction = sd.SuperDict.from_dict(self.reduction)
 
         # penalty for over-assigning missions to same aircraft
         slots = [s for s in range(3)]
         _options = [(r, s) for r in resources for s in slots]
-        self.num_missions_range = pl.LpVariable.dicts('num_missions_range', indexs=_options, lowBound=0, upBound=1)
+        self.num_missions_range = pl.LpVariable.dicts('num_missions_range', indices=_options, lowBound=0, upBound=1)
         self.num_missions_range = sd.SuperDict.from_dict(self.num_missions_range)
         for r in resources:
             self.num_missions_range[r, slots[-1]].upBound = None
         excess_cost = {s: (s+1)**2 - 1 for s in slots}
 
         # penalty for over-capacity:
-        self.excess_capacity = pl.LpVariable.dict('excess_capacity', indexs=periods, lowBound=0, upBound=None)
+        self.excess_capacity = pl.LpVariable.dict('excess_capacity', indices=periods, lowBound=0, upBound=None)
         self.excess_capacity = sd.SuperDict.from_dict(self.excess_capacity)
 
         self.model = pl.LpProblem("MFMP_v0004", pl.LpMinimize)
@@ -127,12 +127,12 @@ class ModelMissions(exp.Experiment):
         # number of resources per mission
         res_task_v = res_task.to_dict(0)
         task_num_resource = self.instance.get_tasks('num_resource')
-        res_per_task = res_task_v.apply(lambda k, v: pl.lpSum(self.task[_v, k] for _v in v))
+        res_per_task = res_task_v.kvapply(lambda k, v: pl.lpSum(self.task[_v, k] for _v in v))
         for k, v in res_per_task.items():
             self.model += v == task_num_resource[k]
 
         # number of missions per resource
-        task_per_resource = res_task.to_dict(1).apply(lambda k, v: pl.lpSum(self.task[k, _v] for _v in v))
+        task_per_resource = res_task.to_dict(1).kvapply(lambda k, v: pl.lpSum(self.task[k, _v] for _v in v))
         excess = self.num_missions_range.to_tuplist().take([0, 2]).to_dict(1).vapply(pl.lpSum)
         for r, v in task_per_resource.items():
             self.model += v == excess[r]

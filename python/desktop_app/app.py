@@ -66,7 +66,7 @@ class MainWindow_EXCEC():
         self.ui.log_level.currentIndexChanged.connect(self.update_options)
 
         MainWindow.show()
-        sys.exit(self.app.exec_())
+        sys.exit(self.app.exec())
 
     def update_options(self):
         try:
@@ -149,7 +149,7 @@ class MainWindow_EXCEC():
         msg.setText(text)
         # msg.setInformativeText("No template_in file found in directory.")
         msg.setWindowTitle(title)
-        retval = msg.exec_()
+        retval = msg.exec()
         return
 
     # def activate_label(self, label, set_active=True):
@@ -195,7 +195,7 @@ class MainWindow_EXCEC():
         view.resize(800, 500)
         loop = QtCore.QEventLoop()
         view.destroyed.connect(loop.quit)
-        loop.exec_()
+        loop.exec()
         return
 
 

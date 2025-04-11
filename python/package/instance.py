@@ -604,7 +604,7 @@ class Instance(object):
         aircraft_needs = self.get_total_period_needs()
         capacities['2'] =\
             capacities2.\
-            apply(lambda k, v: (fleet_size-aircraft_needs[k])/fleet_size*v).\
+            kvapply(lambda k, v: (fleet_size-aircraft_needs[k])/fleet_size*v).\
             vapply(lambda v: math.ceil(v))
         return capacities.to_dictup()
 
